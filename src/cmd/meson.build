@@ -1,0 +1,2 @@
+subdir('client')
+subdir('server')
