@@ -12,6 +12,8 @@ func _() {
 	_ = x[GAMEPAD_BUTTON_EAST-1]
 	_ = x[GAMEPAD_BUTTON_WEST-2]
 	_ = x[GAMEPAD_BUTTON_NORTH-3]
+	_ = x[GAMEPAD_BUTTON_BACK-4]
+	_ = x[GAMEPAD_BUTTON_START-6]
 	_ = x[GAMEPAD_BUTTON_LEFT_STICK-7]
 	_ = x[GAMEPAD_BUTTON_RIGHT_STICK-8]
 	_ = x[GAMEPAD_BUTTON_LEFT_SHOULDER-9]
@@ -27,23 +29,23 @@ func _() {
 }
 
 const (
-	_GamepadButton_name_0 = "SOUTHEASTWESTNORTH"
-	_GamepadButton_name_1 = "LEFT_STICKRIGHT_STICKLEFT_SHOULDERRIGHT_SHOULDERDPAD_UPDPAD_DOWNDPAD_LEFTDPAD_RIGHT"
+	_GamepadButton_name_0 = "SOUTHEASTWESTNORTHBACK"
+	_GamepadButton_name_1 = "STARTLEFT_STICKRIGHT_STICKLEFT_SHOULDERRIGHT_SHOULDERDPAD_UPDPAD_DOWNDPAD_LEFTDPAD_RIGHT"
 	_GamepadButton_name_2 = "RIGHT_PADDLE1LEFT_PADDLE1RIGHT_PADDLE2LEFT_PADDLE2"
 )
 
 var (
-	_GamepadButton_index_0 = [...]uint8{0, 5, 9, 13, 18}
-	_GamepadButton_index_1 = [...]uint8{0, 10, 21, 34, 48, 55, 64, 73, 83}
+	_GamepadButton_index_0 = [...]uint8{0, 5, 9, 13, 18, 22}
+	_GamepadButton_index_1 = [...]uint8{0, 5, 15, 26, 39, 53, 60, 69, 78, 88}
 	_GamepadButton_index_2 = [...]uint8{0, 13, 25, 38, 50}
 )
 
 func (i GamepadButton) String() string {
 	switch {
-	case i <= 3:
+	case i <= 4:
 		return _GamepadButton_name_0[_GamepadButton_index_0[i]:_GamepadButton_index_0[i+1]]
-	case 7 <= i && i <= 14:
-		i -= 7
+	case 6 <= i && i <= 14:
+		i -= 6
 		return _GamepadButton_name_1[_GamepadButton_index_1[i]:_GamepadButton_index_1[i+1]]
 	case 16 <= i && i <= 19:
 		i -= 16
