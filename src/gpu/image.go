@@ -92,8 +92,6 @@ func (usage ImageUsage) vkImageUsageFlags(format Format) vk.ImageUsageFlags {
 	return vkUsage
 }
 
-// TODO: do order layer before mip level throughout our api
-
 // TODO: do we need any other params here?
 type ImageConfig struct {
 	Dim       ImageDim
