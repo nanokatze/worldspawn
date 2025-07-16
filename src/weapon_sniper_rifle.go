@@ -63,12 +63,12 @@ var _ WeaponUpdateInterface = WeaponSniperRifle{}
 
 // TODO: change to value receiver? we might want the network differ to assume
 // that the state only changed if it's different by value comparison.
-func (weapon WeaponSniperRifle) WeaponUpdateSubtick(w *World, id, playerID ecs.ID, now Time, info *UpdateInfo) (recoil geometry.Vec3) {
+func (weapon WeaponSniperRifle) WeaponUpdateSubtick(w *World, weaponID, operatorID ecs.ID, now Time, info *UpdateInfo) (recoil geometry.Vec3) {
 	if w.Now < weapon.NextAttack {
 		return
 	}
 
-	aim, _ := w.WeaponAim.Load(id)
+	aim, _ := w.WeaponAim.Load(weaponID)
 
 	switch {
 	case !weapon.Charging && aim.Buttons&(1<<ButtonAttack) != 0:
@@ -81,7 +81,7 @@ func (weapon WeaponSniperRifle) WeaponUpdateSubtick(w *World, id, playerID ecs.I
 
 		chargeImpactMultiplier := 1 + 2*charge
 
-		w.SoundEffect.Store(id, SoundEffect{
+		w.SoundEffect.Store(weaponID, SoundEffect{
 			Effect:   weapon.ShootSound,
 			PlayTime: w.Now,
 		})
@@ -99,16 +99,16 @@ func (weapon WeaponSniperRifle) WeaponUpdateSubtick(w *World, id, playerID ecs.I
 		//
 		// TODO: plumb this through result so that we don't have to apply
 		// knockback directly, but can delegate it to the player movement code
-		playerVelocity, _ := w.Velocity.Load(playerID)
+		playerVelocity, _ := w.Velocity.Load(operatorID)
 		playerVelocity.Linear = playerVelocity.Linear.Add(aim.ShootRotation.Rotate(geometry.Vec3{0, selfKnockback, 0}))
-		w.Velocity.Store(playerID, playerVelocity)
+		w.Velocity.Store(operatorID, playerVelocity)
 
 		weapon.Charging = false
 		weapon.NextAttack = w.Now.Add(weapon.CycleDuration)
 
 	case weapon.Charging && w.Now.Sub(weapon.ChargeBeginTime) >= weapon.ChargeDuration && !weapon.NotifiedChargeReady:
 		if weapon.ChargeReadySound != "" {
-			w.SoundEffect.Store(id, SoundEffect{
+			w.SoundEffect.Store(weaponID, SoundEffect{
 				Effect:   weapon.ChargeReadySound,
 				PlayTime: w.Now,
 			})
@@ -117,6 +117,6 @@ func (weapon WeaponSniperRifle) WeaponUpdateSubtick(w *World, id, playerID ecs.I
 		weapon.NotifiedChargeReady = true
 	}
 
-	w.Entity.Store(id, weapon)
+	w.Entity.Store(weaponID, weapon)
 	return
 }

@@ -34,7 +34,7 @@ func init() {
 
 var _ WeaponDeployedInterface = WeaponGenericProjectileLauncher{}
 
-func (weapon WeaponGenericProjectileLauncher) WeaponDeployed(w *World, id, playerID ecs.ID, now Time, Δt time.Duration) {
+func (weapon WeaponGenericProjectileLauncher) WeaponDeployed(w *World, weaponID, operatorID ecs.ID, now Time, Δt time.Duration) {
 	weapon.NextAttack = now.Add(weapon.DeployDuration)
 
 	if weapon.DeployAnimation != "" {
@@ -46,14 +46,14 @@ func (weapon WeaponGenericProjectileLauncher) WeaponDeployed(w *World, id, playe
 			panic(err)
 		}
 
-		w.Animation.Store(id, Animation{
+		w.Animation.Store(weaponID, Animation{
 			Armature: armature,
 			Action:   weapon.DeployAnimation,
 			PlayTime: now,
 		})
 	}
 
-	w.Entity.Store(id, weapon)
+	w.Entity.Store(weaponID, weapon)
 }
 
 var _ WeaponUpdateInterface = WeaponGenericProjectileLauncher{}

@@ -9,11 +9,11 @@ import (
 
 type WeaponUpdateInterface interface {
 	// TODO: return a more elaborate recoil moment or remove recoil altogether?
-	WeaponUpdateSubtick(w *World, id, playerID ecs.ID, now Time, info *UpdateInfo) (recoil geometry.Vec3)
+	WeaponUpdateSubtick(w *World, weaponID, operatorID ecs.ID, now Time, info *UpdateInfo) (recoil geometry.Vec3)
 }
 
 type WeaponDeployedInterface interface {
-	WeaponDeployed(w *World, id, playerID ecs.ID, now Time, Δt time.Duration)
+	WeaponDeployed(w *World, weaponID, operatorID ecs.ID, now Time, Δt time.Duration)
 }
 
 // TODO: we need a more general mechanism
