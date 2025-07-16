@@ -56,7 +56,7 @@ func (weapon WeaponGenericProjectileLauncher) WeaponDeployed(w *World, weaponID,
 	w.Entity.Store(weaponID, weapon)
 }
 
-var _ WeaponUpdateInterface = WeaponGenericProjectileLauncher{}
+var _ Weapon = WeaponGenericProjectileLauncher{}
 
 func (weapon WeaponGenericProjectileLauncher) WeaponUpdateSubtick(w *World, id, playerID ecs.ID, now Time, info *UpdateInfo) (recoil geometry.Vec3) {
 	if w.Now < weapon.NextAttack {

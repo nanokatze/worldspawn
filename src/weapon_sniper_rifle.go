@@ -59,7 +59,7 @@ func init() {
 	registerEntity[WeaponSniperRifle]()
 }
 
-var _ WeaponUpdateInterface = WeaponSniperRifle{}
+var _ Weapon = WeaponSniperRifle{}
 
 // TODO: change to value receiver? we might want the network differ to assume
 // that the state only changed if it's different by value comparison.

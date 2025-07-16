@@ -7,7 +7,7 @@ import (
 	"worldspawn/geometry-go"
 )
 
-type WeaponUpdateInterface interface {
+type Weapon interface {
 	// TODO: return a more elaborate recoil moment or remove recoil altogether?
 	WeaponUpdateSubtick(w *World, weaponID, operatorID ecs.ID, now Time, info *UpdateInfo) (recoil geometry.Vec3)
 }

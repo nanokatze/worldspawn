@@ -12,7 +12,7 @@ func init() {
 	registerEntity[WeaponGenericMelee]()
 }
 
-var _ WeaponUpdateInterface = WeaponGenericMelee{}
+var _ Weapon = WeaponGenericMelee{}
 
 func (weapon WeaponGenericMelee) WeaponUpdateSubtick(w *World, weaponID, operatorID ecs.ID, now Time, info *UpdateInfo) (recoil geometry.Vec3) {
 	w.Entity.Store(weaponID, weapon)

@@ -110,7 +110,7 @@ func (entity FPSCharacter) CharacterUpdate(w *World, id ecs.ID, cmd TimestampedI
 			Buttons: entity.Buttons,
 		})
 
-		if weapon, ok := loadEntity[WeaponUpdateInterface](w, entity.ActiveWeapon); ok {
+		if weapon, ok := loadEntity[Weapon](w, entity.ActiveWeapon); ok {
 			recoil := weapon.WeaponUpdateSubtick(w, entity.ActiveWeapon, id, now, info)
 
 			if recoil.LengthSq() > 0 {
