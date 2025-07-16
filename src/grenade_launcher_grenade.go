@@ -18,7 +18,7 @@ func init() {
 	registerEntity[GrenadeLauncherGrenade]()
 }
 
-func (entity GrenadeLauncherGrenade) UpdateAfterPhysics(w *World, id ecs.ID, info *UpdateInfo) {
+func (entity GrenadeLauncherGrenade) UpdateAfterPhysics(w *World, id ecs.ID, info *UpdateParams) {
 	spawnTime, _ := w.SpawnTime.Load(id)
 
 	if w.Now < spawnTime.Add(entity.Fuse) {

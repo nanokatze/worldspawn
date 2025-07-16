@@ -58,7 +58,7 @@ func (weapon WeaponGenericProjectileLauncher) WeaponDeployed(w *World, weaponID,
 
 var _ Weapon = WeaponGenericProjectileLauncher{}
 
-func (weapon WeaponGenericProjectileLauncher) WeaponUpdateSubtick(w *World, id, playerID ecs.ID, now Time, info *UpdateInfo) (recoil geometry.Vec3) {
+func (weapon WeaponGenericProjectileLauncher) WeaponUpdateSubtick(w *World, id, playerID ecs.ID, now Time, info *UpdateParams) (recoil geometry.Vec3) {
 	if w.Now < weapon.NextAttack {
 		return
 	}

@@ -7,5 +7,5 @@ import (
 // TODO: rename this to something like "accepts input packets"
 type Character interface {
 	// TODO: this should also take subtick now
-	CharacterUpdate(w *World, id ecs.ID, cmd TimestampedInputCmd, info *UpdateInfo)
+	CharacterUpdate(w *World, id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams)
 }

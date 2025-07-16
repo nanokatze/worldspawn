@@ -47,7 +47,7 @@ func init() {
 
 var _ Character = FPSCharacter{}
 
-func (entity FPSCharacter) CharacterUpdate(w *World, id ecs.ID, cmd TimestampedInputCmd, info *UpdateInfo) {
+func (entity FPSCharacter) CharacterUpdate(w *World, id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
 	positionRotation, _ := w.TranslationRotation.Load(id)
 	inventory, _ := w.ArmedCharacter.Load(id)
 
@@ -83,7 +83,7 @@ func (entity FPSCharacter) CharacterUpdate(w *World, id ecs.ID, cmd TimestampedI
 	}
 
 	if oldActiveWeapon != entity.ActiveWeapon {
-		weapon, ok := loadEntity[WeaponDeployedInterface](w, entity.ActiveWeapon)
+		weapon, ok := assertEntity[WeaponDeployedInterface](w, entity.ActiveWeapon)
 		if ok {
 			weapon.WeaponDeployed(w, entity.ActiveWeapon, id, now, info.Δt)
 		}
@@ -110,7 +110,7 @@ func (entity FPSCharacter) CharacterUpdate(w *World, id ecs.ID, cmd TimestampedI
 			Buttons: entity.Buttons,
 		})
 
-		if weapon, ok := loadEntity[Weapon](w, entity.ActiveWeapon); ok {
+		if weapon, ok := assertEntity[Weapon](w, entity.ActiveWeapon); ok {
 			recoil := weapon.WeaponUpdateSubtick(w, entity.ActiveWeapon, id, now, info)
 
 			if recoil.LengthSq() > 0 {
@@ -130,7 +130,7 @@ func (entity FPSCharacter) CharacterUpdate(w *World, id ecs.ID, cmd TimestampedI
 
 var _ UpdateBeforePhysics = FPSCharacter{}
 
-func (fpsCharacter FPSCharacter) UpdateBeforePhysics(w *World, id ecs.ID, info *UpdateInfo) {
+func (fpsCharacter FPSCharacter) UpdateBeforePhysics(w *World, id ecs.ID, info *UpdateParams) {
 	positionRotation, _ := w.TranslationRotation.Load(id)
 	velocity, _ := w.Velocity.Load(id)
 

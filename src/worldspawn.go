@@ -44,9 +44,10 @@ const (
 	Speculating UpdateFlags = 1 << iota
 )
 
-type UpdateInfo struct {
+type UpdateParams struct {
 	Δt          time.Duration
 	Speculating bool
+	Logger      *slog.Logger
 }
 
 var Data = os.DirFS("data/cooked") // TODO: this should be set per-World (which has implications for caching, etc)
@@ -255,18 +256,18 @@ func (w *World) DeleteEntityImmediately(id ecs.ID) {
 
 // TODO: rename to User/Player/etc Input
 // TODO: does Δt make any sense here?
-func (w *World) HandleInput(id ecs.ID, cmd TimestampedInputCmd, info *UpdateInfo, logger *slog.Logger) {
-	if entity, ok := loadEntity[Character](w, id); ok {
+func (w *World) HandleInput(id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
+	if entity, ok := assertEntity[Character](w, id); ok {
 		entity.CharacterUpdate(w, id, cmd, info)
 	} else {
-		logger.Warn(fmt.Sprintf("entity does not exist or does not implement %s", reflect.TypeFor[Character]().Name()), "id", id)
+		info.Logger.Warn(fmt.Sprintf("entity does not exist or does not implement %s", reflect.TypeFor[Character]().Name()), "id", id)
 	}
 }
 
 // TODO: parallel for in blender for example specifies bulk number for tasks so
 // we might want to do the same.
 
-func (w *World) Update(info *UpdateInfo, logger *slog.Logger) {
+func (w *World) Update(info *UpdateParams) {
 	if w.Now == 0 {
 		panic("Now must never be zero")
 	}
@@ -473,17 +474,11 @@ func ClearTransientComponents(w *World) {
 	w.ContactEvents.Clear()
 }
 
-// TODO: rename this helper to expectEntity or something
-func loadEntity[T any](w *World, id ecs.ID) (T, bool) {
-	entity, ok := w.Entity.Load(id)
-	if !ok {
-		return *new(T), false
-	}
-
+func assertEntity[T any](w *World, id ecs.ID) (T, bool) {
+	entity, _ := w.Entity.Load(id)
 	entityT, ok := entity.(T)
 	if !ok {
 		return *new(T), false
 	}
-
 	return entityT, true
 }

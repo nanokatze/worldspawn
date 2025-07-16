@@ -313,7 +313,7 @@ func (s *Client) HandleInput(cmds []worldspawn.TimestampedInputCmd) {
 	s.inputCmds = append(s.inputCmds, cmds...)
 
 	for _, cmd := range cmds {
-		s.world.HandleInput(s.player, cmd, &worldspawn.UpdateInfo{Δt: s.Δt, Speculating: true}, slog.Default())
+		s.world.HandleInput(s.player, cmd, &worldspawn.UpdateParams{Δt: s.Δt, Speculating: true, Logger: slog.Default()})
 	}
 	s.renderer.Subtick(s.world, s.player)
 }
@@ -338,7 +338,7 @@ func (s *Client) tick(Δt time.Duration) {
 		msg.Next()
 	}
 
-	s.world.Update(&worldspawn.UpdateInfo{Δt: Δt, Speculating: true}, slog.Default())
+	s.world.Update(&worldspawn.UpdateParams{Δt: Δt, Speculating: true, Logger: slog.Default()})
 
 	s.renderer.Tick(s.world, s.player, s.world.Now, s.world.Now.Add(Δt), Δt)
 
