@@ -38,7 +38,7 @@ import (
 	"worldspawn/sdl"
 )
 
-// TODO: make a -data flag
+var dataDir = flag.String("data", "data/cooked", "a")
 
 // TODO: should be moved somewhere.
 //
@@ -155,6 +155,8 @@ func main() {
 	raddr := flag.Arg(0)
 
 	// TODO: should newRemoteSession do the logging instead? Yes.
+
+	worldspawn.Data = os.DirFS(*dataDir)
 
 	session, err := newClient(clientRenderer, raddr)
 	if err != nil {

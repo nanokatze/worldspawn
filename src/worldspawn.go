@@ -2,8 +2,8 @@ package worldspawn
 
 import (
 	"fmt"
+	"io/fs"
 	"log/slog"
-	"os"
 	"reflect"
 	"time"
 
@@ -50,7 +50,8 @@ type UpdateParams struct {
 	Logger      *slog.Logger
 }
 
-var Data = os.DirFS("data/cooked") // TODO: this should be set per-World (which has implications for caching, etc)
+// TODO: move this into the World object
+var Data fs.FS
 
 // TODO: something to let us control what gets sent to a client.
 

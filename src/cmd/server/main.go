@@ -16,6 +16,7 @@ import (
 	"log"
 	"log/slog"
 	rand "math/rand/v2"
+	"os"
 	"reflect"
 	"runtime/trace"
 	"sync"
@@ -31,6 +32,8 @@ import (
 	"worldspawn/geometry-go"
 	"worldspawn/protocol"
 )
+
+var dataDir = flag.String("data", "data/cooked", "a")
 
 // TODO: rewrite all of this garbage so that it's cleaner
 
@@ -611,6 +614,8 @@ func main() {
 
 	// TODO: set up a control endpoint (JSON REST API with commands to dump the
 	// current state, etc)
+
+	worldspawn.Data = os.DirFS(*dataDir)
 
 	s := new(Server)
 
