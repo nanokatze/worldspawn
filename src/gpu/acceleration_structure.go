@@ -17,13 +17,13 @@ type AccelBuildInput interface {
 
 type AccelBuildInputTriangles struct {
 	VertexFormat   Format
-	VertexBuffer   UnsafePointer // ignored by AccelerationStructureBuildConfig.Sizes
+	VertexBuffer   UnsafePointer // ignored by AccelBuildConfig.CalcSizes
 	VertexStride   int
 	MaxVertex      uint32
 	IndexType      IndexType
-	IndexBuffer    UnsafePointer // ignored by AccelerationStructureBuildConfig.Sizes
+	IndexBuffer    UnsafePointer // ignored by AccelBuildConfig.CalcSizes
 	PrimitiveCount uint32
-	Transform      Pointer[[3][4]float32] // checked for nil by AccelerationStructureBuildConfig.Sizes
+	Transform      Pointer[[3][4]float32] // checked for nil by AccelBuildConfig.CalcSizes
 }
 
 func (triangles *AccelBuildInputTriangles) vk(geometry *vk.AccelerationStructureGeometryKHR, primitiveCount *uint32) {
@@ -91,7 +91,6 @@ func (instancePointers *AccelBuildInputInstancePointers) vk(geometry *vk.Acceler
 	*primitiveCount = instancePointers.InstanceCount
 }
 
-// TODO: rename, e.g. to AccelerationStructureBuildInputs?
 type AccelBuildConfig struct {
 	Type   vk.AccelerationStructureTypeKHR
 	Inputs []AccelBuildInput
