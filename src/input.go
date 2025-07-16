@@ -10,30 +10,68 @@ import (
 	"golang.org/x/crypto/blake2b"
 )
 
-// TODO: clean this up please
-
+// TODO: give these a type
 const (
 	_ = iota
+
 	ActionJump
 	ActionCrouch
 	ActionAttack
 	ActionReload
+
 	ActionSlot0
 	ActionSlot1
 	ActionSlot2
 	ActionSlot3
-	// Should analog actions come before digital, or after, like here? If we put
-	// them before, the enums can match up with buttons.
+
 	ActionMoveX
 	ActionMoveY
 	ActionDLookX
 	ActionDLookY
 )
 
-// TODO: should also specify entity this input command is for? Or perhaps it
-// should be delegated to the client and server to handle that.
-// TODO: rename. InputCmd{Decorated,Timestamped}?
-type InputCmd2 struct {
+// TODO: we could end up needing a tracker object if at some point action to
+// inputcmd mapping became more complicated.
+func AppendAction(dst []TimestampedInputCmd, time Time, action int, value float32) []TimestampedInputCmd {
+	cmd := actionToInputCmd(action, value)
+	if cmd != nil {
+		dst = append(dst, TimestampedInputCmd{Time: time, Cmd: cmd})
+	}
+	return dst
+}
+
+// TODO: with some extra effort we can make InputCmd values private
+func actionToInputCmd(action int, value float32) InputCmd {
+	switch action {
+	case ActionJump, ActionCrouch, ActionAttack, ActionReload:
+		if value != 0 {
+			return ButtonDown(action)
+		} else {
+			return ButtonUp(action)
+		}
+
+	case ActionSlot0, ActionSlot1, ActionSlot2, ActionSlot3:
+		// TODO: we should do nothing if value == 0
+		return Slot(action - ActionSlot0)
+
+	case ActionMoveX:
+		return MoveX(value)
+
+	case ActionMoveY:
+		return MoveY(value)
+
+	case ActionDLookX:
+		return DLookX(value)
+
+	case ActionDLookY:
+		return DLookY(value)
+
+	default:
+		panic("unknown action")
+	}
+}
+
+type TimestampedInputCmd struct {
 	Time Time
 	Cmd  InputCmd
 }
@@ -50,6 +88,7 @@ func init() {
 	registerInputCommand[Slot]()
 }
 
+// TODO: delete this
 type arshaltab struct {
 	typ map[reflect.Type]struct {
 		name string
@@ -149,14 +188,14 @@ func InputCommandNiceUnmarshal(dec *nice.Decoder, icmd *InputCmd) error {
 
 // TODO: prefix these with InputCmd probably
 
-// TODO: collapse these into the same command
 type DLookX float32
 type DLookY float32
 
-// TODO: collapse these into the same command
 type MoveX float32
 type MoveY float32
 
+// TODO: replace generic ButtonDown and ButtonUp with a definition per each
+// button and a
 type Button uint8
 
 const (

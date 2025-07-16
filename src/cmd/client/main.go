@@ -783,80 +783,11 @@ func (sr *idk) Subtick(w *worldspawn.World, playerID ecs.ID) {
 	rot := positionRotation.Rotation.
 		Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, -1}, 2*math.Pi*fpsCharacter.Look.X)).
 		Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, 2*math.Pi*fpsCharacter.Look.Y)).
-		Mul(viewPunch) // doing this here causes judder, we should continue interpolating viewPunch somehow. Perhaps add an extra entity or transform in the renderer's transform hierarchy..?
+		Mul(viewPunch)
 
 	sr.scene.TransformT0[i].Rotation = rot
 	sr.scene.TransformT1[i].Rotation = rot
 }
-
-func step(edge, x float32) float32 {
-	if x < edge {
-		return 0
-	} else {
-		return 1
-	}
-}
-
-// should be moved to worldspawn.*
-// TODO: should append commands instead of constructing an entire InputCommands
-// object
-// TODO: should take the time
-func handleInput(cmds *[]worldspawn.InputCmd2, t worldspawn.Time, action int32, value float32) {
-	/*
-		cmd := worldspawn.InputPacket{
-			Time: t,
-		}
-	*/
-
-	switch action {
-	case worldspawn.ActionJump:
-		if value != 0 {
-			*cmds = append(*cmds, worldspawn.InputCmd2{Time: t, Cmd: worldspawn.ButtonDown(worldspawn.ButtonJump)})
-		} else {
-			*cmds = append(*cmds, worldspawn.InputCmd2{Time: t, Cmd: worldspawn.ButtonUp(worldspawn.ButtonJump)})
-		}
-
-	case worldspawn.ActionAttack:
-		if value != 0 {
-			*cmds = append(*cmds, worldspawn.InputCmd2{Time: t, Cmd: worldspawn.ButtonDown(worldspawn.ButtonAttack)})
-		} else {
-			*cmds = append(*cmds, worldspawn.InputCmd2{Time: t, Cmd: worldspawn.ButtonUp(worldspawn.ButtonAttack)})
-		}
-
-	case worldspawn.ActionReload:
-		if value != 0 {
-			*cmds = append(*cmds, worldspawn.InputCmd2{Time: t, Cmd: worldspawn.ButtonDown(worldspawn.ButtonReload)})
-		} else {
-			*cmds = append(*cmds, worldspawn.InputCmd2{Time: t, Cmd: worldspawn.ButtonUp(worldspawn.ButtonReload)})
-		}
-
-	case worldspawn.ActionSlot0:
-		*cmds = append(*cmds, worldspawn.InputCmd2{Time: t, Cmd: worldspawn.Slot(0)})
-
-	case worldspawn.ActionSlot1:
-		*cmds = append(*cmds, worldspawn.InputCmd2{Time: t, Cmd: worldspawn.Slot(1)})
-
-	case worldspawn.ActionSlot2:
-		*cmds = append(*cmds, worldspawn.InputCmd2{Time: t, Cmd: worldspawn.Slot(2)})
-
-	case worldspawn.ActionSlot3:
-		*cmds = append(*cmds, worldspawn.InputCmd2{Time: t, Cmd: worldspawn.Slot(3)})
-
-	case worldspawn.ActionMoveX:
-		*cmds = append(*cmds, worldspawn.InputCmd2{Time: t, Cmd: worldspawn.MoveX(value)})
-
-	case worldspawn.ActionMoveY:
-		*cmds = append(*cmds, worldspawn.InputCmd2{Time: t, Cmd: worldspawn.MoveY(-value)})
-
-	case worldspawn.ActionDLookX:
-		*cmds = append(*cmds, worldspawn.InputCmd2{Time: t, Cmd: worldspawn.DLookX(value)})
-
-	case worldspawn.ActionDLookY:
-		*cmds = append(*cmds, worldspawn.InputCmd2{Time: t, Cmd: worldspawn.DLookY(value)})
-	}
-}
-
-// var gamepadCmds []any
 
 type flickStick struct {
 	activated      bool
@@ -876,110 +807,106 @@ func sdlTimeToGameTime(ticks uint64) worldspawn.Time {
 	return clientRenderer.t0game.Add(time.Duration(float64(clientRenderer.t1game-clientRenderer.t0game) * t))
 }
 
-func handleEvent(event any) {
-	var cmds []worldspawn.InputCmd2
+// https://github.com/libsdl-org/SDL/issues/4464 🥺
 
-	switch event := event.(type) {
-	case *sdl.QuitEvent:
-		doExit()
+var keyActions = map[sdl.Keycode]int{
+	sdl.K_SPACE: worldspawn.ActionJump,
+	sdl.K_LCTRL: worldspawn.ActionCrouch,
+}
 
+var gamepadButtonActions = map[sdl.GamepadButton]int{
+	sdl.GAMEPAD_BUTTON_DPAD_UP:    worldspawn.ActionSlot1,
+	sdl.GAMEPAD_BUTTON_DPAD_DOWN:  worldspawn.ActionSlot3,
+	sdl.GAMEPAD_BUTTON_DPAD_LEFT:  worldspawn.ActionSlot0,
+	sdl.GAMEPAD_BUTTON_DPAD_RIGHT: worldspawn.ActionSlot2,
+}
+
+// GAMEPAD_BUTTON_START and K_ESC act as ways to switch between the menu and the
+// game
+//
+// GAMEPAD_BUTTON_BACK acts as Tab in-game (i.e. shows scoreboard or w/e) but
+// nothing otherwise
+
+// TODO: we can filter out unchanging actions here
+
+func handleInput(e any) {
+	var cmds []worldspawn.TimestampedInputCmd
+
+	switch e := e.(type) {
 	case *sdl.WindowPixelSizeChangedEvent:
-		resize(int(event.Data1), int(event.Data2))
+		resize(int(e.Data1), int(e.Data2))
 
 	case *sdl.KeyDownEvent:
-		inputMu.Lock()
-		defer inputMu.Unlock()
+		etime := sdlTimeToGameTime(e.Timestamp)
 
-		// TODO: respect WindowID
-		// TODO: respect Which
-
-		actionSet := actionSets["ON_FOOT"]
-
-		actionName := actionSet.Keys[event.Key]
-
-		handleInput(&cmds, sdlTimeToGameTime(event.Timestamp), actionName, 1)
+		if action, ok := keyActions[e.Key]; ok {
+			cmds = worldspawn.AppendAction(cmds, etime, action, 1)
+		}
 
 	case *sdl.KeyUpEvent:
-		inputMu.Lock()
-		defer inputMu.Unlock()
+		etime := sdlTimeToGameTime(e.Timestamp)
 
-		actionSet := actionSets["ON_FOOT"]
-
-		actionName := actionSet.Keys[event.Key]
-
-		handleInput(&cmds, sdlTimeToGameTime(event.Timestamp), actionName, 0)
+		if action, ok := keyActions[e.Key]; ok {
+			cmds = worldspawn.AppendAction(cmds, etime, action, 0)
+		}
 
 	case *sdl.MouseMotionEvent:
-		inputMu.Lock()
-		defer inputMu.Unlock()
+		etime := sdlTimeToGameTime(e.Timestamp)
 
-		// TODO: respect WindowID
-		// TODO: respect Which
-
-		eventTime := sdlTimeToGameTime(event.Timestamp)
-
-		handleInput(&cmds, eventTime, worldspawn.ActionDLookX, event.XRel*0.0005)
-		handleInput(&cmds, eventTime, worldspawn.ActionDLookY, event.YRel*0.0005)
-
-	case *sdl.MouseButtonDownEvent:
-		inputMu.Lock()
-		defer inputMu.Unlock()
-
-	case *sdl.MouseButtonUpEvent:
-		inputMu.Lock()
-		defer inputMu.Unlock()
+		cmds = worldspawn.AppendAction(cmds, etime, worldspawn.ActionDLookX, e.XRel*0.0005)
+		cmds = worldspawn.AppendAction(cmds, etime, worldspawn.ActionDLookY, e.YRel*0.0005)
 
 	case *sdl.GamepadAxisMotionEvent:
-		inputMu.Lock()
-		defer inputMu.Unlock()
+		etime := sdlTimeToGameTime(e.Timestamp)
 
-		value := max(float32(event.Value)/32767, -1)
+		value := max(float32(e.Value)/32767, -1)
 
-		actionSet := actionSets["ON_FOOT"]
-
-		eventTime := sdlTimeToGameTime(event.Timestamp)
-
-		switch event.Axis {
+		switch e.Axis {
 		case sdl.GAMEPAD_AXIS_LEFTX:
 			if math.Abs(float64(value)) < 0.2 {
 				value = 0
 			}
-			handleInput(&cmds, eventTime, worldspawn.ActionMoveX, value)
+
+			cmds = worldspawn.AppendAction(cmds, etime, worldspawn.ActionMoveX, value)
+
 		case sdl.GAMEPAD_AXIS_LEFTY:
 			if math.Abs(float64(value)) < 0.2 {
 				value = 0
 			}
-			handleInput(&cmds, eventTime, worldspawn.ActionMoveY, value)
+
+			cmds = worldspawn.AppendAction(cmds, etime, worldspawn.ActionMoveY, -value)
+
 		case sdl.GAMEPAD_AXIS_RIGHTX:
 			flickStickTest.deflection.X = value
+
 		case sdl.GAMEPAD_AXIS_RIGHTY:
 			flickStickTest.deflection.Y = value
+
 		case sdl.GAMEPAD_AXIS_RIGHT_TRIGGER:
-			handleInput(&cmds, eventTime, actionSet.RightTrigger, value)
-			handleInput(&cmds, eventTime, actionSet.RightTriggerFullPull, step(0.9, value))
+			cmds = worldspawn.AppendAction(cmds, etime, worldspawn.ActionAttack, step(0.9, value))
 		}
 
 	case *sdl.GamepadButtonDownEvent:
-		inputMu.Lock()
-		defer inputMu.Unlock()
+		etime := sdlTimeToGameTime(e.Timestamp)
 
-		actionSet := actionSets["ON_FOOT"]
+		if sdl.GamepadButton(e.Button) == sdl.GAMEPAD_BUTTON_START {
+			return
+		}
 
-		actionName := actionSet.Buttons[sdl.GamepadButton(event.Button)]
-
-		handleInput(&cmds, sdlTimeToGameTime(event.Timestamp), actionName, 1)
+		if action, ok := gamepadButtonActions[sdl.GamepadButton(e.Button)]; ok {
+			cmds = worldspawn.AppendAction(cmds, etime, action, 1)
+		}
 
 	case *sdl.GamepadButtonUpEvent:
-		inputMu.Lock()
-		defer inputMu.Unlock()
+		etime := sdlTimeToGameTime(e.Timestamp)
 
-		actionSet := actionSets["ON_FOOT"]
-
-		actionName := actionSet.Buttons[sdl.GamepadButton(event.Button)]
-
-		handleInput(&cmds, sdlTimeToGameTime(event.Timestamp), actionName, 0)
+		if action, ok := gamepadButtonActions[sdl.GamepadButton(e.Button)]; ok {
+			cmds = worldspawn.AppendAction(cmds, etime, action, 0)
+		}
 
 	case *sdl.GamepadUpdateCompleteEvent:
+		etime := sdlTimeToGameTime(e.Timestamp)
+
 		// TODO: batch gamepad-generated commands and only send them in response
 		// to this event, rather than immediately.
 		//
@@ -1009,7 +936,7 @@ func handleEvent(event any) {
 
 			dlookx := float32(math.Atan2(float64(imag(D)), float64(real(D))) / (2 * math.Pi))
 
-			handleInput(&cmds, sdlTimeToGameTime(event.Timestamp), worldspawn.ActionDLookX, dlookx)
+			cmds = worldspawn.AppendAction(cmds, etime, worldspawn.ActionDLookX, dlookx)
 
 			flickStickTest.lastDeflection = flickStickTest.deflection
 		}
@@ -1021,12 +948,12 @@ func handleEvent(event any) {
 	}
 }
 
-// TODO: rename
-func doExit() {
-	// TODO: we should shut down audio properly to avoid audio artifacts on
-	// pipewire
-
-	os.Exit(0)
+func step(edge, x float32) float32 {
+	if x < edge {
+		return 0
+	} else {
+		return 1
+	}
 }
 
 func mustReadFile(filename string) []byte {

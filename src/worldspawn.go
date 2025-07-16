@@ -250,7 +250,7 @@ func (w *World) DeleteEntityImmediately(id ecs.ID) {
 
 // TODO: rename to User/Player/etc Input
 // TODO: does Δt make any sense here?
-func (w *World) HandleInput(id ecs.ID, cmd InputCmd2, Δt time.Duration, flags UpdateFlags, logger *slog.Logger) {
+func (w *World) HandleInput(id ecs.ID, cmd TimestampedInputCmd, Δt time.Duration, flags UpdateFlags, logger *slog.Logger) {
 	if entity, ok := loadEntity[Character](w, id); ok {
 		entity.CharacterUpdate(w, id, cmd, Δt, flags)
 	} else {
@@ -272,7 +272,7 @@ func (w *World) Update(Δt time.Duration, flags UpdateFlags, logger *slog.Logger
 	for id, entity := range w.Entity.All() {
 		if char, ok := entity.(Character); ok {
 			// TODO: not sure what to put in Time here, w.Now or w.Now + Δt?
-			char.CharacterUpdate(w, id, InputCmd2{Time: 0}, Δt, flags)
+			char.CharacterUpdate(w, id, TimestampedInputCmd{Time: 0}, Δt, flags)
 		}
 	}
 

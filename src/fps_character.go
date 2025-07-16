@@ -47,7 +47,7 @@ func init() {
 	registerEntity[FPSCharacter]()
 }
 
-func (entity FPSCharacter) CharacterUpdate(w *World, id ecs.ID, cmd InputCmd2, Δt time.Duration, flags UpdateFlags) {
+func (entity FPSCharacter) CharacterUpdate(w *World, id ecs.ID, cmd TimestampedInputCmd, Δt time.Duration, flags UpdateFlags) {
 	positionRotation, _ := w.TranslationRotation.Load(id)
 	inventory, _ := w.ArmedCharacter.Load(id)
 

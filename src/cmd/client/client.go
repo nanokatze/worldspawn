@@ -44,7 +44,7 @@ type Client struct {
 	conn        *quic.Conn
 	inputStream *quic.SendStream
 
-	inputCmds []worldspawn.InputCmd2
+	inputCmds []worldspawn.TimestampedInputCmd
 
 	Δt    time.Duration
 	world *worldspawn.World
@@ -306,16 +306,7 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 	return nil
 }
 
-// TODO: wire this into s.world
-// TODO: make this a "callback" like with Renderer instead? Yes probably
-// actually. Note: action sets are per-seat (split screen multiplayer)
-/*
-func (s *Client) ActionSet() string {
-	return "ON_FOOT"
-}
-*/
-
-func (s *Client) HandleInput(cmds []worldspawn.InputCmd2) {
+func (s *Client) HandleInput(cmds []worldspawn.TimestampedInputCmd) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -357,7 +348,7 @@ func (s *Client) tick(Δt time.Duration) {
 }
 
 // TODO: remove this func in favor of the caller just using nice directly?
-func writeInputCmds(w io.Writer, cmds []worldspawn.InputCmd2) error {
+func writeInputCmds(w io.Writer, cmds []worldspawn.TimestampedInputCmd) error {
 	enc := nice.NewEncoder(w, nice.WithMarshaler(worldspawn.InputCommandNiceMarshal))
 	return nice.MarshalEncode(enc, &cmds)
 }

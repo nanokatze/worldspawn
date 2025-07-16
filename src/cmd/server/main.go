@@ -243,7 +243,7 @@ func (s *Server) handleInputPackets(u *user, stream io.Reader) error {
 		// TODO: we don't need double layering of messages and input packets. I
 		// guess we could have a message per input packet?
 
-		var cmds []worldspawn.InputCmd2
+		var cmds []worldspawn.TimestampedInputCmd
 		if err := readInputCmds(deframer, &cmds); err != nil {
 			return err
 		}
@@ -514,7 +514,7 @@ func (w *CountingWriter) Write(b []byte) (int, error) {
 
 // TODO: remove this function in favor of just having the caller use
 // nice directly?
-func readInputCmds(r io.Reader, cmds *[]worldspawn.InputCmd2) error {
+func readInputCmds(r io.Reader, cmds *[]worldspawn.TimestampedInputCmd) error {
 	dec := nice.NewDecoder(r, nice.WithUnmarshaler(worldspawn.InputCommandNiceUnmarshal))
 	return nice.UnmarshalDecode(dec, cmds)
 }
