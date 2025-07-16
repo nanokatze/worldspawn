@@ -104,9 +104,7 @@ type ImageConfig struct {
 	Usage ImageUsage // TODO: a separate stencil usage? We could also pack usage for stencil into the high bits
 }
 
-func (config *ImageConfig) vkImageCreateInfo(
-	queueFamilies []uint32,
-	createInfo *vk.ImageCreateInfo) {
+func (config *ImageConfig) vkImageCreateInfo(queueFamilies []uint32, createInfo *vk.ImageCreateInfo) {
 	flags := vk.ImageCreateFlags(0)
 
 	flags |= vk.ImageCreateFlags(vk.IMAGE_CREATE_MUTABLE_FORMAT_BIT)
