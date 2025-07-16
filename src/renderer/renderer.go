@@ -71,23 +71,19 @@ var blueNoise = sync.OnceValue(func() *gpu.Image {
 
 var pathTracer = sync.OnceValues(func() (*gpu.RayTracingPipeline, gpu.ShaderBindingTable) {
 	raygen := gpu.NewFunc(mustReadFile("shaders/rt.spv"), vk.SHADER_STAGE_RAYGEN_BIT_KHR, "raygen")
-	raygenSG := gpu.NewRayTracingShaderGroup(vk.RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR, raygen, nil, nil, nil)
+	raygenSG := gpu.NewGeneralRayTracingShaderGroup(raygen)
 
 	sky := gpu.NewFunc(mustReadFile("shaders/rt.spv"), vk.SHADER_STAGE_MISS_BIT_KHR, "sky")
-	skySG := gpu.NewRayTracingShaderGroup(vk.RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR, sky, nil, nil, nil)
+	skySG := gpu.NewGeneralRayTracingShaderGroup(sky)
 
 	chit := gpu.NewFunc(mustReadFile("shaders/rt.spv"), vk.SHADER_STAGE_CLOSEST_HIT_BIT_KHR, "chit")
-	chitSG := gpu.NewRayTracingShaderGroup(vk.RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR, nil, chit, nil, nil)
+	chitSG := gpu.NewTrianglesRayTracingShaderGroup(chit, nil)
 
-	chit2 := gpu.NewFunc(mustReadFile("shaders/rt.spv"), vk.SHADER_STAGE_CLOSEST_HIT_BIT_KHR, "chit2")
-	chit2SG := gpu.NewRayTracingShaderGroup(vk.RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR, nil, chit2, nil, nil)
-
-	linked := gpu.LinkRTStuffTogether([]*gpu.RayTracingShaderGroup{
+	linked := gpu.LinkRayTracingShaderGroups([]*gpu.RayTracingShaderGroup{
 		// These can appear in any order
 		raygenSG,
 		skySG,
 		chitSG,
-		chit2SG,
 	})
 
 	// TODO: make shaderBindingTableBuilder
@@ -98,9 +94,8 @@ var pathTracer = sync.OnceValues(func() (*gpu.RayTracingPipeline, gpu.ShaderBind
 	missRecords := gpu.MakeSliceUncached[byte](1 * 32)
 	copy(missRecords.Value(), skySG.Handle())
 
-	hitRecords := gpu.MakeSliceUncached[byte](2 * 32)
+	hitRecords := gpu.MakeSliceUncached[byte](1 * 32)
 	copy(hitRecords.Value()[0*32:], chitSG.Handle())
-	copy(hitRecords.Value()[1*32:], chit2SG.Handle())
 
 	return linked, gpu.ShaderBindingTable{
 		RaygenShaderRecordAddress:     gpu.UnsafePointer(gpu.SliceData(raygenRecord)),

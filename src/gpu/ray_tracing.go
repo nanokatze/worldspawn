@@ -9,37 +9,52 @@ import (
 	"worldspawn/gpu/vk"
 )
 
-// TODO: move RT shader/pipeline related stuff into its own file?
-
 // TODO: helper for building an SBT?
 
 // TODO: add specifying the payload and hit attrib sizes i.e. pipe lib interface
 
 // TODO: switch to dynamic stack
 
+type RayTracingLibraryInterface struct {
+	MaxRayPayloadSize      int
+	MaxRayHitAttributeSize int
+}
+
 const maxPipelineRayPayloadSize = 32
 const maxPipelineRayHitAttributeSize = 32
 
-// TODO: is there any way we could possibly get rid of shader group objects?
 type RayTracingShaderGroup struct {
 	vk     vk.Pipeline
 	handle [32]byte
 }
 
-func NewRayTracingShaderGroup(_type vk.RayTracingShaderGroupTypeKHR, general, closestHit, anyHit, intersection *Func) *RayTracingShaderGroup {
+func NewGeneralRayTracingShaderGroup(general *Func) *RayTracingShaderGroup {
+	return newRayTracingShaderGroup(
+		vk.RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR,
+		general, nil, nil, nil)
+}
+
+func NewTrianglesRayTracingShaderGroup(closestHit, anyHit *Func) *RayTracingShaderGroup {
+	return newRayTracingShaderGroup(
+		vk.RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR,
+		nil, closestHit, anyHit, nil)
+}
+
+func newRayTracingShaderGroup(_type vk.RayTracingShaderGroupTypeKHR,
+	general, closestHit, anyHit, intersection *Func) *RayTracingShaderGroup {
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
 
-	var libs []vk.Pipeline
-
 	group := &vk.RayTracingShaderGroupCreateInfoKHR{
 		SType:              vk.STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR,
-		Type:               _type, // given current stages, we can infer this
+		Type:               _type,
 		GeneralShader:      ^uint32(0),
 		ClosestHitShader:   ^uint32(0),
 		AnyHitShader:       ^uint32(0),
 		IntersectionShader: ^uint32(0),
 	}
+
+	var libs []vk.Pipeline
 
 	if general != nil {
 		libs = append(libs, general.vkPipeline())
@@ -96,13 +111,12 @@ type RayTracingPipeline struct {
 	vk vk.Pipeline
 }
 
-// TODO: could we make this not public but internally hash'n'cached?
-func LinkRTStuffTogether(groups []*RayTracingShaderGroup) *RayTracingPipeline {
+func LinkRayTracingShaderGroups(shaderGroups []*RayTracingShaderGroup) *RayTracingPipeline {
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
 
-	libs := make([]vk.Pipeline, len(groups))
-	for i, g := range groups {
+	libs := make([]vk.Pipeline, len(shaderGroups))
+	for i, g := range shaderGroups {
 		libs[i] = g.vk
 	}
 
