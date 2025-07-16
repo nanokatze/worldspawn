@@ -262,7 +262,7 @@ func (s *Server) handleInputPackets(u *user, stream io.Reader) error {
 			// u.time = max(u.time, tmpTime)
 
 			for _, cmd := range cmds {
-				s.world.HandleInput(u.player, cmd, s.Δt, 0 /* not speculating */, nil)
+				s.world.HandleInput(u.player, cmd, &worldspawn.UpdateInfo{Δt: s.Δt}, nil)
 			}
 		}()
 
@@ -279,7 +279,7 @@ func (s *Server) tick(Δt time.Duration) {
 	defer s.mu.Unlock()
 
 	trace.WithRegion(context.Background(), "World Update", func() {
-		s.world.Update(Δt, 0 /* not speculating */, nil)
+		s.world.Update(&worldspawn.UpdateInfo{Δt: s.Δt}, nil)
 	})
 
 	// update s.dirty. TODO: move into its own code?

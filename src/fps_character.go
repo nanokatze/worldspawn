@@ -41,13 +41,13 @@ type FPSCharacter struct {
 	Supported    bool
 }
 
-var _ Character = FPSCharacter{}
-
 func init() {
 	registerEntity[FPSCharacter]()
 }
 
-func (entity FPSCharacter) CharacterUpdate(w *World, id ecs.ID, cmd TimestampedInputCmd, Δt time.Duration, flags UpdateFlags) {
+var _ Character = FPSCharacter{}
+
+func (entity FPSCharacter) CharacterUpdate(w *World, id ecs.ID, cmd TimestampedInputCmd, info *UpdateInfo) {
 	positionRotation, _ := w.TranslationRotation.Load(id)
 	inventory, _ := w.ArmedCharacter.Load(id)
 
@@ -85,7 +85,7 @@ func (entity FPSCharacter) CharacterUpdate(w *World, id ecs.ID, cmd TimestampedI
 	if oldActiveWeapon != entity.ActiveWeapon {
 		weapon, ok := loadEntity[WeaponDeployedInterface](w, entity.ActiveWeapon)
 		if ok {
-			weapon.WeaponDeployed(w, entity.ActiveWeapon, id, now, Δt)
+			weapon.WeaponDeployed(w, entity.ActiveWeapon, id, now, info.Δt)
 		}
 	}
 
@@ -110,8 +110,8 @@ func (entity FPSCharacter) CharacterUpdate(w *World, id ecs.ID, cmd TimestampedI
 			Buttons: entity.Buttons,
 		})
 
-		if weapon, ok := loadEntity[WeaponUpdateSubtickInterface](w, entity.ActiveWeapon); ok {
-			recoil := weapon.WeaponUpdateSubtick(w, entity.ActiveWeapon, id, now, Δt, flags)
+		if weapon, ok := loadEntity[WeaponUpdateInterface](w, entity.ActiveWeapon); ok {
+			recoil := weapon.WeaponUpdateSubtick(w, entity.ActiveWeapon, id, now, info)
 
 			if recoil.LengthSq() > 0 {
 				viewPunch, ok := w.ViewPunch.Load(id)
@@ -128,7 +128,9 @@ func (entity FPSCharacter) CharacterUpdate(w *World, id ecs.ID, cmd TimestampedI
 	w.Entity.Store(id, entity)
 }
 
-func (fpsCharacter FPSCharacter) UpdateBeforePhysics(w *World, id ecs.ID, Δt time.Duration) {
+var _ UpdateBeforePhysics = FPSCharacter{}
+
+func (fpsCharacter FPSCharacter) UpdateBeforePhysics(w *World, id ecs.ID, info *UpdateInfo) {
 	positionRotation, _ := w.TranslationRotation.Load(id)
 	velocity, _ := w.Velocity.Load(id)
 
@@ -151,10 +153,10 @@ func (fpsCharacter FPSCharacter) UpdateBeforePhysics(w *World, id ecs.ID, Δt ti
 	velocity.Linear = rotation.Rotate(localVel)
 
 	if !fpsCharacter.Supported {
-		velocity.Linear = velocity.Linear.Add(w.Gravity.Scale(float32(durationToFloatSeconds(Δt))))
+		velocity.Linear = velocity.Linear.Add(w.Gravity.Scale(float32(durationToFloatSeconds(info.Δt))))
 	}
 
-	velocity.Linear = fpsCharacter.asdasd(w, id, velocity.Linear, Δt)
+	velocity.Linear = fpsCharacter.asdasd(w, id, velocity.Linear, info.Δt)
 
 	w.Entity.Store(id, fpsCharacter)
 	w.Velocity.Store(id, velocity)

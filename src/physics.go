@@ -8,12 +8,11 @@ import (
 )
 
 type UpdateBeforePhysics interface {
-	// TODO: should also have updateFlags
-	UpdateBeforePhysics(w *World, id ecs.ID, Δt time.Duration)
+	UpdateBeforePhysics(w *World, id ecs.ID, info *UpdateInfo)
 }
 
 type UpdateAfterPhysics interface {
-	UpdateAfterPhysics(w *World, id ecs.ID, Δt time.Duration, updateFlags UpdateFlags)
+	UpdateAfterPhysics(w *World, id ecs.ID, info *UpdateInfo)
 }
 
 // TODO: change these to be UnmarshalText and MarshalText so that we don't have

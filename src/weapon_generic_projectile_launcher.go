@@ -28,14 +28,11 @@ type WeaponGenericProjectileLauncher struct {
 	NextAttack Time
 }
 
-var (
-	_ WeaponDeployedInterface      = WeaponGenericProjectileLauncher{}
-	_ WeaponUpdateSubtickInterface = WeaponGenericProjectileLauncher{}
-)
-
 func init() {
 	registerEntity[WeaponGenericProjectileLauncher]()
 }
+
+var _ WeaponDeployedInterface = WeaponGenericProjectileLauncher{}
 
 func (weapon WeaponGenericProjectileLauncher) WeaponDeployed(w *World, id, playerID ecs.ID, now Time, Δt time.Duration) {
 	weapon.NextAttack = now.Add(weapon.DeployDuration)
@@ -59,7 +56,9 @@ func (weapon WeaponGenericProjectileLauncher) WeaponDeployed(w *World, id, playe
 	w.Entity.Store(id, weapon)
 }
 
-func (weapon WeaponGenericProjectileLauncher) WeaponUpdateSubtick(w *World, id, playerID ecs.ID, now Time, Δt time.Duration, flags UpdateFlags) (recoil geometry.Vec3) {
+var _ WeaponUpdateInterface = WeaponGenericProjectileLauncher{}
+
+func (weapon WeaponGenericProjectileLauncher) WeaponUpdateSubtick(w *World, id, playerID ecs.ID, now Time, info *UpdateInfo) (recoil geometry.Vec3) {
 	if w.Now < weapon.NextAttack {
 		return
 	}
@@ -71,7 +70,7 @@ func (weapon WeaponGenericProjectileLauncher) WeaponUpdateSubtick(w *World, id, 
 
 	// TODO: also spawn a speculative entity on client once we get support for
 	// that.
-	if (flags & UpdateSpeculative) == 0 {
+	if info.Speculating {
 		rot := aim.ShootRotation
 
 		realPosition := aim.ShootPos.Add(geometry.DVec3FromVec3(rot.Rotate(geometry.Vec3{0.0, 0.5, 0.0})))

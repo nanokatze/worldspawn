@@ -18,20 +18,20 @@ func init() {
 	registerEntity[GrenadeLauncherGrenade]()
 }
 
-func (entity GrenadeLauncherGrenade) UpdateAfterPhysics(w *World, id ecs.ID, Δt time.Duration, updateFlags UpdateFlags) {
+func (entity GrenadeLauncherGrenade) UpdateAfterPhysics(w *World, id ecs.ID, info *UpdateInfo) {
 	spawnTime, _ := w.SpawnTime.Load(id)
 
 	if w.Now < spawnTime.Add(entity.Fuse) {
 		return
 	}
 
-	if updateFlags&UpdateSpeculative == 0 {
+	if info.Speculating {
 		effect := w.SpawnEntity()
 		positionRotation, _ := w.TranslationRotation.Load(id)
 		w.TranslationRotation.Store(effect, positionRotation)
 		w.SoundEffect.Store(effect, SoundEffect{
 			Effect:   "later.wav",
-			PlayTime: w.Now.Add(Δt),
+			PlayTime: w.Now.Add(info.Δt),
 		})
 		w.DeleteAfter.Store(effect, w.Now.Add(2*time.Second))
 	}

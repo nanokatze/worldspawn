@@ -59,11 +59,11 @@ func init() {
 	registerEntity[WeaponSniperRifle]()
 }
 
-var _ WeaponUpdateSubtickInterface = WeaponSniperRifle{}
+var _ WeaponUpdateInterface = WeaponSniperRifle{}
 
 // TODO: change to value receiver? we might want the network differ to assume
 // that the state only changed if it's different by value comparison.
-func (weapon WeaponSniperRifle) WeaponUpdateSubtick(w *World, id, playerID ecs.ID, now Time, Δt time.Duration, flags UpdateFlags) (recoil geometry.Vec3) {
+func (weapon WeaponSniperRifle) WeaponUpdateSubtick(w *World, id, playerID ecs.ID, now Time, info *UpdateInfo) (recoil geometry.Vec3) {
 	if w.Now < weapon.NextAttack {
 		return
 	}

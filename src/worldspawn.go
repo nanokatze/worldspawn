@@ -41,8 +41,13 @@ var WorldNiceOptions = nice.JoinOptions(
 type UpdateFlags int
 
 const (
-	UpdateSpeculative UpdateFlags = 1 << iota
+	Speculating UpdateFlags = 1 << iota
 )
+
+type UpdateInfo struct {
+	Δt          time.Duration
+	Speculating bool
+}
 
 var Data = os.DirFS("data/cooked") // TODO: this should be set per-World (which has implications for caching, etc)
 
@@ -250,9 +255,9 @@ func (w *World) DeleteEntityImmediately(id ecs.ID) {
 
 // TODO: rename to User/Player/etc Input
 // TODO: does Δt make any sense here?
-func (w *World) HandleInput(id ecs.ID, cmd TimestampedInputCmd, Δt time.Duration, flags UpdateFlags, logger *slog.Logger) {
+func (w *World) HandleInput(id ecs.ID, cmd TimestampedInputCmd, info *UpdateInfo, logger *slog.Logger) {
 	if entity, ok := loadEntity[Character](w, id); ok {
-		entity.CharacterUpdate(w, id, cmd, Δt, flags)
+		entity.CharacterUpdate(w, id, cmd, info)
 	} else {
 		logger.Warn(fmt.Sprintf("entity does not exist or does not implement %s", reflect.TypeFor[Character]().Name()), "id", id)
 	}
@@ -261,7 +266,7 @@ func (w *World) HandleInput(id ecs.ID, cmd TimestampedInputCmd, Δt time.Duratio
 // TODO: parallel for in blender for example specifies bulk number for tasks so
 // we might want to do the same.
 
-func (w *World) Update(Δt time.Duration, flags UpdateFlags, logger *slog.Logger) {
+func (w *World) Update(info *UpdateInfo, logger *slog.Logger) {
 	if w.Now == 0 {
 		panic("Now must never be zero")
 	}
@@ -272,29 +277,29 @@ func (w *World) Update(Δt time.Duration, flags UpdateFlags, logger *slog.Logger
 	for id, entity := range w.Entity.All() {
 		if char, ok := entity.(Character); ok {
 			// TODO: not sure what to put in Time here, w.Now or w.Now + Δt?
-			char.CharacterUpdate(w, id, TimestampedInputCmd{Time: 0}, Δt, flags)
+			char.CharacterUpdate(w, id, TimestampedInputCmd{Time: 0}, info)
 		}
 	}
 
 	for id, entity := range w.Entity.All() {
 		if entity, ok := entity.(UpdateBeforePhysics); ok {
-			entity.UpdateBeforePhysics(w, id, Δt)
+			entity.UpdateBeforePhysics(w, id, info)
 		}
 	}
 
 	worldToPhysics(w)
-	updatePhysics(w, Δt)
+	updatePhysics(w, info.Δt)
 
 	for id, entity := range w.Entity.All() {
 		if entity, ok := entity.(UpdateAfterPhysics); ok {
-			entity.UpdateAfterPhysics(w, id, Δt, flags)
+			entity.UpdateAfterPhysics(w, id, info)
 		}
 	}
 
 	// TODO: simulate viewpunch motion better. View punch is a sphere with
 	// inertia and damping which we should simulate.
 	for id, viewPunch := range w.ViewPunch.All() {
-		w.ViewPunch.Store(id, viewPunch.NLerp(geometry.Rot3One(), float32(durationToFloatSeconds(Δt))))
+		w.ViewPunch.Store(id, viewPunch.NLerp(geometry.Rot3One(), float32(durationToFloatSeconds(info.Δt))))
 	}
 
 	for id, animation := range w.Animation.All() {
