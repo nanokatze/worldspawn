@@ -278,6 +278,10 @@ func (funcs *InstanceFuncs) GetPhysicalDeviceSurfaceSupportKHR(physicalDevice Ph
 	return resultErr(Result(C.vkGetPhysicalDeviceSurfaceSupportKHR(transmute[PhysicalDevice, C.VkPhysicalDevice](physicalDevice), C.uint32_t(queueFamilyIndex), transmute[SurfaceKHR, C.VkSurfaceKHR](surface), (*C.VkBool32)(pSupported))))
 }
 
+func (funcs *InstanceFuncs) GetPhysicalDeviceFormatProperties2(physicalDevice PhysicalDevice, format Format, pFormatProperties *FormatProperties2) {
+	C.vkGetPhysicalDeviceFormatProperties2(transmute[PhysicalDevice, C.VkPhysicalDevice](physicalDevice), C.VkFormat(format), (*C.VkFormatProperties2)(unsafe.Pointer(pFormatProperties)))
+}
+
 // TODO: C_ prefix is actually *really* annoying. We should pick something else. proc?
 type DeviceFuncs struct {
 	C_AcquireNextImage2KHR                     *[0]byte
