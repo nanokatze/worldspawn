@@ -16,6 +16,7 @@ const sampleRate = 48000
 
 var au *sdl.AudioStream
 
+// TODO: inline init back into main.go; do it lazily?
 func initAudio() {
 	sdl.InitSubSystem(sdl.INIT_AUDIO)
 

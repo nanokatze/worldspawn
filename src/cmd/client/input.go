@@ -4,6 +4,7 @@ import (
 	"worldspawn/sdl"
 )
 
+// TODO: inline init back into main.go
 func initGamepad() {
 	sdl.SetHint("SDL_JOYSTICK_HIDAPI_STEAMDECK", "1")
 

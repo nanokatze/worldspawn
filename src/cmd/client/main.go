@@ -5,7 +5,6 @@ package main
 import "C"
 
 import (
-	"bufio"
 	"context"
 	"flag"
 	"fmt"
@@ -17,7 +16,6 @@ import (
 	"path"
 	"runtime"
 	"runtime/trace"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -40,11 +38,7 @@ import (
 
 var dataDir = flag.String("data", "data/cooked", "a")
 
-// TODO: should be moved somewhere.
-//
-// TODO: It's also not clear whether the same printer should be used by both
-// menu and the game, especially given that games might provide their own
-// strings
+// TODO: should this be in worldspawn
 var messagePrinter = message.NewPrinter(language.English)
 
 var window *sdl.Window
@@ -52,9 +46,18 @@ var window *sdl.Window
 var redrawMu sync.Mutex
 var resizeCond = sync.Cond{L: &redrawMu}
 
+var currentExtent gpu.Int3
+var swapchain *gpu.Swapchain
+var swapchainImage *gpu.Image
+
+// TODO: rename
+var myRenderer renderer.Renderer
+
 var currentSession atomic.Pointer[Client]
 
 var gamepad *sdl.Gamepad
+
+// TODO: put sdl inits behind sync.Onces?
 
 func main() {
 	runtime.LockOSThread()
@@ -66,46 +69,6 @@ func main() {
 
 	config.Store(&Config{})
 
-	go func() {
-		stdin := bufio.NewScanner(os.Stdin)
-		stderr := os.Stderr
-
-		for stdin.Scan() {
-			cmd := strings.Fields(stdin.Text())
-			if len(cmd) == 0 {
-				continue
-			}
-
-			// TODO: use powershell/bash syntax. Config variables would be set
-			// using VariableName=Value and commands would be run with Command
-			// ...
-
-			switch cmd[0] {
-			case "Slot":
-				/*
-					slot, _ := strconv.Atoi(cmd[1])
-					icmd := inputCommand2()
-					icmd.Commands = append(icmd.Commands, worldspawn.Slot(slot))
-					currentSession.Load().Input(icmd)
-				*/
-				panic("not implemented")
-
-			case "DontInterpolate":
-				updateConfig(func(conf *Config) { conf.DontInterpolate = true })
-
-			case "DoInterpolate":
-				updateConfig(func(conf *Config) { conf.DontInterpolate = false })
-
-			default:
-				fmt.Fprintf(stderr, "unknown command %s\n", cmd[0])
-			}
-		}
-	}()
-
-	if err := sdl.InitSubSystem(sdl.INIT_VIDEO); err != nil {
-		panic(fmt.Sprintf("failed to initialize SDL video subsystem: %v", err))
-	}
-
 	// We don't use SDL event watcher to handle resizes as our redraw is too
 	// slow to provide responsive size changes.
 	//
@@ -115,6 +78,10 @@ func main() {
 	initAudio()
 
 	initGamepad()
+
+	if err := sdl.InitSubSystem(sdl.INIT_VIDEO); err != nil {
+		panic(fmt.Sprintf("failed to initialize SDL video subsystem: %v", err))
+	}
 
 	{
 		props, err := sdl.CreateProperties()
@@ -137,12 +104,15 @@ func main() {
 			log.Fatal(err)
 		}
 	}
-	// swapchain = gpu.NewSwapchain(window)
 
-	go redrawLoop()
+	go func() {
+		for {
+			redraw()
+		}
+	}()
 
 	if err := window.SetWindowRelativeMouseMode(true); err != nil {
-		slog.Warn("failed to enable relative mouse mode on the main window", "err", err)
+		slog.Warn("failed to set relative mouse mode", "err", err)
 	}
 
 	slog.Info("gamepads", "gamepads", sdl.GetGamepads())
@@ -165,20 +135,22 @@ func main() {
 
 	currentSession.Store(session)
 
+eventLoop:
 	for {
-		event, err := sdl.WaitEvent()
+		e, err := sdl.WaitEvent()
 		if err != nil {
 			log.Fatalln("WaitEvent failed", err)
 		}
 
-		handleEvent(event)
+		switch e := e.(type) {
+		case *sdl.QuitEvent:
+			break eventLoop
+
+		default:
+			handleInput(e)
+		}
 	}
 }
-
-// TODO: move these things somewhere and/or make them more contextual
-
-var swapchain *gpu.Swapchain
-var currentExtent gpu.Int3
 
 func resize(width, height int) {
 	if width <= 0 || height <= 0 {
@@ -191,18 +163,6 @@ func resize(width, height int) {
 	slog.Info("resize", "width", width, "height", height)
 
 	currentExtent = gpu.Int3{width, height, 1}
-
-	gpu.NewPresentableImageTest(
-		window,
-		&gpu.ImageConfig{
-			Dim:       gpu.ImageDim2D,
-			Extent:    currentExtent,
-			Layers:    1,
-			MipLevels: 1,
-			Samples:   1,
-			Format:    vk.FORMAT_R8G8B8A8_SRGB,
-			Usage:     gpu.ImageUsageAttachment,
-		})
 
 	swapchain = gpu.NewSwapchain(&gpu.SwapchainConfig{
 		Window:     window,
@@ -219,21 +179,32 @@ func resize(width, height int) {
 		OldSwapchain: swapchain,
 	})
 
-	// Redraw a single frame, blocking the message loop, so that we
-	// don't get another resize without there being something for
-	// the user to see.
-	//
-	// We don't care if this redraw fails. In such case, the redraw
-	// loop will be suspended again.
+	gpu.NewPresentableImageTest(
+		window,
+		&gpu.ImageConfig{
+			Dim:       gpu.ImageDim2D,
+			Extent:    currentExtent,
+			Layers:    1,
+			MipLevels: 1,
+			Samples:   1,
+			Format:    vk.FORMAT_R8G8B8A8_SRGB,
+			Usage:     gpu.ImageUsageAttachment,
+		})
+
+	swapchainImage = gpu.NewImage(&gpu.ImageConfig{
+		Dim:       gpu.ImageDim2D,
+		Extent:    currentExtent,
+		Layers:    1,
+		MipLevels: 1,
+		Samples:   1,
+		Format:    vk.FORMAT_R8G8B8A8_UNORM,
+		Usage:     gpu.ImageUsageLoadStore | gpu.ImageUsageAttachment,
+	})
+
+	// Redraw a single frame at this size.
 	redrawLocked()
 
 	resizeCond.Broadcast()
-}
-
-func redrawLoop() {
-	for {
-		redraw()
-	}
 }
 
 func redraw() {
@@ -243,14 +214,14 @@ func redraw() {
 	defer redrawMu.Unlock()
 
 	if !redrawLocked() {
-		// Swapchain was out of date, wait for resize.
+		// Present failed, wait for resize.
 		resizeCond.Wait()
 	}
 }
 
 // Must be called with redrawMu held.
 func redrawLocked() bool {
-	defer trace.StartRegion(context.Background(), "Redraw Locked").End()
+	defer trace.StartRegion(context.Background(), "Redraw (redrawMu held)").End()
 
 	if swapchain == nil {
 		return false
@@ -258,22 +229,9 @@ func redrawLocked() bool {
 
 	var jq gpu.JobQueue
 
-	if swapchainImage == nil {
-		swapchainImage = gpu.NewImage(&gpu.ImageConfig{
-			Dim:       gpu.ImageDim2D,
-			Extent:    currentExtent,
-			Layers:    1,
-			MipLevels: 1,
-			Samples:   1,
-			Format:    vk.FORMAT_R8G8B8A8_UNORM,
-			Usage:     gpu.ImageUsageLoadStore | gpu.ImageUsageAttachment,
-		})
-	}
+	// swapchainImage := swapchain.Image(swapchainImageIndex)
 
 	swapchainImage.EnqueueInit(&jq)
-	// defer cq.Garbage(swapchainImage.Destroy)
-
-	// swapchainImage := swapchain.Image(swapchainImageIndex)
 
 	conf := config.Load()
 
@@ -429,15 +387,14 @@ func redrawLocked() bool {
 		presentationOk = swapchain.Present2(&jq, swapchainImage)
 	})
 
-	// Only allow one frame-in-flight for now
-	//
-	// TODO: do multiple frames-in-flight.
+	// TODO: frames-in-flight
 
 	jq.WaitForIdle()
 
 	return presentationOk
 }
 
+// TODO: should be created on demand
 var clientRenderer = &idk{
 	privateScene:  renderer.NewSceneDirty(10000),
 	privateScene2: renderer.NewScene(10000),

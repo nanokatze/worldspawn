@@ -55,6 +55,7 @@ type Client struct {
 	renderer Renderer
 }
 
+// TODO: rename?
 // TODO: let Client take Connection instead of addr, and make it a bit more
 // abstract, so that we can use the same construction for single player and demo
 // playback sessions?
