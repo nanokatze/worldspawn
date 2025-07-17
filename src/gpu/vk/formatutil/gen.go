@@ -19,7 +19,7 @@ import (
 
 var api = flag.String("api", "vulkan", "API")
 var platforms = flag.String("platforms", "", "Platforms")
-var output = flag.String("o", "format_table.go", "b")
+var output = flag.String("o", "format_table.go", "Output file name")
 
 func main() {
 	log.SetFlags(0)
