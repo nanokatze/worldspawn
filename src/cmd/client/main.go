@@ -248,34 +248,6 @@ func redraw() {
 	}
 }
 
-/*
-func printOps(ops_ *op.Ops) {
-	var r ops.Reader
-	r.Reset(&ops_.Internal)
-	for {
-		encOp, ok := r.Decode()
-		if !ok {
-			break
-		}
-		log.Printf("%s %#v", ops.OpType(encOp.Data[0]), encOp)
-
-		switch ops.OpType(encOp.Data[0]) {
-		case ops.TypePath:
-		}
-		// log.Printf("%#v", encOp)
-	}
-}
-*/
-
-// TODO: rename
-var myRenderer renderer.Renderer
-
-var swapchainImage *gpu.Image
-
-// TODO: most gui things should be defined by the game code
-type pauseMenu struct {
-}
-
 // Must be called with redrawMu held.
 func redrawLocked() bool {
 	defer trace.StartRegion(context.Background(), "Redraw Locked").End()
@@ -368,28 +340,11 @@ func redrawLocked() bool {
 
 	// Menu
 
-	/*
-		var guiOps op.Ops
-		func() {
-			theme := material.NewTheme()
-
-			gtx := layout.Context{
-				Ops: &guiOps,
-				Now: time.Now(),
-				Metric: unit.Metric{
-					PxPerDp: 1,
-					PxPerSp: 1,
-				},
-				Constraints: layout.Exact(image.Pt(currentExtent.X, currentExtent.Y)),
-			}
-
-			a := material.H3(theme, "42")
-
-			layout.SE.Layout(gtx, a.Layout)
-		}()
-	*/
-
 	func() {
+		if true {
+			return
+		}
+
 		rp := gpu.BeginRendering(&jq,
 			&gpu.RenderingConfig{
 				ColorAttachments: []gpu.Attachment{
@@ -450,8 +405,8 @@ func redrawLocked() bool {
 			})
 		rp.SetColorWriteMask(0, 0b1111)
 
-		rp.SetShader(vk.SHADER_STAGE_VERTEX_BIT, testVertMain())
-		rp.SetShader(vk.SHADER_STAGE_FRAGMENT_BIT, testFragMain())
+		rp.SetShader(vk.SHADER_STAGE_VERTEX_BIT, nil)
+		rp.SetShader(vk.SHADER_STAGE_FRAGMENT_BIT, nil)
 
 		sampler := gpu.NewSampler(&vk.SamplerCreateInfo{
 			SType:            vk.STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
@@ -467,8 +422,6 @@ func redrawLocked() bool {
 			MaxLod:           vk.LOD_CLAMP_NONE,
 		})
 		defer rp.Cleanup(sampler.Destroy)
-
-		// messagePrinter.Sprintf("New game")
 	}()
 
 	var presentationOk bool
