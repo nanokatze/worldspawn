@@ -19,10 +19,12 @@ import (
 // TODO: move these things to their own files
 
 // TODO: it is up to the server and client to implement un/marshalers, we should
-// only expose the info necessary for it
+// only expose the info necessary for it.
+// TODO: actually, we need this in worldspawn for prefab de/serialization, so we
+// should just make it private and expose methods for the "standard"
+// de/serializaing of the world.
 var WorldJSONOptions = json.JoinOptions(
 	JSONOptions,
-
 	json.WithMarshalers(json.JoinMarshalers(
 		json.MarshalToFunc(entityJSONMarshaler),
 	)),
