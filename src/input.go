@@ -26,12 +26,13 @@ const (
 
 	ActionMoveX
 	ActionMoveY
+
 	ActionDLookX
 	ActionDLookY
 )
 
-// TODO: we could end up needing a tracker object if at some point action to
-// inputcmd mapping became more complicated.
+// TODO: we need a tracker object so that we can normalize value per action and
+// filter things out
 func AppendAction(dst []TimestampedInputCmd, time Time, action int, value float32) []TimestampedInputCmd {
 	cmd := actionToInputCmd(action, value)
 	if cmd != nil {
