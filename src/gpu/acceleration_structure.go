@@ -9,7 +9,20 @@ import (
 	"worldspawn/gpu/vk"
 )
 
-// TODO: use shorter names
+/*
+type TopLevelAccel struct {
+	Data UnsafePointer
+	size int
+}
+*/
+
+type TopLevelAccel = Accel
+
+// TODO: distinguish ASes of different types, with different types.
+type Accel struct {
+	Data UnsafePointer // TODO: make private
+	size int
+}
 
 type AccelBuildInput interface {
 	vk(geometry *vk.AccelerationStructureGeometryKHR, primitiveCount *uint32)
@@ -128,6 +141,30 @@ func (config *AccelBuildConfig) CalcSizes() (int, int, int) {
 	return int(sizes.AccelerationStructureSize), int(sizes.BuildScratchSize), int(sizes.UpdateScratchSize)
 }
 
+/*
+func NewTopLevelAccel(maxInstances int) Accel {
+	return Accel{}
+}
+*/
+
+func NewAccel(config *AccelBuildConfig) Accel {
+	accelSize, _, _ := config.CalcSizes()
+	return Accel{
+		Data: UnsafePointer(SliceData(MakeSliceUncached[byte](accelSize))),
+		size: accelSize,
+	}
+}
+
+func (accel *Accel) EnqueueBuild(jq *JobQueue, config *AccelBuildConfig) {
+	accelSize, buildScratchSize, _ := config.CalcSizes()
+	if accelSize > accel.size {
+		panic("bad")
+	}
+	scratch := UnsafePointer(SliceData(MakeSliceUncached[byte](buildScratchSize)))
+	defer jq.Cleanup(func() { Free(scratch) })
+	EnqueueAccelBuild(jq, accel.Data, accel.size, config, scratch)
+}
+
 type accelBuildJob struct {
 	dst           UnsafePointer
 	dstSize       int
@@ -136,6 +173,8 @@ type accelBuildJob struct {
 	vkBuildRanges []vk.AccelerationStructureBuildRangeInfoKHR
 	scratch       UnsafePointer
 }
+
+// TODO: initially get rid of the low level apis and introduce NewAccelAt
 
 func EnqueueAccelBuild(jq *JobQueue, dst UnsafePointer, dstSize int, config *AccelBuildConfig, scratch UnsafePointer) {
 	vkGeometries := make([]vk.AccelerationStructureGeometryKHR, len(config.Inputs))
