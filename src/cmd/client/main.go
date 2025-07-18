@@ -281,17 +281,29 @@ func redrawLocked() bool {
 		wg.EnqueueWait(&jq)
 	*/
 
+	testSampler := gpu.NewSampler(&vk.SamplerCreateInfo{
+		SType:            vk.STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+		MinFilter:        vk.FILTER_LINEAR,
+		MagFilter:        vk.FILTER_LINEAR,
+		MipmapMode:       vk.SAMPLER_MIPMAP_MODE_LINEAR,
+		AddressModeU:     vk.SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+		AddressModeV:     vk.SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+		AddressModeW:     vk.SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+		MipLodBias:       0.0,
+		AnisotropyEnable: vk.FALSE,
+		MinLod:           0.0,
+		MaxLod:           vk.LOD_CLAMP_NONE,
+	})
+
+	// testTexture := texture("Editor/measure2.ktx2")
+
 	clientRenderer.privateScene.OurCamera.Transform = clientRenderer.privateScene.Transform(1999, float32(t))
-
 	clientRenderer.privateScene2.EnqueueUpdate(&jq, clientRenderer.privateScene, float32(t))
-
-	testTexture := texture("Editor/measure2.ktx2")
 
 	myRenderer.Render(&jq,
 		clientRenderer.privateScene2, float32(t),
 		&clientRenderer.privateScene.OurCamera,
-		swapchainImage, currentExtent,
-		testTexture)
+		swapchainImage, currentExtent)
 
 	// TODO: it would probably be a good idea to inject overlay rendering into
 	// Render so that we can avoid breaking the render pass.
@@ -365,22 +377,9 @@ func redrawLocked() bool {
 
 		rp.SetShader(vk.SHADER_STAGE_VERTEX_BIT, nil)
 		rp.SetShader(vk.SHADER_STAGE_FRAGMENT_BIT, nil)
-
-		sampler := gpu.NewSampler(&vk.SamplerCreateInfo{
-			SType:            vk.STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-			MinFilter:        vk.FILTER_LINEAR,
-			MagFilter:        vk.FILTER_LINEAR,
-			MipmapMode:       vk.SAMPLER_MIPMAP_MODE_LINEAR,
-			AddressModeU:     vk.SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-			AddressModeV:     vk.SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-			AddressModeW:     vk.SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-			MipLodBias:       0.0,
-			AnisotropyEnable: vk.FALSE,
-			MinLod:           0.0,
-			MaxLod:           vk.LOD_CLAMP_NONE,
-		})
-		defer rp.Cleanup(sampler.Destroy)
 	}()
+
+	jq.Cleanup(testSampler.Destroy)
 
 	var presentationOk bool
 	trace.WithRegion(context.Background(), "Presentation", func() {
@@ -458,6 +457,8 @@ func (sr *idk) Tick(w *worldspawn.World, playerID ecs.ID, t0, t1 worldspawn.Time
 
 	conf := config.Load()
 
+	testTexture := texture("Editor/measure2.ktx2")
+
 	{
 		sr.t0sdl = sdl.TicksNS()
 		sr.t1sdl = sr.t0sdl + uint64(frameDuration) // depends on timescale
@@ -476,7 +477,7 @@ func (sr *idk) Tick(w *worldspawn.World, playerID ecs.ID, t0, t1 worldspawn.Time
 		for i := range sr.scene.Pose {
 			sr.scene.Pose[i] = nil
 		}
-		sr.scene.Sky = texture(w.Sky).View
+		sr.scene.Sky = texture(w.Sky).Image
 
 		playerEntity, _ := w.Entity.Load(playerID)
 
@@ -552,6 +553,7 @@ func (sr *idk) Tick(w *worldspawn.World, playerID ecs.ID, t0, t1 worldspawn.Time
 			}
 
 			sr.scene.MeshInstance[i].Mesh = model(rendererModel.Filename)
+			sr.scene.MeshInstance[i].TestTexture = testTexture.Image
 
 			/*
 				// This is just horribly broken

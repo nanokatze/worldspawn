@@ -1,13 +1,20 @@
 import gpu;
 import transfer_functions;
 
+struct Scene {
+	SamplingViewWithSampler sky;
+
+    Slice<Mesh*> instances;
+    Slice<uint8_t> accelInstances; // TODO: plop in proper AccelInstance
+    uint64_t accel;
+
+    Sampler sampler;
+};
+
 struct Camera {
 	uint32_t frameNumber; // TODO: rename
 
 	SamplingView blueNoise;
-
-	// TODO: move this around in struct to somewhere else
-	SamplingViewWithSampler sky;
 
 	matrix<float, 4, 4> proj;
 	matrix<float, 4, 4> projInverse;
@@ -22,17 +29,24 @@ struct Camera {
 struct Mesh {
     uint16_t *primitives;
     float2 *uvs;
+    SamplingViewWithSampler testTexture;
 };
 
 struct Push {
+    Scene *scene;
     Camera *camera;
-    uint64_t tlas;
     StorageView out;
-    SamplingViewWithSampler testTexture;
-    Mesh **instances;
 };
 
 [[vk::push_constant]] Push push;
+
+/*
+struct TopLevelAccel {
+    uint64_t ptr;
+
+    public void TraceRay()
+};
+*/
 
 struct RayPayload {
     float3 color;
@@ -60,7 +74,7 @@ void raygen() {
 
     RayPayload payload = {};
     TraceRay(
-        rtas(push.tlas),
+        rtas(push.scene->accel),
         0,
         0b01,
         0,
@@ -81,7 +95,7 @@ void sky(inout RayPayload rayPayload : SV_RayPayload) {
     // TODO: make a matrix to convert from our convention to KTX2 convention
     // TODO: use SampleCubeGrad. We can use aniso sampling for cube textures.
     // Actually, aniso sampling is broken across many impls. We might wanna look into filtering after shading for sky as well, but hopefully things might get fixed.
-    rayPayload.color = push.camera->sky.SampleCubeLOD(float3(-rayDir.y, rayDir.z, rayDir.x), 0).xyz;
+    rayPayload.color = push.scene->sky.SampleCubeLOD(float3(-rayDir.y, rayDir.z, rayDir.x), 0).xyz;
 }
 
 [shader("closesthit")]
@@ -89,7 +103,7 @@ void chit(inout RayPayload payload : SV_RayPayload, in float2 barys_yz : SV_Inte
 {
     float3 barys = float3(1.0 - barys_yz.x - barys_yz.y, barys_yz);
 
-    Mesh *instance = push.instances[InstanceID()];
+    Mesh *instance = push.scene->instances.data[InstanceID()];
     uint16_t vi0 = instance->primitives[3 * PrimitiveIndex() + 0];
     uint16_t vi1 = instance->primitives[3 * PrimitiveIndex() + 1];
     uint16_t vi2 = instance->primitives[3 * PrimitiveIndex() + 2];
@@ -101,7 +115,7 @@ void chit(inout RayPayload payload : SV_RayPayload, in float2 barys_yz : SV_Inte
     // edge cases
     float2 uv = mul(transpose(float3x2(uv0, uv1, uv2)), barys);
 
-    payload.color = push.testTexture.Sample2DLOD(uv, 0).xyz;
+    payload.color = instance->testTexture.Sample2DLOD(uv, 0).xyz;
 }
 
 [shader("closesthit")]

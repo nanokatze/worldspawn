@@ -16,20 +16,25 @@ type Camera struct {
 }
 
 type _Mesh struct {
-	Primitives gpu.Pointer[[3]uint16]
-	UVs        gpu.Pointer[[2]float32]
+	Primitives  gpu.Pointer[[3]uint16]
+	UVs         gpu.Pointer[[2]float32]
+	TestTexture gpu.SamplingViewWithSampler
 }
 
 // TODO: to abstract over still AS and motion AS we could introduce two scenes
 // that implement the same interface. Though that would be insufficient of an
 // abstraction as shader code would still have to be aware about still vs motion
 // AS. I guess let's just not.
+//
+// TODO: Scene needs to also manage the SBT
 type Scene struct {
-	sky gpu.SamplingView
+	sky gpu.SamplingViewWithSampler
 
 	instances      gpu.Slice[gpu.Pointer[_Mesh]]
 	accelInstances gpu.Slice[gpu.AccelInstance]
-	accel          gpu.UnsafePointer // TODO: maybe make this a proper typedef
+	accel          gpu.UnsafePointer // TODO: gpu.TopLevelAccel
+
+	sampler gpu.Sampler
 }
 
 func NewScene(n int) *Scene {
@@ -55,6 +60,20 @@ func NewScene(n int) *Scene {
 		instances:      instances,
 		accelInstances: gpu.MakeSliceUncached[gpu.AccelInstance](n),
 		accel:          tlas,
+		sampler: gpu.NewSampler(&vk.SamplerCreateInfo{
+			SType:            vk.STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+			MinFilter:        vk.FILTER_LINEAR,
+			MagFilter:        vk.FILTER_LINEAR,
+			MipmapMode:       vk.SAMPLER_MIPMAP_MODE_LINEAR,
+			AddressModeU:     vk.SAMPLER_ADDRESS_MODE_REPEAT,
+			AddressModeV:     vk.SAMPLER_ADDRESS_MODE_REPEAT,
+			AddressModeW:     vk.SAMPLER_ADDRESS_MODE_REPEAT,
+			MipLodBias:       0.0, // TODO: change this every frame
+			AnisotropyEnable: vk.TRUE,
+			MaxAnisotropy:    8.0,
+			MinLod:           0.0,
+			MaxLod:           vk.LOD_CLAMP_NONE,
+		}),
 	}
 }
 
@@ -66,13 +85,15 @@ type Instance struct {
 
 type MeshInstance struct {
 	Mesh *Mesh
+	// TODO: this should be in a separate array, this specifies a material
+	TestTexture *gpu.Image
 }
 
 // TODO: make all of the fields private and provide methods for manipulation.
 // This is necessary for dirty trackers, which will in turn allow us to
 // implement fine-grained update.
 type SceneDirty struct {
-	Sky gpu.SamplingView
+	Sky *gpu.Image
 
 	// TODO: remove this field
 	OurCamera Camera
@@ -88,7 +109,8 @@ type SceneDirty struct {
 	// areas and simplifications in others
 
 	Instance     []Instance
-	MeshInstance []MeshInstance
+	MeshInstance []MeshInstance // should be ok to make just Mesh* I guess?
+
 	// TODO: while Instance should contain common instance things
 	// like Transform and BLAS, instance-type specific information should
 	// go into its own array, e.g. meshes go into MeshInstance and e.g.
@@ -127,7 +149,12 @@ func (s *SceneDirty) Transform(i int, t float32) geometry.Mat4x4 {
 func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32) {
 	// TODO: update sky device-side too? That would make things extra neat and
 	// fun.
-	scene.sky = dirty.Sky
+	// TODO: hard-require sky?
+	if dirty.Sky != nil {
+		scene.sky = dirty.Sky.SamplingDescriptor().WithSampler(scene.sampler)
+	} else {
+		scene.sky = gpu.SamplingViewWithSampler{}
+	}
 
 	// BUG: writes should happen after all commands in jq complete. We should
 	// just put things into a staging buffer and perform a copy on the device.
@@ -146,8 +173,9 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 		meshInstance := dirty.MeshInstance[instanceIndex]
 
 		*instancesHost[instanceIndex].Value() = _Mesh{
-			Primitives: gpu.SliceData(meshInstance.Mesh.primitives),
-			UVs:        gpu.SliceData(meshInstance.Mesh.uvs),
+			Primitives:  gpu.SliceData(meshInstance.Mesh.primitives),
+			UVs:         gpu.SliceData(meshInstance.Mesh.uvs),
+			TestTexture: meshInstance.TestTexture.SamplingDescriptor().WithSampler(scene.sampler),
 		}
 
 		// Should be done on the device

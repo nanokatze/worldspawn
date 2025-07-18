@@ -12,6 +12,21 @@ import (
 	"worldspawn/gpu/vk"
 )
 
+type _FrameData struct {
+	FrameNumber uint32
+
+	BlueNoise gpu.SamplingView
+
+	Proj        geometry.Mat4x4
+	ProjInverse geometry.Mat4x4
+	View        geometry.Mat4x4
+	ViewInverse geometry.Mat4x4
+
+	// Precomputed intermediates
+
+	ViewProj geometry.Mat4x4 // TODO: remove?
+}
+
 var blueNoise = sync.OnceValue(func() *gpu.Image {
 	gpuImg := gpu.NewImage(&gpu.ImageConfig{
 		Dim:       gpu.ImageDim2D,
@@ -147,31 +162,20 @@ type Renderer struct {
 // writable, color attachment, transfer dst, ...
 //
 // TODO: we need to pass other stuff like max aniso etc settings...
-func (re *Renderer) Render(jq *gpu.JobQueue, scene *Scene, t float32, camera *Camera, dst *gpu.Image, res gpu.Int3, testTexture *Texture) {
+func (re *Renderer) Render(jq *gpu.JobQueue, scene *Scene, t float32, camera *Camera, dst *gpu.Image, res gpu.Int3) {
 	// TODO: we can get rid of hardware aniso sampling, which is annoying and
 	// has the wrong filter for many things.
 	//
 	// See https://mastodon.gamedev.place/@BartWronski/112445872458391965
 	//
 	// TODO: samplers we need to create are really dictated by materials
-	sampler := gpu.NewSampler(&vk.SamplerCreateInfo{
-		SType:            vk.STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-		MinFilter:        vk.FILTER_LINEAR,
-		MagFilter:        vk.FILTER_LINEAR,
-		MipmapMode:       vk.SAMPLER_MIPMAP_MODE_LINEAR,
-		AddressModeU:     vk.SAMPLER_ADDRESS_MODE_REPEAT,
-		AddressModeV:     vk.SAMPLER_ADDRESS_MODE_REPEAT,
-		AddressModeW:     vk.SAMPLER_ADDRESS_MODE_REPEAT,
-		MipLodBias:       0.0, // TODO: change this every frame
-		AnisotropyEnable: vk.TRUE,
-		MaxAnisotropy:    8.0,
-		MinLod:           0.0,
-		MaxLod:           vk.LOD_CLAMP_NONE,
-	})
-	defer jq.Cleanup(sampler.Destroy)
 
 	frameData := gpu.NewUncached[_FrameData]()
 	defer jq.Cleanup(func() { gpu.Free(gpu.UnsafePointer(frameData)) })
+
+	dscene := gpu.NewUncached[Scene]()
+	defer jq.Cleanup(func() { gpu.Free(gpu.UnsafePointer(dscene)) })
+	*dscene.Value() = *scene
 
 	{
 		proj := geometry.Mat4x4InfinitePerspective(
@@ -190,7 +194,6 @@ func (re *Renderer) Render(jq *gpu.JobQueue, scene *Scene, t float32, camera *Ca
 
 		*frameData.Value() = _FrameData{
 			FrameNumber: uint32(re.ctr),
-			Sky:         scene.sky.WithSampler(sampler),
 			Proj:        proj,
 			ProjInverse: proj.Inverse(),
 			View:        view,
@@ -213,17 +216,13 @@ func (re *Renderer) Render(jq *gpu.JobQueue, scene *Scene, t float32, camera *Ca
 		pipeline, sbt := pathTracer()
 
 		args := struct {
-			Camera      gpu.Pointer[_FrameData]
-			TLAS        gpu.UnsafePointer
-			Out         gpu.StorageView
-			TestTexture gpu.SamplingViewWithSampler
-			Mesh        gpu.Pointer[gpu.Pointer[_Mesh]]
+			Scene  gpu.Pointer[Scene]
+			Camera gpu.Pointer[_FrameData]
+			Out    gpu.StorageView
 		}{
-			Camera:      frameData,
-			TLAS:        scene.accel,
-			Out:         out.LoadStoreDescriptor(),
-			TestTexture: testTexture.View.WithSampler(sampler),
-			Mesh:        gpu.SliceData(scene.instances),
+			Scene:  dscene,
+			Camera: frameData,
+			Out:    out.LoadStoreDescriptor(),
 		}
 		gpu.EnqueueTraceRays(jq, pipeline, &sbt, res.X, res.Y, 1, &args)
 	}

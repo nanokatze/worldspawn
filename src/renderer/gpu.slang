@@ -4,6 +4,12 @@
 [[vk::binding(1, 0)]] __DynamicResource<__DynamicResourceKind.General> sampledImages[];
 [[vk::binding(2, 0)]] __DynamicResource<__DynamicResourceKind.General> storageImages[];
 
+public struct Slice<T> {
+    public T *data;
+    uint64_t len;
+    uint64_t cap;
+};
+
 public struct Sampler {
 	internal uint32_t handle;
 
