@@ -286,21 +286,18 @@ func (job *renderPassJob) Exec(q *CommandQueue) {
 	})
 }
 
-func newRenderingVkImageView(image *Image, usage vk.ImageUsageFlags) vk.ImageView {
-	var pinner runtime.Pinner
-	defer pinner.Unpin()
-
+func newRenderingVkImageView(img *Image, usage vk.ImageUsageFlags) vk.ImageView {
 	var vkImageView vk.ImageView
 	if err := vkFns.CreateImageView(device, &vk.ImageViewCreateInfo{
 		SType: vk.STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-		PNext: unsafe.Pointer(pinned(&pinner, &vk.ImageViewUsageCreateInfo{
+		PNext: unsafe.Pointer(&vk.ImageViewUsageCreateInfo{
 			SType: vk.STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO,
 			Usage: usage,
-		})),
-		Image:            image.base.vkImage,
-		ViewType:         image.Dim().vkImageViewType(),
-		Format:           image.Format(),
-		SubresourceRange: vkImageSubresourceRange(image),
+		}),
+		Image:            img.base.vkImage,
+		ViewType:         img.dim.vkImageViewType(),
+		Format:           img.format,
+		SubresourceRange: img.vkImageSubresourceRange(),
 	}, nil, &vkImageView); err != nil {
 		panic(fmt.Sprintf("gpu: vkCreateImageView: %v", err))
 	}

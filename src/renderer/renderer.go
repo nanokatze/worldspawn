@@ -170,15 +170,6 @@ func (re *Renderer) Render(jq *gpu.JobQueue, scene *Scene, t float32, camera *Ca
 	})
 	defer jq.Cleanup(sampler.Destroy)
 
-	blueNoise := blueNoise()
-	blueNoiseView := blueNoise.SubImage(
-		blueNoise.Dim(),
-		blueNoise.Format(),
-		int(re.ctr%8), int(re.ctr%8)+1,
-		0, 1).
-		NewSamplingView()
-	defer jq.Cleanup(blueNoiseView.Destroy)
-
 	frameData := gpu.NewUncached[_FrameData]()
 	defer jq.Cleanup(func() { gpu.Free(gpu.UnsafePointer(frameData)) })
 
@@ -199,7 +190,6 @@ func (re *Renderer) Render(jq *gpu.JobQueue, scene *Scene, t float32, camera *Ca
 
 		*frameData.Value() = _FrameData{
 			FrameNumber: uint32(re.ctr),
-			BlueNoise:   blueNoiseView,
 			Sky:         scene.sky.WithSampler(sampler),
 			Proj:        proj,
 			ProjInverse: proj.Inverse(),
@@ -217,8 +207,7 @@ func (re *Renderer) Render(jq *gpu.JobQueue, scene *Scene, t float32, camera *Ca
 			dst.Dim(),
 			vk.FORMAT_R8G8B8A8_UNORM,
 			0, 1,
-			0, 1).
-			NewStorageView()
+			0, 1)
 		defer jq.Cleanup(out.Destroy)
 
 		pipeline, sbt := pathTracer()
@@ -231,7 +220,7 @@ func (re *Renderer) Render(jq *gpu.JobQueue, scene *Scene, t float32, camera *Ca
 		}{
 			Camera:      frameData,
 			TLAS:        scene.tlas,
-			Out:         out,
+			Out:         out.LoadStoreDescriptor(),
 			TestTexture: testTexture.View.WithSampler(sampler),
 		}
 		gpu.EnqueueTraceRays(jq, pipeline, &sbt, res.X, res.Y, 1, &args)

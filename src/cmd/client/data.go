@@ -65,10 +65,13 @@ func texture(filename string) *renderer.Texture {
 				0, layers,
 				i, i+1)
 			img.EnqueueInit(&jq)
+
 			gpu.EnqueueCopyMemoryToImage(&jq,
 				img, gpu.Int3{},
 				tmp, 0, 0,
 				img.Extent())
+
+			jq.Cleanup(img.Destroy)
 
 			jq.Cleanup(func() { gpu.Free(gpu.UnsafePointer(gpu.SliceData(tmp))) })
 

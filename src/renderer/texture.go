@@ -25,7 +25,7 @@ func NewTexture(_type vk.ImageViewType, extent gpu.Int3, mipLevels, layers int, 
 		Format:    format,
 		Usage:     gpu.ImageUsageSampling,
 	})
-	texture.View = texture.Image.NewSamplingView()
+	texture.View = texture.Image.SamplingDescriptor()
 
 	return texture
 }

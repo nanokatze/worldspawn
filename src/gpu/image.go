@@ -12,6 +12,10 @@ import (
 
 // TODO: move all image stuff into a subpackage
 
+var imageDescAllocHint int64
+var imageDescAlloc = newSlotAlloc(1e6) // allocate at gpuInit()
+var imageViews = make([]vk.ImageView, 1e6)
+
 type ImageDim int // uint8?
 
 const (
@@ -92,7 +96,64 @@ func (usage ImageUsage) vkImageUsageFlags(format Format) vk.ImageUsageFlags {
 	return vkUsage
 }
 
-// TODO: do we need any other params here?
+type imageData struct {
+	vkImage vk.Image
+
+	// TODO: review which of these fields we need
+	dim       ImageDim
+	extent    Int3 // TODO: change this back to vk.Extent3D?
+	layers    uint32
+	mipLevels uint32
+	format    Format
+	usage     ImageUsage
+
+	memory *deviceMemory // TODO: replace with an UnsafePointer and length
+}
+
+func (base *imageData) destroy() {
+	vkFns.DestroyImage(device, base.vkImage, nil)
+
+	allocPoolMu.Lock()
+	allocPool[base.memory.size] = append(allocPool[base.memory.size], base.memory)
+	allocPoolMu.Unlock()
+}
+
+type imageDescriptors struct {
+	sampling, loadStore uint32
+}
+
+func (descriptors imageDescriptors) destroy() {
+	vkFns.DestroyImageView(device, imageViews[descriptors.sampling], nil)
+	imageDescAlloc.Free(int(descriptors.sampling))
+	vkFns.DestroyImageView(device, imageViews[descriptors.loadStore], nil)
+	imageDescAlloc.Free(int(descriptors.loadStore))
+}
+
+type Image struct {
+	base        *imageData // TODO: rename to data?
+	descriptors imageDescriptors
+
+	dim          ImageDim
+	format       Format // see SubImage
+	baseLayer    uint32
+	layers       uint32
+	baseMipLevel uint8 // TODO: compress these into a single uint64
+	mipLevels    uint8
+
+	// precomputed stuff
+
+	extent Int3 // TODO: change to Extent3D for a more compact representation?
+
+	// ownsBase specifies whether this *Image owns the data and Destroy should
+	// actually destroy it.
+	//
+	// TODO: remove once image memory imposes pressure on GC
+	ownsBase bool
+
+	cleanup runtime.Cleanup
+}
+
+// TODO: do we need any other fields here?
 type ImageConfig struct {
 	Dim       ImageDim
 	Extent    Int3
@@ -141,49 +202,13 @@ func (config *ImageConfig) vkImageCreateInfo(queueFamilies []uint32, createInfo 
 	}
 }
 
-type Image struct {
-	base *imageData
-
-	dim          ImageDim
-	format       Format // see SubImage
-	baseLayer    uint32
-	layers       uint32
-	baseMipLevel uint8 // TODO: compress these into a single uint64
-	mipLevels    uint8
-
-	// precomputed stuff
-
-	extent Int3 // TODO: change to Extent3D for a more compact representation?
-
-	owner bool
-}
-
-type imageData struct {
-	vkImage vk.Image
-
-	// TODO: review which of these fields we need
-	dim       ImageDim
-	extent    Int3 // TODO: change this back to vk.Extent3D?
-	layers    uint32
-	mipLevels uint32
-	format    Format
-	usage     ImageUsage
-
-	memory *deviceMemory // TODO: replace with an UnsafePointer and length
-}
-
-// TODO: lazily allocate these?
-var imageDescAllocHint int64
-var imageDescriptors = newSlotAlloc(1e6)
-var imageViews = make([]uint64, 1e6)
-
 func NewImage(config *ImageConfig) *Image {
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
 
 	gpuInit()
 
-	imageData := new(imageData)
+	base := new(imageData)
 
 	imageCreateInfo := new(vk.ImageCreateInfo)
 	config.vkImageCreateInfo(queueFamilies.probe, imageCreateInfo)
@@ -205,7 +230,7 @@ func NewImage(config *ImageConfig) *Image {
 
 	size := roundUpDeviceAllocationSize(int(requirements.Size))
 
-	if err := vkFns.CreateImage(device, imageCreateInfo, nil, &imageData.vkImage); err != nil {
+	if err := vkFns.CreateImage(device, imageCreateInfo, nil, &base.vkImage); err != nil {
 		panic(fmt.Sprintf("gpu: vkCreateImage: %v", err))
 	}
 
@@ -215,12 +240,12 @@ func NewImage(config *ImageConfig) *Image {
 		allocPoolMu.Lock()
 		entries := allocPool[size]
 		if len(entries) > 0 {
-			imageData.memory = entries[len(entries)-1]
+			base.memory = entries[len(entries)-1]
 			allocPool[size] = entries[:len(entries)-1]
 		}
 		allocPoolMu.Unlock()
 	}
-	if imageData.memory == nil {
+	if base.memory == nil {
 		var allocation deviceMemory
 		allocation.size = size
 		if err := vkFns.AllocateMemory(device, &vk.MemoryAllocateInfo{
@@ -230,24 +255,24 @@ func NewImage(config *ImageConfig) *Image {
 		}, nil, &allocation.memory); err != nil {
 			panic(fmt.Sprintf("gpu: vkAllocateMemory: %v", err))
 		}
-		imageData.memory = &allocation
+		base.memory = &allocation
 	}
 
 	if err := vkFns.BindImageMemory2(device, 1, &vk.BindImageMemoryInfo{
 		SType:        vk.STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO,
-		Image:        imageData.vkImage,
-		Memory:       imageData.memory.memory,
+		Image:        base.vkImage,
+		Memory:       base.memory.memory,
 		MemoryOffset: 0,
 	}); err != nil {
 		panic(fmt.Sprintf("gpu: vkBindImageMemory2: %v", err))
 	}
 
-	imageData.dim = config.Dim
-	imageData.extent = config.Extent
-	imageData.layers = uint32(config.Layers)
-	imageData.mipLevels = uint32(config.MipLevels)
-	imageData.format = config.Format
-	imageData.usage = config.Usage
+	base.dim = config.Dim
+	base.extent = config.Extent
+	base.layers = uint32(config.Layers)
+	base.mipLevels = uint32(config.MipLevels)
+	base.format = config.Format
+	base.usage = config.Usage
 
 	/*
 		runtime.AddCleanup(imageData,
@@ -258,12 +283,12 @@ func NewImage(config *ImageConfig) *Image {
 	*/
 
 	tmp := newImage(
-		imageData,
-		imageData.dim,
-		imageData.format,
-		0, int(imageData.layers),
-		0, int(imageData.mipLevels))
-	tmp.owner = true
+		base,
+		base.dim,
+		base.format,
+		0, int(base.layers),
+		0, int(base.mipLevels))
+	tmp.ownsBase = true
 	return tmp
 }
 
@@ -286,7 +311,7 @@ func newImage(base *imageData,
 		extent = divByBlockExtentRoundUp(extent, base.format)
 	}
 
-	return &Image{
+	img := &Image{
 		base:         base,
 		dim:          dim,
 		format:       format,
@@ -296,6 +321,97 @@ func newImage(base *imageData,
 		mipLevels:    uint8(mipLevels),
 		extent:       extent,
 	}
+
+	formatFeatures := getFormatProps(format).OptimalTilingFeatures
+
+	const formatFeatureMaskImageSampling = vk.FormatFeatureFlags2(vk.FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT)
+	sampling := base.usage&ImageUsageSampling != 0 &&
+		formatFeatures&formatFeatureMaskImageSampling == formatFeatureMaskImageSampling
+
+	const formatFeatureMaskImageLoadStore = vk.FormatFeatureFlags2(vk.FORMAT_FEATURE_2_STORAGE_IMAGE_BIT) |
+		vk.FormatFeatureFlags2(vk.FORMAT_FEATURE_2_STORAGE_READ_WITHOUT_FORMAT_BIT) |
+		vk.FormatFeatureFlags2(vk.FORMAT_FEATURE_2_STORAGE_WRITE_WITHOUT_FORMAT_BIT)
+	loadStore := base.usage&ImageUsageLoadStore != 0 &&
+		formatFeatures&formatFeatureMaskImageLoadStore == formatFeatureMaskImageLoadStore
+
+	var imageViewCreateInfo *vk.ImageViewCreateInfo
+	if sampling || loadStore {
+		usage := vk.ImageUsageFlags(0)
+		if sampling {
+			usage |= vk.ImageUsageFlags(vk.IMAGE_USAGE_SAMPLED_BIT)
+		}
+		if loadStore {
+			usage |= vk.ImageUsageFlags(vk.IMAGE_USAGE_STORAGE_BIT)
+		}
+
+		imageViewCreateInfo = &vk.ImageViewCreateInfo{
+			SType: vk.STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+			PNext: unsafe.Pointer(&vk.ImageViewUsageCreateInfo{
+				SType: vk.STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO,
+				Usage: usage,
+			}),
+			Image:            img.base.vkImage,
+			ViewType:         img.dim.vkImageViewType(),
+			Format:           img.format,
+			SubresourceRange: img.vkImageSubresourceRange(),
+		}
+	}
+
+	if sampling {
+		img.descriptors.sampling = uint32(imageDescAlloc.Alloc(&imageDescAllocHint))
+
+		var vkView vk.ImageView
+		if err := vkFns.CreateImageView(device, imageViewCreateInfo, nil, &vkView); err != nil {
+			panic(fmt.Sprintf("gpu: vkCreateImageView: %v", err))
+		}
+		imageViews[img.descriptors.sampling] = vkView
+
+		vkFns.UpdateDescriptorSets(device,
+			1, &vk.WriteDescriptorSet{
+				SType:           vk.STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+				DstSet:          descriptorSet,
+				DstBinding:      1,
+				DstArrayElement: uint32(img.descriptors.sampling),
+				DescriptorCount: 1,
+				DescriptorType:  vk.DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+				PImageInfo: &vk.DescriptorImageInfo{
+					ImageView:   vkView,
+					ImageLayout: vk.IMAGE_LAYOUT_GENERAL,
+				},
+			},
+			0, nil)
+	}
+
+	if loadStore {
+		img.descriptors.loadStore = uint32(imageDescAlloc.Alloc(&imageDescAllocHint))
+
+		var vkView vk.ImageView
+		if err := vkFns.CreateImageView(device, imageViewCreateInfo, nil, &vkView); err != nil {
+			panic(fmt.Sprintf("gpu: vkCreateImageView: %v", err))
+		}
+		imageViews[img.descriptors.loadStore] = vkView
+
+		vkFns.UpdateDescriptorSets(device,
+			1, &vk.WriteDescriptorSet{
+				SType:           vk.STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+				DstSet:          descriptorSet,
+				DstBinding:      2,
+				DstArrayElement: uint32(img.descriptors.loadStore),
+				DescriptorCount: 1,
+				DescriptorType:  vk.DESCRIPTOR_TYPE_STORAGE_IMAGE,
+				PImageInfo: &vk.DescriptorImageInfo{
+					ImageView:   vkView,
+					ImageLayout: vk.IMAGE_LAYOUT_GENERAL,
+				},
+			},
+			0, nil)
+	}
+
+	if img.descriptors != (imageDescriptors{}) {
+		img.cleanup = runtime.AddCleanup(img, imageDescriptors.destroy, img.descriptors)
+	}
+
+	return img
 }
 
 // Format specifies what format to reinterpret this image
@@ -304,7 +420,7 @@ func newImage(base *imageData,
 // we can pretend all images are multi-planar and specify *plane mask* (up to 3
 // bits). Depth-stencil images always have depth be plane 0 and stencil plane 1.
 // TODO: better parameter names
-func (image *Image) SubImage(
+func (img *Image) SubImage(
 	dim ImageDim,
 	format Format,
 	baseLayer, endLayer int,
@@ -312,21 +428,21 @@ func (image *Image) SubImage(
 	// TODO: SubImage-specific validation
 
 	return newImage(
-		image.base,
+		img.base,
 		dim,
 		format,
-		int(image.baseLayer)+baseLayer, endLayer-baseLayer,
-		int(image.baseMipLevel)+baseMipLevel, endMipLevel-baseMipLevel)
+		int(img.baseLayer)+baseLayer, endLayer-baseLayer,
+		int(img.baseMipLevel)+baseMipLevel, endMipLevel-baseMipLevel)
 }
 
-func (image *Image) Dim() ImageDim { return image.dim }
+func (img *Image) Dim() ImageDim { return img.dim }
 
-func (image *Image) Format() Format { return image.format }
+func (img *Image) Format() Format { return img.format }
 
-func (image *Image) Extent() Int3 { return image.extent }
+func (img *Image) Extent() Int3 { return img.extent }
 
-func (image *Image) EnqueueInit(jq *JobQueue) {
-	image.enqueueTransitionLayout(jq, vk.IMAGE_LAYOUT_UNDEFINED, vk.IMAGE_LAYOUT_GENERAL)
+func (img *Image) EnqueueInit(jq *JobQueue) {
+	img.enqueueTransitionLayout(jq, vk.IMAGE_LAYOUT_UNDEFINED, vk.IMAGE_LAYOUT_GENERAL)
 }
 
 // TODO: move to its own file I guess. Or idk.
@@ -337,10 +453,10 @@ type transitionImageLayoutJob struct {
 	newLayout        vk.ImageLayout
 }
 
-func (image *Image) enqueueTransitionLayout(jq *JobQueue, oldLayout, newLayout vk.ImageLayout) {
+func (img *Image) enqueueTransitionLayout(jq *JobQueue, oldLayout, newLayout vk.ImageLayout) {
 	jq.Enqueue(&transitionImageLayoutJob{
-		imageData:        image.base,
-		subresourceRange: vkImageSubresourceRange(image),
+		imageData:        img.base,
+		subresourceRange: img.vkImageSubresourceRange(),
 		oldLayout:        oldLayout,
 		newLayout:        newLayout,
 	})
@@ -385,37 +501,41 @@ func (job *transitionImageLayoutJob) Exec(q *CommandQueue) {
 	})
 }
 
-func vkImageSubresourceRange(image *Image) vk.ImageSubresourceRange {
+func (img *Image) SamplingDescriptor() SamplingView {
+	if img.descriptors.sampling == 0 {
+		panic("no descriptor")
+	}
+	return SamplingView{img.descriptors.sampling}
+}
+
+func (img *Image) LoadStoreDescriptor() StorageView {
+	if img.descriptors.loadStore == 0 {
+		panic("no descriptor")
+	}
+	return StorageView{img.descriptors.loadStore}
+}
+
+func (img *Image) vkImageSubresourceRange() vk.ImageSubresourceRange {
 	return vk.ImageSubresourceRange{
-		AspectMask:     formatutil.Aspects(image.format),
-		BaseMipLevel:   uint32(image.baseMipLevel),
-		LevelCount:     uint32(image.mipLevels),
-		BaseArrayLayer: image.baseLayer,
-		LayerCount:     image.layers,
+		AspectMask:     formatutil.Aspects(img.format),
+		BaseMipLevel:   uint32(img.baseMipLevel),
+		LevelCount:     uint32(img.mipLevels),
+		BaseArrayLayer: img.baseLayer,
+		LayerCount:     img.layers,
 	}
 }
 
-// TODO: deprecated in favor of Descriptor()
-func (image *Image) NewSamplingView() SamplingView {
-	return newSamplingView(image)
-}
+// TODO: rename to "Free" or something like that and document that it's not
+// necessary for the user to call it.
+func (img *Image) Destroy() {
+	img.descriptors.destroy()
 
-// TODO: deprecated in favor of Descriptor()
-func (image *Image) NewStorageView() StorageView {
-	return newStorageView(image)
-}
-
-func (image *Image) Destroy() {
-	// Ideally we'd not have Destroy(), but eh.
-	if image.owner {
-		image.base.destroy()
+	if img.ownsBase {
+		img.base.destroy()
 	}
-}
 
-func (image *imageData) destroy() {
-	vkFns.DestroyImage(device, image.vkImage, nil)
+	img.cleanup.Stop()
 
-	allocPoolMu.Lock()
-	allocPool[image.memory.size] = append(allocPool[image.memory.size], image.memory)
-	allocPoolMu.Unlock()
+	// TODO: is this necessary?
+	runtime.KeepAlive(img)
 }

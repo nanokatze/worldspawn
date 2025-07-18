@@ -162,8 +162,10 @@ vkcall_void_uintptr_32_ptr(void (*fn)(uintptr_t, uint32_t, void*), uintptr_t a0,
 	fn(a0, a1, a2);
 }
 
+#cgo noescape vkcall_void_uintptr_32_ptr_32_ptr_noescape_nocallback
+#cgo nocallback vkcall_void_uintptr_32_ptr_32_ptr_noescape_nocallback
 void
-vkcall_void_uintptr_32_ptr_32_ptr(void (*fn)(uintptr_t, uint32_t, void*, uint32_t, void*), uintptr_t a0, uint32_t a1, void *a2, uint32_t a3, void *a4)
+vkcall_void_uintptr_32_ptr_32_ptr_noescape_nocallback(void (*fn)(uintptr_t, uint32_t, void*, uint32_t, void*), uintptr_t a0, uint32_t a1, void *a2, uint32_t a3, void *a4)
 {
 	fn(a0, a1, a2, a3, a4);
 }
@@ -438,7 +440,7 @@ func (funcs *DeviceFuncs) CmdBuildAccelerationStructuresKHR(commandBuffer Comman
 }
 
 func (funcs *DeviceFuncs) CmdClearAttachments(commandBuffer CommandBuffer, attachmentCount uint32, attachments *ClearAttachment, rectCount uint32, rects *ClearRect) {
-	C.vkcall_void_uintptr_32_ptr_32_ptr(funcs.C_CmdClearAttachments, C.uintptr_t(commandBuffer), C.uint32_t(attachmentCount), unsafe.Pointer(attachments), C.uint32_t(rectCount), unsafe.Pointer(rects))
+	C.vkcall_void_uintptr_32_ptr_32_ptr_noescape_nocallback(funcs.C_CmdClearAttachments, C.uintptr_t(commandBuffer), C.uint32_t(attachmentCount), unsafe.Pointer(attachments), C.uint32_t(rectCount), unsafe.Pointer(rects))
 }
 
 func (funcs *DeviceFuncs) CmdCopyBuffer2(commandBuffer CommandBuffer, pCopyBufferInfo *CopyBufferInfo2) {
@@ -574,7 +576,7 @@ func (funcs *DeviceFuncs) CmdSetStencilTestEnableEXT(commandBuffer CommandBuffer
 }
 
 func (funcs *DeviceFuncs) CmdSetVertexInputEXT(commandBuffer CommandBuffer, vertexBindingDescriptionCount uint32, pVertexBindingDescriptions *VertexInputBindingDescription2EXT, vertexAttributeDescriptionCount uint32, pVertexAttributeDescriptions *VertexInputAttributeDescription2EXT) {
-	C.vkcall_void_uintptr_32_ptr_32_ptr(funcs.C_CmdSetVertexInputEXT, C.uintptr_t(commandBuffer), C.uint32_t(vertexBindingDescriptionCount), unsafe.Pointer(pVertexBindingDescriptions), C.uint32_t(vertexAttributeDescriptionCount), unsafe.Pointer(pVertexAttributeDescriptions))
+	C.vkcall_void_uintptr_32_ptr_32_ptr_noescape_nocallback(funcs.C_CmdSetVertexInputEXT, C.uintptr_t(commandBuffer), C.uint32_t(vertexBindingDescriptionCount), unsafe.Pointer(pVertexBindingDescriptions), C.uint32_t(vertexAttributeDescriptionCount), unsafe.Pointer(pVertexAttributeDescriptions))
 }
 
 func (funcs *DeviceFuncs) CmdSetViewportWithCountEXT(commandBuffer CommandBuffer, viewportCount uint32, pViewports *Viewport) {
@@ -730,7 +732,7 @@ func (funcs *DeviceFuncs) ResetFences(device Device, fenceCount uint32, pFences 
 }
 
 func (funcs *DeviceFuncs) UpdateDescriptorSets(device Device, descriptorWriteCount uint32, pDescriptorWrites *WriteDescriptorSet, descriptorCopyCount uint32, pDescriptorCopies *CopyDescriptorSet) {
-	C.vkcall_void_uintptr_32_ptr_32_ptr(funcs.C_UpdateDescriptorSets, C.uintptr_t(device), C.uint32_t(descriptorWriteCount), unsafe.Pointer(pDescriptorWrites), C.uint32_t(descriptorCopyCount), unsafe.Pointer(&pDescriptorCopies))
+	C.vkcall_void_uintptr_32_ptr_32_ptr_noescape_nocallback(funcs.C_UpdateDescriptorSets, C.uintptr_t(device), C.uint32_t(descriptorWriteCount), unsafe.Pointer(pDescriptorWrites), C.uint32_t(descriptorCopyCount), unsafe.Pointer(&pDescriptorCopies))
 }
 
 func (funcs *DeviceFuncs) WaitForFences(device Device, fenceCount uint32, pFences *Fence, waitAll Bool32, timeout uint64) error {

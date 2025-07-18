@@ -7,6 +7,8 @@ import (
 	"worldspawn/gpu/vk"
 )
 
+// TODO: move this file into image.go tbh
+
 type Sampler struct{ handle uint32 }
 
 var samplerAllocHint int64
