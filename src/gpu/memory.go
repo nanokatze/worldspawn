@@ -75,8 +75,11 @@ func (p UnsafePointer) Value() unsafe.Pointer {
 	defer allocsMu.Unlock()
 
 	// TODO: use a radix tree instead of binary search
-	i, _ := slices.BinarySearch(deviceAddrs, uint64(p))
-	if i < len(deviceAddrs) && deviceAddrs[i] <= uint64(p) && uint64(p) < deviceAddrs[i]+uint64(allocs[i].size) {
+	i, ok := slices.BinarySearch(deviceAddrs, uint64(p))
+	if !ok {
+		i--
+	}
+	if 0 <= i && i < len(deviceAddrs) && deviceAddrs[i] <= uint64(p) && uint64(p) < deviceAddrs[i]+uint64(allocs[i].size) {
 		off := int(uint64(p) - deviceAddrs[i])
 		return unsafe.Pointer(allocs[i].hostAddr + uintptr(off))
 	}
@@ -235,6 +238,10 @@ func MakeSliceUncached[T any](n int) Slice[T] {
 		len:  n,
 		cap:  n,
 	}
+}
+
+func (s Slice[T]) Index(i int) Pointer[T] {
+	return Pointer[T](uint64(s.data) + uint64(i*int(unsafe.Sizeof(*new(T)))))
 }
 
 func (s Slice[T]) Value() []T {
