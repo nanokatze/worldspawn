@@ -222,7 +222,7 @@ func malloc(size int, flags uint32) UnsafePointer {
 // increasing sizes probably
 
 func NewUncached[T any]() Pointer[T] {
-	return (Pointer[T])(malloc(int(unsafe.Sizeof(*new(T))), hostMapped|hostUncached))
+	return (Pointer[T])(malloc(int(unsafe.Sizeof(*new(T))), hostMapped /*|hostUncached*/))
 }
 
 // TODO: remove in favor of just host []T eventually
