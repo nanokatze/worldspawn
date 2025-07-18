@@ -1,11 +1,8 @@
 [require(spirv)] module;
 
-[allow("parameterBindingsOverlap")] [[vk::binding(0, 0)]] SamplerState samplers[];
-
-[allow("parameterBindingsOverlap")] [[vk::binding(1, 0)]] Texture2D sampledImages2D[];
-[allow("parameterBindingsOverlap")] [[vk::binding(1, 0)]] TextureCube sampledImagesCube[];
-
-[allow("parameterBindingsOverlap")] [[vk::binding(2, 0)]] RWTexture2D storageImageViews[];
+[[vk::binding(0, 0)]] __DynamicResource<__DynamicResourceKind.Sampler> samplers[];
+[[vk::binding(1, 0)]] __DynamicResource<__DynamicResourceKind.General> sampledImages[];
+[[vk::binding(2, 0)]] __DynamicResource<__DynamicResourceKind.General> storageImages[];
 
 public struct Sampler {
 	internal uint32_t handle;
@@ -29,13 +26,13 @@ public struct SamplingView {
 	[require(spirv, nonuniformqualifier)]
 	public uint2 Extent2D() { // rename to Bounds2D? Size2D?
 		uint2 extent;
-		sampledImages2D[NonUniformResourceIndex(handle)].GetDimensions(extent.x, extent.y);
+		sampledImages[NonUniformResourceIndex(handle)].asOpaqueDescriptor<Texture2D>().GetDimensions(extent.x, extent.y);
 		return extent;
 	}
 
 	[require(spirv, nonuniformqualifier)]
 	public float4 At2D(int2 P) {
-		return sampledImages2D[NonUniformResourceIndex(handle)].Load(int3(P, 0));
+		return sampledImages[NonUniformResourceIndex(handle)].asOpaqueDescriptor<Texture2D>().Load(int3(P, 0));
 	}
 };
 
@@ -58,22 +55,22 @@ public struct SamplingViewWithSampler {
 
 	[require(spirv, nonuniformqualifier)]
 	public float4 Sample2D(float2 P) { // rename to Sample2DF? Or should F be default so we do a Sample2DU for uint and Sample2DI for int?
-		return sampledImages2D[NonUniformResourceIndex(Image().handle)].Sample(samplers[NonUniformResourceIndex(Sampler().handle >> 20)], P);
+		return sampledImages[NonUniformResourceIndex(Image().handle)].asOpaqueDescriptor<Texture2D>().Sample(samplers[NonUniformResourceIndex(Sampler().handle >> 20)].asOpaqueDescriptor<SamplerState>(), P);
     }
 
     [require(spirv, nonuniformqualifier)]
     public float4 Sample2DLOD(float2 P, float level) { // rename to Sample2DF? Or should F be default so we do a Sample2DU for uint and Sample2DI for int?
-        return sampledImages2D[NonUniformResourceIndex(Image().handle)].Sample(samplers[NonUniformResourceIndex(Sampler().handle >> 20)], P);
+        return sampledImages[NonUniformResourceIndex(Image().handle)].asOpaqueDescriptor<Texture2D>().Sample(samplers[NonUniformResourceIndex(Sampler().handle >> 20)].asOpaqueDescriptor<SamplerState>(), P);
     }
 
 	[require(spirv, nonuniformqualifier)]
 	public float4 SampleCube(float3 P) {
-		return sampledImagesCube[NonUniformResourceIndex(Image().handle)].Sample(samplers[NonUniformResourceIndex(Sampler().handle >> 20)], P);
+		return sampledImages[NonUniformResourceIndex(Image().handle)].asOpaqueDescriptor<TextureCube>().Sample(samplers[NonUniformResourceIndex(Sampler().handle >> 20)].asOpaqueDescriptor<SamplerState>(), P);
 	}
 
 	[require(spirv, nonuniformqualifier)]
 	public float4 SampleCubeLOD(float3 P, float level) {
-		return sampledImagesCube[NonUniformResourceIndex(Image().handle)].SampleLevel(samplers[NonUniformResourceIndex(Sampler().handle >> 20)], P, level);
+		return sampledImages[NonUniformResourceIndex(Image().handle)].asOpaqueDescriptor<TextureCube>().SampleLevel(samplers[NonUniformResourceIndex(Sampler().handle >> 20)].asOpaqueDescriptor<SamplerState>(), P, level);
 	}
 };
 
@@ -84,11 +81,11 @@ public struct StorageView {
 
 	[require(spirv, nonuniformqualifier)]
 	public float4 Load2D(int2 P) {
-		return storageImageViews[NonUniformResourceIndex(handle)][P];
+		return storageImages[NonUniformResourceIndex(handle)].asOpaqueDescriptor<RWTexture2D>()[P];
 	}
 
 	[require(spirv, nonuniformqualifier)]
 	public void Store2D(int2 P, float4 v) {
-		storageImageViews[NonUniformResourceIndex(handle)][P] = v;
+		storageImages[NonUniformResourceIndex(handle)].asOpaqueDescriptor<RWTexture2D>()[P] = v;
 	}
 };
