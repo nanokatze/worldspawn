@@ -15,6 +15,11 @@ type Camera struct {
 	NearClipPlane float32
 }
 
+type _Mesh struct {
+	Primitives gpu.Pointer[[3]uint16]
+	UVs        gpu.Pointer[[2]float32]
+}
+
 // TODO: to abstract over still AS and motion AS we could introduce two scenes
 // that implement the same interface. Though that would be insufficient of an
 // abstraction as shader code would still have to be aware about still vs motion
@@ -22,12 +27,18 @@ type Camera struct {
 type Scene struct {
 	sky gpu.SamplingView
 
-	tlasInstances gpu.Slice[gpu.AccelInstance]
-	tlas          gpu.UnsafePointer // TODO: maybe make this a proper typedef
+	instances      gpu.Slice[gpu.Pointer[_Mesh]]
+	accelInstances gpu.Slice[gpu.AccelInstance]
+	accel          gpu.UnsafePointer // TODO: maybe make this a proper typedef
 }
 
 func NewScene(n int) *Scene {
-	tlasInstances := gpu.MakeSliceUncached[gpu.AccelInstance](n)
+	instances := gpu.MakeSliceUncached[gpu.Pointer[_Mesh]](n)
+	hack := gpu.MakeSliceUncached[_Mesh](n)
+	instancesHost := instances.Value()
+	for i := range instancesHost {
+		instancesHost[i] = hack.Index(i)
+	}
 
 	tlasConfig := &gpu.AccelBuildConfig{
 		Type: vk.ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
@@ -41,23 +52,20 @@ func NewScene(n int) *Scene {
 	tlas := gpu.UnsafePointer(gpu.SliceData(gpu.MakeSliceUncached[byte](tlasSize)))
 
 	return &Scene{
-		tlasInstances: tlasInstances,
-		tlas:          tlas,
+		instances:      instances,
+		accelInstances: gpu.MakeSliceUncached[gpu.AccelInstance](n),
+		accel:          tlas,
 	}
 }
 
 type Instance struct {
 	Transform int
 
-	Mask uint8 // should this be moved into MeshInstance?
-
-	// BLAS gpu.UnsafePointer
+	Mask uint8
 }
 
 type MeshInstance struct {
 	Mesh *Mesh
-
-	BaseMesh *Mesh
 }
 
 // TODO: make all of the fields private and provide methods for manipulation.
@@ -126,12 +134,20 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 
 	var instanceCount int
 
-	tlasInstancesHost := scene.tlasInstances.Value()
+	instancesHost := scene.instances.Value()
+	accelInstancesHost := scene.accelInstances.Value()
 	for instanceIndex, instance := range dirty.Instance {
 		// TODO: is this necessary?
 		if instanceIndex == 0 || instance.Transform == 0 {
-			tlasInstancesHost[instanceIndex] = gpu.AccelInstance{}
+			accelInstancesHost[instanceIndex] = gpu.AccelInstance{}
 			continue
+		}
+
+		meshInstance := dirty.MeshInstance[instanceIndex]
+
+		*instancesHost[instanceIndex].Value() = _Mesh{
+			Primitives: gpu.SliceData(meshInstance.Mesh.primitives),
+			UVs:        gpu.SliceData(meshInstance.Mesh.uvs),
 		}
 
 		// Should be done on the device
@@ -145,18 +161,16 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 			}
 		}
 
-		tlasInstancesHost[instanceIndex].Transform = A
-		tlasInstancesHost[instanceIndex].InstanceIDAndMask = pack24_8(uint32(instanceIndex), uint32(instance.Mask))
-		tlasInstancesHost[instanceIndex].SBTOffsetAndFlags = pack24_8(0, 0)
-
-		meshInstance := dirty.MeshInstance[instanceIndex]
+		accelInstancesHost[instanceIndex].Transform = A
+		accelInstancesHost[instanceIndex].InstanceIDAndMask = pack24_8(uint32(instanceIndex), uint32(instance.Mask))
+		accelInstancesHost[instanceIndex].SBTOffsetAndFlags = pack24_8(0, 0)
 
 		// TODO: is this necessary?
 		var blas gpu.UnsafePointer
 		if meshInstance.Mesh != nil {
 			blas = meshInstance.Mesh.BLAS
 		}
-		tlasInstancesHost[instanceIndex].Accel = blas
+		accelInstancesHost[instanceIndex].Accel = blas
 
 		instanceCount = max(instanceCount, instanceIndex+1)
 	}
@@ -165,7 +179,7 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 		Type: vk.ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
 		Inputs: []gpu.AccelBuildInput{
 			&gpu.AccelBuildInputInstances{
-				Instances:     gpu.SliceData(scene.tlasInstances),
+				Instances:     gpu.SliceData(scene.accelInstances),
 				InstanceCount: uint32(instanceCount),
 			},
 		},
@@ -177,7 +191,7 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 		gpu.MakeSliceUncached[byte](buildScratchSize)))
 	defer jq.Cleanup(func() { gpu.Free(tlasBuildScratch) })
 	gpu.EnqueueAccelBuild(jq,
-		scene.tlas,
+		scene.accel,
 		accelerationStructureSize,
 		tlasConfig,
 		tlasBuildScratch)

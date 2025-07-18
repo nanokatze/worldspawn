@@ -217,11 +217,13 @@ func (re *Renderer) Render(jq *gpu.JobQueue, scene *Scene, t float32, camera *Ca
 			TLAS        gpu.UnsafePointer
 			Out         gpu.StorageView
 			TestTexture gpu.SamplingViewWithSampler
+			Mesh        gpu.Pointer[gpu.Pointer[_Mesh]]
 		}{
 			Camera:      frameData,
-			TLAS:        scene.tlas,
+			TLAS:        scene.accel,
 			Out:         out.LoadStoreDescriptor(),
 			TestTexture: testTexture.View.WithSampler(sampler),
+			Mesh:        gpu.SliceData(scene.instances),
 		}
 		gpu.EnqueueTraceRays(jq, pipeline, &sbt, res.X, res.Y, 1, &args)
 	}

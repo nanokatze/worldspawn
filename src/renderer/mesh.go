@@ -49,7 +49,7 @@ type Mesh struct {
 	normals      gpu.Slice[[3]float32]
 	groupIndices gpu.Slice[uint32]
 	groupWeights gpu.Slice[float32]
-	attribute    gpu.Slice[[2]float32] // TODO: change this to be slice of pointers and call the thing attributes
+	uvs          gpu.Slice[[2]float32] // TODO: change this to be slice of pointers and call the thing attributes
 	vertexCount  uint32
 
 	// TODO: we may need different types of indices, how should we approach
@@ -83,7 +83,7 @@ func (m *Mesh) Init(indexType uint8, primitiveCount uint32, groupElementsPerVert
 		m.groupIndices = gpu.MakeSliceUncached[uint32](int(vertexCount) * int(groupElementsPerVertex))
 		m.groupWeights = gpu.MakeSliceUncached[float32](int(vertexCount) * int(groupElementsPerVertex))
 	}
-	m.attribute = gpu.MakeSliceUncached[[2]float32](int(vertexCount))
+	m.uvs = gpu.MakeSliceUncached[[2]float32](int(vertexCount))
 
 	blasConfig := gpu.AccelBuildConfig{
 		Type: vk.ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
@@ -194,7 +194,7 @@ func (m *Mesh) SetFromFile(
 			panic("bug")
 		}
 	}
-	if _, err := r.ReadAt(byteslice(m.attribute.Value()), uvsOff); err != nil {
+	if _, err := r.ReadAt(byteslice(m.uvs.Value()), uvsOff); err != nil {
 		panic("bug")
 	}
 
