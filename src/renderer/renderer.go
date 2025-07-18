@@ -70,13 +70,13 @@ var blueNoise = sync.OnceValue(func() *gpu.Image {
 })
 
 var pathTracer = sync.OnceValues(func() (*gpu.RayTracingPipeline, gpu.ShaderBindingTable) {
-	raygen := gpu.NewFunc(mustReadFile("shaders/rt.spv"), vk.SHADER_STAGE_RAYGEN_BIT_KHR, "raygen")
+	raygen := gpu.NewFunc(mustReadFile("shaders/renderer.spv"), vk.SHADER_STAGE_RAYGEN_BIT_KHR, "raygen")
 	raygenSG := gpu.NewGeneralRayTracingShaderGroup(raygen)
 
-	sky := gpu.NewFunc(mustReadFile("shaders/rt.spv"), vk.SHADER_STAGE_MISS_BIT_KHR, "sky")
+	sky := gpu.NewFunc(mustReadFile("shaders/renderer.spv"), vk.SHADER_STAGE_MISS_BIT_KHR, "sky")
 	skySG := gpu.NewGeneralRayTracingShaderGroup(sky)
 
-	chit := gpu.NewFunc(mustReadFile("shaders/rt.spv"), vk.SHADER_STAGE_CLOSEST_HIT_BIT_KHR, "chit")
+	chit := gpu.NewFunc(mustReadFile("shaders/renderer.spv"), vk.SHADER_STAGE_CLOSEST_HIT_BIT_KHR, "chit")
 	chitSG := gpu.NewTrianglesRayTracingShaderGroup(chit, nil)
 
 	linked := gpu.LinkRayTracingShaderGroups([]*gpu.RayTracingShaderGroup{
