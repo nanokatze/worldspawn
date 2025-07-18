@@ -23,10 +23,6 @@ import (
 // TODO: alias or replace definitions of vulkan types we use so that most
 // users won't need to import worldspawn/gpu/vk
 
-type Format = vk.Format
-
-type IndexType = vk.IndexType
-
 // TODO: add GPUGODEBUG env var and various flags
 
 // TODO: let third party packages sneak in the instance exts and device features
