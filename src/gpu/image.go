@@ -535,7 +535,4 @@ func (img *Image) Destroy() {
 	}
 
 	img.cleanup.Stop()
-
-	// TODO: is this necessary?
-	runtime.KeepAlive(img)
 }
