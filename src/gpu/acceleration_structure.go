@@ -16,8 +16,6 @@ type TopLevelAccel struct {
 }
 */
 
-type TopLevelAccel = Accel
-
 // TODO: distinguish ASes of different types, with different types.
 type Accel struct {
 	Data UnsafePointer // TODO: make private
@@ -141,11 +139,18 @@ func (config *AccelBuildConfig) CalcSizes() (int, int, int) {
 	return int(sizes.AccelerationStructureSize), int(sizes.BuildScratchSize), int(sizes.UpdateScratchSize)
 }
 
-/*
+// TODO: rename to NewAccelTopLevel?
 func NewTopLevelAccel(maxInstances int) Accel {
-	return Accel{}
+	config := &AccelBuildConfig{
+		Type: vk.ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
+		Inputs: []AccelBuildInput{
+			&AccelBuildInputInstances{
+				InstanceCount: uint32(maxInstances),
+			},
+		},
+	}
+	return NewAccel(config)
 }
-*/
 
 func NewAccel(config *AccelBuildConfig) Accel {
 	accelSize, _, _ := config.CalcSizes()
