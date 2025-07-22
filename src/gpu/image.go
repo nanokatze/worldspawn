@@ -13,7 +13,7 @@ import (
 // TODO: move all image stuff into a subpackage
 
 var imageDescAllocHint int64
-var imageDescAlloc = newSlotAlloc(1e6) // allocate at gpuInit()
+var imageDescAlloc = newSlotAlloc(1e6) // allocate either at NewImage() or gpuInit()
 var imageViews = make([]vk.ImageView, 1e6)
 
 type ImageDim int // uint8?
