@@ -59,8 +59,9 @@ func NewFileBackedShape(fsys fs.FS, filename string) (*Shape, error) {
 	defer f.Close()
 
 	var preamble struct {
-		Magic [16]byte
-		A, B  struct {
+		Magic  [16]byte
+		Magic2 [16]byte
+		A, B   struct {
 			Off, Len int64
 		}
 	}
@@ -68,23 +69,41 @@ func NewFileBackedShape(fsys fs.FS, filename string) (*Shape, error) {
 		return nil, err
 	}
 
+	rat := f.(io.ReaderAt)
+
 	var header2 Header2
-	if err := json.UnmarshalRead(io.NewSectionReader(f.(io.ReaderAt), preamble.A.Off, preamble.A.Len), &header2, json.StringifyNumbers(true)); err != nil {
+	if err := json.UnmarshalRead(io.NewSectionReader(rat, preamble.A.Off, preamble.A.Len), &header2, json.StringifyNumbers(true)); err != nil {
 		return nil, err
 	}
 
-	shape := header2.RigidBody
+	shape := header2.Collider
 
-	switch shape.Kind {
-	case ShapeConvexHull:
-		return NewConvexHullShape(shape.Vertices, 0.05)
+	blob := io.NewSectionReader(rat, preamble.B.Off, preamble.B.Len)
 
-	case ShapeMesh:
-		return NewMeshShape(shape.Vertices, shape.Triangles)
-
-	default:
-		panic("unreachable")
+	verts := make([]geometry.Vec3, shape.VertexCount)
+	blob.Seek(int64(shape.Vertices), io.SeekStart)
+	if err := binary.Read(blob, binary.LittleEndian, &verts); err != nil {
+		return nil, err
 	}
+
+	tris := make([]Triangle, shape.TriangleCount)
+	blob.Seek(int64(shape.Triangles), io.SeekStart)
+	if err := binary.Read(blob, binary.LittleEndian, &tris); err != nil {
+		return nil, err
+	}
+
+	return NewConvexHullShape(verts, 0.05)
+
+	// switch shape.Kind {
+	// case ShapeConvexHull:
+	// 	return NewConvexHullShape(shape.Vertices, 0.05)
+
+	// case ShapeMesh:
+	// 	return NewMeshShape(shape.Vertices, shape.Triangles)
+
+	// default:
+	// 	panic("unreachable")
+	// }
 }
 
 // func NewShape() *Shape {

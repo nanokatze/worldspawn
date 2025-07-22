@@ -9,7 +9,6 @@ import (
 
 	"github.com/go-json-experiment/json"
 
-	"worldspawn/geometry-go"
 	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
 )
@@ -33,15 +32,23 @@ var skinMesh = sync.OnceValue(func() *gpu.Func {
 //
 //   - eventually we'll want to look into support for LODs
 
+type meshPart struct {
+	attributes []any
+}
+
 // TODO: should we move deforming geometry into its own type? Or perhaps
 // alternatively we should split off positions and normals from everything else.
 type Mesh struct {
-	rest *Mesh
-
 	// TODO: remove this when we move file format parsing and handling elsewhere
 	VertexGroups []string
 
-	BLAS gpu.UnsafePointer
+	Accel gpu.Accel
+
+	// TODO: we may need different types of indices, how should we approach
+	// that? Use interface{} or gpu.Slice[byte]?
+	indexType      uint8
+	primitives     gpu.Slice[[3]uint16]
+	primitiveCount uint32
 
 	groupElementsPerVertex uint32
 
@@ -52,11 +59,7 @@ type Mesh struct {
 	uvs          gpu.Slice[[2]float32] // TODO: change this to be slice of pointers and call the thing attributes
 	vertexCount  uint32
 
-	// TODO: we may need different types of indices, how should we approach
-	// that? Use interface{} or gpu.Slice[byte]?
-	indexType      uint8
-	primitives     gpu.Slice[[3]uint16]
-	primitiveCount uint32
+	attributes map[string]any
 
 	// parts []meshPart
 }
@@ -85,37 +88,25 @@ func (m *Mesh) Init(indexType uint8, primitiveCount uint32, groupElementsPerVert
 	}
 	m.uvs = gpu.MakeSliceUncached[[2]float32](int(vertexCount))
 
-	blasConfig := gpu.AccelBuildConfig{
-		Type: vk.ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
-		Inputs: []gpu.AccelBuildInput{
-			&gpu.AccelBuildInputTriangles{
-				VertexFormat:   vk.FORMAT_R32G32B32_SFLOAT,
-				VertexStride:   int(unsafe.Sizeof(m.positions.Value()[0])),
-				MaxVertex:      uint32(max(gpu.SliceLen(m.positions)-1, 0)),
-				IndexType:      vk.INDEX_TYPE_UINT16,
-				PrimitiveCount: uint32(gpu.SliceLen(m.primitives)),
+	/*
+		m.attributes = map[string]any{
+			"UVMap": gpu.MakeSliceUncached[[2]float32](int(vertexCount)),
+		}
+	*/
+
+	m.Accel = gpu.NewAccel(
+		&gpu.AccelBuildConfig{
+			Type: vk.ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
+			Inputs: []gpu.AccelBuildInput{
+				&gpu.AccelBuildInputTriangles{
+					VertexCount:    gpu.SliceLen(m.positions),
+					VertexStride:   int(unsafe.Sizeof(m.positions.Value()[0])),
+					VertexFormat:   vk.FORMAT_R32G32B32_SFLOAT,
+					PrimitiveCount: gpu.SliceLen(m.primitives),
+					IndexType:      vk.INDEX_TYPE_UINT16,
+				},
 			},
-		},
-	}
-
-	blasSize, _, _ := blasConfig.CalcSizes()
-
-	blas := gpu.UnsafePointer(gpu.SliceData(gpu.MakeSliceUncached[byte](blasSize)))
-
-	m.BLAS = blas
-}
-
-// TODO: should deformed meshes have their own type?
-func (m *Mesh) InitDeforming(rest *Mesh) {
-	*m = *rest
-	m.rest = rest
-}
-
-func (m *Mesh) Rest() *Mesh {
-	if m == nil {
-		return nil
-	}
-	return m.rest
+		})
 }
 
 func divCeil(x, y int) int {
@@ -124,13 +115,8 @@ func divCeil(x, y int) int {
 
 // TODO: something is broken with deforming meshes, we get artifacts during trace
 
-func (m *Mesh) EnqueueDeform(jq *gpu.JobQueue, pose gpu.Slice[geometry.Mat4x4]) {
-	if m.positions == m.rest.positions {
-		// TODO: do single big allocations for stuff with the same lifetime.
-		m.positions = gpu.MakeSliceUncached[[3]float32](int(m.rest.vertexCount))
-		m.normals = gpu.MakeSliceUncached[[3]float32](int(m.rest.vertexCount))
-	}
-
+/*
+func (dst *Mesh) EnqueueDeform(jq *gpu.JobQueue, src *Mesh, pose gpu.Slice[geometry.Mat4x4]) {
 	args := struct {
 		SkinnedPositions       gpu.UnsafePointer
 		SkinnedNormals         gpu.UnsafePointer
@@ -148,14 +134,15 @@ func (m *Mesh) EnqueueDeform(jq *gpu.JobQueue, pose gpu.Slice[geometry.Mat4x4]) 
 		RestNormals:            gpu.UnsafePointer(gpu.SliceData(m.rest.normals)),
 		GroupIndices:           gpu.UnsafePointer(gpu.SliceData(m.rest.groupIndices)),
 		GroupWeights:           gpu.UnsafePointer(gpu.SliceData(m.rest.groupWeights)),
-		GroupElementsPerVertex: m.rest.groupElementsPerVertex,
-		VertexCount:            m.rest.vertexCount,
+		GroupElementsPerVertex: src.groupElementsPerVertex,
+		VertexCount:            src.vertexCount,
 		Pose:                   gpu.UnsafePointer(gpu.SliceData(pose)),
 	}
-	gpu.EnqueueParallelFor(jq, divCeil(int(m.rest.vertexCount), 64), skinMesh(), &args)
+	gpu.EnqueueParallelFor(jq, divCeil(int(src.vertexCount), 64), skinMesh(), &args)
 
 	m.buildBLAS(jq)
 }
+*/
 
 // TODO: Mesh consists of several parts so we need to be able to provide all
 // parts at once I guess.
@@ -204,33 +191,21 @@ func (m *Mesh) SetFromFile(
 }
 
 func (m *Mesh) buildBLAS(jq *gpu.JobQueue) {
-	blasConfig := &gpu.AccelBuildConfig{
-		Type: vk.ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
-		Inputs: []gpu.AccelBuildInput{
-			&gpu.AccelBuildInputTriangles{
-				VertexFormat:   vk.FORMAT_R32G32B32_SFLOAT,
-				VertexBuffer:   gpu.UnsafePointer(gpu.SliceData(m.positions)),
-				VertexStride:   int(unsafe.Sizeof(m.positions.Value()[0])),
-				MaxVertex:      uint32(max(gpu.SliceLen(m.positions)-1, 0)),
-				IndexType:      vk.INDEX_TYPE_UINT16,
-				IndexBuffer:    gpu.UnsafePointer(gpu.SliceData(m.primitives)),
-				PrimitiveCount: uint32(gpu.SliceLen(m.primitives)),
+	m.Accel.EnqueueBuild(jq,
+		&gpu.AccelBuildConfig{
+			Type: vk.ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
+			Inputs: []gpu.AccelBuildInput{
+				&gpu.AccelBuildInputTriangles{
+					VertexBuffer:   gpu.UnsafePointer(gpu.SliceData(m.positions)),
+					VertexCount:    gpu.SliceLen(m.positions),
+					VertexStride:   int(unsafe.Sizeof(m.positions.Value()[0])),
+					VertexFormat:   vk.FORMAT_R32G32B32_SFLOAT,
+					IndexBuffer:    gpu.UnsafePointer(gpu.SliceData(m.primitives)),
+					PrimitiveCount: gpu.SliceLen(m.primitives),
+					IndexType:      vk.INDEX_TYPE_UINT16,
+				},
 			},
-		},
-	}
-
-	// TODO: we can cache blasSizes and blasConfig as well I think? Not
-	// like it matters anyway because all of the code in this entire
-	// file needs to be gutted.
-	accelerationStructureSize, buildScratchSize, _ := blasConfig.CalcSizes()
-
-	blasBuildScratch := gpu.UnsafePointer(gpu.SliceData(gpu.MakeSliceUncached[byte](buildScratchSize)))
-	defer jq.Cleanup(func() { gpu.Free(blasBuildScratch) })
-	gpu.EnqueueAccelBuild(jq,
-		m.BLAS,
-		accelerationStructureSize,
-		blasConfig,
-		blasBuildScratch)
+		})
 }
 
 // TODO: remove in favor of InitFromFile2
@@ -244,21 +219,20 @@ func (m *Mesh) InitFromFile(r io.ReaderAt) error {
 	// NOTE: MDL and MDLg now live in the same file and share the structure.
 	type Preamble struct {
 		Magic  [16]byte // "Worldspawn"
+		Magic2 [16]byte
 		Header Section
 		Blob   Section
 	}
 
 	type Part struct {
-		VertexPositions    int64
-		VertexNormals      int64
-		VertexGroupIndices int64
-		VertexGroupWeights int64
-		VertexAttributes   []int64
-		VertexCount        uint32
+		Positions   int64
+		Normals     int64
+		Attributes  []int64
+		VertexCount uint32
 
-		IndexType      string
-		Indices        int64
-		PrimitiveCount uint32 // put a comment why we use prim count instead of index count.
+		IndexType     string
+		Triangles     int64
+		TriangleCount uint32
 	}
 
 	type AttributeDesc struct {
@@ -267,13 +241,7 @@ func (m *Mesh) InitFromFile(r io.ReaderAt) error {
 	}
 
 	type GeometryHeader struct {
-		Type      string
-		Rendering struct {
-			VertexGroups                 []string
-			VertexGroupElementsPerVertex int
-			VertexAttributes             []AttributeDesc
-			Parts                        []Part
-		}
+		Rendering []Part
 	}
 
 	var preamble Preamble // TODO: rename to preamble or something
@@ -281,7 +249,6 @@ func (m *Mesh) InitFromFile(r io.ReaderAt) error {
 		return err
 	}
 
-	// TODO: stringify numbers
 	var header2 GeometryHeader
 	if err := json.UnmarshalRead(io.NewSectionReader(r, preamble.Header.Off, preamble.Header.Size), &header2, json.StringifyNumbers(true)); err != nil {
 		return err
@@ -289,19 +256,19 @@ func (m *Mesh) InitFromFile(r io.ReaderAt) error {
 
 	blob2 := io.NewSectionReader(r, preamble.Blob.Off, preamble.Blob.Size)
 
-	part := &header2.Rendering.Parts[0]
+	part := &header2.Rendering[0]
 
-	m.VertexGroups = header2.Rendering.VertexGroups
-	m.Init(2, part.PrimitiveCount, uint32(header2.Rendering.VertexGroupElementsPerVertex), part.VertexCount)
+	// m.VertexGroups = header2.Rendering.VertexGroups
+	m.Init(2, part.TriangleCount, uint32(0), part.VertexCount)
 
 	var jq gpu.JobQueue
 	err := m.SetFromFile(&jq,
 		blob2,
-		part.Indices,
-		part.VertexPositions, part.VertexNormals,
-		part.VertexGroupIndices,
-		part.VertexGroupWeights,
-		part.VertexAttributes[0])
+		part.Triangles,
+		part.Positions, part.Normals,
+		0,
+		0,
+		part.Attributes[0])
 	jq.WaitForIdle()
 
 	return err

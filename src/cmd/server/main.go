@@ -629,7 +629,7 @@ func main() {
 		s.dirty.Components[i] = make([]worldspawn.Time, s.maxEntities)
 	}
 
-	sceneFile, err := worldspawn.Data.Open("maps/lockdown/Scenes_Scene")
+	sceneFile, err := worldspawn.Data.Open("maps/lockdown/Scene_Scene")
 	if err != nil {
 		log.Fatal("newSinglePlayerSession: ", err)
 	}
