@@ -8,11 +8,14 @@ import (
 )
 
 type dispatchJob struct {
-	n      uint32
+	x      uint32
+	y      uint32
+	z      uint32
 	kernel *Func
 	args   []byte
 }
 
+// TODO: replace n with a range like in tbb/sycl
 func EnqueueParallelFor(jq *JobQueue, n int, kernel *Func, args any) {
 	if n < 0 {
 		panic("bad")
@@ -24,7 +27,9 @@ func EnqueueParallelFor(jq *JobQueue, n int, kernel *Func, args any) {
 	// TODO: validate that n fits an uint32
 
 	jq.Enqueue(&dispatchJob{
-		n:      uint32(n),
+		x:      uint32(n),
+		y:      1,
+		z:      1,
 		kernel: kernel,
 		args:   slices.Clone(asbytes(args)),
 	})
@@ -60,6 +65,6 @@ func (job *dispatchJob) Exec(q *CommandQueue) {
 			0,
 			uint32(len(args)), unsafe.Pointer(&args))
 
-		vkFns.CmdDispatch(cb, job.n, 1, 1)
+		vkFns.CmdDispatch(cb, job.x, job.y, job.z)
 	})
 }
