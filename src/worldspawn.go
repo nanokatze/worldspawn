@@ -128,17 +128,14 @@ type Components struct {
 	Entity ecs.ComponentStore[Entity]
 
 	Parent   ecs.ComponentStore[ecs.ID]
-	Children ecs.ComponentStore[[]ecs.ID] // or map[ecs.ID]struct{} ?
+	Children ecs.ComponentStore[[]ecs.ID] // map[ecs.ID]struct{} ?
 
 	TranslationRotation ecs.ComponentStore[TranslationRotation]
-	Scale               ecs.ComponentStore[geometry.Vec3] // TODO: make it so that if scale is not provided, we default to 1? Yes, and rename it to ScaleOverride or CustomScale
+	Scale               ecs.ComponentStore[geometry.Vec3] // TODO: default this to 1
 
 	Velocity ecs.ComponentStore[Velocity]
 
 	// TODO: rename to RenderingModel
-	//
-	// TODO: renderer model and physics shape models should share the container
-	// (i.e. it should be the same .mdl file)
 	RendererModel ecs.ComponentStore[RendererModel]
 
 	SoundEffect ecs.ComponentStore[SoundEffect]
