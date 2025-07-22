@@ -21,6 +21,8 @@ type _Mesh struct {
 	TestTexture gpu.SamplingViewWithSampler
 }
 
+// TODO: I guess we'll need to do some involved memory management in Scene.
+
 // TODO: to abstract over still AS and motion AS we could introduce two scenes
 // that implement the same interface. Though that would be insufficient of an
 // abstraction as shader code would still have to be aware about still vs motion
@@ -32,8 +34,9 @@ type Scene struct {
 
 	instances      gpu.Slice[gpu.Pointer[_Mesh]]
 	accelInstances gpu.Slice[gpu.AccelInstance]
-	accel          gpu.UnsafePointer // TODO: gpu.TopLevelAccel
+	accel          gpu.Accel
 
+	// TODO: remove once we move to stochastic sampling
 	sampler gpu.Sampler
 }
 
@@ -45,21 +48,10 @@ func NewScene(n int) *Scene {
 		instancesHost[i] = hack.Index(i)
 	}
 
-	tlasConfig := &gpu.AccelBuildConfig{
-		Type: vk.ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
-		Inputs: []gpu.AccelBuildInput{
-			&gpu.AccelBuildInputInstances{
-				InstanceCount: uint32(n),
-			},
-		},
-	}
-	tlasSize, _, _ := tlasConfig.CalcSizes()
-	tlas := gpu.UnsafePointer(gpu.SliceData(gpu.MakeSliceUncached[byte](tlasSize)))
-
 	return &Scene{
 		instances:      instances,
 		accelInstances: gpu.MakeSliceUncached[gpu.AccelInstance](n),
-		accel:          tlas,
+		accel:          gpu.NewTopLevelAccel(n),
 		sampler: gpu.NewSampler(&vk.SamplerCreateInfo{
 			SType:            vk.STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
 			MinFilter:        vk.FILTER_LINEAR,
@@ -83,8 +75,9 @@ type Instance struct {
 	Mask uint8
 }
 
-type MeshInstance struct {
-	Mesh *Mesh
+// TODO: we'll also want to specify the parameters
+// TODO: rename to MaterialInstance?
+type Material struct {
 	// TODO: this should be in a separate array, this specifies a material
 	TestTexture *gpu.Image
 }
@@ -92,6 +85,7 @@ type MeshInstance struct {
 // TODO: make all of the fields private and provide methods for manipulation.
 // This is necessary for dirty trackers, which will in turn allow us to
 // implement fine-grained update.
+// TODO: rename to something like SceneUpdateBatch or idk?
 type SceneDirty struct {
 	Sky *gpu.Image
 
@@ -104,20 +98,12 @@ type SceneDirty struct {
 	// TODO: we also need to carry velocity here for motion blur, or at least
 	// some extra info to disambiguate fast temporally-aliased motions.
 
-	// TODO: should instances and cameras live with their own indexing, separate
-	// from transforms? It could result in both additional complexity in some
-	// areas and simplifications in others
+	Instance []Instance
+	Mesh     []*Mesh
+	// Vox []*Vox
+	Materials [][]Material
 
-	Instance     []Instance
-	MeshInstance []MeshInstance // should be ok to make just Mesh* I guess?
-
-	// TODO: while Instance should contain common instance things
-	// like Transform and BLAS, instance-type specific information should
-	// go into its own array, e.g. meshes go into MeshInstance and e.g.
-	// VoxelInstance goes into its own.
-
-	// This is a hack for testing skeletal posing. This should only live in the
-	// user's scene type and not here.
+	// TODO: this is a hack for testing skeletal posing and should be removed.
 	Pose [][]geometry.Mat4x4
 }
 
@@ -127,8 +113,9 @@ func NewSceneDirty(n int) *SceneDirty {
 		TransformT0: make([]geometry.TRS3, n),
 		TransformT1: make([]geometry.TRS3, n),
 
-		Instance:     make([]Instance, n),
-		MeshInstance: make([]MeshInstance, n),
+		Instance:  make([]Instance, n),
+		Mesh:      make([]*Mesh, n),
+		Materials: make([][]Material, n),
 
 		Pose: make([][]geometry.Mat4x4, n),
 	}
@@ -170,12 +157,12 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 			continue
 		}
 
-		meshInstance := dirty.MeshInstance[instanceIndex]
+		mesh := dirty.Mesh[instanceIndex]
 
 		*instancesHost[instanceIndex].Value() = _Mesh{
-			Primitives:  gpu.SliceData(meshInstance.Mesh.primitives),
-			UVs:         gpu.SliceData(meshInstance.Mesh.uvs),
-			TestTexture: meshInstance.TestTexture.SamplingDescriptor().WithSampler(scene.sampler),
+			Primitives:  gpu.SliceData(mesh.primitives),
+			UVs:         gpu.SliceData(mesh.uvs),
+			TestTexture: dirty.Materials[instanceIndex][0].TestTexture.SamplingDescriptor().WithSampler(scene.sampler),
 		}
 
 		// Should be done on the device
@@ -194,33 +181,23 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 		accelInstancesHost[instanceIndex].SBTOffsetAndFlags = pack24_8(0, 0)
 
 		// TODO: is this necessary?
-		var blas gpu.UnsafePointer
-		if meshInstance.Mesh != nil {
-			blas = meshInstance.Mesh.BLAS
+		var accel gpu.UnsafePointer
+		if mesh != nil {
+			accel = mesh.Accel.Data
 		}
-		accelInstancesHost[instanceIndex].Accel = blas
+		accelInstancesHost[instanceIndex].Accel = accel
 
 		instanceCount = max(instanceCount, instanceIndex+1)
 	}
 
-	tlasConfig := &gpu.AccelBuildConfig{
-		Type: vk.ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
-		Inputs: []gpu.AccelBuildInput{
-			&gpu.AccelBuildInputInstances{
-				Instances:     gpu.SliceData(scene.accelInstances),
-				InstanceCount: uint32(instanceCount),
+	scene.accel.EnqueueBuild(jq,
+		&gpu.AccelBuildConfig{
+			Type: vk.ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
+			Inputs: []gpu.AccelBuildInput{
+				&gpu.AccelBuildInputInstances{
+					Instances:     gpu.SliceData(scene.accelInstances),
+					InstanceCount: uint32(instanceCount),
+				},
 			},
-		},
-	}
-
-	accelerationStructureSize, buildScratchSize, _ := tlasConfig.CalcSizes()
-
-	tlasBuildScratch := gpu.UnsafePointer(gpu.SliceData(
-		gpu.MakeSliceUncached[byte](buildScratchSize)))
-	defer jq.Cleanup(func() { gpu.Free(tlasBuildScratch) })
-	gpu.EnqueueAccelBuild(jq,
-		scene.accel,
-		accelerationStructureSize,
-		tlasConfig,
-		tlasBuildScratch)
+		})
 }

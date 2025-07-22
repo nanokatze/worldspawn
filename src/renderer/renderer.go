@@ -143,11 +143,8 @@ var toClipSpace = geometry.Mat4x4{
 	{0, 0, 0, 1},
 }
 
-// TODO: rename this to e.g. History, make all fields private and make
-// Renderer.Render a standalone function.
+// TODO: remove this, the user should provide the counter explicitly
 type Renderer struct {
-	// TODO: other things here like proj and view from the last frame, TAA image history, etc.
-
 	ctr uint32
 }
 
@@ -206,6 +203,8 @@ func (re *Renderer) Render(jq *gpu.JobQueue, scene *Scene, t float32, camera *Ca
 	// RT
 
 	{
+		// TODO: we don't need to do SubImage here, the caller should prepare
+		// stuff for us.
 		out := dst.SubImage(
 			dst.Dim(),
 			vk.FORMAT_R8G8B8A8_UNORM,
@@ -229,7 +228,6 @@ func (re *Renderer) Render(jq *gpu.JobQueue, scene *Scene, t float32, camera *Ca
 
 	// TODO: overlays like HUD, damage numbers, minimap, etc here
 
-	// TODO: it would be interesting to update re on the device timeline
 	re.ctr++
 }
 

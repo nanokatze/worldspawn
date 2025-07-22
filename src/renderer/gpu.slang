@@ -5,9 +5,23 @@
 [[vk::binding(2, 0)]] __DynamicResource<__DynamicResourceKind.General> storageImages[];
 
 public struct Slice<T> {
-    public T *data;
+    public T *data; // TODO: make private
     uint64_t len;
     uint64_t cap;
+
+	// TODO: can we somehow allow taking a pointer?
+    public __subscript(int i) -> T
+    {
+		// TODO: do bounds checking
+        get { return data[i]; }
+        set { data[i] = newValue; }
+    }
+};
+
+public struct Accel {
+    public uint64_t ptr; // TODO: make private
+
+    // public void TraceRay()
 };
 
 public struct Sampler {

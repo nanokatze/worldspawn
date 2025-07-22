@@ -1,12 +1,18 @@
 import gpu;
 import transfer_functions;
 
+struct Mesh {
+    uint16_t *primitives;
+    float2 *uvs;
+    SamplingViewWithSampler testTexture;
+};
+
 struct Scene {
 	SamplingViewWithSampler sky;
 
     Slice<Mesh*> instances;
     Slice<uint8_t> accelInstances; // TODO: plop in proper AccelInstance
-    uint64_t accel;
+    Accel accel;
 
     Sampler sampler;
 };
@@ -26,12 +32,6 @@ struct Camera {
 	matrix<float, 4, 4> viewProj; // precomputed extras should always go at the end
 };
 
-struct Mesh {
-    uint16_t *primitives;
-    float2 *uvs;
-    SamplingViewWithSampler testTexture;
-};
-
 struct Push {
     Scene *scene;
     Camera *camera;
@@ -39,14 +39,6 @@ struct Push {
 };
 
 [[vk::push_constant]] Push push;
-
-/*
-struct TopLevelAccel {
-    uint64_t ptr;
-
-    public void TraceRay()
-};
-*/
 
 struct RayPayload {
     float3 color;
@@ -74,7 +66,7 @@ void raygen() {
 
     RayPayload payload = {};
     TraceRay(
-        rtas(push.scene->accel),
+        rtas(push.scene->accel.ptr),
         0,
         0b01,
         0,
@@ -103,7 +95,8 @@ void chit(inout RayPayload payload : SV_RayPayload, in float2 barys_yz : SV_Inte
 {
     float3 barys = float3(1.0 - barys_yz.x - barys_yz.y, barys_yz);
 
-    Mesh *instance = push.scene->instances.data[InstanceID()];
+    Mesh *instance = push.scene->instances[InstanceID()];
+
     uint16_t vi0 = instance->primitives[3 * PrimitiveIndex() + 0];
     uint16_t vi1 = instance->primitives[3 * PrimitiveIndex() + 1];
     uint16_t vi2 = instance->primitives[3 * PrimitiveIndex() + 2];

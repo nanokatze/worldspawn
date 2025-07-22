@@ -244,7 +244,8 @@ func redrawLocked() bool {
 		copy(clientRenderer.privateScene.TransformT0, clientRenderer.scene.TransformT0)
 		copy(clientRenderer.privateScene.TransformT1, clientRenderer.scene.TransformT1)
 		copy(clientRenderer.privateScene.Instance, clientRenderer.scene.Instance)
-		copy(clientRenderer.privateScene.MeshInstance, clientRenderer.scene.MeshInstance)
+		copy(clientRenderer.privateScene.Mesh, clientRenderer.scene.Mesh)
+		copy(clientRenderer.privateScene.Materials, clientRenderer.scene.Materials)
 		copy(clientRenderer.privateScene.Pose, clientRenderer.scene.Pose)
 		clientRenderer.privateScene.Sky = clientRenderer.scene.Sky
 		clientRenderer.privateScene.OurCamera = clientRenderer.scene.OurCamera
@@ -552,8 +553,12 @@ func (sr *idk) Tick(w *worldspawn.World, playerID ecs.ID, t0, t1 worldspawn.Time
 				Scale:       scale,
 			}
 
-			sr.scene.MeshInstance[i].Mesh = model(rendererModel.Filename)
-			sr.scene.MeshInstance[i].TestTexture = testTexture.Image
+			sr.scene.Mesh[i] = model(rendererModel.Filename)
+			sr.scene.Materials[i] = []renderer.Material{
+				{
+					TestTexture: testTexture.Image,
+				},
+			}
 
 			/*
 				// This is just horribly broken

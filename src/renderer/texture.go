@@ -5,11 +5,10 @@ import (
 	"worldspawn/gpu/vk"
 )
 
-// TODO: remove Texture and just take *gpu.Image
+// TODO: neural textures? We might need to keep this Texture stuff.
 
 type Texture struct {
 	Image *gpu.Image
-	View  gpu.SamplingView
 }
 
 func NewTexture(_type vk.ImageViewType, extent gpu.Int3, mipLevels, layers int, format gpu.Format) *Texture {
@@ -25,7 +24,6 @@ func NewTexture(_type vk.ImageViewType, extent gpu.Int3, mipLevels, layers int, 
 		Format:    format,
 		Usage:     gpu.ImageUsageSampling,
 	})
-	texture.View = texture.Image.SamplingDescriptor()
 
 	return texture
 }
