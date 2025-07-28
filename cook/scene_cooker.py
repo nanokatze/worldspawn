@@ -17,19 +17,21 @@ def deps(context, scene, dset):
         mesh_cooker.deps(context, obj, dset)
 
 
+def __get(x, a):
+    for p in a:
+        if x is None:
+            return None
+        x = x.get(p)
+    return x
+
+
 def cook(context, scene):
-    # TODO: consume a schema file for this
-    cooked_scene = {
-        'Sky': 'skies/industrial_sunset_puresky.ktx2', # TODO: output path to the sky material, or emit the sky material as-is
-        'Gravity': Vector((0, 0, -10)), # TODO: let the user configure this
-        'TranslationRotation': {},
-        'Scale': {},
-        'PhysicsShape': {},
-        'PhysicsLayer': {},
-        'PhysicsMotionType': {},
-        'RendererModel': {},
-        'PlayerSpawn': {},
-    }
+    # TODO: consume a schema file for components
+
+    cooked_scene = dict(scene.get('worldspawn', {}).get('components', {}))
+
+    # TODO: output path to the sky material, or emit the sky material as-is
+    cooked_scene['Sky'] = 'skies/industrial_sunset_puresky.ktx2'
 
     entity = 1
     for obj in scene.objects:
@@ -37,8 +39,7 @@ def cook(context, scene):
         if obj.hide_render:
             continue
 
-        comps_bpy = obj.get('worldspawn.components')
-        comps = comps_bpy.to_dict() if comps_bpy else {}
+        comps = dict(obj.get('worldspawn', {}).get('components', {}))
 
         T, R, S = obj.matrix_world.decompose()
         # TODO: should we always overwrite these?
@@ -51,29 +52,27 @@ def cook(context, scene):
         }
         comps['Scale'] = S
 
-        model_filename = context.path_for_datablock(obj)
-        if model_filename:
+        geometry = context.path_for_datablock(obj)
+        if geometry:
             # TODO: do we need to do anything about this?
-            if 'RendererModel' not in comps:
-                comps['RendererModel'] = {
+            if 'RenderingGeometry' not in comps:
+                comps['RenderingGeometry'] = {
                     'Kind': 'FileBacked',
-                    'Filename': model_filename,
+                    'Filename': geometry,
                 }
 
-            if 'PhysicsShape' not in comps:
-                # BUG: we should always export PhysicsShape, but whether the object
-                # has any physics should be controlled at runtime by another
-                # component, e.g. the physics layer. This means that yes, we'll want
-                # to add another physics layer.
-                if obj.rigid_body is not None:
-                    comps['PhysicsShape'] = {
-                        'Kind': 'FileBacked',
-                        'Filename': model_filename,
-                    }
+            if 'CollisionGeometry' not in comps:
+                comps['CollisionGeometry'] = {
+                    'Kind': 'FileBacked',
+                    'Filename': geometry,
+                }
 
-        for comp, value in comps.items():
-            cooked_scene[comp][entity] = value
+        for k, v in comps.items():
+            if k not in cooked_scene:
+                cooked_scene[k] = {}
+            cooked_scene[k][entity] = v
         entity += 1
 
+    cooked_scene = util.fixupdict(cooked_scene) # pain
     with open(context.path_for_datablock(scene), 'wb') as f:
         f.write(json.dumps(cooked_scene, indent='\t', default=util.asdasd).encode('utf-8'))

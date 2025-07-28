@@ -9,7 +9,6 @@ import struct
 
 @dataclasses.dataclass
 class Collider:
-    # TODO: add fallback material
     Material: int
     Vertices: int
     VertexCount: int
@@ -113,29 +112,29 @@ def cook(raw, directory):
 
         # TODO: check whether indices are actually a benefit
 
-        index_buffer = seek_align(blob, 4)
+        part_triangles = seek_align(blob, 4)
         write_ndarray(blob, vert_idxs.astype(f'<u{index_size}'))
 
         verts = verts_indexed
 
-        position_buffer = seek_align(blob, 4)
+        part_positions = seek_align(blob, 4)
         write_ndarray(blob, verts['position'])
 
-        normal_buffer = seek_align(blob, 4)
+        part_normals = seek_align(blob, 4)
         write_ndarray(blob, verts['normal'])
 
-        attrib_buffers = []
+        part_attributes = []
 
-        attrib_buffers.append(seek_align(blob, 4))
+        part_attributes.append(seek_align(blob, 4))
         write_ndarray(blob, verts['UVMap'])
 
         parts.append(Part(
-            Positions=position_buffer,
-            Normals=normal_buffer,
-            Attributes=attrib_buffers,
+            Positions=part_positions,
+            Normals=part_normals,
+            Attributes=part_attributes,
             VertexCount=len(verts),
             IndexType={2: 'UINT16', 4: 'UINT32'}[index_size], # TODO: factor this map out pls
-            Triangles=index_buffer,
+            Triangles=part_triangles,
             TriangleCount=len(tris),
         ))
 
@@ -167,6 +166,7 @@ def dict_skip_nulls(stuff):
     return dict((k, v) for (k, v) in stuff if v is not None)
 
 # TODO: rename to dict_stringify_numbers or something idk
+# TODO: alternatively just get rid of this and think of something else?
 def fixupdict(d):
     if isinstance(d, dict):
         for k, v in d.items():
@@ -187,6 +187,8 @@ def write_ndarray(f, a):
 
 # TODO: move into util or something like that package
 # TODO: this should be like seek (i.e. take offset and whence) but also take align
+# TODO: rename to something else? this also does write, which isn't really
+# appropriate for something called seek? :thinking:
 def seek_align(f, align=1):
     off = f.seek(0, 1)
     pad = -off % align

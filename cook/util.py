@@ -1,3 +1,4 @@
+import idprop
 from mathutils import Vector, Quaternion
 
 
@@ -14,6 +15,7 @@ def asdasd(o):
 
 # TODO: rename to dict_fixup?
 def fixupdict(d):
+    # TODO: make it automagically work on dict-like things and list-like things
     if isinstance(d, dict):
         for k, v in d.items():
             d[k] = fixupdict(v)
@@ -22,4 +24,8 @@ def fixupdict(d):
             d[k] = fixupdict(v)
     elif isinstance(d, (int, float)):
         d = str(d)
+    elif isinstance(d, idprop.types.IDPropertyArray):
+        d = fixupdict(list(d))
+    elif isinstance(d, idprop.types.IDPropertyGroup):
+        d = fixupdict(dict(d))
     return d

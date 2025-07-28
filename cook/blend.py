@@ -45,7 +45,6 @@ class Context:
                 assert False, 'unsupported type {}'.format(datablock)
 
 
-
 # TODO: move it to the end of the file probs
 @click.command()
 @click.option('-M', is_flag=True)
@@ -67,6 +66,7 @@ def main(m, o, blend, datablock_type, datablock_name):
         import glob
         import pathlib
         import os
+        # TODO: consume an explicit list instead of globbing
         for blend in glob.glob(blend + '/**/*.blend', recursive=True):
             dset.depends = {blend}
 
@@ -79,11 +79,13 @@ def main(m, o, blend, datablock_type, datablock_name):
 
             import mesh_cooker
             for object in bpy_context.blend_data.objects:
-                if object.get('worldspawn.export'):
+                settings = object.get('worldspawn', {})
+                if settings.get('export'):
                     mesh_cooker.deps(ctx, object.evaluated_get(depsgraph), dset)
             import scene_cooker
             for scene in bpy_context.blend_data.scenes:
-                if scene.get('worldspawn.export'):
+                settings = scene.get('worldspawn', {})
+                if settings.get('export'):
                     scene_cooker.deps(ctx, scene.evaluated_get(depsgraph), dset)
 
         with open('build.ninja', 'w') as f:
@@ -92,6 +94,7 @@ def main(m, o, blend, datablock_type, datablock_name):
             for product, (datablock_type, datablock_name, depends) in dset.produces.items():
                 f.write('\n')
                 f.write(f'build {product}: blend {" ".join(depends)}\n')
+                # TODO: should be output_directory
                 f.write(f'  o = {os.path.split(product)[0]}\n') # horrid
                 f.write(f'  datablock_type = "{datablock_type}"\n')
                 f.write(f'  datablock_name = "{datablock_name}"\n')
