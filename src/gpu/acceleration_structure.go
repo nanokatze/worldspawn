@@ -31,8 +31,8 @@ type AccelBuildInputTriangles struct {
 	VertexCount    int
 	VertexStride   int
 	VertexFormat   Format
-	IndexBuffer    UnsafePointer // ignored by AccelBuildConfig.CalcSizes
-	PrimitiveCount int
+	TriangleBuffer UnsafePointer // ignored by AccelBuildConfig.CalcSizes
+	TriangleCount  int
 	IndexType      IndexType
 	Transform      Pointer[[3][4]float32] // checked for nil by AccelBuildConfig.CalcSizes
 }
@@ -49,11 +49,11 @@ func (triangles *AccelBuildInputTriangles) vk(geometry *vk.AccelerationStructure
 				VertexStride:  vk.DeviceSize(triangles.VertexStride),
 				MaxVertex:     uint32(max(triangles.VertexCount-1, 0)),
 				IndexType:     triangles.IndexType,
-				IndexData:     vk.DeviceOrHostAddressConstKHR(triangles.IndexBuffer),
+				IndexData:     vk.DeviceOrHostAddressConstKHR(triangles.TriangleBuffer),
 				TransformData: vk.DeviceOrHostAddressConstKHR(triangles.Transform),
 			}),
 	}
-	*primitiveCount = uint32(triangles.PrimitiveCount)
+	*primitiveCount = uint32(triangles.TriangleCount)
 }
 
 type AccelInstance struct {

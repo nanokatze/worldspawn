@@ -168,10 +168,12 @@ type ImageConfig struct {
 func (config *ImageConfig) vkImageCreateInfo(queueFamilies []uint32, createInfo *vk.ImageCreateInfo) {
 	flags := vk.ImageCreateFlags(0)
 
+	flags |= vk.ImageCreateFlags(vk.IMAGE_CREATE_EXTENDED_USAGE_BIT)
+
 	flags |= vk.ImageCreateFlags(vk.IMAGE_CREATE_MUTABLE_FORMAT_BIT)
 
 	if config.Dim == ImageDim2D &&
-		config.Extent.Y == config.Extent.Z &&
+		config.Extent.X == config.Extent.Y &&
 		config.Layers >= 6 &&
 		config.Samples == 1 {
 		flags |= vk.ImageCreateFlags(vk.IMAGE_CREATE_CUBE_COMPATIBLE_BIT)
@@ -181,8 +183,6 @@ func (config *ImageConfig) vkImageCreateInfo(queueFamilies []uint32, createInfo 
 	if formatutil.Describe(config.Format).BlockExtent != (vk.Extent3D{Width: 1, Height: 1, Depth: 1}) {
 		flags |= vk.ImageCreateFlags(vk.IMAGE_CREATE_BLOCK_TEXEL_VIEW_COMPATIBLE_BIT)
 	}
-
-	flags |= vk.ImageCreateFlags(vk.IMAGE_CREATE_EXTENDED_USAGE_BIT)
 
 	*createInfo = vk.ImageCreateInfo{
 		SType:                 vk.STRUCTURE_TYPE_IMAGE_CREATE_INFO,
