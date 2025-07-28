@@ -19,9 +19,8 @@ func (cosmeticOffset CosmeticOffset) Evaluate(now Time) geometry.Vec3 {
 	return cosmeticOffset.Offset.Scale(float32(xClamped))
 }
 
-// TODO: let us do a transform here
-// TODO: do we want this be called "Model"? Yes
-type RendererModel struct {
+// TODO: let us do a transform here?
+type RenderingGeometry struct {
 	// Kind     string
 	Filename string
 }

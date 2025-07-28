@@ -45,7 +45,8 @@ func (shapeKind *PhysicsShapeKind) UnmarshalText(text []byte) error {
 }
 
 // TODO: use the same container for both renderer and physics models
-type PhysicsShape struct {
+type CollisionGeometry struct {
+	// TODO: remove these?
 	Translation geometry.Vec3
 	Rotation    geometry.Rot3
 	Scale       geometry.Vec3
@@ -66,9 +67,9 @@ type ShapeCacheKey struct {
 }
 */
 
-var shapeCache = make(map[PhysicsShape]*physics.Shape)
+var shapeCache = make(map[CollisionGeometry]*physics.Shape)
 
-func getShape(key PhysicsShape) *physics.Shape {
+func getShape(key CollisionGeometry) *physics.Shape {
 	// TODO: canonicalize PhysicsShape, e.g. set HalfExtent to zero as necessary, etc
 
 	// temp hack

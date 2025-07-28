@@ -177,7 +177,7 @@ func planeSignedDistance(plane geometry.Vec4, point geometry.Vec3) float32 {
 
 func (fpsCharacter *FPSCharacter) asdasd(w *World, id ecs.ID, velocity geometry.Vec3, Δt time.Duration) geometry.Vec3 {
 	positionRotation, _ := w.TranslationRotation.Load(id)
-	shape, _ := w.PhysicsShape.Load(id)
+	shape, _ := w.CollisionGeometry.Load(id)
 
 	up := geometry.Vec3{0, 0, 1}
 

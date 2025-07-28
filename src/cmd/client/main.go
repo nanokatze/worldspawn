@@ -485,7 +485,7 @@ func (sr *idk) Tick(w *worldspawn.World, playerID ecs.ID, t0, t1 worldspawn.Time
 		// TODO: we should just parent stuff to bone
 		activeWeapon := playerEntity.(worldspawn.FPSCharacter).ActiveWeapon
 
-		for id, v := range ecs.Join(w.RendererModel, w.TranslationRotation) {
+		for id, v := range ecs.Join(w.RenderingGeometry, w.TranslationRotation) {
 			rendererModel := v.V1
 			positionRotation := v.V2
 			scale, ok := w.Scale.Load(id)

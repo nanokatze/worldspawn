@@ -72,6 +72,9 @@ func actionToInputCmd(action int, value float32) InputCmd {
 	}
 }
 
+// TODO: serialize input cmds to []byte immediately, rather than pass structs
+// around?
+
 type TimestampedInputCmd struct {
 	Time Time
 	Cmd  InputCmd

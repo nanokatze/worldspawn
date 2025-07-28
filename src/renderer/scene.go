@@ -16,7 +16,7 @@ type Camera struct {
 }
 
 type _Mesh struct {
-	Primitives  gpu.Pointer[[3]uint16]
+	Triangles   gpu.Pointer[[3]uint16]
 	UVs         gpu.Pointer[[2]float32]
 	TestTexture gpu.SamplingViewWithSampler
 }
@@ -160,8 +160,8 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 		mesh := dirty.Mesh[instanceIndex]
 
 		*instancesHost[instanceIndex].Value() = _Mesh{
-			Primitives:  gpu.SliceData(mesh.primitives),
-			UVs:         gpu.SliceData(mesh.uvs),
+			Triangles:   gpu.SliceData(mesh.parts[0].Triangles),
+			UVs:         gpu.SliceData(mesh.parts[0].Attributes[0].(gpu.Slice[[2]float32])),
 			TestTexture: dirty.Materials[instanceIndex][0].TestTexture.SamplingDescriptor().WithSampler(scene.sampler),
 		}
 

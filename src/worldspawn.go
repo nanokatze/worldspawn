@@ -135,8 +135,7 @@ type Components struct {
 
 	Velocity ecs.ComponentStore[Velocity]
 
-	// TODO: rename to RenderingModel
-	RendererModel ecs.ComponentStore[RendererModel]
+	RenderingGeometry ecs.ComponentStore[RenderingGeometry]
 
 	SoundEffect ecs.ComponentStore[SoundEffect]
 
@@ -156,10 +155,8 @@ type Components struct {
 	//
 	// TODO: merge some of these components?
 
-	// TODO: rename to ColliderModel or CollisionModel? Or something
-	PhysicsShape           ecs.ComponentStore[PhysicsShape]
-	PhysicsLayer           ecs.ComponentStore[PhysicsLayer]
-	PhysicsMotionType      ecs.ComponentStore[PhysicsMotionType]
+	CollisionGeometry      ecs.ComponentStore[CollisionGeometry]
+	CollisionLayer         ecs.ComponentStore[CollisionLayer]
 	PhysicsFilter          ecs.ComponentStore[[]ecs.ID] // TODO: rename to something like PairwiseFilters?
 	GravityFactor          ecs.ComponentStore[float32]
 	PhysicsMassOverride    ecs.ComponentStore[float32] // TODO: remove "Physics" prefix from these
@@ -212,7 +209,7 @@ func NewWorld(n int) *World {
 	w.physicsSystem = physics.NewSystem(
 		int(NumBroadPhaseLayers),
 		int(NumPhysicsLayers),
-		PhysicsLayerToBroadPhaseLayer,
+		PhysicsLayerToBroadPhaseLayer[:],
 		ShouldPhysicsLayersCollide)
 	// This will have to be a raw bitmap or just have its own IDAlloc
 	w.physicsBodyExists2 = bitset.Make(n)

@@ -244,14 +244,13 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 		"Entity",
 		"TranslationRotation",
 		"Scale",
-		"RendererModel",
+		"RenderingGeometry",
 		"SoundEffect",
 		"CosmeticOffset",
 		"Animation", // stress test map nice un/marshaling
 		"Pose",      // stress test map nice un/marshaling
-		"PhysicsShape",
-		"PhysicsLayer",
-		"PhysicsMotionType",
+		"CollisionGeometry",
+		"CollisionLayer",
 		"PhysicsFilter",
 		"GravityFactor",
 		"PhysicsMassOverride",

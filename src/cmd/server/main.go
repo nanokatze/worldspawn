@@ -360,14 +360,13 @@ var comps = []string{
 	"Entity",
 	"TranslationRotation",
 	"Scale",
-	"RendererModel",
+	"RenderingGeometry",
 	"SoundEffect",
 	"CosmeticOffset",
 	"Animation", // stress test map nice un/marshaling
 	"Pose",      // stress test map nice un/marshaling
-	"PhysicsShape",
-	"PhysicsLayer",
-	"PhysicsMotionType",
+	"CollisionGeometry",
+	"CollisionLayer",
 	"PhysicsFilter",
 	"GravityFactor",
 	"PhysicsMassOverride",
@@ -543,8 +542,8 @@ func spawnplayer(w *worldspawn.World) ecs.ID {
 	w.TranslationRotation.Store(player, t)
 
 	w.Scale.Store(player, geometry.Vec3Broadcast(1))
-	w.RendererModel.Store(player, worldspawn.RendererModel{Filename: "testcharacter4/Geometry_TestCharacter4"})
-	w.PhysicsShape.Store(player, worldspawn.PhysicsShape{
+	w.RenderingGeometry.Store(player, worldspawn.RenderingGeometry{Filename: "testcharacter4/Geometry_TestCharacter4"})
+	w.CollisionGeometry.Store(player, worldspawn.CollisionGeometry{
 		Translation: geometry.Vec3{0, 0, 1.9 / 2},
 		Rotation:    geometry.Rot3One(),
 		Scale:       geometry.Vec3Broadcast(1),
@@ -553,8 +552,7 @@ func spawnplayer(w *worldspawn.World) ecs.ID {
 		HalfExtent:   geometry.Vec3{1, 1, 0}.Scale(0.4).Add(geometry.Vec3{0, 0, 1.9 / 2}),
 		ConvexRadius: 0.0,
 	})
-	w.PhysicsLayer.Store(player, worldspawn.PhysicsLayerMoving)
-	w.PhysicsMotionType.Store(player, worldspawn.PhysicsMotionKinematic)
+	w.CollisionLayer.Store(player, worldspawn.PhysicsLayerMovingKinematic)
 	w.PhysicsMassOverride.Store(player, 100)
 
 	slots := []ecs.ID{}

@@ -95,11 +95,11 @@ func (dst *Components) CopyEntities(entityID ecs.ID, src *Components) {
 	if v, ok := src.Viewmodel.Load(1); ok {
 		dst.Viewmodel.Store(entityID, v)
 	}
-	if v, ok := src.RendererModel.Load(1); ok {
-		dst.RendererModel.Store(entityID, v)
+	if v, ok := src.RenderingGeometry.Load(1); ok {
+		dst.RenderingGeometry.Store(entityID, v)
 	}
-	if v, ok := src.PhysicsShape.Load(1); ok {
-		dst.PhysicsShape.Store(entityID, v)
+	if v, ok := src.CollisionGeometry.Load(1); ok {
+		dst.CollisionGeometry.Store(entityID, v)
 	}
 	if v, ok := src.PhysicsMassOverride.Load(1); ok {
 		dst.PhysicsMassOverride.Store(entityID, v)

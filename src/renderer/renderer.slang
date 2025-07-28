@@ -2,7 +2,7 @@ import gpu;
 import transfer_functions;
 
 struct Mesh {
-    uint16_t *primitives;
+    uint16_t *triangles;
     float2 *uvs;
     SamplingViewWithSampler testTexture;
 };
@@ -97,9 +97,9 @@ void chit(inout RayPayload payload : SV_RayPayload, in float2 barys_yz : SV_Inte
 
     Mesh *instance = push.scene->instances[InstanceID()];
 
-    uint16_t vi0 = instance->primitives[3 * PrimitiveIndex() + 0];
-    uint16_t vi1 = instance->primitives[3 * PrimitiveIndex() + 1];
-    uint16_t vi2 = instance->primitives[3 * PrimitiveIndex() + 2];
+    uint16_t vi0 = instance->triangles[3 * PrimitiveIndex() + 0];
+    uint16_t vi1 = instance->triangles[3 * PrimitiveIndex() + 1];
+    uint16_t vi2 = instance->triangles[3 * PrimitiveIndex() + 2];
 
     float2 uv0 = instance->uvs[vi0];
     float2 uv1 = instance->uvs[vi1];
@@ -108,7 +108,9 @@ void chit(inout RayPayload payload : SV_RayPayload, in float2 barys_yz : SV_Inte
     // edge cases
     float2 uv = mul(transpose(float3x2(uv0, uv1, uv2)), barys);
 
-    payload.color = instance->testTexture.Sample2DLOD(uv, 0).xyz;
+    // TODO: not sure we should be flipping the UV here. Maybe we should do that
+    // when exporting the textures?
+    payload.color = instance->testTexture.Sample2DLOD(float2(uv.x, 1-uv.y), 0).xyz;
 }
 
 [shader("closesthit")]

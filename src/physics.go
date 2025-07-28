@@ -7,34 +7,53 @@ import (
 	"worldspawn/physics"
 )
 
+// TODO: rename to BeforePhysics
 type UpdateBeforePhysics interface {
 	UpdateBeforePhysics(w *World, id ecs.ID, info *UpdateParams)
 }
 
+// TODO: rename to AfterPhysics
 type UpdateAfterPhysics interface {
 	UpdateAfterPhysics(w *World, id ecs.ID, info *UpdateParams)
 }
 
-// TODO: change these to be UnmarshalText and MarshalText so that we don't have
-// to author with numbers.
-
-type PhysicsMotionType int8
-
-const (
-	PhysicsMotionStatic PhysicsMotionType = iota
-	PhysicsMotionDynamic
-	PhysicsMotionKinematic
-	// TODO: another Kinematic movetype where we only set the origin?
-)
-
-type PhysicsLayer int8
+// TODO: rename to just Layer and move it to worldspawn.go? We'll want another
+// component for en/disabling physics if we do so.
+// TODO: rename to CollisionFilterGroup or CollisionClass or idk
+type CollisionLayer int8
 
 const (
-	PhysicsLayerNonMoving = iota
+	PhysicsLayerNonMoving CollisionLayer = iota
 	PhysicsLayerMoving
 	PhysicsLayerProjectiles
+	PhysicsLayerMovingKinematic // used by character controllers
 	NumPhysicsLayers
 )
+
+var collisionLayerMotionType = map[CollisionLayer]int{
+	PhysicsLayerNonMoving:       0,
+	PhysicsLayerMoving:          2,
+	PhysicsLayerProjectiles:     2,
+	PhysicsLayerMovingKinematic: 1,
+}
+
+var physicsLayerFromString = map[string]CollisionLayer{
+	"NonMoving":       PhysicsLayerNonMoving,
+	"Moving":          PhysicsLayerMoving,
+	"Projectiles":     PhysicsLayerProjectiles,
+	"MovingKinematic": PhysicsLayerMovingKinematic,
+}
+
+/*
+func (physicsLayer *PhysicsLayer) UnmarshalText(text []byte) error {
+	tmp, ok := physicsLayerFromString[string(text)]
+	if !ok {
+		return errors.New("unknown shape type")
+	}
+	*physicsLayer = tmp
+	return nil
+}
+*/
 
 // TODO: add helpers for filling this out to physics package so that we don't
 // need to fill this out explicitly
@@ -51,10 +70,11 @@ const (
 	NumBroadPhaseLayers
 )
 
-var PhysicsLayerToBroadPhaseLayer = []physics.BroadPhaseLayer{
-	PhysicsLayerNonMoving:   BroadPhaseLayerNonMoving,
-	PhysicsLayerMoving:      BroadPhaseLayerMoving,
-	PhysicsLayerProjectiles: BroadPhaseLayerMoving,
+var PhysicsLayerToBroadPhaseLayer = [NumPhysicsLayers]physics.BroadPhaseLayer{
+	PhysicsLayerNonMoving:       BroadPhaseLayerNonMoving,
+	PhysicsLayerMoving:          BroadPhaseLayerMoving,
+	PhysicsLayerProjectiles:     BroadPhaseLayerMoving,
+	PhysicsLayerMovingKinematic: BroadPhaseLayerMoving,
 }
 
 /*
@@ -76,20 +96,18 @@ type ContactEvent struct {
 // Always execute this system before systems performing physics queries!!!
 // TODO: a more descriptive name
 func worldToPhysics(w *World) {
-	w.physicsBodyExists.All()(func(entityID ecs.ID, _ struct{}) bool {
-		if _, ok := w.PhysicsShape.Load(entityID); !ok {
-			w.physicsSystem.RemoveBody(physics.BodyID(entityID))
-			w.physicsBodyExists.Delete(entityID)
+	for id := range w.physicsBodyExists.All() {
+		if _, ok := w.CollisionLayer.Load(id); !ok {
+			w.physicsSystem.RemoveBody(physics.BodyID(id))
+			w.physicsBodyExists.Delete(id)
 		}
-		return true
-	})
+	}
 
-	for entityID, shape := range w.PhysicsShape.All() {
-		translationRotation, _ := w.TranslationRotation.Load(entityID)
-		velocity, _ := w.Velocity.Load(entityID)
-		layer, _ := w.PhysicsLayer.Load(entityID)
-		motionType, _ := w.PhysicsMotionType.Load(entityID)
-		filter, _ := w.PhysicsFilter.Load(entityID)
+	for id, layer := range w.CollisionLayer.All() {
+		translationRotation, _ := w.TranslationRotation.Load(id)
+		velocity, _ := w.Velocity.Load(id)
+		shape, _ := w.CollisionGeometry.Load(id)
+		filter, _ := w.PhysicsFilter.Load(id)
 
 		// TODO: pairwise filter should pass ecs.IDs as is and we should store
 		// it on the rigid bodies in the user data slot.
@@ -102,28 +120,31 @@ func worldToPhysics(w *World) {
 			filter2 = append(filter2, physics.BodyID(e))
 		}
 
-		motionType2 := []int{0, 2, 1}[motionType]
+		motionType2 := collisionLayerMotionType[layer]
 
-		gravityFactor, ok := w.GravityFactor.Load(entityID)
+		gravityFactor, ok := w.GravityFactor.Load(id)
 		if !ok {
 			gravityFactor = 1
 		}
 
 		shape2 := getShape(shape)
 
-		mass, overrideMass := w.PhysicsMassOverride.Load(entityID)
+		mass, overrideMass := w.PhysicsMassOverride.Load(id)
 		if !overrideMass {
 			mass = shape2.Mass()
 		}
+		// TODO: non-manifold geometry (which we use for non-moving geo) can get
+		// mass=0.
+		mass = max(mass, 0.001)
 
-		inertia, overrideInertia := w.PhysicsInertiaOverride.Load(entityID)
+		inertia, overrideInertia := w.PhysicsInertiaOverride.Load(id)
 		if !overrideInertia {
 			inertia = shape2.Inertia()
 		}
 
-		bodyID := physics.BodyID(entityID)
+		bodyID := physics.BodyID(id)
 
-		_, bodyExists := w.physicsBodyExists.Load(entityID)
+		_, bodyExists := w.physicsBodyExists.Load(id)
 		if !bodyExists {
 			w.physicsSystem.AddBody(
 				bodyID,
@@ -138,7 +159,7 @@ func worldToPhysics(w *World) {
 				gravityFactor,
 				mass,
 				inertia)
-			w.physicsBodyExists.Store(entityID, struct{}{})
+			w.physicsBodyExists.Store(id, struct{}{})
 		} else {
 			w.physicsSystem.UpdateBody(
 				bodyID,

@@ -95,8 +95,7 @@ func (weapon WeaponGenericProjectileLauncher) WeaponUpdateSubtick(w *World, id, 
 			EndTime:   w.Now.Add(300 * time.Millisecond),
 		})
 		w.Velocity.Store(projectile, Velocity{Linear: rot.Rotate(geometry.Vec3{0, weapon.MuzzleVelocity, 0})})
-		w.PhysicsLayer.Store(projectile, PhysicsLayerProjectiles)
-		w.PhysicsMotionType.Store(projectile, PhysicsMotionDynamic)
+		w.CollisionLayer.Store(projectile, PhysicsLayerProjectiles)
 		// TODO: which entities to ignore (players might be made out of many
 		// entities) and how (some entities are bounding boxes for physics, others
 		// can be e.g. hitboxes etc) should be specified through WeaponAim
