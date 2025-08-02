@@ -12,6 +12,7 @@ type Format = vk.Format
 type IndexType = vk.IndexType
 
 type formatProps struct {
+	// TODO: replace with our own flags/bools?
 	OptimalTilingFeatures vk.FormatFeatureFlags2
 }
 

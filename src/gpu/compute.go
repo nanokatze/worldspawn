@@ -15,7 +15,7 @@ type dispatchJob struct {
 	args   []byte
 }
 
-// TODO: replace n with a range like in tbb/sycl
+// TODO: replace n with a range like in tbb/sycl?
 func EnqueueParallelFor(jq *JobQueue, n int, kernel *Func, args any) {
 	if n < 0 {
 		panic("bad")

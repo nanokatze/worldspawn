@@ -111,6 +111,7 @@ type RayTracingPipeline struct {
 	vk vk.Pipeline
 }
 
+// TODO: make it possible to link RT pipes into more RT pipes
 func LinkRayTracingShaderGroups(shaderGroups []*RayTracingShaderGroup) *RayTracingPipeline {
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
@@ -169,14 +170,16 @@ type traceRaysJob struct {
 	args     []byte
 }
 
+// TODO: pass sbt by-value?
+// TODO: pass width, height, depth as [3]int/Int3?
 func EnqueueTraceRays(jq *JobQueue,
 	pipeline *RayTracingPipeline,
-	sbt *ShaderBindingTable,
+	sbt ShaderBindingTable,
 	width, height, depth int,
 	args any) {
 	jq.Enqueue(&traceRaysJob{
 		pipeline: pipeline,
-		sbt:      *sbt,
+		sbt:      sbt,
 		width:    uint32(width),
 		height:   uint32(height),
 		depth:    uint32(depth),

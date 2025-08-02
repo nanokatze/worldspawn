@@ -223,7 +223,7 @@ func (re *Renderer) Render(jq *gpu.JobQueue, scene *Scene, t float32, camera *Ca
 			Camera: frameData,
 			Out:    out.LoadStoreDescriptor(),
 		}
-		gpu.EnqueueTraceRays(jq, pipeline, &sbt, res.X, res.Y, 1, &args)
+		gpu.EnqueueTraceRays(jq, pipeline, sbt, res.X, res.Y, 1, &args)
 	}
 
 	// TODO: overlays like HUD, damage numbers, minimap, etc here
