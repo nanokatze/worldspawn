@@ -43,16 +43,10 @@ const (
 )
 */
 
-/*
-type GPUFormattedSlice struct {
-	data   gpu.UnsafePointer
-	packed uint64
+type IndexSlice struct {
+	data gpu.UnsafePointer
+	aux  uint64 // TODO: rename to reflect that it's packed index type and length
 }
-
-func formattedSliceLen(s GPUFormattedSlice) int {
-	return int(s.packed & ((1 << 57) - 1))
-}
-*/
 
 type MeshPart struct {
 	Positions   gpu.Slice[[3]float32]

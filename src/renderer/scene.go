@@ -1,6 +1,7 @@
 package renderer
 
 import (
+	"structs"
 	"worldspawn/geometry-go"
 	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
@@ -19,6 +20,7 @@ type _Mesh struct {
 	Triangles   gpu.Pointer[[3]uint16]
 	UVs         gpu.Pointer[[2]float32]
 	TestTexture gpu.SamplingViewWithSampler
+	Hmm         [3]float32
 }
 
 // TODO: I guess we'll need to do some involved memory management in Scene.
@@ -30,6 +32,8 @@ type _Mesh struct {
 //
 // TODO: Scene needs to also manage the SBT
 type Scene struct {
+	_ structs.HostLayout
+
 	sky gpu.SamplingViewWithSampler
 
 	instances      gpu.Slice[gpu.Pointer[_Mesh]]
@@ -38,6 +42,11 @@ type Scene struct {
 
 	// TODO: remove once we move to stochastic sampling
 	sampler gpu.Sampler
+
+	// TODO: append experimental stuff at the end for now: we have a skill issue
+	// in that we need to manually sync host and device type definitions.
+	pipeline *gpu.RayTracingPipeline
+	sbt      gpu.ShaderBindingTable // Scene only needs to care about hit SBT tbf.
 }
 
 func NewScene(n int) *Scene {
@@ -48,7 +57,11 @@ func NewScene(n int) *Scene {
 		instancesHost[i] = hack.Index(i)
 	}
 
+	pipe, sbt := pathTracer()
+
 	return &Scene{
+		pipeline:       pipe,
+		sbt:            sbt,
 		instances:      instances,
 		accelInstances: gpu.MakeSliceUncached[gpu.AccelInstance](n),
 		accel:          gpu.NewTopLevelAccel(n),
@@ -80,6 +93,7 @@ type Instance struct {
 type Material struct {
 	// TODO: this should be in a separate array, this specifies a material
 	TestTexture *gpu.Image
+	Hmm         [3]float32
 }
 
 // TODO: make all of the fields private and provide methods for manipulation.
@@ -163,6 +177,7 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 			Triangles:   gpu.SliceData(mesh.parts[0].Triangles),
 			UVs:         gpu.SliceData(mesh.parts[0].Attributes[0].(gpu.Slice[[2]float32])),
 			TestTexture: dirty.Materials[instanceIndex][0].TestTexture.SamplingDescriptor().WithSampler(scene.sampler),
+			Hmm:         dirty.Materials[instanceIndex][0].Hmm,
 		}
 
 		// Should be done on the device

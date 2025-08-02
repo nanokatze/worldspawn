@@ -24,6 +24,30 @@ public struct Accel {
     // public void TraceRay()
 };
 
+struct imageDescriptors {
+	uint32_t sampling;
+	uint32_t loadStore;
+};
+
+// TODO: *Views are deprecated in favor of this. We'll need to cook something
+// up for samplers.
+public struct Image {
+	void *base;
+	imageDescriptors descriptors;
+
+	// Image()
+
+	[require(spirv, nonuniformqualifier)]
+	public float4 Load2D(int2 P) {
+		return storageImages[NonUniformResourceIndex(descriptors.loadStore)].asOpaqueDescriptor<RWTexture2D>()[P];
+	}
+
+	[require(spirv, nonuniformqualifier)]
+	public void Store2D(int2 P, float4 v) {
+		storageImages[NonUniformResourceIndex(descriptors.loadStore)].asOpaqueDescriptor<RWTexture2D>()[P] = v;
+	}
+};
+
 public struct Sampler {
 	internal uint32_t handle;
 

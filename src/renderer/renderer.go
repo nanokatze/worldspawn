@@ -84,17 +84,25 @@ var blueNoise = sync.OnceValue(func() *gpu.Image {
 	return gpuImg
 })
 
-var pathTracer = sync.OnceValues(func() (*gpu.RayTracingPipeline, gpu.ShaderBindingTable) {
-	raygen := gpu.NewFunc(mustReadFile("shaders/renderer.spv"), vk.SHADER_STAGE_RAYGEN_BIT_KHR, "raygen")
-	raygenSG := gpu.NewGeneralRayTracingShaderGroup(raygen)
+var raygen = sync.OnceValue(func() *gpu.RayTracingShaderGroup {
+	return gpu.NewGeneralRayTracingShaderGroup(gpu.NewFunc(mustReadFile("shaders/renderer.spv"), vk.SHADER_STAGE_RAYGEN_BIT_KHR, "raygen"))
+})
 
+var skyIdk = sync.OnceValue(func() *gpu.RayTracingShaderGroup {
 	sky := gpu.NewFunc(mustReadFile("shaders/renderer.spv"), vk.SHADER_STAGE_MISS_BIT_KHR, "sky")
-	skySG := gpu.NewGeneralRayTracingShaderGroup(sky)
+	return gpu.NewGeneralRayTracingShaderGroup(sky)
+})
+
+// TODO: split this up and slowly move assembling the RT pipe and SBT into Scene
+var pathTracer = sync.OnceValues(func() (*gpu.RayTracingPipeline, gpu.ShaderBindingTable) {
+	raygenSG := raygen()
+
+	skySG := skyIdk()
 
 	chit := gpu.NewFunc(mustReadFile("shaders/renderer.spv"), vk.SHADER_STAGE_CLOSEST_HIT_BIT_KHR, "chit")
 	chitSG := gpu.NewTrianglesRayTracingShaderGroup(chit, nil)
 
-	linked := gpu.LinkRayTracingShaderGroups([]*gpu.RayTracingShaderGroup{
+	pipeline := gpu.LinkRayTracingShaderGroups([]*gpu.RayTracingShaderGroup{
 		// These can appear in any order
 		raygenSG,
 		skySG,
@@ -112,7 +120,7 @@ var pathTracer = sync.OnceValues(func() (*gpu.RayTracingPipeline, gpu.ShaderBind
 	hitRecords := gpu.MakeSliceUncached[byte](1 * 32)
 	copy(hitRecords.Value()[0*32:], chitSG.Handle())
 
-	return linked, gpu.ShaderBindingTable{
+	return pipeline, gpu.ShaderBindingTable{
 		RaygenShaderRecordAddress:     gpu.UnsafePointer(gpu.SliceData(raygenRecord)),
 		RaygenShaderRecordSize:        gpu.SliceLen(raygenRecord),
 		MissShaderBindingTableAddress: gpu.UnsafePointer(gpu.SliceData(missRecords)),
@@ -212,7 +220,9 @@ func (re *Renderer) Render(jq *gpu.JobQueue, scene *Scene, t float32, camera *Ca
 			0, 1)
 		defer jq.Cleanup(out.Destroy)
 
-		pipeline, sbt := pathTracer()
+		// TODO: arguably this is the right place to do the linking the final
+		// pipeline and assemble the entire SBT. Scene should only concern
+		// itself with hit groups.
 
 		args := struct {
 			Scene  gpu.Pointer[Scene]
@@ -223,7 +233,7 @@ func (re *Renderer) Render(jq *gpu.JobQueue, scene *Scene, t float32, camera *Ca
 			Camera: frameData,
 			Out:    out.LoadStoreDescriptor(),
 		}
-		gpu.EnqueueTraceRays(jq, pipeline, sbt, res.X, res.Y, 1, &args)
+		gpu.EnqueueTraceRays(jq, scene.pipeline, scene.sbt, res.X, res.Y, 1, &args)
 	}
 
 	// TODO: overlays like HUD, damage numbers, minimap, etc here

@@ -553,10 +553,16 @@ func (sr *idk) Tick(w *worldspawn.World, playerID ecs.ID, t0, t1 worldspawn.Time
 				Scale:       scale,
 			}
 
+			color := [][3]float32{
+				{1, 0.4, 0},
+				{0, 0.4, 1},
+			}[i%2]
+
 			sr.scene.Mesh[i] = model(rendererModel.Filename)
 			sr.scene.Materials[i] = []renderer.Material{
 				{
 					TestTexture: testTexture.Image,
+					Hmm:         color,
 				},
 			}
 
