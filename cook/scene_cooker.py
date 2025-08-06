@@ -1,10 +1,11 @@
 import bpy
+import codecs
 import json
 from mathutils import Matrix, Vector, Quaternion
 
 from blender_cookers import collection as collection_cooker
 
-import util
+import utils
 
 
 def deps(context, scene, dset):
@@ -38,13 +39,14 @@ def __handle_collection(context, cooked_scene, collection, xform):
     # Should we inline collections or instance them at 0x0x0? I guess both,
     # inline if they're not excluded from view layer and also instance? Only
     # ever instancing would be pretty elegant, but that means refs from inside
-    # blender can't be done
+    # blender can't be done. Actually they can be, we should ref to things using
+    # names.
     for child_collection in collection.children:
         if child_collection.hide_render:
             continue
         __handle_collection(context, cooked_scene, child_collection, xform)
 
-    collection_cooker.cook_objects_into(context, xform, collection, cooked_scene, __handle_collection)
+    collection_cooker.cook_objects_into(context, xform, collection, cooked_scene)
 
 
 def cook(context, scene):
@@ -72,6 +74,6 @@ def cook(context, scene):
 
     __handle_collection(context, tmp, scene.collection, Matrix())
 
-    cooked_scene = util.fixupdict(cooked_scene) # pain
+    cooked_scene = utils.fixupdict(cooked_scene) # pain
     with open(context.path_for_datablock(scene), 'wb') as f:
-        f.write(json.dumps(cooked_scene, indent='\t', default=util.asdasd).encode('utf-8'))
+        json.dump(cooked_scene, codecs.getwriter('utf-8')(f), indent='\t', default=utils.asdasd)

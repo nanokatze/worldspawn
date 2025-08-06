@@ -1,6 +1,5 @@
 import bpy
-
-# import material_compiler
+import struct
 
 
 def deps(context, datablock, dset):
@@ -102,29 +101,83 @@ def deps(context, datablock, dset):
 #     return index
 
 
+class __Arcs:
+
+
+    def __init__(self, node_tree):
+        self.__in = {}
+
+        for l in node_tree.links:
+            # TODO: support multiple
+            self.__in[l.to_socket] = [l.from_socket]
+
+
+    def get_in(self, socket):
+        return self.__in[socket]
+
+
+# class __Compiled:
+
+
+
+register = 0
+
+def __compile(s, arcs):
+    global register
+
+    assert s.is_output
+
+    n = s.node
+
+    match n:
+        case bpy.types.ShaderNodeEmission():
+            assert s.name == 'Emission'
+            named_inputs = {input.name: input for input in n.inputs}
+            __compile(arcs.get_in(named_inputs['Color'])[0], arcs)
+        case bpy.types.ShaderNodeCombineColor():
+            named_inputs = {input.name: input for input in n.inputs}
+            for x in [
+                named_inputs['Red'].default_value,
+                named_inputs['Green'].default_value,
+                named_inputs['Blue'].default_value,
+            ]:
+                print('OpMovk,')
+                print(register, ',')
+                print(struct.unpack('i', struct.pack('f', x))[0], ',')
+                register += 1
+            # print(','.join(['OpMovk'] + [f'math.Float32frombits({x})' for x in n.color]))
+        case _:
+            assert False, f'unsupported node type {type(n)}'
+
+
 def cook(context, material):
     # TODO: if this is not a node-based material, print a nice error and bail,
     # or translate it to node-based material.
     assert material.use_nodes
 
-    # node_tree = material.node_tree
+    node_tree = material.node_tree
+
+    arcs = __Arcs(node_tree)
 
     # b = Builder(node_tree)
 
     # out = None
     # aovs = {}
-    # for n in node_tree.nodes:
-    #     match n:
-    #         case bpy.types.ShaderNodeOutputMaterial():
-    #             input_socket_map = {input.name: input for input in n.inputs}
-    #             surface = input_socket_map['Surface']
-    #             volume = input_socket_map['Volume']
-    #             if n.is_active_output:
-    #                 out = b.handle_input_socket(surface)
-    #         case bpy.types.ShaderNodeOutputAOV():
-    #             # TODO: we'll want to have a predefined table of AOVs in the
-    #             # exporter, similar to View Layer/Shader AOVs in blender
-    #             aovs[n.aov_name] = b.handle_input_socket(n.inputs[0])
+    for n in node_tree.nodes:
+        match n:
+            case bpy.types.ShaderNodeOutputMaterial():
+                named_inputs = {input.name: input for input in n.inputs}
+                surface = named_inputs['Surface']
+                volume = named_inputs['Volume']
+                if n.is_active_output:
+                    __compile(arcs.get_in(surface)[0], arcs)
+            case bpy.types.ShaderNodeOutputAOV():
+                pass
+                # TODO: we'll want to have a predefined table of AOVs in the
+                # exporter, similar to View Layer/Shader AOVs in blender
+                # aovs[n.aov_name] = b.handle_input_socket(n.inputs[0])
+
+    print('OpStop,')
 
     # print(b.get_images())
 

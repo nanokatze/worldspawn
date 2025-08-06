@@ -1,5 +1,6 @@
-import util
+import utils
 import json
+import codecs
 
 from mathutils import Matrix
 
@@ -33,7 +34,7 @@ class __Cooker:
 
 
 # TODO: make this take objects rather than the entire collection
-def cook_objects_into(context, xform, collection, cooked_scene, hack):
+def cook_objects_into(context, xform, collection, cooked_scene):
     for obj in collection.objects:
         if obj.hide_render:
             continue
@@ -67,8 +68,6 @@ def cook_objects_into(context, xform, collection, cooked_scene, hack):
                 }
 
         if obj.instance_collection is not None:
-            # TODO: do not inline the collection instances!!!
-            #hack(context, cooked_scene, obj.instance_collection, obj.matrix_world)
             comps['CollectionInstance'] = {
                 'Filename': context.path_for_datablock(obj.instance_collection),
             }
@@ -85,9 +84,9 @@ def cook(context, datablock):
 
     __handle_collection(context, tmp, datablock, Matrix())
 
-    cooked = util.fixupdict(tmp.cooked) # pain
+    cooked = utils.fixupdict(tmp.cooked) # pain
     with open(context.path_for_datablock(datablock), 'wb') as f:
-        json.dump(cooked, util.UTF8Writer(f), indent='\t', default=util.asdasd)
+        json.dump(cooked, codecs.getwriter('utf-8')(f), indent='\t', default=utils.asdasd)
 
 
 
@@ -99,4 +98,4 @@ def __handle_collection(context, cooked_scene, collection, xform):
             continue
         __handle_collection(context, cooked_scene, child_collection, xform)
 
-    cook_objects_into(context, xform, collection, cooked_scene, __handle_collection)
+    cook_objects_into(context, xform, collection, cooked_scene)

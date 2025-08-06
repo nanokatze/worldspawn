@@ -2,38 +2,6 @@ import idprop
 from mathutils import Vector, Quaternion
 
 
-class ByteBuffer:
-
-
-    def __init__(self):
-        self.__buf = bytearray()
-
-
-    def seek(self, offset, whence=1):
-        assert offset == 0
-        assert whence == 1
-        return len(self.__buf)
-
-
-    def write(self, b):
-        self.__buf.extend(b)
-
-
-    def bytes(self):
-        return self.__buf
-
-
-class UTF8Writer:
-
-
-    def __init__(self, w):
-        self.__w = w
-
-
-    def write(self, s):
-        return self.__w.write(s.encode('utf-8'))
-
-
 # TODO: eventually switch back to vectors and rotation objects being serialized
 # to/from a single string
 # TODO: merge into fixupdict and remove in favor of the latter

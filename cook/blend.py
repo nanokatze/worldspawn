@@ -40,7 +40,7 @@ class Context:
     def __name_for_datablock(self, datablock):
         match datablock:
             case bpy.types.Collection():
-                return 'collections'
+                return 'collections' # TODO: rename to prefabs?
             case bpy.types.Scene():
                 return 'scenes'
             case bpy.types.Material():
@@ -116,7 +116,6 @@ def main(m, o, blend, datablock_type, datablock_name):
             for product, (datablock_type, datablock_name, depends) in dset.produces.items():
                 f.write('\n')
                 f.write(f'build {product}: blend {" ".join(depends)}\n')
-                # TODO: should be output_directory
                 f.write(f'  raw = {asd}\n')
                 f.write(f'  o = {os.path.split(os.path.split(product)[0])[0]}\n') # horrid
                 f.write(f'  datablock_type = "{datablock_type}"\n')

@@ -2,9 +2,11 @@
 
 import dataclasses
 import numpy as np
+import codecs
 import json
-import util
-import numpy_util as nputil
+import io
+import utils
+import numpy_utils as nputils
 import struct
 
 
@@ -49,17 +51,17 @@ class Header:
 def cook(raw, directory):
     collider = None
     parts = []
-    blob = util.ByteBuffer() # TODO: use a stricter alignment when writing to blob
+    blob = io.BytesIO() # TODO: use a stricter alignment when writing to blob
 
     if True:
         verts_unindexed = np.asarray(raw.tris.flat)['position']
         verts_indexed, vert_idxs = np.unique(verts_unindexed, return_inverse=True, axis=0)
 
         vertex_buffer = seek_align(blob, 4)
-        nputil.write_ndarray(blob, verts_indexed)
+        nputils.write_ndarray(blob, verts_indexed)
 
         tri_buffer = seek_align(blob, 4)
-        nputil.write_ndarray(blob, np.c_[
+        nputils.write_ndarray(blob, np.c_[
             vert_idxs.reshape((-1, 3)),
             raw.tri_mat_idxs,
         ])
@@ -82,20 +84,20 @@ def cook(raw, directory):
         # TODO: check whether indices are actually a benefit
 
         part_triangles = seek_align(blob, 4)
-        nputil.write_ndarray(blob, vert_idxs.astype(f'<u{index_size}'))
+        nputils.write_ndarray(blob, vert_idxs.astype(f'<u{index_size}'))
 
         verts = verts_indexed
 
         part_positions = seek_align(blob, 4)
-        nputil.write_ndarray(blob, verts['position'])
+        nputils.write_ndarray(blob, verts['position'])
 
         part_normals = seek_align(blob, 4)
-        nputil.write_ndarray(blob, verts['normal'])
+        nputils.write_ndarray(blob, verts['normal'])
 
         part_attributes = []
 
         part_attributes.append(seek_align(blob, 4))
-        nputil.write_ndarray(blob, verts['UVMap'])
+        nputils.write_ndarray(blob, verts['UVMap'])
 
         parts.append(Part(
             Positions=part_positions,
@@ -120,17 +122,17 @@ def cook(raw, directory):
         h = Header(None, collider, parts)
         d = dataclasses.asdict(h, dict_factory=dict_skip_nulls)
         d = fixupdict(d)
-        json.dump(d, util.UTF8Writer(f), default=util.asdasd)
+        json.dump(d, codecs.getwriter('utf-8')(f), default=utils.asdasd)
         json_length = f.seek(0, 1) - json_offset
 
         blob_offset = f.seek(0, 1)
-        f.write(blob.bytes())
+        f.write(blob.getbuffer())
         blob_length = f.seek(0, 1) - blob_offset
 
         f.seek(sections)
         f.write(struct.pack('<qqqq', json_offset, json_length, blob_offset, blob_length))
 
-# TODO: move to util somewhere
+# TODO: move to utils somewhere
 def dict_skip_nulls(stuff):
     return dict((k, v) for (k, v) in stuff if v is not None)
 
@@ -148,7 +150,7 @@ def fixupdict(d):
     return d
 
 
-# TODO: move into util or something like that package
+# TODO: move into utils or something like that package
 # TODO: this should be like seek (i.e. take offset and whence) but also take align
 # TODO: rename to something else? this also does write, which isn't really
 # appropriate for something called seek? :thinking:

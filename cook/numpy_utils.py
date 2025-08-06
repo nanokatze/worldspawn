@@ -5,7 +5,7 @@ vec2 = np.dtype((np.float32, 2))
 vec3 = np.dtype((np.float32, 3))
 
 
-# TODO: move to bpy_util?
+# TODO: move to bpy_utils?
 def array_from_bpy_collection(collection, attr, dtype):
     array = np.empty(len(collection), dtype=dtype)
     array_flat = array.view()
@@ -14,6 +14,7 @@ def array_from_bpy_collection(collection, attr, dtype):
     return array
 
 
+# TODO: rename ndarray_tofile
 def write_ndarray(f, a):
     # TODO: endianness
     return f.write(a.tobytes())
