@@ -44,7 +44,9 @@ func (shapeKind *PhysicsShapeKind) UnmarshalText(text []byte) error {
 	return nil
 }
 
-// TODO: replace with a single blob in a string so we can hash things easily
+// TODO: replace with a single blob in a string so we can hash things easily.
+// We'll want to implement UnmarshalText and MarshalText on the said blob, so we
+// can have a convenient representation in e.g. json.
 type CollisionGeometry struct {
 	// TODO: remove these?
 	Translation geometry.Vec3

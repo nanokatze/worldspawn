@@ -20,6 +20,9 @@ func (cosmeticOffset CosmeticOffset) Evaluate(now Time) geometry.Vec3 {
 }
 
 // TODO: let us do a transform here?
+// TODO: make RenderingGeometry be just a blob string with special json and/or
+// text de/serialization routines. Having it be a blob string would mean we can
+// hash a otherwise possibly complicated rendering geometry straightforwardly.
 type RenderingGeometry struct {
 	// Kind     string
 	Filename string

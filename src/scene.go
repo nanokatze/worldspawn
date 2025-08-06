@@ -129,7 +129,8 @@ type Components struct {
 
 	SoundEffect ecs.ComponentStore[SoundEffect]
 
-	CosmeticOffset ecs.ComponentStore[CosmeticOffset]
+	CosmeticOffset               ecs.ComponentStore[CosmeticOffset]
+	ResetCosmeticOffsetOnContact ecs.ComponentStore[struct{}]
 
 	// Posing test
 	Animation ecs.ComponentStore[Animation]
@@ -153,16 +154,18 @@ type Components struct {
 	PhysicsInertiaOverride ecs.ComponentStore[geometry.Mat4x4]
 
 	ArmedCharacter ecs.ComponentStore[ArmedCharacter]
+
 	// TODO: unify these two components probably
 	ViewPunch         ecs.ComponentStore[geometry.Rot3]
 	ViewPunchVelocity ecs.ComponentStore[geometry.Vec3]
 
 	Viewmodel ecs.ComponentStore[Viewmodel]
 
-	PlayerSpawn                  ecs.ComponentStore[struct{}]
-	ResetCosmeticOffsetOnContact ecs.ComponentStore[struct{}]
-	SpawnTime                    ecs.ComponentStore[Time]
-	DeleteAfter                  ecs.ComponentStore[Time]
+	PlayerSpawn ecs.ComponentStore[struct{}]
+
+	SpawnTime ecs.ComponentStore[Time]
+
+	DeleteAfter ecs.ComponentStore[Time]
 
 	// Timer ecs.ComponentStore[time.Duration]
 

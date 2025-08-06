@@ -105,10 +105,11 @@ func (w *World) InstanceCollectionAt(id ecs.ID, prefabRef PrefabRef) {
 	// TODO: actually compose these rather than override!
 	w.TranslationRotation.Store(id, translationRotation)
 	w.Scale.Store(id, scale)
+
+	// TODO: we also need to take velocity into account
 }
 
-// TODO: uhh
-// TODO: this should not be public probably
+// TODO: reorganize collection instantination and remove this
 func (dst *Components) CopyEntities(id ecs.ID, src *Components) {
 	// TODO: rewrite using reflect
 
