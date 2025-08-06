@@ -175,6 +175,34 @@ enum Op {
     CSel,
 };
 
+
+struct Registers {
+    // TODO: place the first few regs in actual hw regs and the rest into
+    // scratch.
+    // uint32_t regs[2];
+    uint32_t scratch[32];
+
+    __subscript(int i) -> uint32_t
+    {
+        get {
+            return scratch[i];
+        }
+
+        set {
+            scratch[i] = newValue;
+        }
+    }
+};
+
+struct Fetcher {
+    uint32_t *pc;
+
+    [[mutating]]
+    uint32_t fetch() {
+        return *pc++;
+    }
+};
+
 [shader("closesthit")]
 void chit(inout RayPayload payload : SV_RayPayload, in float2 barys_yz : SV_IntersectionAttributes)
 {
@@ -187,34 +215,33 @@ void chit(inout RayPayload payload : SV_RayPayload, in float2 barys_yz : SV_Inte
 
     uint3 triangleIndices = idxs.Load3(PrimitiveIndex());
 
-    uint32_t *code = instance->code;
+    Fetcher fetcher;
+    fetcher.pc = instance->code;
 
-    // TODO: place the first few regs in actual hw regs and the rest into
-    // scratch.
-    uint32_t regs[32];
+    Registers regs;
 
-    int pc = 0;
+    // TODO: factor decoding out
 outer:
     for (;;) {
-        switch (code[pc++]) {
+        switch (fetcher.fetch()) {
         default:
             // TODO: default should abort()
         case (uint32_t)Op::Stop:
             break outer;
         case (uint32_t)Op::Load: {
-            uint32_t dst = code[pc++];
-            uint32_t off = code[pc++];
+            uint32_t dst = fetcher.fetch();
+            uint32_t off = fetcher.fetch();
             regs[dst] = *((uint32_t*)instance + off / 4);
             break;
         }
         case (uint32_t)Op::Movk: {
-            uint32_t dst = code[pc++];
-            uint32_t val = code[pc++];
+            uint32_t dst = fetcher.fetch();
+            uint32_t val = fetcher.fetch();
             regs[dst] = val;
             break;
         }
         case (uint32_t)Op::LoadAttribute: {
-            uint32_t dst = code[pc++];
+            uint32_t dst = fetcher.fetch();
             float2 attr0 = instance->uvs[triangleIndices[0]];
             float2 attr1 = instance->uvs[triangleIndices[1]];
             float2 attr2 = instance->uvs[triangleIndices[2]];
@@ -228,43 +255,43 @@ outer:
             break;
         }
         case (uint32_t)Op::Frac: {
-            uint32_t dst = code[pc++];
-            uint32_t src = code[pc++];
+            uint32_t dst = fetcher.fetch();
+            uint32_t src = fetcher.fetch();
             regs[dst] = reinterpret<uint32_t>(frac(reinterpret<float>(regs[src])));
             break;
         }
         case (uint32_t)Op::Sub: {
-            uint32_t dst = code[pc++];
-            uint32_t src0 = code[pc++];
-            uint32_t src1 = code[pc++];
+            uint32_t dst = fetcher.fetch();
+            uint32_t src0 = fetcher.fetch();
+            uint32_t src1 = fetcher.fetch();
             regs[dst] = reinterpret<uint32_t>(
                 reinterpret<float>(regs[src0]) -
                 reinterpret<float>(regs[src1]));
             break;
         }
         case (uint32_t)Op::Min: {
-            uint32_t dst = code[pc++];
-            uint32_t src0 = code[pc++];
-            uint32_t src1 = code[pc++];
+            uint32_t dst = fetcher.fetch();
+            uint32_t src0 = fetcher.fetch();
+            uint32_t src1 = fetcher.fetch();
             regs[dst] = reinterpret<uint32_t>(min(
                 reinterpret<float>(regs[src0]),
                 reinterpret<float>(regs[src1])));
             break;
         }
         case (uint32_t)Op::LessOrEqual: {
-            uint32_t dst = code[pc++];
-            uint32_t src0 = code[pc++];
-            uint32_t src1 = code[pc++];
+            uint32_t dst = fetcher.fetch();
+            uint32_t src0 = fetcher.fetch();
+            uint32_t src1 = fetcher.fetch();
             regs[dst] = reinterpret<float>(regs[src0]) <= reinterpret<float>(regs[src1])
                 ? reinterpret<uint32_t>((float)1.0)
                 : reinterpret<uint32_t>((float)0.0);
             break;
         }
         case (uint32_t)Op::CSel: {
-            uint32_t dst = code[pc++];
-            uint32_t cond = code[pc++];
-            uint32_t src0 = code[pc++];
-            uint32_t src1 = code[pc++];
+            uint32_t dst = fetcher.fetch();
+            uint32_t cond = fetcher.fetch();
+            uint32_t src0 = fetcher.fetch();
+            uint32_t src1 = fetcher.fetch();
             // TODO: regs[cond] should probs be a float, need to check blender's
             // semantics for this...
             regs[dst] = regs[cond] ? regs[src0] : regs[src1];
