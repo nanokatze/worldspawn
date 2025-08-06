@@ -1,3 +1,4 @@
+# TODO: this should be called deathmatch_client or whatever
 custom_target(
   'client',
   env : go_env,

@@ -1,2 +1,0 @@
-subdir('client')
-subdir('server')
