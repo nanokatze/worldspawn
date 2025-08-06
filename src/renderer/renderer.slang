@@ -41,9 +41,7 @@ struct IndexSlice {
     }
 };
 
-// TODO: material interpreter!
-
-struct Mesh {
+struct MaterialParams {
     void *triangles;
     float2 *uvs;
     uint32_t *code;
@@ -54,7 +52,7 @@ struct Mesh {
 struct Scene {
 	SamplingViewWithSampler sky;
 
-    Slice<Mesh*> instances;
+    Slice<MaterialParams*> instances;
     Slice<uint8_t> accelInstances; // TODO: plop in proper AccelInstance
     Accel accel;
 
@@ -208,7 +206,7 @@ void chit(inout RayPayload payload : SV_RayPayload, in float2 barys_yz : SV_Inte
 {
     float3 barys = float3(1.0 - barys_yz.x - barys_yz.y, barys_yz);
 
-    Mesh *instance = push.scene->instances[InstanceID()];
+    MaterialParams *instance = push.scene->instances[InstanceID()];
 
     // TODO: pass the entire thing from host, rather than constructing it here.
     IndexSlice idxs = {(uint8_t*)instance->triangles, (uint64_t)2 << 62};

@@ -16,7 +16,7 @@ type Camera struct {
 	NearClipPlane float32
 }
 
-type _Mesh struct {
+type _MaterialParams struct {
 	Triangles   gpu.Pointer[[3]uint16]
 	UVs         gpu.Pointer[[2]float32]
 	Code        gpu.Pointer[uint32]
@@ -37,7 +37,7 @@ type Scene struct {
 
 	sky gpu.SamplingViewWithSampler
 
-	instances      gpu.Slice[gpu.Pointer[_Mesh]]
+	instances      gpu.Slice[gpu.Pointer[_MaterialParams]]
 	accelInstances gpu.Slice[gpu.AccelInstance]
 	accel          gpu.Accel
 
@@ -51,8 +51,8 @@ type Scene struct {
 }
 
 func NewScene(n int) *Scene {
-	instances := gpu.MakeSliceUncached[gpu.Pointer[_Mesh]](n)
-	hack := gpu.MakeSliceUncached[_Mesh](n)
+	instances := gpu.MakeSliceUncached[gpu.Pointer[_MaterialParams]](n)
+	hack := gpu.MakeSliceUncached[_MaterialParams](n)
 	instancesHost := instances.Value()
 	for i := range instancesHost {
 		instancesHost[i] = hack.Index(i)
@@ -177,7 +177,7 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 
 		mesh := dirty.Mesh[instanceIndex]
 
-		*instancesHost[instanceIndex].Value() = _Mesh{
+		*instancesHost[instanceIndex].Value() = _MaterialParams{
 			Triangles:   gpu.SliceData(mesh.parts[0].Triangles),
 			UVs:         gpu.SliceData(mesh.parts[0].Attributes[0].(gpu.Slice[[2]float32])),
 			Code:        gpu.SliceData(dirty.Materials[instanceIndex][0].Material.code),
