@@ -47,6 +47,7 @@ class WorldspawnSceneSettings(bpy.types.PropertyGroup):
 # is good
 _COMPONENTS = {
     'CollisionLayer': (0, ''),
+    'PhysicsMassOverride': (1.0, ''),
     'PlayerSpawn': ({}, 'struct{}'),
 }
 
@@ -54,7 +55,9 @@ _COMPONENTS = {
 
 # TODO: remove, add properties dynamically from _COMPONENTS
 class WorldspawnObjectComponents(bpy.types.PropertyGroup):
-    # TODO: how would we handle Entity component?
+    # TODO: how would we handle Entity component? We'd probs want it to be any
+    # arbitrary python dict or w/e
+
     # TODO: make these store strings for compatibility
     CollisionLayer: bpy.props.EnumProperty(
         name='Collision Layer',
@@ -64,6 +67,12 @@ class WorldspawnObjectComponents(bpy.types.PropertyGroup):
             ('Moving', 'Moving', ''),
             ('Projectiles', 'Projectiles', ''),
         ],
+    )
+
+    PhysicsMassOverride: bpy.props.FloatProperty(
+        name='Mass Override',
+        min=0,
+        max=1000000000,
     )
 
 
