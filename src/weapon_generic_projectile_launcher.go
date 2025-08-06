@@ -70,7 +70,7 @@ func (weapon WeaponGenericProjectileLauncher) WeaponUpdateSubtick(w *World, id, 
 
 	// TODO: also spawn a speculative entity on client once we get support for
 	// that.
-	if info.Speculating {
+	if !info.Speculating {
 		rot := aim.ShootRotation
 
 		realPosition := aim.ShootPos.Add(geometry.DVec3FromVec3(rot.Rotate(geometry.Vec3{0.0, 0.5, 0.0})))

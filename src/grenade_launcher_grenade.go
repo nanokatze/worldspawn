@@ -25,7 +25,7 @@ func (grenade GrenadeLauncherGrenade) UpdateAfterPhysics(w *World, id ecs.ID, in
 		return
 	}
 
-	if info.Speculating {
+	if !info.Speculating {
 		effect := w.SpawnEntity()
 		positionRotation, _ := w.TranslationRotation.Load(id)
 		w.TranslationRotation.Store(effect, positionRotation)
