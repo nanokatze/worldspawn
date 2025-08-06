@@ -211,15 +211,6 @@ func (re *Renderer) Render(jq *gpu.JobQueue, scene *Scene, t float32, camera *Ca
 	// RT
 
 	{
-		// TODO: we don't need to do SubImage here, the caller should prepare
-		// stuff for us.
-		out := dst.SubImage(
-			dst.Dim(),
-			vk.FORMAT_R8G8B8A8_UNORM,
-			0, 1,
-			0, 1)
-		defer jq.Cleanup(out.Destroy)
-
 		// TODO: arguably this is the right place to do the linking the final
 		// pipeline and assemble the entire SBT. Scene should only concern
 		// itself with hit groups.
@@ -231,7 +222,7 @@ func (re *Renderer) Render(jq *gpu.JobQueue, scene *Scene, t float32, camera *Ca
 		}{
 			Scene:  dscene,
 			Camera: frameData,
-			Out:    out.LoadStoreDescriptor(),
+			Out:    dst.LoadStoreDescriptor(),
 		}
 		gpu.EnqueueTraceRays(jq, scene.pipeline, scene.sbt, res.X, res.Y, 1, &args)
 	}

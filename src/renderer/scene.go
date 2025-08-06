@@ -22,6 +22,7 @@ type _MaterialParams struct {
 	Code        gpu.Pointer[uint32]
 	TestTexture gpu.SamplingViewWithSampler
 	Hmm         [3]float32
+	Normals     gpu.Pointer[[3]float32]
 }
 
 // TODO: I guess we'll need to do some involved memory management in Scene.
@@ -183,6 +184,7 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 			Code:        gpu.SliceData(dirty.Materials[instanceIndex][0].Material.code),
 			TestTexture: dirty.Materials[instanceIndex][0].TestTexture.SamplingDescriptor().WithSampler(scene.sampler),
 			Hmm:         dirty.Materials[instanceIndex][0].Hmm,
+			Normals:     gpu.SliceData(mesh.parts[0].Normals),
 		}
 
 		// Should be done on the device

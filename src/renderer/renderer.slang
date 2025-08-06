@@ -44,9 +44,10 @@ struct IndexSlice {
 struct MaterialParams {
     void *triangles;
     float2 *uvs;
-    uint32_t *code;
+    uint32_t *code; // TODO: this should be passed through shader record buffer
     SamplingViewWithSampler testTexture;
     float hmm[3];
+    float3 *normals;
 };
 
 struct Scene {
@@ -127,12 +128,12 @@ void raygen() {
 // TODO: rename to skyMiss
 [shader("miss")]
 void sky(inout RayPayload rayPayload : SV_RayPayload) {
-    float3 rayDir = normalize(WorldRayDirection());
+    float3 V = normalize(WorldRayDirection());
 
     // TODO: make a matrix to convert from our convention to KTX2 convention
     // TODO: use SampleCubeGrad. We can use aniso sampling for cube textures.
     // Actually, aniso sampling is broken across many impls. We might wanna look into filtering after shading for sky as well, but hopefully things might get fixed.
-    rayPayload.color = push.scene->sky.SampleCubeLOD(float3(-rayDir.y, rayDir.z, rayDir.x), 0).xyz;
+    rayPayload.color = push.scene->sky.SampleCubeLOD(float3(-V.y, V.z, V.x), 0).xyz;
 }
 
 float
@@ -163,16 +164,50 @@ struct Test {
 
 enum Op {
     Stop,
+
     Movk,
-    Load,
-    LoadAttribute,
-    Frac,
-    Sub,
-    Min,
-    LessOrEqual,
-    CSel,
+
+    AddF32,
+    SubF32,
+    MulF32,
+    DivF32,
+    MinF32,
+    MaxF32,
+
+    FracF32,
+
+    EqualF32,
+    NotEqualF32,
+    LessOrEqualF32,
+
+    ConditionalSelect,
+
+    Load, // TODO: rename
+    LoadAttribute, // TODO: rename
+
+    BSDFOrenNayarDiffuse,
 };
 
+struct Fetcher {
+    uint32_t *pc;
+
+    [[mutating]]
+    uint32_t fetch() {
+        return *pc++;
+    }
+};
+
+/*
+struct Instr {
+    Op op;
+    uint32_t dst;
+    uint32_t src0;
+    uint32_t src1;
+};
+
+Instr decode(inout Fetcher fetcher) {
+}
+*/
 
 struct Registers {
     // TODO: place the first few regs in actual hw regs and the rest into
@@ -190,28 +225,37 @@ struct Registers {
             scratch[i] = newValue;
         }
     }
-};
 
-struct Fetcher {
-    uint32_t *pc;
-
-    [[mutating]]
-    uint32_t fetch() {
-        return *pc++;
+    uint4 load4(int i) {
+        return uint4(
+            this[i+0],
+            this[i+1],
+            this[i+2],
+            this[i+3],
+        );
     }
 };
 
 [shader("closesthit")]
 void chit(inout RayPayload payload : SV_RayPayload, in float2 barys_yz : SV_IntersectionAttributes)
 {
-    float3 barys = float3(1.0 - barys_yz.x - barys_yz.y, barys_yz);
+    let barys = float3(1.0 - barys_yz.x - barys_yz.y, barys_yz);
 
-    MaterialParams *instance = push.scene->instances[InstanceID()];
+    let instance = push.scene->instances[InstanceID()];
 
     // TODO: pass the entire thing from host, rather than constructing it here.
     IndexSlice idxs = {(uint8_t*)instance->triangles, (uint64_t)2 << 62};
 
     uint3 triangleIndices = idxs.Load3(PrimitiveIndex());
+
+    let V = normalize(WorldRayDirection());
+    let L = normalize(float3(1, 1, 1));
+    let N = mul((float3x3)ObjectToWorld(),
+        interpolate3(float3x3(
+            instance->normals[triangleIndices[0]],
+            instance->normals[triangleIndices[1]],
+            instance->normals[triangleIndices[2]]),
+        barys));
 
     Fetcher fetcher;
     fetcher.pc = instance->code;
@@ -221,28 +265,89 @@ void chit(inout RayPayload payload : SV_RayPayload, in float2 barys_yz : SV_Inte
     // TODO: factor decoding out
 outer:
     for (;;) {
-        switch (fetcher.fetch()) {
+        let op = (Op)fetcher.fetch();
+        switch (op) {
         default:
             // TODO: default should abort()
-        case (uint32_t)Op::Stop:
+        case Op::Stop:
             break outer;
-        case (uint32_t)Op::Load: {
-            uint32_t dst = fetcher.fetch();
-            uint32_t off = fetcher.fetch();
-            regs[dst] = *((uint32_t*)instance + off / 4);
-            break;
-        }
-        case (uint32_t)Op::Movk: {
+
+        case Op::Movk: {
             uint32_t dst = fetcher.fetch();
             uint32_t val = fetcher.fetch();
             regs[dst] = val;
             break;
         }
-        case (uint32_t)Op::LoadAttribute: {
+
+        case Op::AddF32: {
             uint32_t dst = fetcher.fetch();
-            float2 attr0 = instance->uvs[triangleIndices[0]];
-            float2 attr1 = instance->uvs[triangleIndices[1]];
-            float2 attr2 = instance->uvs[triangleIndices[2]];
+            uint32_t src0 = fetcher.fetch();
+            uint32_t src1 = fetcher.fetch();
+            regs[dst] = reinterpret<uint32_t>(
+                reinterpret<float>(regs[src0]) +
+                reinterpret<float>(regs[src1]));
+            break;
+        }
+        case Op::SubF32: {
+            uint32_t dst = fetcher.fetch();
+            uint32_t src0 = fetcher.fetch();
+            uint32_t src1 = fetcher.fetch();
+            regs[dst] = reinterpret<uint32_t>(
+                reinterpret<float>(regs[src0]) -
+                reinterpret<float>(regs[src1]));
+            break;
+        }
+        case Op::MinF32: {
+            uint32_t dst = fetcher.fetch();
+            uint32_t src0 = fetcher.fetch();
+            uint32_t src1 = fetcher.fetch();
+            regs[dst] = reinterpret<uint32_t>(min(
+                reinterpret<float>(regs[src0]),
+                reinterpret<float>(regs[src1])));
+            break;
+        }
+
+        case Op::FracF32: {
+            uint32_t dst = fetcher.fetch();
+            uint32_t src = fetcher.fetch();
+            regs[dst] = reinterpret<uint32_t>(frac(reinterpret<float>(regs[src])));
+            break;
+        }
+
+        case Op::LessOrEqualF32: {
+            uint32_t dst = fetcher.fetch();
+            uint32_t src0 = fetcher.fetch();
+            uint32_t src1 = fetcher.fetch();
+            // TODO: write to predicate register instead
+            regs[dst] = reinterpret<float>(regs[src0]) <= reinterpret<float>(regs[src1])
+                ? reinterpret<uint32_t>((float)1.0)
+                : reinterpret<uint32_t>((float)0.0);
+            break;
+        }
+
+        case Op::ConditionalSelect: {
+            uint32_t dst = fetcher.fetch();
+            uint32_t cond = fetcher.fetch();
+            uint32_t src0 = fetcher.fetch();
+            uint32_t src1 = fetcher.fetch();
+            // TODO: use the predicate register instead
+            regs[dst] = regs[cond] ? regs[src0] : regs[src1];
+            break;
+        }
+
+        case Op::Load: {
+            uint32_t dst = fetcher.fetch();
+            uint32_t off = fetcher.fetch();
+            regs[dst] = *((uint32_t*)instance + off / 4);
+            break;
+        }
+        case Op::LoadAttribute: {
+            uint32_t dst = fetcher.fetch();
+            uint32_t off = fetcher.fetch();
+            float2 *attrbuf = *(float2**)((uint8_t*)instance + off);
+            float2 attr0 = attrbuf[triangleIndices[0]];
+            float2 attr1 = attrbuf[triangleIndices[1]];
+            float2 attr2 = attrbuf[triangleIndices[2]];
             // TODO: make a dedicated interpolation function which will take care of the
             // edge cases
             float2 attr = interpolate2(float3x2(attr0, attr1, attr2), barys);
@@ -252,53 +357,41 @@ outer:
             // I guess?
             break;
         }
-        case (uint32_t)Op::Frac: {
-            uint32_t dst = fetcher.fetch();
+
+        case Op::BSDFOrenNayarDiffuse: {
             uint32_t src = fetcher.fetch();
-            regs[dst] = reinterpret<uint32_t>(frac(reinterpret<float>(regs[src])));
-            break;
-        }
-        case (uint32_t)Op::Sub: {
-            uint32_t dst = fetcher.fetch();
-            uint32_t src0 = fetcher.fetch();
-            uint32_t src1 = fetcher.fetch();
-            regs[dst] = reinterpret<uint32_t>(
-                reinterpret<float>(regs[src0]) -
-                reinterpret<float>(regs[src1]));
-            break;
-        }
-        case (uint32_t)Op::Min: {
-            uint32_t dst = fetcher.fetch();
-            uint32_t src0 = fetcher.fetch();
-            uint32_t src1 = fetcher.fetch();
-            regs[dst] = reinterpret<uint32_t>(min(
-                reinterpret<float>(regs[src0]),
-                reinterpret<float>(regs[src1])));
-            break;
-        }
-        case (uint32_t)Op::LessOrEqual: {
-            uint32_t dst = fetcher.fetch();
-            uint32_t src0 = fetcher.fetch();
-            uint32_t src1 = fetcher.fetch();
-            regs[dst] = reinterpret<float>(regs[src0]) <= reinterpret<float>(regs[src1])
-                ? reinterpret<uint32_t>((float)1.0)
-                : reinterpret<uint32_t>((float)0.0);
-            break;
-        }
-        case (uint32_t)Op::CSel: {
-            uint32_t dst = fetcher.fetch();
-            uint32_t cond = fetcher.fetch();
-            uint32_t src0 = fetcher.fetch();
-            uint32_t src1 = fetcher.fetch();
-            // TODO: regs[cond] should probs be a float, need to check blender's
-            // semantics for this...
-            regs[dst] = regs[cond] ? regs[src0] : regs[src1];
             break;
         }
         }
     }
 
-    payload.color = reinterpret<float3>(uint3(regs[0], regs[1], regs[2]));
+    float3 color = reinterpret<float3>(uint3(regs[0], regs[1], regs[2]));
+
+    // plop this into BSDFOrenNayarDiffuse
+    {
+        // TODO: fire a shadow ray and stuff
+
+        float roughness = 0.0;
+
+        float LdotV = dot(L, V);
+        float NdotL = dot(N, L);
+        float NdotV = dot(N, V);
+
+        float s = LdotV - NdotL * NdotV;
+        float t = lerp(1.0, max(NdotL, NdotV), step(0.0, s));
+
+        float sigma2 = roughness * roughness;
+        float3 A = 1.0 + sigma2 * (color / (sigma2 + 0.13) + 0.5 / (sigma2 + 0.33));
+        float B = 0.45 * sigma2 / (sigma2 + 0.09);
+
+        float M_PI = 3.141592653589793;
+
+        float3 result = color * max(0.0, NdotL) * (A + B * s / t) / M_PI;
+
+        color = result;
+    }
+
+    payload.color = color;
 }
 
 [shader("closesthit")]
