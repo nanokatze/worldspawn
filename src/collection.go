@@ -2,6 +2,7 @@ package worldspawn
 
 import (
 	"log"
+	"path/filepath"
 
 	"github.com/go-json-experiment/json"
 
@@ -48,16 +49,30 @@ upgrading to a tiny JS engine which will be loading JSON file, manipulating it
 and returning a new object.
 */
 
+type CollectionInstance struct {
+	Filename string
+}
+
 // TODO: rename this to something else, e.g. just Prefab?
 type PrefabRef struct {
 	Entity   ecs.ID // for prefabs constructed at runtime
 	Filename string // for on-disk prefabs
 }
 
+// TODO: rename this to make it clear that we're instanting collections
+// specified by CollectionInstance components
+func (w *World) InstantinateCollections() {
+	for id, collection := range w.CollectionInstance.All() {
+		w.CollectionInstance.Delete(id)
+		w.InstanceCollectionAt(id, PrefabRef{Filename: collection.Filename})
+	}
+}
+
 // TODO: pass fs explicitly, etc. We'll make Data fs and caches per-World,
 // likely
 func prefab(filename string) *Components {
-	f, err := Data.Open(filename)
+	// TODO: we shouldn't need to be doing filepath.Clean here, the exporter should export stuff properly by itself
+	f, err := Data.Open(filepath.Clean(filename))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -73,41 +88,58 @@ func prefab(filename string) *Components {
 	return w
 }
 
+// TODO: rename to InstanceCollection
 func (w *World) SpawnPrefab(prefabRef PrefabRef) ecs.ID {
 	e := w.SpawnEntity()
 	w.CopyEntities(e, prefab(prefabRef.Filename))
 	return e
 }
 
-// TODO: this should not be public
-func (dst *Components) CopyEntities(entityID ecs.ID, src *Components) {
-	// TODO: rewrite to use reflect
+// TODO: make this a standalone method?
+// TODO: rename to InstantinateCollectionAt
+func (w *World) InstanceCollectionAt(id ecs.ID, prefabRef PrefabRef) {
+	translationRotation, _ := w.TranslationRotation.Load(id)
+	scale, _ := w.Scale.Load(id)
+
+	w.CopyEntities(id, prefab(prefabRef.Filename))
+	// TODO: actually compose these rather than override!
+	w.TranslationRotation.Store(id, translationRotation)
+	w.Scale.Store(id, scale)
+}
+
+// TODO: uhh
+// TODO: this should not be public probably
+func (dst *Components) CopyEntities(id ecs.ID, src *Components) {
+	// TODO: rewrite using reflect
 
 	if v, ok := src.Entity.Load(1); ok {
-		dst.Entity.Store(entityID, v)
+		dst.Entity.Store(id, v)
 	}
 	if v, ok := src.TranslationRotation.Load(1); ok {
-		dst.TranslationRotation.Store(entityID, v)
+		dst.TranslationRotation.Store(id, v)
 	}
 	if v, ok := src.Scale.Load(1); ok {
-		dst.Scale.Store(entityID, v)
+		dst.Scale.Store(id, v)
 	}
 	if v, ok := src.Viewmodel.Load(1); ok {
-		dst.Viewmodel.Store(entityID, v)
+		dst.Viewmodel.Store(id, v)
 	}
 	if v, ok := src.RenderingGeometry.Load(1); ok {
-		dst.RenderingGeometry.Store(entityID, v)
+		dst.RenderingGeometry.Store(id, v)
 	}
 	if v, ok := src.CollisionGeometry.Load(1); ok {
-		dst.CollisionGeometry.Store(entityID, v)
+		dst.CollisionGeometry.Store(id, v)
 	}
 	if v, ok := src.PhysicsMassOverride.Load(1); ok {
-		dst.PhysicsMassOverride.Store(entityID, v)
+		dst.PhysicsMassOverride.Store(id, v)
 	}
 	if v, ok := src.PhysicsInertiaOverride.Load(1); ok {
-		dst.PhysicsInertiaOverride.Store(entityID, v)
+		dst.PhysicsInertiaOverride.Store(id, v)
 	}
 	if v, ok := src.GravityFactor.Load(1); ok {
-		dst.GravityFactor.Store(entityID, v)
+		dst.GravityFactor.Store(id, v)
+	}
+	if v, ok := src.PlayerSpawn.Load(1); ok {
+		dst.PlayerSpawn.Store(id, v)
 	}
 }

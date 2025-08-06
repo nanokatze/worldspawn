@@ -19,6 +19,7 @@ type Camera struct {
 type _Mesh struct {
 	Triangles   gpu.Pointer[[3]uint16]
 	UVs         gpu.Pointer[[2]float32]
+	Code        gpu.Pointer[uint32]
 	TestTexture gpu.SamplingViewWithSampler
 	Hmm         [3]float32
 }
@@ -89,9 +90,10 @@ type Instance struct {
 }
 
 // TODO: we'll also want to specify the parameters
-// TODO: rename to MaterialInstance?
-type Material struct {
-	// TODO: this should be in a separate array, this specifies a material
+// TODO: move Material into its own column (array)?
+type MaterialInstance struct {
+	Material *Material
+	// TODO: these should be expressed somehow generically
 	TestTexture *gpu.Image
 	Hmm         [3]float32
 }
@@ -112,10 +114,12 @@ type SceneDirty struct {
 	// TODO: we also need to carry velocity here for motion blur, or at least
 	// some extra info to disambiguate fast temporally-aliased motions.
 
+	// TODO: prefix instance-rate stuff with instance? or idk Or put them into
+	// Instance struct { ... }
 	Instance []Instance
 	Mesh     []*Mesh
 	// Vox []*Vox
-	Materials [][]Material
+	Materials [][]MaterialInstance
 
 	// TODO: this is a hack for testing skeletal posing and should be removed.
 	Pose [][]geometry.Mat4x4
@@ -129,7 +133,7 @@ func NewSceneDirty(n int) *SceneDirty {
 
 		Instance:  make([]Instance, n),
 		Mesh:      make([]*Mesh, n),
-		Materials: make([][]Material, n),
+		Materials: make([][]MaterialInstance, n),
 
 		Pose: make([][]geometry.Mat4x4, n),
 	}
@@ -176,6 +180,7 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 		*instancesHost[instanceIndex].Value() = _Mesh{
 			Triangles:   gpu.SliceData(mesh.parts[0].Triangles),
 			UVs:         gpu.SliceData(mesh.parts[0].Attributes[0].(gpu.Slice[[2]float32])),
+			Code:        gpu.SliceData(dirty.Materials[instanceIndex][0].Material.code),
 			TestTexture: dirty.Materials[instanceIndex][0].TestTexture.SamplingDescriptor().WithSampler(scene.sampler),
 			Hmm:         dirty.Materials[instanceIndex][0].Hmm,
 		}

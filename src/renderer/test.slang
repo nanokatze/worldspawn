@@ -27,10 +27,10 @@ struct VSOut {
 
 [shader("vertex")]
 VSOut vertMain(uint32_t rawVertexID: SV_VulkanVertexID) {
-    return (VSOut) {
+    return VSOut(
         float4(-(float2)1 + 2 * (push.offset + vbo[rawVertexID] * push.extent), 0, 1),
-        vbo[rawVertexID],
-    };
+        vbo[rawVertexID]
+    );
 }
 
 struct FSOut {
@@ -39,7 +39,7 @@ struct FSOut {
 
 [shader("fragment")]
 FSOut fragMain(VSOut vsIn) {
-    return (FSOut) {
-        push.tex.Sample2DLOD(vsIn.uv, 0).xxxx,
-    };
+    return FSOut(
+        push.tex.Sample2DLOD(vsIn.uv, 0).xxxx
+    );
 }

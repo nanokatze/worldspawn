@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"image/png"
+	"math"
 	"os"
 	"sync"
 
@@ -82,6 +83,36 @@ var blueNoise = sync.OnceValue(func() *gpu.Image {
 	wg.Wait()
 
 	return gpuImg
+})
+
+var TestMaterial = sync.OnceValue(func() *Material {
+	host := []uint32{
+		OpLoadAttribute, 0,
+		OpFrac, 0, 0,
+		OpFrac, 1, 1,
+		OpMovk, 6, math.Float32bits(1.0),
+		OpSub, 2, 6, 0,
+		OpSub, 3, 6, 1,
+		OpMin, 0, 0, 2,
+		OpMin, 1, 1, 3,
+		OpMin, 3, 0, 1,
+		OpMovk, 4, math.Float32bits(0.01),
+		OpLessOrEqual, 5, 3, 4,
+		OpLoad, 0, 28,
+		OpLoad, 1, 32,
+		OpLoad, 2, 36,
+		OpCSel, 0, 5, 6, 0,
+		OpCSel, 1, 5, 6, 1,
+		OpCSel, 2, 5, 6, 2,
+		OpStop,
+	}
+
+	device := gpu.MakeSliceUncached[uint32](len(host))
+	copy(device.Value(), host)
+
+	return &Material{
+		code: device,
+	}
 })
 
 var raygen = sync.OnceValue(func() *gpu.RayTracingShaderGroup {

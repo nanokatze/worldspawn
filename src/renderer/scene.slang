@@ -75,12 +75,12 @@ struct Scene {
     uint8_t **blas;
 
     float4x4 Transform(uint32_t i, float t) {
-        float4x4 A = (float4x4) {
+        float4x4 A = float4x4(
             1, 0, 0, 0,
             0, 1, 0, 0,
             0, 0, 1, 0,
             0, 0, 0, 0,
-        };
+        );
         for (; i != 0; i = parent[i]) {
             float4x4 B = transformT0[i].NLerp(transformT1[i], t).Mat4x4();
             A = mul(B, A);

@@ -542,7 +542,7 @@ func spawnplayer(w *worldspawn.World) ecs.ID {
 	w.TranslationRotation.Store(player, t)
 
 	w.Scale.Store(player, geometry.Vec3Broadcast(1))
-	w.RenderingGeometry.Store(player, worldspawn.RenderingGeometry{Filename: "testcharacter4/Geometry_TestCharacter4"})
+	w.RenderingGeometry.Store(player, worldspawn.RenderingGeometry{Filename: "testcharacter4/geometries/TestCharacter4"})
 	w.CollisionGeometry.Store(player, worldspawn.CollisionGeometry{
 		Translation: geometry.Vec3{0, 0, 1.9 / 2},
 		Rotation:    geometry.Rot3One(),
@@ -627,7 +627,10 @@ func main() {
 		s.dirty.Components[i] = make([]worldspawn.Time, s.maxEntities)
 	}
 
-	sceneFile, err := worldspawn.Data.Open("maps/lockdown/Scene_Scene")
+	// TODO: move loading into worldspawn? It needs to handle instancing
+	// collections, so that seems like it would be the right place for it.
+	// Alternatively we can instance collections in an ad-hoc manner.
+	sceneFile, err := worldspawn.Data.Open("maps/lockdown/scenes/Scene")
 	if err != nil {
 		log.Fatal("newSinglePlayerSession: ", err)
 	}
@@ -635,6 +638,8 @@ func main() {
 		log.Fatalf("newSinglePlayerSession %v: %v", sceneFile, err)
 	}
 	sceneFile.Close()
+
+	s.world.InstantinateCollections()
 
 	s.world.Now = max(s.world.Now, 1)
 

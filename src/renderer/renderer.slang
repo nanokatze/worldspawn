@@ -46,6 +46,7 @@ struct IndexSlice {
 struct Mesh {
     void *triangles;
     float2 *uvs;
+    uint32_t *code;
     SamplingViewWithSampler testTexture;
     float hmm[3];
 };
@@ -118,6 +119,9 @@ void raygen() {
         rayDesc,
         payload);
 
+    // TODO: explore inlining the tail (everything after TraceRay) into hit/miss
+    // shaders etc?
+
     // TODO: pack if we're storing into e5rgb9
     push.out.Store2D((int2)LaunchID.xy, float4(oetf(0, payload.color), 1));
 }
@@ -171,27 +175,6 @@ enum Op {
     CSel,
 };
 
-static uint32_t code[] = {
-    (uint32_t)Op::LoadAttribute, 0,
-    (uint32_t)Op::Frac, 0, 0,
-    (uint32_t)Op::Frac, 1, 1,
-    (uint32_t)Op::Movk, 6, reinterpret<uint32_t>((float)1.0),
-    (uint32_t)Op::Sub, 2, 6, 0,
-    (uint32_t)Op::Sub, 3, 6, 1,
-    (uint32_t)Op::Min, 0, 0, 2,
-    (uint32_t)Op::Min, 1, 1, 3,
-    (uint32_t)Op::Min, 3, 0, 1,
-    (uint32_t)Op::Movk, 4, reinterpret<uint32_t>((float)0.01),
-    (uint32_t)Op::LessOrEqual, 5, 3, 4,
-    (uint32_t)Op::Load, 0, 20,
-    (uint32_t)Op::Load, 1, 24,
-    (uint32_t)Op::Load, 2, 28,
-    (uint32_t)Op::CSel, 0, 5, 6, 0,
-    (uint32_t)Op::CSel, 1, 5, 6, 1,
-    (uint32_t)Op::CSel, 2, 5, 6, 2,
-    (uint32_t)Op::Stop,
-};
-
 [shader("closesthit")]
 void chit(inout RayPayload payload : SV_RayPayload, in float2 barys_yz : SV_IntersectionAttributes)
 {
@@ -204,26 +187,20 @@ void chit(inout RayPayload payload : SV_RayPayload, in float2 barys_yz : SV_Inte
 
     uint3 triangleIndices = idxs.Load3(PrimitiveIndex());
 
-    float2 uv0 = instance->uvs[triangleIndices[0]];
-    float2 uv1 = instance->uvs[triangleIndices[1]];
-    float2 uv2 = instance->uvs[triangleIndices[2]];
-    // TODO: make a dedicated interpolation function which will take care of the
-    // edge cases
-    float2 uv = interpolate2(float3x2(uv0, uv1, uv2), barys);
+    uint32_t *code = instance->code;
 
     // TODO: place the first few regs in actual hw regs and the rest into
     // scratch.
     uint32_t regs[32];
 
     int pc = 0;
-    bool stop = false;
-    while (!stop) {
+outer:
+    for (;;) {
         switch (code[pc++]) {
         default:
             // TODO: default should abort()
         case (uint32_t)Op::Stop:
-            stop = true;
-            break;
+            break outer;
         case (uint32_t)Op::Load: {
             uint32_t dst = code[pc++];
             uint32_t off = code[pc++];
@@ -238,8 +215,16 @@ void chit(inout RayPayload payload : SV_RayPayload, in float2 barys_yz : SV_Inte
         }
         case (uint32_t)Op::LoadAttribute: {
             uint32_t dst = code[pc++];
-            regs[dst+0] = reinterpret<uint32_t>(uv.x);
-            regs[dst+1] = reinterpret<uint32_t>(uv.y);
+            float2 attr0 = instance->uvs[triangleIndices[0]];
+            float2 attr1 = instance->uvs[triangleIndices[1]];
+            float2 attr2 = instance->uvs[triangleIndices[2]];
+            // TODO: make a dedicated interpolation function which will take care of the
+            // edge cases
+            float2 attr = interpolate2(float3x2(attr0, attr1, attr2), barys);
+            regs[dst+0] = reinterpret<uint32_t>(attr.x);
+            regs[dst+1] = reinterpret<uint32_t>(attr.y);
+            // TODO: we'll probs be loading the entire vec3 or vec4 at all times
+            // I guess?
             break;
         }
         case (uint32_t)Op::Frac: {
@@ -288,18 +273,11 @@ void chit(inout RayPayload payload : SV_RayPayload, in float2 barys_yz : SV_Inte
         }
     }
 
-    /*
-    float v3 = reinterpret<float>(regs[0]);
-    float3 v4 = v3 <= 0.01
-        ? (float3)1.0
-        : float3(instance->hmm[0], instance->hmm[1], instance->hmm[2]);
-    */
-
     payload.color = reinterpret<float3>(uint3(regs[0], regs[1], regs[2]));
 }
 
 [shader("closesthit")]
 void chit2(inout RayPayload payload : SV_RayPayload, in float2 barys_yz : SV_IntersectionAttributes)
 {
-    payload.color = (float3) {0.0, 1.0, 0.0};
+    payload.color = float3(0.0, 1.0, 0.0);
 }

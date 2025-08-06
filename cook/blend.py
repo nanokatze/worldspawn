@@ -22,25 +22,36 @@ class Dependencies:
 
 class Context:
 
+    # TODO: we need a notion of src_root/raw_root and dst_root/cooked_root.
+    # Given that, we won't need output_directory
+
 
     def path_for_datablock(self, datablock):
+        # TODO: clean this mess up
+
+        library = datablock.library
         name = self.__name_for_datablock(datablock)
         if name is None: # TODO: express ignored things somehow differently?
             return None
-        return self.output_directory + name
+        # TODO: have a directory for each datablock type rather than just a prefix?
+        return self.output_directory + ('../' + library.filepath[2:-6] + '/' if library else '') + name + '/' + bpy.path.clean_name(datablock.name)
 
 
     def __name_for_datablock(self, datablock):
         match datablock:
+            case bpy.types.Collection():
+                return 'collections'
             case bpy.types.Scene():
-                return 'Scene_' + bpy.path.clean_name(datablock.name)
+                return 'scenes'
+            case bpy.types.Material():
+                return 'materials'
             case bpy.types.Object():
                 object = datablock
                 match object.type:
                     case 'LIGHT':
                         return None
                     case 'MESH' | 'FONT':
-                        return 'Geometry_' + bpy.path.clean_name(datablock.name)
+                        return 'geometries'
             case _:
                 assert False, 'unsupported type {}'.format(datablock)
 
@@ -67,26 +78,37 @@ def main(m, o, blend, datablock_type, datablock_name):
         import pathlib
         import os
         # TODO: consume an explicit list instead of globbing
-        for blend in glob.glob(blend + '/**/*.blend', recursive=True):
+        for blend in glob.glob(asd + '/**/*.blend', recursive=True):
             dset.depends = {blend}
 
-            print(blend)
             ctx.output_directory = blend[len(asd):-len('.blend')] + '/'
 
             bpy.ops.wm.open_mainfile(filepath=blend)
 
             depsgraph = bpy_context.evaluated_depsgraph_get()
 
+            from blender_cookers import collection as collection_cooker
+            for datablock in bpy_context.blend_data.collections:
+                if datablock.library:
+                    continue
+                settings = datablock.get('worldspawn', {})
+                if settings.get('export'):
+                    collection_cooker.deps(ctx, datablock.evaluated_get(depsgraph), dset)
+            from blender_cookers import material as material_cooker
+            for datablock in bpy_context.blend_data.materials:
+                settings = datablock.get('worldspawn', {})
+                if settings.get('export'):
+                    material_cooker.deps(ctx, datablock.evaluated_get(depsgraph), dset)
             import mesh_cooker
-            for object in bpy_context.blend_data.objects:
-                settings = object.get('worldspawn', {})
+            for datablock in bpy_context.blend_data.objects:
+                settings = datablock.get('worldspawn', {})
                 if settings.get('export'):
-                    mesh_cooker.deps(ctx, object.evaluated_get(depsgraph), dset)
+                    mesh_cooker.deps(ctx, datablock.evaluated_get(depsgraph), dset)
             import scene_cooker
-            for scene in bpy_context.blend_data.scenes:
-                settings = scene.get('worldspawn', {})
+            for datablock in bpy_context.blend_data.scenes:
+                settings = datablock.get('worldspawn', {})
                 if settings.get('export'):
-                    scene_cooker.deps(ctx, scene.evaluated_get(depsgraph), dset)
+                    scene_cooker.deps(ctx, datablock.evaluated_get(depsgraph), dset)
 
         with open('build.ninja', 'w') as f:
             f.write('rule blend\n')
@@ -95,7 +117,8 @@ def main(m, o, blend, datablock_type, datablock_name):
                 f.write('\n')
                 f.write(f'build {product}: blend {" ".join(depends)}\n')
                 # TODO: should be output_directory
-                f.write(f'  o = {os.path.split(product)[0]}\n') # horrid
+                f.write(f'  raw = {asd}\n')
+                f.write(f'  o = {os.path.split(os.path.split(product)[0])[0]}\n') # horrid
                 f.write(f'  datablock_type = "{datablock_type}"\n')
                 f.write(f'  datablock_name = "{datablock_name}"\n')
     else:
@@ -107,9 +130,14 @@ def main(m, o, blend, datablock_type, datablock_name):
         datablocks = None
         cook = None
         match datablock_type:
+            case 'Collection':
+                datablocks = blend_data.collections
+                from blender_cookers import collection as collection_cooker
+                cook = collection_cooker.cook
+
             case 'Material':
                 datablocks = blend_data.materials
-                import material_cooker
+                from blender_cookers import material as material_cooker
                 cook = material_cooker.cook
 
             case 'Object':

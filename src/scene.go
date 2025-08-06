@@ -16,7 +16,7 @@ import (
 	"worldspawn/physics"
 )
 
-// TODO: move these things to their own files
+// TODO: split this file up
 
 // TODO: it is up to the server and client to implement un/marshalers, we should
 // only expose the info necessary for it.
@@ -81,18 +81,7 @@ func (w *World) Transform(id ecs.ID) (geometry.Mat4x4, bool) {
 }
 */
 
-type World struct {
-	SingletonComponents
-
-	IDAlloc *ecs.IDAlloc
-	Components
-	TransientComponents
-
-	physicsSystem      *physics.System
-	physicsBodyExists2 bitset.Bitset // TODO: rename
-	physicsBodyExists  ecs.ComponentStore[struct{}]
-}
-
+// TODO: rename
 type SingletonComponents struct {
 	Now Time
 
@@ -123,6 +112,7 @@ type SingletonComponents struct {
 // should also update it reactively when we add dirty tracking, to minimize the
 // amount of work we do.
 
+// TODO: rename
 // TODO: introduce struct tags like compatibility names etc
 type Components struct {
 	Entity ecs.ComponentStore[Entity]
@@ -174,12 +164,8 @@ type Components struct {
 	SpawnTime                    ecs.ComponentStore[Time]
 	DeleteAfter                  ecs.ComponentStore[Time]
 
-	// Prefab ecs.ComponentStore[*Components]
-
 	// Timer ecs.ComponentStore[time.Duration]
-}
 
-type TransientComponents struct {
 	// TODO: get rid of this component
 	WeaponAim ecs.ComponentStore[WeaponAim]
 
@@ -187,6 +173,20 @@ type TransientComponents struct {
 	ContactEvents ecs.ComponentStore[[]ContactEvent]
 
 	Delete ecs.ComponentStore[struct{}]
+
+	CollectionInstance ecs.ComponentStore[CollectionInstance]
+}
+
+// TODO: rename to Scene?
+type World struct {
+	SingletonComponents
+
+	IDAlloc *ecs.IDAlloc
+	Components
+
+	physicsSystem      *physics.System
+	physicsBodyExists2 bitset.Bitset // TODO: rename
+	physicsBodyExists  ecs.ComponentStore[struct{}]
 }
 
 func NewWorld(n int) *World {
@@ -199,11 +199,6 @@ func NewWorld(n int) *World {
 	components := reflect.ValueOf(&w.Components).Elem()
 	for i := range components.Type().NumField() {
 		components.Field(i).Addr().Interface().(interface{ Init(idAlloc *ecs.IDAlloc) }).Init(w.IDAlloc)
-	}
-
-	transientComponents := reflect.ValueOf(&w.TransientComponents).Elem()
-	for i := range transientComponents.Type().NumField() {
-		transientComponents.Field(i).Addr().Interface().(interface{ Init(idAlloc *ecs.IDAlloc) }).Init(w.IDAlloc)
 	}
 
 	w.physicsSystem = physics.NewSystem(
@@ -226,10 +221,12 @@ func (w *World) Destroy() {
 	// TODO: stop and destroy physicsSystem here
 }
 
+// TODO: remove these entity-related funcs?
 func (w *World) IsEntityValid(id ecs.ID) bool {
 	return w.IDAlloc.Valid(id)
 }
 
+// TODO: rename to CreateEntity
 func (w *World) SpawnEntity() ecs.ID {
 	return w.IDAlloc.Alloc()
 }
@@ -252,7 +249,6 @@ func (w *World) DeleteEntityImmediately(id ecs.ID) {
 }
 
 // TODO: rename to User/Player/etc Input
-// TODO: does Δt make any sense here?
 func (w *World) HandleInput(id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
 	if entity, ok := assertEntity[Character](w, id); ok {
 		entity.CharacterUpdate(w, id, cmd, info)

@@ -559,8 +559,9 @@ func (sr *idk) Tick(w *worldspawn.World, playerID ecs.ID, t0, t1 worldspawn.Time
 			}[i%2]
 
 			sr.scene.Mesh[i] = model(rendererModel.Filename)
-			sr.scene.Materials[i] = []renderer.Material{
+			sr.scene.Materials[i] = []renderer.MaterialInstance{
 				{
+					Material:    renderer.TestMaterial(),
 					TestTexture: testTexture.Image,
 					Hmm:         color,
 				},

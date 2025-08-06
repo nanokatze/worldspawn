@@ -44,7 +44,7 @@ func (shapeKind *PhysicsShapeKind) UnmarshalText(text []byte) error {
 	return nil
 }
 
-// TODO: use the same container for both renderer and physics models
+// TODO: replace with a single blob in a string so we can hash things easily
 type CollisionGeometry struct {
 	// TODO: remove these?
 	Translation geometry.Vec3

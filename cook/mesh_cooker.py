@@ -6,6 +6,9 @@ import mesh_cooker2
 import numpy_util as nputil
 
 
+# TODO: rename to object_cooker?
+
+
 def deps(context, object, dset):
     dset.add_product((context.path_for_datablock(object), 'Object', object.name))
 

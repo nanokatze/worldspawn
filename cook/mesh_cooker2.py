@@ -4,9 +4,20 @@ import dataclasses
 import numpy as np
 import json
 import util
+import numpy_util as nputil
 import struct
 
 
+class Raw:
+
+
+    def __init__(self, tris, tri_mat_idxs):
+        # TODO: should these be private?
+        self.tris = tris
+        self.tri_mat_idxs = tri_mat_idxs
+
+
+# TODO: these probs should be private...
 @dataclasses.dataclass
 class Collider:
     Material: int
@@ -35,62 +46,20 @@ class Header:
     Rendering: list[Part]
 
 
-
-class Raw:
-
-
-    def __init__(self, tris, tri_mat_idxs):
-        self.tris = tris
-        self.tri_mat_idxs = tri_mat_idxs
-
-
-# TODO: move out from this file
-class ByteBuffer:
-
-
-    def __init__(self):
-        self.buf = bytearray()
-
-
-    def seek(self, offset, whence=1):
-        assert offset == 0
-        assert whence == 1
-        return len(self.buf)
-
-
-    def write(self, b):
-        self.buf.extend(b)
-
-
-    def bytes(self):
-        return self.buf
-
-
-class UTF8Writer:
-
-
-    def __init__(self, w):
-        self.__w = w
-
-
-    def write(self, s):
-        return self.__w.write(s.encode('utf-8'))
-
-
 def cook(raw, directory):
     collider = None
     parts = []
-    blob = ByteBuffer() # TODO: use a stricter alignment when writing to blob
+    blob = util.ByteBuffer() # TODO: use a stricter alignment when writing to blob
 
     if True:
         verts_unindexed = np.asarray(raw.tris.flat)['position']
         verts_indexed, vert_idxs = np.unique(verts_unindexed, return_inverse=True, axis=0)
 
         vertex_buffer = seek_align(blob, 4)
-        write_ndarray(blob, verts_indexed)
+        nputil.write_ndarray(blob, verts_indexed)
 
         tri_buffer = seek_align(blob, 4)
-        write_ndarray(blob, np.c_[
+        nputil.write_ndarray(blob, np.c_[
             vert_idxs.reshape((-1, 3)),
             raw.tri_mat_idxs,
         ])
@@ -113,20 +82,20 @@ def cook(raw, directory):
         # TODO: check whether indices are actually a benefit
 
         part_triangles = seek_align(blob, 4)
-        write_ndarray(blob, vert_idxs.astype(f'<u{index_size}'))
+        nputil.write_ndarray(blob, vert_idxs.astype(f'<u{index_size}'))
 
         verts = verts_indexed
 
         part_positions = seek_align(blob, 4)
-        write_ndarray(blob, verts['position'])
+        nputil.write_ndarray(blob, verts['position'])
 
         part_normals = seek_align(blob, 4)
-        write_ndarray(blob, verts['normal'])
+        nputil.write_ndarray(blob, verts['normal'])
 
         part_attributes = []
 
         part_attributes.append(seek_align(blob, 4))
-        write_ndarray(blob, verts['UVMap'])
+        nputil.write_ndarray(blob, verts['UVMap'])
 
         parts.append(Part(
             Positions=part_positions,
@@ -151,7 +120,7 @@ def cook(raw, directory):
         h = Header(None, collider, parts)
         d = dataclasses.asdict(h, dict_factory=dict_skip_nulls)
         d = fixupdict(d)
-        json.dump(d, UTF8Writer(f), default=util.asdasd)
+        json.dump(d, util.UTF8Writer(f), default=util.asdasd)
         json_length = f.seek(0, 1) - json_offset
 
         blob_offset = f.seek(0, 1)
@@ -177,12 +146,6 @@ def fixupdict(d):
     elif isinstance(d, (int, float)):
         d = str(d)
     return d
-
-
-# TODO: move these into utils or something, other cookers might also want to use
-# this.
-def write_ndarray(f, a):
-    return f.write(a.tobytes())
 
 
 # TODO: move into util or something like that package
