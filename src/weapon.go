@@ -7,11 +7,14 @@ import (
 	"worldspawn/geometry-go"
 )
 
+// TODO: swap weaponID and operatorID places?
+
 type Weapon interface {
 	// TODO: return a more elaborate recoil moment or remove recoil altogether?
 	WeaponUpdateSubtick(w *World, weaponID, operatorID ecs.ID, now Time, info *UpdateParams) (recoil geometry.Vec3)
 }
 
+// TODO: rename this
 type WeaponDeployedInterface interface {
 	WeaponDeployed(w *World, weaponID, operatorID ecs.ID, now Time, Δt time.Duration)
 }
