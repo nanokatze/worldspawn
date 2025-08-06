@@ -167,9 +167,9 @@ class OBJECT_PT_worldspawn(bpy.types.Panel):
         # TODO: move components into their own panel?
         panel_comps_header, panel_comps = layout.panel('comps')
         panel_comps_header.label(text='Components')
-        panel_comps.operator('worldspawn.add_component')
         # TODO: make the experience more comparable to modifiers
         if panel_comps is not None:
+            panel_comps.operator('worldspawn.add_component')
             for comp in _COMPONENTS:
                 if comp not in comps:
                     continue
