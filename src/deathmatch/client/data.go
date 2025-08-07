@@ -7,7 +7,7 @@ import (
 	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
 	"worldspawn/image/ktx2"
-	"worldspawn/renderer"
+	"worldspawn/internal/renderer"
 )
 
 // TODO: rename this file to something else

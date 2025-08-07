@@ -32,7 +32,7 @@ import (
 	"worldspawn/geometry-go"
 	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
-	"worldspawn/renderer"
+	"worldspawn/internal/renderer"
 	"worldspawn/sdl"
 )
 
