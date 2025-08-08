@@ -18,9 +18,8 @@ import (
 
 	"worldspawn"
 	"worldspawn/ecs"
-	"worldspawn/experiments/encoding/nice"
+	"worldspawn/internal/nice"
 	"worldspawn/protocol"
-	// "worldspawn/geometry-go"
 )
 
 var _ = hex.Dump

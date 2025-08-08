@@ -8,7 +8,7 @@ import (
 	"github.com/go-json-experiment/json"
 	"github.com/go-json-experiment/json/jsontext"
 
-	"worldspawn/experiments/encoding/nice"
+	"worldspawn/internal/nice"
 )
 
 type Entity any

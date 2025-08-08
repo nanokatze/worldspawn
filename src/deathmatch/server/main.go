@@ -28,8 +28,8 @@ import (
 
 	"worldspawn"
 	"worldspawn/ecs"
-	"worldspawn/experiments/encoding/nice"
 	"worldspawn/geometry-go"
+	"worldspawn/internal/nice"
 	"worldspawn/protocol"
 )
 

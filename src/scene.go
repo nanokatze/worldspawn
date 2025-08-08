@@ -11,8 +11,8 @@ import (
 
 	"worldspawn/ecs"
 	"worldspawn/ecs/bitset"
-	"worldspawn/experiments/encoding/nice"
 	"worldspawn/geometry-go"
+	"worldspawn/internal/nice"
 	"worldspawn/physics"
 )
 

@@ -5,7 +5,7 @@ import (
 	"io"
 	"reflect"
 
-	"worldspawn/experiments/encoding/nice"
+	"worldspawn/internal/nice"
 
 	"golang.org/x/crypto/blake2b"
 )
