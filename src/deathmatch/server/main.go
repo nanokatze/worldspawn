@@ -30,7 +30,7 @@ import (
 	"worldspawn/ecs"
 	"worldspawn/geometry-go"
 	"worldspawn/internal/nice"
-	"worldspawn/protocol"
+	"worldspawn/internal/protocol"
 )
 
 var dataDir = flag.String("data", "data/cooked", "a")

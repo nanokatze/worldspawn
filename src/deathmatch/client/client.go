@@ -19,7 +19,7 @@ import (
 	"worldspawn"
 	"worldspawn/ecs"
 	"worldspawn/internal/nice"
-	"worldspawn/protocol"
+	"worldspawn/internal/protocol"
 )
 
 var _ = hex.Dump
