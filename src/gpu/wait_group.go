@@ -93,6 +93,7 @@ func (wg *WaitGroup) Wait() {
 	}
 }
 
+// TODO: rename this to EnqueueDoneInto?
 func (wg *WaitGroup) EnqueueDone(jq *JobQueue) {
 	// TODO: use host Done() when possible
 
@@ -104,6 +105,7 @@ func (wg *WaitGroup) EnqueueDone(jq *JobQueue) {
 	b.enqueueSignalLocked(wg)
 }
 
+// TODO: rename this to EnqueueWaitInto?
 func (wg *WaitGroup) EnqueueWait(jq *JobQueue) {
 	if wg.ctr.Load() == 0 {
 		return

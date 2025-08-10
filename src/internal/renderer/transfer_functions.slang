@@ -3,6 +3,8 @@ module otf;
 // See
 // https://registry.khronos.org/DataFormat/specs/1.3/dataformat.1.3.html#TRANSFER_CONVERSION
 
+// TODO: make these methods on objects implementing some interface?
+
 public float3 oetf(int colorSpace, float3 RGB) {
     return float3(
         oetf2(colorSpace, RGB.x),

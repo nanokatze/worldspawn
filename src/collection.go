@@ -60,7 +60,8 @@ type PrefabRef struct {
 }
 
 // TODO: rename this to make it clear that we're instanting collections
-// specified by CollectionInstance components
+// specified by CollectionInstance components. E.g.
+// Realize{,Collection,Prefab}Instances?
 func (w *World) InstantinateCollections() {
 	for id, collection := range w.CollectionInstance.All() {
 		w.CollectionInstance.Delete(id)

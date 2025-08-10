@@ -25,13 +25,8 @@ import (
 // de/serializaing of the world.
 var WorldJSONOptions = json.JoinOptions(
 	JSONOptions,
-	json.WithMarshalers(json.JoinMarshalers(
-		json.MarshalToFunc(entityJSONMarshaler),
-	)),
-
-	json.WithUnmarshalers(json.JoinUnmarshalers(
-		json.UnmarshalFromFunc(entityJSONUnmarshaler),
-	)),
+	json.WithMarshalers(json.MarshalToFunc(entityJSONMarshaler)),
+	json.WithUnmarshalers(json.UnmarshalFromFunc(entityJSONUnmarshaler)),
 )
 
 // TODO: same as WorldJSONOptions

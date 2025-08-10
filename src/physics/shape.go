@@ -76,18 +76,18 @@ func NewFileBackedShape(fsys fs.FS, filename string) (*Shape, error) {
 		return nil, err
 	}
 
-	shape := header2.Collider
+	shape := header2.Collision
 
 	blob := io.NewSectionReader(rat, preamble.B.Off, preamble.B.Len)
 
 	verts := make([]geometry.Vec3, shape.VertexCount)
-	blob.Seek(int64(shape.Vertices), io.SeekStart)
+	blob.Seek(int64(shape.VertexBuffer), io.SeekStart)
 	if err := binary.Read(blob, binary.LittleEndian, &verts); err != nil {
 		return nil, err
 	}
 
 	tris := make([]Triangle, shape.TriangleCount)
-	blob.Seek(int64(shape.Triangles), io.SeekStart)
+	blob.Seek(int64(shape.TriangleBuffer), io.SeekStart)
 	if err := binary.Read(blob, binary.LittleEndian, &tris); err != nil {
 		return nil, err
 	}

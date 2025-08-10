@@ -6,6 +6,7 @@ import (
 	"image/png"
 	"os"
 	"sync"
+	"unsafe"
 
 	"worldspawn/geometry-go"
 	"worldspawn/gpu"
@@ -85,52 +86,22 @@ var blueNoise = sync.OnceValue(func() *gpu.Image {
 })
 
 var raygen = sync.OnceValue(func() *gpu.RayTracingShaderGroup {
-	return gpu.NewGeneralRayTracingShaderGroup(gpu.NewFunc(mustReadFile("shaders/renderer.spv"), vk.SHADER_STAGE_RAYGEN_BIT_KHR, "raygen"))
+	return gpu.NewGeneralRayTracingShaderGroup(gpu.NewFunc(mustReadFile("shaders/scene_render.spv"), vk.SHADER_STAGE_RAYGEN_BIT_KHR, "raygen"))
 })
 
-var skyIdk = sync.OnceValue(func() *gpu.RayTracingShaderGroup {
-	sky := gpu.NewFunc(mustReadFile("shaders/renderer.spv"), vk.SHADER_STAGE_MISS_BIT_KHR, "sky")
+var sky = sync.OnceValue(func() *gpu.RayTracingShaderGroup {
+	sky := gpu.NewFunc(mustReadFile("shaders/scene_render.spv"), vk.SHADER_STAGE_MISS_BIT_KHR, "sky")
 	return gpu.NewGeneralRayTracingShaderGroup(sky)
 })
 
-// TODO: split this up and slowly move assembling the RT pipe and SBT into Scene
-var pathTracer = sync.OnceValues(func() (*gpu.RayTracingPipeline, gpu.ShaderBindingTable) {
-	raygenSG := raygen()
-
-	skySG := skyIdk()
-
-	chit := gpu.NewFunc(mustReadFile("shaders/renderer.spv"), vk.SHADER_STAGE_CLOSEST_HIT_BIT_KHR, "chit")
-	chitSG := gpu.NewTrianglesRayTracingShaderGroup(chit, nil)
-
-	pipeline := gpu.LinkRayTracingShaderGroups([]*gpu.RayTracingShaderGroup{
-		// These can appear in any order
-		raygenSG,
-		skySG,
-		chitSG,
-	})
-
-	// TODO: make shaderBindingTableBuilder
-
-	raygenRecord := gpu.MakeSliceUncached[byte](32)
-	copy(raygenRecord.Value(), raygenSG.Handle())
-
-	missRecords := gpu.MakeSliceUncached[byte](1 * 32)
-	copy(missRecords.Value(), skySG.Handle())
-
-	hitRecords := gpu.MakeSliceUncached[byte](1 * 32)
-	copy(hitRecords.Value()[0*32:], chitSG.Handle())
-
-	return pipeline, gpu.ShaderBindingTable{
-		RaygenShaderRecordAddress:     gpu.UnsafePointer(gpu.SliceData(raygenRecord)),
-		RaygenShaderRecordSize:        gpu.SliceLen(raygenRecord),
-		MissShaderBindingTableAddress: gpu.UnsafePointer(gpu.SliceData(missRecords)),
-		MissShaderBindingTableSize:    gpu.SliceLen(missRecords),
-		MissShaderBindingTableStride:  32,
-		HitShaderBindingTableAddress:  gpu.UnsafePointer(gpu.SliceData(hitRecords)),
-		HitShaderBindingTableSize:     gpu.SliceLen(hitRecords),
-		HitShaderBindingTableStride:   32,
-	}
+var chitInterpreter = sync.OnceValue(func() *gpu.RayTracingShaderGroup {
+	chit := gpu.NewFunc(mustReadFile("shaders/scene_render.spv"), vk.SHADER_STAGE_CLOSEST_HIT_BIT_KHR, "chit")
+	return gpu.NewTrianglesRayTracingShaderGroup(chit, nil)
 })
+
+func gpuSliceLenInBytes[T any](s gpu.Slice[T]) int {
+	return gpu.SliceLen(s) * int(unsafe.Sizeof(*new(T)))
+}
 
 func mustReadFile(filename string) []byte {
 	data, err := os.ReadFile(filename)
@@ -151,11 +122,6 @@ var toClipSpace = geometry.Mat4x4{
 	{0, 0, 0, 1},
 }
 
-// TODO: remove this, the user should provide the counter explicitly
-type Renderer struct {
-	ctr uint32
-}
-
 // TODO: struct for per-view stuff, with history for TAA, etc.
 
 // TODO: we might need more bits about the dst like format, etc, depending on if
@@ -167,7 +133,10 @@ type Renderer struct {
 // writable, color attachment, transfer dst, ...
 //
 // TODO: we need to pass other stuff like max aniso etc settings...
-func (re *Renderer) Render(jq *gpu.JobQueue, scene *Scene, t float32, camera *Camera, dst *gpu.Image, res gpu.Int3) {
+//
+// TODO: make it a method on a Scene
+// func (scene *Scene) EnqueueRender(jq *gpu.JobQueue, dst *gpu.Image, res gpu.Int3, t float32, camera *Camera)
+func (scene *Scene) Render(jq *gpu.JobQueue, t float32, camera *Camera, dst *gpu.Image, res gpu.Int3) {
 	// TODO: we can get rid of hardware aniso sampling, which is annoying and
 	// has the wrong filter for many things.
 	//
@@ -198,7 +167,7 @@ func (re *Renderer) Render(jq *gpu.JobQueue, scene *Scene, t float32, camera *Ca
 		view := viewInverse.Inverse()
 
 		*frameData.Value() = _FrameData{
-			FrameNumber: uint32(re.ctr),
+			FrameNumber: uint32(0),
 			Proj:        proj,
 			ProjInverse: proj.Inverse(),
 			View:        view,
@@ -227,9 +196,7 @@ func (re *Renderer) Render(jq *gpu.JobQueue, scene *Scene, t float32, camera *Ca
 		gpu.EnqueueTraceRays(jq, scene.pipeline, scene.sbt, res.X, res.Y, 1, &args)
 	}
 
-	// TODO: overlays like HUD, damage numbers, minimap, etc here
-
-	re.ctr++
+	// TODO: compositor here, perhaps user-provided.
 }
 
 // TODO: move into gpu/vk or at least just gpu?

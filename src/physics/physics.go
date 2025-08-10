@@ -27,7 +27,7 @@ type System C.Physics
 type Shape C.Shape
 
 type Header2 struct {
-	Collider Stuff
+	Collision Stuff
 }
 
 // Used by deserializer only
@@ -59,11 +59,11 @@ func (shapeType *ShapeKind) UnmarshalText(text []byte) error {
 }
 
 type Stuff struct {
-	Material      int
-	Vertices      int
-	VertexCount   int
-	Triangles     int
-	TriangleCount int
+	Material       int
+	VertexBuffer   int
+	VertexCount    int
+	TriangleBuffer int
+	TriangleCount  int
 }
 
 type Triangle struct {

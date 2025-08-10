@@ -4,6 +4,23 @@ import transfer_functions;
 // TODO: for AttributeSlice will we want to split the header from the pointer?
 // Or maybe not.
 
+// Keep in sync with scene.go
+static const let maxPartsPerMesh = 5;
+
+enum RayType {
+    RayTypeColor,
+    RayTypeVisibility,
+    NumRayTypes,
+};
+
+struct AttributeSlice {
+    uint8_t *data;
+
+    float4 Load(int i) {
+        return float4(0);
+    }
+};
+
 // TODO: delete this? We might want to be able to share index type for many
 // index buffers. Especially so when it comes to clusters in CLASes.
 struct IndexSlice {
@@ -13,8 +30,8 @@ struct IndexSlice {
     uint32_t Load(int i) {
         int index_type = (int)(aux >> 62);
 
-        // if (index_type == 0)
-        //    return i;
+        if (index_type == 0)
+           return i;
 
         uint64_t stride = 1 << (index_type - 1);
         uint64_t off = i * stride;
@@ -43,17 +60,16 @@ struct IndexSlice {
 
 struct MaterialParams {
     void *triangles;
+    float3 *normals;
     float2 *uvs;
-    uint32_t *code; // TODO: this should be passed through shader record buffer
     SamplingViewWithSampler testTexture;
     float hmm[3];
-    float3 *normals;
 };
 
 struct Scene {
-	SamplingViewWithSampler sky;
+    SamplingViewWithSampler sky;
 
-    Slice<MaterialParams*> instances;
+    Slice<MaterialParams> instances;
     Slice<uint8_t> accelInstances; // TODO: plop in proper AccelInstance
     Accel accel;
 
@@ -61,18 +77,18 @@ struct Scene {
 };
 
 struct Camera {
-	uint32_t frameNumber; // TODO: rename
+    uint32_t frameNumber; // TODO: rename
 
-	SamplingView blueNoise;
+    SamplingView blueNoise;
 
-	matrix<float, 4, 4> proj;
-	matrix<float, 4, 4> projInverse;
-	matrix<float, 4, 4> view;
-	matrix<float, 4, 4> viewInverse;
+    matrix<float, 4, 4> proj;
+    matrix<float, 4, 4> projInverse;
+    matrix<float, 4, 4> view;
+    matrix<float, 4, 4> viewInverse;
 
-	// Precomputed stuff goes at the end
+    // Precomputed stuff goes at the end
 
-	matrix<float, 4, 4> viewProj; // precomputed extras should always go at the end
+    matrix<float, 4, 4> viewProj; // precomputed extras should always go at the end
 };
 
 struct Push {
@@ -81,7 +97,7 @@ struct Push {
     StorageView out;
 };
 
-[vk::push_constant] Push push;
+[[vk::push_constant]] Push push;
 
 struct RayPayload {
     float3 color;
@@ -91,7 +107,7 @@ RaytracingAccelerationStructure rtas(uint64_t bda) {
     return spirv_asm { result:$$RaytracingAccelerationStructure = OpConvertUToAccelerationStructureKHR $bda };
 }
 
-[shader("raygeneration")]
+[[shader("raygeneration")]]
 void raygen() {
     uint3 LaunchID = DispatchRaysIndex();
     uint3 LaunchSize = DispatchRaysDimensions();
@@ -112,9 +128,9 @@ void raygen() {
         rtas(push.scene->accel.ptr),
         0,
         0b01,
-        0,
-        0,
-        0,
+        0, // sbtRecordOffset
+        1, // sbtRecordStride
+        0, // missIndex
         rayDesc,
         payload);
 
@@ -126,7 +142,7 @@ void raygen() {
 }
 
 // TODO: rename to skyMiss
-[shader("miss")]
+[[shader("miss")]]
 void sky(inout RayPayload rayPayload : SV_RayPayload) {
     float3 V = normalize(WorldRayDirection());
 
@@ -153,14 +169,6 @@ interpolate3(float3x3 attrs, float3 barys)
 {
     return mul(transpose(attrs), barys);
 }
-
-/*
-struct Test {
-    int aaa;
-};
-
-[vk::shader_record] Test test;
-*/
 
 enum Op {
     Stop,
@@ -236,17 +244,23 @@ struct Registers {
     }
 };
 
-[shader("closesthit")]
+struct ShaderRecordData {
+    uint32_t *code;
+};
+
+[[vk::shader_record]] ConstantBuffer<ShaderRecordData> srd;
+
+[[shader("closesthit")]]
 void chit(inout RayPayload payload : SV_RayPayload, in float2 barys_yz : SV_IntersectionAttributes)
 {
     let barys = float3(1.0 - barys_yz.x - barys_yz.y, barys_yz);
 
-    let instance = push.scene->instances[InstanceID()];
+    let instance = &push.scene->instances.data[InstanceID() * maxPartsPerMesh + GeometryIndex()];
 
     // TODO: pass the entire thing from host, rather than constructing it here.
     IndexSlice idxs = {(uint8_t*)instance->triangles, (uint64_t)2 << 62};
 
-    uint3 triangleIndices = idxs.Load3(PrimitiveIndex());
+    let triangleIndices = idxs.Load3(PrimitiveIndex());
 
     let V = normalize(WorldRayDirection());
     let L = normalize(float3(1, 1, 1));
@@ -258,7 +272,7 @@ void chit(inout RayPayload payload : SV_RayPayload, in float2 barys_yz : SV_Inte
         barys));
 
     Fetcher fetcher;
-    fetcher.pc = instance->code;
+    fetcher.pc = srd.code;
 
     Registers regs;
 
@@ -368,7 +382,7 @@ outer:
     float3 color = reinterpret<float3>(uint3(regs[0], regs[1], regs[2]));
 
     // plop this into BSDFOrenNayarDiffuse
-    {
+    if (false) {
         // TODO: fire a shadow ray and stuff
 
         float roughness = 0.0;
@@ -392,10 +406,4 @@ outer:
     }
 
     payload.color = color;
-}
-
-[shader("closesthit")]
-void chit2(inout RayPayload payload : SV_RayPayload, in float2 barys_yz : SV_IntersectionAttributes)
-{
-    payload.color = float3(0.0, 1.0, 0.0);
 }

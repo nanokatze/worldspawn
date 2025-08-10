@@ -3,6 +3,7 @@ package renderer
 import (
 	"math"
 	"sync"
+	"unsafe"
 
 	"worldspawn/gpu"
 )
@@ -40,7 +41,7 @@ type Material struct {
 
 var TestMaterial = sync.OnceValue(func() *Material {
 	host := []uint32{
-		OpLoadAttribute, 0, 8,
+		OpLoadAttribute, 0, uint32(unsafe.Offsetof(_MaterialParams{}.UVs)),
 		OpFracF32, 0, 0,
 		OpFracF32, 1, 1,
 		OpMovk, 6, math.Float32bits(1.0),
@@ -51,9 +52,9 @@ var TestMaterial = sync.OnceValue(func() *Material {
 		OpMinF32, 3, 0, 1,
 		OpMovk, 4, math.Float32bits(0.01),
 		OpLessOrEqualF32, 5, 3, 4,
-		OpLoad, 0, 28,
-		OpLoad, 1, 32,
-		OpLoad, 2, 36,
+		OpLoad, 0, uint32(unsafe.Offsetof(_MaterialParams{}.Hmm)),
+		OpLoad, 1, uint32(unsafe.Offsetof(_MaterialParams{}.Hmm) + 4),
+		OpLoad, 2, uint32(unsafe.Offsetof(_MaterialParams{}.Hmm) + 8),
 		OpConditionalSelect, 0, 5, 6, 0,
 		OpConditionalSelect, 1, 5, 6, 1,
 		OpConditionalSelect, 2, 5, 6, 2,

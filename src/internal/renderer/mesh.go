@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"io"
 	"math"
+	"math/rand/v2"
 	"sync"
 	"unsafe"
 
@@ -28,20 +29,9 @@ var skinMesh = sync.OnceValue(func() *gpu.Func {
 //
 //   - support for skeletal deformations with very high number of bones (done)
 //
-//   - support for arbitrary attributes
+//   - support for arbitrary attributes (done)
 //
 //   - eventually we'll want to look into support for LODs
-
-/*
-type IndexType uint8
-
-const (
-	IndexTypeNone IndexType = iota
-	IndexTypeUint8
-	IndexTypeUint16
-	IndexTypeUint32
-)
-*/
 
 type IndexSlice struct {
 	data gpu.UnsafePointer
@@ -49,13 +39,11 @@ type IndexSlice struct {
 }
 
 type MeshPart struct {
-	Positions   gpu.Slice[[3]float32]
-	Normals     gpu.Slice[[3]float32]
-	Attributes  []any
-	VertexCount int
-
-	Triangles gpu.Slice[[3]uint16]
-	IndexType uint8
+	PosBuffer     gpu.Slice[[3]float32]
+	NormalBuffer  gpu.Slice[[3]float32]
+	AttribBuffers []any
+	VertexCount   int
+	IndexBuffer   gpu.Slice[[3]uint16]
 }
 
 // TODO: should we move deforming geometry into its own type? Or perhaps
@@ -64,55 +52,16 @@ type Mesh struct {
 	// TODO: remove this when we move file format parsing and handling elsewhere
 	// VertexGroups []string
 
+	// Belongs to the user's wrapper around Mesh.
+	DefaultMaterials []MaterialInstance
+
 	Accel gpu.Accel
 
 	accelBuildConfig *gpu.AccelBuildConfig
 
 	parts []MeshPart
 
-	attributes map[string]int
-}
-
-// func NewMesh()
-
-func (m *Mesh) Init(indexType uint8, primitiveCount uint32, groupElementsPerVertex uint32, vertexCount uint32) {
-	part := MeshPart{}
-	part.IndexType = indexType
-
-	// TODO: do single big allocations for stuff with the same lifetime
-
-	switch indexType {
-	case 2:
-		part.Triangles = gpu.MakeSliceUncached[[3]uint16](int(primitiveCount))
-
-	default:
-		panic("TODO/unknown index type")
-	}
-
-	part.Positions = gpu.MakeSliceUncached[[3]float32](int(vertexCount))
-	part.Normals = gpu.MakeSliceUncached[[3]float32](int(vertexCount))
-	part.Attributes = []any{
-		gpu.MakeSliceUncached[[2]float32](int(vertexCount)),
-	}
-
-	m.parts = []MeshPart{part}
-
-	m.accelBuildConfig = &gpu.AccelBuildConfig{
-		Type: vk.ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
-		Inputs: []gpu.AccelBuildInput{
-			&gpu.AccelBuildInputTriangles{
-				VertexBuffer:   gpu.UnsafePointer(gpu.SliceData(part.Positions)),
-				VertexCount:    gpu.SliceLen(part.Positions),
-				VertexStride:   int(unsafe.Sizeof(part.Positions.Value()[0])),
-				VertexFormat:   vk.FORMAT_R32G32B32_SFLOAT,
-				TriangleBuffer: gpu.UnsafePointer(gpu.SliceData(part.Triangles)),
-				TriangleCount:  gpu.SliceLen(part.Triangles),
-				IndexType:      vk.INDEX_TYPE_UINT16,
-			},
-		},
-	}
-
-	m.Accel = gpu.NewAccel(m.accelBuildConfig)
+	// attributes map[string]int
 }
 
 func divCeil(x, y int) int {
@@ -155,6 +104,7 @@ func (dst *Mesh) EnqueueDeform(jq *gpu.JobQueue, src *Mesh, pose gpu.Slice[geome
 //
 // TODO: same as texture, this should work on device timeline. Eventually we
 // might gdeflate-compress things, so we'll be decompressing on the device.
+/*
 func (m *Mesh) SetFromFile(
 	jq *gpu.JobQueue,
 
@@ -188,13 +138,13 @@ func (m *Mesh) SetFromFile(
 
 	return nil
 }
+*/
 
 func (m *Mesh) buildAccel(jq *gpu.JobQueue) {
 	m.Accel.EnqueueBuild(jq, m.accelBuildConfig)
 }
 
-// TODO: remove in favor of InitFromFile2
-func (m *Mesh) InitFromFile(r io.ReaderAt) error {
+func (m *Mesh) InitFromFile(r io.ReaderAt, filename string) error {
 	type Section struct {
 		Off, Size int64
 	}
@@ -210,14 +160,13 @@ func (m *Mesh) InitFromFile(r io.ReaderAt) error {
 	}
 
 	type Part struct {
-		Positions   int64
-		Normals     int64
-		Attributes  []int64
-		VertexCount uint32
-
+		PosBuffer     int64
+		NormalBuffer  int64
+		AttribBuffers []int64
+		VertexCount   int
 		IndexType     string
-		Triangles     int64
-		TriangleCount uint32
+		IndexBuffer   int64
+		TriangleCount int
 	}
 
 	type AttributeDesc struct {
@@ -225,8 +174,12 @@ func (m *Mesh) InitFromFile(r io.ReaderAt) error {
 		Type string
 	}
 
+	type Rendering struct {
+		Parts []Part
+	}
+
 	type GeometryHeader struct {
-		Rendering []Part
+		Rendering Rendering
 	}
 
 	var preamble Preamble // TODO: rename to preamble or something
@@ -241,21 +194,63 @@ func (m *Mesh) InitFromFile(r io.ReaderAt) error {
 
 	blob2 := io.NewSectionReader(r, preamble.Blob.Off, preamble.Blob.Size)
 
-	part := &header2.Rendering[0]
+	m.DefaultMaterials = make([]MaterialInstance, len(header2.Rendering.Parts))
+	m.parts = make([]MeshPart, len(header2.Rendering.Parts))
 
-	m.Init(2, part.TriangleCount, uint32(0), part.VertexCount)
+	accelBuildInputs := make([]gpu.AccelBuildInput, len(header2.Rendering.Parts))
+	for i, serializedPart := range header2.Rendering.Parts {
+		part := &m.parts[i]
+
+		part.PosBuffer = gpu.MakeSliceUncached[[3]float32](serializedPart.VertexCount)
+		part.NormalBuffer = gpu.MakeSliceUncached[[3]float32](serializedPart.VertexCount)
+		part.AttribBuffers = []any{
+			gpu.MakeSliceUncached[[2]float32](serializedPart.VertexCount),
+		}
+
+		part.IndexBuffer = gpu.MakeSliceUncached[[3]uint16](serializedPart.TriangleCount)
+
+		if _, err := blob2.ReadAt(byteslice(part.PosBuffer.Value()), serializedPart.PosBuffer); err != nil {
+			panic("bug")
+		}
+		if _, err := blob2.ReadAt(byteslice(part.NormalBuffer.Value()), serializedPart.NormalBuffer); err != nil {
+			panic("bug")
+		}
+		if _, err := blob2.ReadAt(byteslice(part.AttribBuffers[0].(gpu.Slice[[2]float32]).Value()), serializedPart.AttribBuffers[0]); err != nil {
+			panic("bug")
+		}
+
+		if _, err := blob2.ReadAt(byteslice(part.IndexBuffer.Value()), serializedPart.IndexBuffer); err != nil {
+			panic("bug")
+		}
+
+		m.DefaultMaterials[i] = MaterialInstance{
+			Material: TestMaterial(),
+			Hmm:      [3]float32{rand.Float32(), rand.Float32(), rand.Float32()},
+		}
+
+		accelBuildInputs[i] = &gpu.AccelBuildInputTriangles{
+			VertexFormat:  vk.FORMAT_R32G32B32_SFLOAT,
+			VertexBuffer:  gpu.UnsafePointer(gpu.SliceData(part.PosBuffer)),
+			VertexCount:   gpu.SliceLen(part.PosBuffer),
+			VertexStride:  int(unsafe.Sizeof(part.PosBuffer.Value()[0])),
+			IndexType:     vk.INDEX_TYPE_UINT16, // TODO: infer from type of d.IndexBuffer
+			IndexBuffer:   gpu.UnsafePointer(gpu.SliceData(part.IndexBuffer)),
+			TriangleCount: gpu.SliceLen(part.IndexBuffer),
+		}
+	}
+
+	m.accelBuildConfig = &gpu.AccelBuildConfig{
+		Type:   vk.ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
+		Inputs: accelBuildInputs,
+	}
+
+	m.Accel = gpu.NewAccel(m.accelBuildConfig)
 
 	var jq gpu.JobQueue
-	err := m.SetFromFile(&jq,
-		blob2,
-		part.Triangles,
-		part.Positions, part.Normals,
-		0,
-		0,
-		part.Attributes[0])
+	m.buildAccel(&jq)
 	jq.WaitForIdle()
 
-	return err
+	return nil
 }
 
 func byteslice[T any](s []T) []byte {

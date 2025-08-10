@@ -29,7 +29,7 @@ struct Push {
 // TODO: can we specify WG size from host?
 // TODO: use 128?
 // TODO: make a RT pipe (a callable per type of transformation) variant of skinMesh?
-[shader("compute"), numthreads(64, 1, 1)]
+[[shader("compute"), numthreads(64, 1, 1)]]
 void skinMesh(uint32_t index : SV_DispatchThreadID) {
 	if (index >= push.vertexCount)
 		return;

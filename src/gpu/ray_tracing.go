@@ -103,16 +103,20 @@ func newRayTracingShaderGroup(_type vk.RayTracingShaderGroupTypeKHR,
 	return &RayTracingShaderGroup{vk: vkPipeline, handle: handle}
 }
 
-func (sg *RayTracingShaderGroup) Handle() []byte {
-	return sg.handle[:]
+func (sg *RayTracingShaderGroup) Handle() [32]byte {
+	return sg.handle
 }
 
 type RayTracingPipeline struct {
 	vk vk.Pipeline
 }
 
+func (pipeline *RayTracingPipeline) Destroy() {
+	panic("not implemented")
+}
+
 // TODO: make it possible to link RT pipes into more RT pipes
-func LinkRayTracingShaderGroups(shaderGroups []*RayTracingShaderGroup) *RayTracingPipeline {
+func LinkRayTracingShaderGroups(shaderGroups ...*RayTracingShaderGroup) *RayTracingPipeline {
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
 
@@ -170,7 +174,7 @@ type traceRaysJob struct {
 	args     []byte
 }
 
-// TODO: pass sbt by-value?
+// TODO: pass sbt by pointer?
 // TODO: pass width, height, depth as [3]int/Int3?
 func EnqueueTraceRays(jq *JobQueue,
 	pipeline *RayTracingPipeline,

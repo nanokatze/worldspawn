@@ -50,9 +50,6 @@ var currentExtent gpu.Int3
 var swapchain *gpu.Swapchain
 var swapchainImage *gpu.Image
 
-// TODO: rename
-var myRenderer renderer.Renderer
-
 var currentSession atomic.Pointer[Client]
 
 var gamepad *sdl.Gamepad
@@ -301,8 +298,8 @@ func redrawLocked() bool {
 	clientRenderer.privateScene.OurCamera.Transform = clientRenderer.privateScene.Transform(1999, float32(t))
 	clientRenderer.privateScene2.EnqueueUpdate(&jq, clientRenderer.privateScene, float32(t))
 
-	myRenderer.Render(&jq,
-		clientRenderer.privateScene2, float32(t),
+	clientRenderer.privateScene2.Render(&jq,
+		float32(t),
 		&clientRenderer.privateScene.OurCamera,
 		swapchainImage, currentExtent)
 
@@ -458,8 +455,6 @@ func (sr *idk) Tick(w *worldspawn.World, playerID ecs.ID, t0, t1 worldspawn.Time
 
 	conf := config.Load()
 
-	testTexture := texture("Editor/measure2.ktx2")
-
 	{
 		sr.t0sdl = sdl.TicksNS()
 		sr.t1sdl = sr.t0sdl + uint64(frameDuration) // depends on timescale
@@ -486,7 +481,7 @@ func (sr *idk) Tick(w *worldspawn.World, playerID ecs.ID, t0, t1 worldspawn.Time
 		activeWeapon := playerEntity.(worldspawn.FPSCharacter).ActiveWeapon
 
 		for id, v := range ecs.Join(w.RenderingGeometry, w.TranslationRotation) {
-			rendererModel := v.V1
+			renderingGeometry := v.V1
 			positionRotation := v.V2
 			scale, ok := w.Scale.Load(id)
 			if !ok {
@@ -507,23 +502,13 @@ func (sr *idk) Tick(w *worldspawn.World, playerID ecs.ID, t0, t1 worldspawn.Time
 			// components
 			if id == activeWeapon {
 				viewmodel, _ := w.Viewmodel.Load(id)
-				aim, _ := w.WeaponAim.Load(id)
 
 				// TODO: should we use a pivot point for viewmodel?
 
 				positionRotation, _ = w.TranslationRotation.Load(playerID)
 				velocity, _ := w.Velocity.Load(playerID)
 
-				player, _ := w.Entity.Load(playerID)
-				fpsCharacter := player.(worldspawn.FPSCharacter)
-
 				up := positionRotation.Rotation.Rotate(geometry.Vec3{0, 0, 1})
-
-				rot := aim.ShootRotation.
-					Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{0, -1, 0}, float32(0)))
-
-				_ = fpsCharacter
-				_ = rot
 
 				horizontalVelocity := velocity.Linear.Add(up.Scale(-velocity.Linear.Dot(up)))
 
@@ -553,19 +538,15 @@ func (sr *idk) Tick(w *worldspawn.World, playerID ecs.ID, t0, t1 worldspawn.Time
 				Scale:       scale,
 			}
 
-			color := [][3]float32{
-				{1, 0.4, 0},
-				{0, 0.4, 1},
-			}[i%2]
+			// color := [][3]float32{
+			// 	{1, 0.4, 0},
+			// 	{0, 0.4, 1},
+			// }[i%2]
 
-			sr.scene.Mesh[i] = model(rendererModel.Filename)
-			sr.scene.Materials[i] = []renderer.MaterialInstance{
-				{
-					Material:    renderer.TestMaterial(),
-					TestTexture: testTexture.Image,
-					Hmm:         color,
-				},
-			}
+			mesh := model(renderingGeometry.Filename)
+
+			sr.scene.Mesh[i] = mesh
+			sr.scene.Materials[i] = mesh.DefaultMaterials
 
 			/*
 				// This is just horribly broken

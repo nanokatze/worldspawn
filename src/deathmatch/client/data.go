@@ -96,7 +96,7 @@ func model(filename string) *renderer.Mesh {
 		}
 		defer f.Close()
 		m = new(renderer.Mesh)
-		if err := m.InitFromFile(f.(io.ReaderAt)); err != nil {
+		if err := m.InitFromFile(f.(io.ReaderAt), filename); err != nil {
 			panic(err)
 		}
 		modelcache[filename] = m
