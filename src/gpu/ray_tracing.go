@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"runtime"
 	"slices"
+	"structs"
 	"unsafe"
 
 	"worldspawn/gpu/vk"
@@ -15,6 +16,7 @@ import (
 
 // TODO: switch to dynamic stack
 
+// TODO: put this into shader.go?
 type RayTracingLibraryInterface struct {
 	MaxRayPayloadSize      int
 	MaxRayHitAttributeSize int
@@ -25,7 +27,7 @@ const maxPipelineRayHitAttributeSize = 32
 
 type RayTracingShaderGroup struct {
 	vk     vk.Pipeline
-	handle [32]byte
+	handle RayTracingShaderGroupHandle
 }
 
 func NewGeneralRayTracingShaderGroup(general *Func) *RayTracingShaderGroup {
@@ -40,6 +42,7 @@ func NewTrianglesRayTracingShaderGroup(closestHit, anyHit *Func) *RayTracingShad
 		nil, closestHit, anyHit, nil)
 }
 
+// TODO: return an RT pipe + shader group instead?
 func newRayTracingShaderGroup(_type vk.RayTracingShaderGroupTypeKHR,
 	general, closestHit, anyHit, intersection *Func) *RayTracingShaderGroup {
 	var pinner runtime.Pinner
@@ -95,15 +98,23 @@ func newRayTracingShaderGroup(_type vk.RayTracingShaderGroupTypeKHR,
 		panic(fmt.Sprintf("gpu: vkCreateRayTracingPipelinesKHR: %v", err))
 	}
 
-	var handle [32]byte
-	if err := vkFns.GetRayTracingShaderGroupHandlesKHR(device, vkPipeline, 0, 1, int(len(handle)), unsafe.Pointer(&handle)); err != nil {
+	var handle RayTracingShaderGroupHandle
+	if err := vkFns.GetRayTracingShaderGroupHandlesKHR(device, vkPipeline, 0, 1, int(unsafe.Sizeof(handle)), unsafe.Pointer(&handle)); err != nil {
 		panic(fmt.Sprintf("gpu: vkGetRayTracingShaderGroupHandlesKHR: %v", err))
 	}
 
 	return &RayTracingShaderGroup{vk: vkPipeline, handle: handle}
 }
 
-func (sg *RayTracingShaderGroup) Handle() [32]byte {
+// TODO: rename
+type RayTracingShaderGroupHandle struct {
+	_ structs.HostLayout
+	// TODO: when https://github.com/golang/go/issues/19057 is out, force align
+	// this struct to 32
+	h [32]byte
+}
+
+func (sg *RayTracingShaderGroup) Handle() RayTracingShaderGroupHandle {
 	return sg.handle
 }
 
@@ -147,22 +158,42 @@ func LinkRayTracingShaderGroups(shaderGroups ...*RayTracingShaderGroup) *RayTrac
 	return &RayTracingPipeline{vk: vkPipeline}
 }
 
-// TODO: use shorter names here. Replace ShaderBindingTable in the field names
-// to ShaderRecords or just Records.
-// TODO: make this strongly/er typed by introducing the type parameters for
-// record types? (just the shader data part, skipping group handle)
+type shaderRecordSlice struct {
+	_       structs.HostLayout
+	address UnsafePointer
+	size    int
+	stride  int
+}
+
+func makeShaderRecordSlice[T any](s Slice[T]) shaderRecordSlice {
+	elemSize := int(unsafe.Sizeof(s.Value()[0]))
+	return shaderRecordSlice{
+		address: UnsafePointer(SliceData(s)),
+		size:    SliceLen(s) * elemSize,
+		stride:  elemSize,
+	}
+}
+
+// TODO: rename?
 type ShaderBindingTable struct {
-	RaygenShaderRecordAddress         UnsafePointer
-	RaygenShaderRecordSize            int
-	MissShaderBindingTableAddress     UnsafePointer
-	MissShaderBindingTableSize        int
-	MissShaderBindingTableStride      int
-	HitShaderBindingTableAddress      UnsafePointer
-	HitShaderBindingTableSize         int
-	HitShaderBindingTableStride       int
-	CallableShaderBindingTableAddress UnsafePointer
-	CallableShaderBindingTableSize    int
-	CallableShaderBindingTableStride  int
+	_                   structs.HostLayout
+	raygenRecordAddress UnsafePointer // TODO: put these into a struct too?
+	raygenRecordSize    int
+	missRecords         shaderRecordSlice
+	hitRecords          shaderRecordSlice
+	callableRecords     shaderRecordSlice
+}
+
+func MakeShaderBindingTable[A, B, C, D any](raygenRecord Pointer[A], missRecords Slice[B], hitRecords Slice[C], callableRecords Slice[D]) ShaderBindingTable {
+	// TODO: validate that the types are suitable (i.e. their sizes are
+	// multiples of 32) and the resulting sbt is valid
+	return ShaderBindingTable{
+		raygenRecordAddress: UnsafePointer(raygenRecord),
+		raygenRecordSize:    int(unsafe.Sizeof(raygenRecord.Value())),
+		missRecords:         makeShaderRecordSlice(missRecords),
+		hitRecords:          makeShaderRecordSlice(hitRecords),
+		callableRecords:     makeShaderRecordSlice(callableRecords),
+	}
 }
 
 type traceRaysJob struct {
@@ -222,24 +253,24 @@ func (job *traceRaysJob) Exec(q *CommandQueue) {
 
 		vkFns.CmdTraceRaysKHR(cb,
 			&vk.StridedDeviceAddressRegionKHR{
-				DeviceAddress: vk.DeviceAddress(job.sbt.RaygenShaderRecordAddress),
-				Stride:        vk.DeviceSize(job.sbt.RaygenShaderRecordSize),
-				Size:          vk.DeviceSize(job.sbt.RaygenShaderRecordSize),
+				DeviceAddress: vk.DeviceAddress(job.sbt.raygenRecordAddress),
+				Stride:        vk.DeviceSize(job.sbt.raygenRecordSize),
+				Size:          vk.DeviceSize(job.sbt.raygenRecordSize),
 			},
 			&vk.StridedDeviceAddressRegionKHR{
-				DeviceAddress: vk.DeviceAddress(job.sbt.MissShaderBindingTableAddress),
-				Stride:        vk.DeviceSize(job.sbt.MissShaderBindingTableStride),
-				Size:          vk.DeviceSize(job.sbt.MissShaderBindingTableSize),
+				DeviceAddress: vk.DeviceAddress(job.sbt.missRecords.address),
+				Stride:        vk.DeviceSize(job.sbt.missRecords.stride),
+				Size:          vk.DeviceSize(job.sbt.missRecords.size),
 			},
 			&vk.StridedDeviceAddressRegionKHR{
-				DeviceAddress: vk.DeviceAddress(job.sbt.HitShaderBindingTableAddress),
-				Stride:        vk.DeviceSize(job.sbt.HitShaderBindingTableStride),
-				Size:          vk.DeviceSize(job.sbt.HitShaderBindingTableSize),
+				DeviceAddress: vk.DeviceAddress(job.sbt.hitRecords.address),
+				Stride:        vk.DeviceSize(job.sbt.hitRecords.stride),
+				Size:          vk.DeviceSize(job.sbt.hitRecords.size),
 			},
 			&vk.StridedDeviceAddressRegionKHR{
-				DeviceAddress: vk.DeviceAddress(job.sbt.CallableShaderBindingTableAddress),
-				Stride:        vk.DeviceSize(job.sbt.CallableShaderBindingTableStride),
-				Size:          vk.DeviceSize(job.sbt.CallableShaderBindingTableSize),
+				DeviceAddress: vk.DeviceAddress(job.sbt.callableRecords.address),
+				Stride:        vk.DeviceSize(job.sbt.callableRecords.stride),
+				Size:          vk.DeviceSize(job.sbt.callableRecords.size),
 			},
 			job.width,
 			job.height,

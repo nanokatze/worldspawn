@@ -1,7 +1,5 @@
 // TODO: keep vk.xml locally
 
-// TODO: can we make this package internal to gpu?
-
 // TODO: generate String() for the enums? *Flags are bitmasks
 
 //go:generate go run mkfuncs.go -o funcs.go /usr/share/vulkan/registry/vk.xml
