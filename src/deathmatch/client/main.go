@@ -216,6 +216,8 @@ func redraw() {
 	}
 }
 
+var fn uint32
+
 // Must be called with redrawMu held.
 func redrawLocked() bool {
 	defer trace.StartRegion(context.Background(), "Redraw (redrawMu held)").End()
@@ -300,8 +302,10 @@ func redrawLocked() bool {
 
 	clientRenderer.privateScene2.Render(&jq,
 		float32(t),
+		fn,
 		&clientRenderer.privateScene.OurCamera,
 		swapchainImage, currentExtent)
+	fn++
 
 	// TODO: it would probably be a good idea to inject overlay rendering into
 	// Render so that we can avoid breaking the render pass.
@@ -394,7 +398,7 @@ func redrawLocked() bool {
 // TODO: should be created on demand
 var clientRenderer = &idk{
 	privateScene:  renderer.NewSceneDirty(10000),
-	privateScene2: renderer.NewScene(10000),
+	privateScene2: renderer.NewScene(10000, 5),
 
 	scene: renderer.NewSceneDirty(10000),
 }

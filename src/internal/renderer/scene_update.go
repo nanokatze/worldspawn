@@ -91,7 +91,6 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 
 	instancesHost := scene.instances.Value()
 	accelInstancesHost := scene.accelInstances.Value()
-	hitRecordsHost := scene.hitRecords.Value()
 	for instanceIndex, instance := range dirty.Instance {
 		// TODO: is this necessary?
 		if instanceIndex == 0 || instance.Transform == 0 {
@@ -102,12 +101,8 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 		mesh := dirty.Mesh[instanceIndex]
 
 		for i, part := range mesh.parts {
-			hitRecordsHost[instanceIndex*maxPartsPerMesh+i] = hitRecord{
-				Header: chitInterpreter().Handle(),
-				Code:   gpu.SliceData(dirty.Materials[instanceIndex][i].Material.code),
-			}
-
-			instancesHost[instanceIndex*maxPartsPerMesh+i] = _MaterialParams{
+			instancesHost[instanceIndex*scene.maxPartsPerMesh+i] = _MaterialParams{
+				Code:      gpu.SliceData(dirty.Materials[instanceIndex][i].Material.code),
 				Triangles: gpu.SliceData(part.IndexBuffer),
 				Normals:   gpu.SliceData(part.NormalBuffer),
 				UVs:       gpu.SliceData(part.AttribBuffers[0].(gpu.Slice[[2]float32])),
@@ -135,7 +130,7 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 		accelInstancesHost[instanceIndex] = gpu.AccelInstance{
 			Transform:         A,
 			InstanceIDAndMask: pack24_8(uint32(instanceIndex), uint32(instance.Mask)),
-			SBTOffsetAndFlags: pack24_8(uint32(instanceIndex)*maxPartsPerMesh, 0),
+			SBTOffsetAndFlags: pack24_8(uint32(instanceIndex*scene.maxPartsPerMesh), 0),
 			Accel:             accel,
 		}
 

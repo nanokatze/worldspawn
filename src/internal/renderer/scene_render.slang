@@ -1,28 +1,52 @@
 import gpu;
 import transfer_functions;
+import scene;
+import material_interpreter;
+import internal.lds;
+import sampling;
+import spectrum;
 
-// TODO: for AttributeSlice will we want to split the header from the pointer?
-// Or maybe not.
+static const float M_PI = 3.141592653589793;
 
-// Keep in sync with scene.go
-static const let maxPartsPerMesh = 5;
-
-enum RayType {
-    RayTypeColor,
-    RayTypeVisibility,
-    NumRayTypes,
+struct ColorPayload {
+    float3 raydir;
+    Spectrum attenuation;
 };
 
-struct AttributeSlice {
-    uint8_t *data;
+// TODO: move this to sampling.slang or something idk
+static const let Bounces = 1;
 
-    float4 Load(int i) {
-        return float4(0);
-    }
+enum Dimension {
+    X,
+    Y,
+    Z,
+    Num,
 };
 
-// TODO: delete this? We might want to be able to share index type for many
-// index buffers. Especially so when it comes to clusters in CLASes.
+struct FrameData {
+    uint32_t frameNumber; // TODO: rename
+
+    SamplingView blueNoise;
+
+    matrix<float, 4, 4> proj;
+    matrix<float, 4, 4> projInverse;
+    matrix<float, 4, 4> view;
+    matrix<float, 4, 4> viewInverse;
+
+    // Precomputed stuff goes at the end
+
+    matrix<float, 4, 4> viewProj; // precomputed extras should always go at the end
+};
+
+// This should be purely a description with no data associated.
+//
+// We should support everything we can get from blender.
+struct AttributeDesc {
+    int unused;
+};
+
+// TODO: we will sneak in the index type out of band so we'll construct it in
+// the shader.
 struct IndexSlice {
     uint8_t *data;
     uint64_t aux; // length in bytes and index type, packed
@@ -58,50 +82,13 @@ struct IndexSlice {
     }
 };
 
-struct MaterialParams {
-    void *triangles;
-    float3 *normals;
-    float2 *uvs;
-    SamplingViewWithSampler testTexture;
-    float hmm[3];
-};
-
-struct Scene {
-    SamplingViewWithSampler sky;
-
-    Slice<MaterialParams> instances;
-    Slice<uint8_t> accelInstances; // TODO: plop in proper AccelInstance
-    Accel accel;
-
-    Sampler sampler;
-};
-
-struct Camera {
-    uint32_t frameNumber; // TODO: rename
-
-    SamplingView blueNoise;
-
-    matrix<float, 4, 4> proj;
-    matrix<float, 4, 4> projInverse;
-    matrix<float, 4, 4> view;
-    matrix<float, 4, 4> viewInverse;
-
-    // Precomputed stuff goes at the end
-
-    matrix<float, 4, 4> viewProj; // precomputed extras should always go at the end
-};
-
 struct Push {
     Scene *scene;
-    Camera *camera;
+    FrameData *camera;
     StorageView out;
 };
 
 [[vk::push_constant]] Push push;
-
-struct RayPayload {
-    float3 color;
-};
 
 RaytracingAccelerationStructure rtas(uint64_t bda) {
     return spirv_asm { result:$$RaytracingAccelerationStructure = OpConvertUToAccelerationStructureKHR $bda };
@@ -122,34 +109,51 @@ void raygen() {
     rayDesc.Direction = mul(push.camera->viewInverse, float4(normalize(target.xyz), 0)).xyz;
     rayDesc.TMin = 0.01;
     rayDesc.TMax = 69420.0;
+    Spectrum attenuation = Spectrum(1.0);
+    Spectrum L = float3(0.0);
+    for (int i = 0; i < 2; i++) {
+        RayQuery<RAY_FLAG_FORCE_OPAQUE> rq;
+        rq.TraceRayInline(
+            rtas(push.scene->accel.ptr),
+            0, // OR'd with flags above
+            0b01,
+            rayDesc);
+        rq.Proceed();
 
-    RayPayload payload = {};
-    TraceRay(
-        rtas(push.scene->accel.ptr),
-        0,
-        0b01,
-        0, // sbtRecordOffset
-        1, // sbtRecordStride
-        0, // missIndex
-        rayDesc,
-        payload);
+        ColorPayload payload = {};
 
-    // TODO: explore inlining the tail (everything after TraceRay) into hit/miss
-    // shaders etc?
+        if (rq.CommittedStatus() == COMMITTED_TRIANGLE_HIT) {
+            /* TODO: we should do a CallShader */
+            chit2(
+                LaunchID,
+                rq.CommittedInstanceID(),
+                rq.CommittedGeometryIndex(),
+                rq.CommittedPrimitiveIndex(),
+                rq.WorldRayDirection(),
+                rq.CommittedObjectToWorld3x4(),
+                payload,
+                rq.CommittedTriangleBarycentrics());
+
+            attenuation *= payload.attenuation;
+
+            rayDesc.Origin = rq.WorldRayOrigin() + rq.WorldRayDirection() * rq.CommittedRayT();
+            rayDesc.Direction = payload.raydir;
+        } else {
+            float3 V = rq.WorldRayDirection();
+
+            // TODO: make a matrix to convert from our convention to KTX2 convention
+            // TODO: use SampleCubeGrad. We can use aniso sampling for cube textures.
+            // Actually, aniso sampling is broken across many impls. We might wanna look
+            // into filtering after shading for sky as well, but hopefully things might
+            // get fixed.
+            L += attenuation * push.scene->sky.SampleCubeLOD(float3(-V.y, V.z, V.x), 0).xyz;
+
+            break;
+        }
+    }
 
     // TODO: pack if we're storing into e5rgb9
-    push.out.Store2D((int2)LaunchID.xy, float4(oetf(0, payload.color), 1));
-}
-
-// TODO: rename to skyMiss
-[[shader("miss")]]
-void sky(inout RayPayload rayPayload : SV_RayPayload) {
-    float3 V = normalize(WorldRayDirection());
-
-    // TODO: make a matrix to convert from our convention to KTX2 convention
-    // TODO: use SampleCubeGrad. We can use aniso sampling for cube textures.
-    // Actually, aniso sampling is broken across many impls. We might wanna look into filtering after shading for sky as well, but hopefully things might get fixed.
-    rayPayload.color = push.scene->sky.SampleCubeLOD(float3(-V.y, V.z, V.x), 0).xyz;
+    push.out.Store2D((int2)LaunchID.xy, float4(oetf(0, L), 1));
 }
 
 float
@@ -169,32 +173,6 @@ interpolate3(float3x3 attrs, float3 barys)
 {
     return mul(transpose(attrs), barys);
 }
-
-enum Op {
-    Stop,
-
-    Movk,
-
-    AddF32,
-    SubF32,
-    MulF32,
-    DivF32,
-    MinF32,
-    MaxF32,
-
-    FracF32,
-
-    EqualF32,
-    NotEqualF32,
-    LessOrEqualF32,
-
-    ConditionalSelect,
-
-    Load, // TODO: rename
-    LoadAttribute, // TODO: rename
-
-    BSDFOrenNayarDiffuse,
-};
 
 struct Fetcher {
     uint32_t *pc;
@@ -250,21 +228,118 @@ struct ShaderRecordData {
 
 [[vk::shader_record]] ConstantBuffer<ShaderRecordData> srd;
 
-[[shader("closesthit")]]
-void chit(inout RayPayload payload : SV_RayPayload, in float2 barys_yz : SV_IntersectionAttributes)
+enum BSDFSampleFlags {
+    // Absorbed = 0,
+    Emitted = 1 << 0,
+    Reflected = 1 << 1,
+    Transmitted = 1 << 2,
+    Diffuse = 1 << 3,
+    Glossy = 1 << 4,
+    Specular = 1 << 5,
+};
+
+struct BSDFSample {
+    Spectrum f;
+    float3 wi;
+    float pdf; // rename to just pd
+    BSDFSampleFlags flags;
+    // float eta;
+};
+
+struct BSDFEvaluatedResult {
+    Spectrum f;
+    float pdf; // rename to just pd
+};
+
+interface BxDF {
+    // BSDFSample Sample(float3 wo);
+    // BSDFEvaluatedResult Evaluate(float3 wo, float3 wi);
+};
+
+float absCosTheta(float3 w) { return abs(w.z); }
+
+// TODO: replace this with just a float3x3/Mat3x3
+struct Frame {
+  float3 x, y, z;
+
+  static Frame fromNormal(float3 n) {
+    float3 a = abs(n.x) > 0.5 ? float3(0, 0, 1) : float3(1, 0, 0);
+
+    float3 b = normalize(cross(n, a));
+    float3 t = cross(n, b);
+
+    return {t, b, n};
+  }
+
+  static Frame fromNT(float3 n, float3 t, float sign = 1.0) {
+    if (abs(dot(n, t)) > 0.9) return fromNormal(n);
+
+    float3 b = normalize(cross(n, t)) * sign;
+    t = cross(b, n);
+
+    return {t, b, n};
+  }
+
+  float3 worldToLocal(float3 w) {
+    return float3(dot(w, x), dot(w, y), dot(w, z));
+  }
+
+  float3 localToWorld(float3 l) {
+    return x * l.x + y * l.y + z * l.z;
+  }
+};
+
+struct OrenNayarDiffuse : BxDF {
+    Spectrum R;
+    float roughness;
+
+    BSDFSample Sample(float3 wo, float uc, float2 u) {
+        float3 wi = SampleCosineHemisphere(u);
+
+        return {
+            R / M_PI,
+            wi,
+            CosineHemispherePDF(absCosTheta(wi)),
+            BSDFSampleFlags::Reflected,
+        };
+    }
+
+    BSDFEvaluatedResult Evaluate(float3 wo, float3 wi) {
+        if (wo.z < 1.5e-3f || wi.z < 1.5e-3f)
+            return {};
+
+        return {R / M_PI, CosineHemispherePDF(absCosTheta(wi))};
+    }
+};
+
+void chit2(
+    uint3 dispatchRaysIndex,
+    uint instanceID,
+    uint geometryIndex,
+    uint primitiveIndex,
+    float3 WorldRayDirection,
+    float3x4 ObjectToWorld,
+    inout ColorPayload payload, in float2 barys_yz)
 {
+    let bntex = push.camera->blueNoise;
+    float3 bn = push.camera->blueNoise.At2D(dispatchRaysIndex.xy & (bntex.Extent2D() - 1)).xyz;
+
+    LDS lds = Roberts(Dimension::Num * Bounces);
+    let ldsPointIndex = push.camera->frameNumber;
+
     let barys = float3(1.0 - barys_yz.x - barys_yz.y, barys_yz);
 
-    let instance = &push.scene->instances.data[InstanceID() * maxPartsPerMesh + GeometryIndex()];
+    let instance = &push.scene->instances.data[instanceID * push.scene->maxPartsPerMesh + geometryIndex];
 
     // TODO: pass the entire thing from host, rather than constructing it here.
     IndexSlice idxs = {(uint8_t*)instance->triangles, (uint64_t)2 << 62};
 
-    let triangleIndices = idxs.Load3(PrimitiveIndex());
+    let triangleIndices = idxs.Load3(primitiveIndex);
 
-    let V = normalize(WorldRayDirection());
-    let L = normalize(float3(1, 1, 1));
-    let N = mul((float3x3)ObjectToWorld(),
+    let wo = -WorldRayDirection;
+
+    // This is supposed to be provided by the material
+    let N = mul((float3x3)ObjectToWorld, // ns
         interpolate3(float3x3(
             instance->normals[triangleIndices[0]],
             instance->normals[triangleIndices[1]],
@@ -272,19 +347,19 @@ void chit(inout RayPayload payload : SV_RayPayload, in float2 barys_yz : SV_Inte
         barys));
 
     Fetcher fetcher;
-    fetcher.pc = srd.code;
+    fetcher.pc = instance->code;
 
     Registers regs;
 
     // TODO: factor decoding out
-outer:
+evalLoop:
     for (;;) {
         let op = (Op)fetcher.fetch();
         switch (op) {
         default:
             // TODO: default should abort()
         case Op::Stop:
-            break outer;
+            break evalLoop;
 
         case Op::Movk: {
             uint32_t dst = fetcher.fetch();
@@ -373,7 +448,9 @@ outer:
         }
 
         case Op::BSDFOrenNayarDiffuse: {
+            uint32_t dst = fetcher.fetch();
             uint32_t src = fetcher.fetch();
+
             break;
         }
         }
@@ -381,29 +458,20 @@ outer:
 
     float3 color = reinterpret<float3>(uint3(regs[0], regs[1], regs[2]));
 
-    // plop this into BSDFOrenNayarDiffuse
-    if (false) {
-        // TODO: fire a shadow ray and stuff
+    let frame = Frame::fromNormal(N);
 
-        float roughness = 0.0;
+    let woLocal = frame.worldToLocal(wo);
 
-        float LdotV = dot(L, V);
-        float NdotL = dot(N, L);
-        float NdotV = dot(N, V);
+    OrenNayarDiffuse bsdf = {
+        color,
+        0.0,
+    };
 
-        float s = LdotV - NdotL * NdotV;
-        float t = lerp(1.0, max(NdotL, NdotV), step(0.0, s));
+    let sample = bsdf.Sample(woLocal, lds.Get(0, ldsPointIndex), fmod(bn.xy + float2(lds.Get(1, ldsPointIndex), lds.Get(2, ldsPointIndex)), 1.0));
 
-        float sigma2 = roughness * roughness;
-        float3 A = 1.0 + sigma2 * (color / (sigma2 + 0.13) + 0.5 / (sigma2 + 0.33));
-        float B = 0.45 * sigma2 / (sigma2 + 0.09);
+    // payload.color = bsdf.Evaluate(woLocal, sample.wi).f;
+    payload.raydir = frame.localToWorld(sample.wi);
+    payload.attenuation = sample.f * abs(sample.wi.z) / sample.pdf;
 
-        float M_PI = 3.141592653589793;
-
-        float3 result = color * max(0.0, NdotL) * (A + B * s / t) / M_PI;
-
-        color = result;
-    }
-
-    payload.color = color;
+    // payload.color = color;
 }

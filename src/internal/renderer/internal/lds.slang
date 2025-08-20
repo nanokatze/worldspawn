@@ -18,6 +18,7 @@ public struct Roberts : LDS {
 		phi_d = _RobertsPhi(d);
 	}
 
+	// TODO: swap dimension and point index
 	[require(spirv, spirv_1_0)]
 	public float Get(int dimension, int i) {
 		assert(dimension >= 0);

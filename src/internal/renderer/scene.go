@@ -2,7 +2,6 @@ package renderer
 
 import (
 	"structs"
-	"unsafe"
 
 	"worldspawn/geometry-go"
 	"worldspawn/gpu"
@@ -11,9 +10,9 @@ import (
 
 // TODO: DVec3 baseOffset
 
-const maxPartsPerMesh = 5
-
 type Camera struct {
+	_ structs.HostLayout
+
 	Transform geometry.Mat4x4
 
 	FieldOfView   float32
@@ -21,12 +20,17 @@ type Camera struct {
 }
 
 type _MaterialParams struct {
-	Triangles   gpu.Pointer[[3]uint16]
-	Normals     gpu.Pointer[[3]float32]
-	UVs         gpu.Pointer[[2]float32]
-	TestTexture gpu.SamplingViewWithSampler
-	Hmm         [3]float32
+	_         structs.HostLayout
+	Code      gpu.Pointer[uint32]
+	Triangles gpu.Pointer[[3]uint16]
+	Normals   gpu.Pointer[[3]float32]
+	UVs       gpu.Pointer[[2]float32]
+	Hmm       [3]float32
 }
+
+// TODO: make NewMaterial etc update these
+var rtCallables gpu.Slice[struct{}]
+var rtPipeline *gpu.RayTracingPipeline
 
 // TODO: I guess we'll need to do some involved memory management in Scene.
 
@@ -36,6 +40,9 @@ type _MaterialParams struct {
 // AS. I guess let's just not.
 type Scene struct {
 	_ structs.HostLayout
+
+	// TODO: rename, kinda don't like what it's called
+	maxPartsPerMesh int
 
 	sky gpu.SamplingViewWithSampler
 
@@ -49,62 +56,41 @@ type Scene struct {
 	// TODO: append experimental stuff at the end for now: we have a skill issue
 	// in that we need to manually sync host and device type definitions.
 
-	// TODO: decouple this from instances?
-	// TODO: we can make this an array of [maxPartsPerMesh] but we'll be careful
-	// when specifying SBT stride
-	hitRecords gpu.Slice[hitRecord]
 	// TODO: delegate linked pipeline management to the user
+	// TODO: actually, have global pipelines for these
 	pipeline *gpu.RayTracingPipeline
 	// TODO: construct sbt when requested rather than store?
 	sbt gpu.ShaderBindingTable
 }
 
+/*
 type hitRecord struct {
 	_      structs.HostLayout
-	Header [32]byte
+	Handle gpu.RayTracingShaderGroupHandle
 	Code   gpu.Pointer[uint32]
-	_      [64 - 32 - 8]byte // https://github.com/golang/go/issues/19057
+	// Constants gpu.UnsafePointer
+	_ [64 - 32 - 8]byte // https://github.com/golang/go/issues/19057
 }
+*/
 
-func NewScene(n int) *Scene {
+// TODO: we'll probs end up needing to take a struct with params
+func NewScene(n int, maxPartsPerMesh int) *Scene {
 	instances := gpu.MakeSliceUncached[_MaterialParams](n * maxPartsPerMesh)
 
-	// TODO: pipeline linking should happen outside of the scene, actually. We
-	// should just ask the user to provide us a "material library" or something.
-	pipeline := gpu.LinkRayTracingShaderGroups(
-		raygen(),
-		sky(),
-		chitInterpreter(),
-	)
+	// TODO: make pipeline be relinked when some material is created or removed
+	// or whatever.
+	pipeline := gpu.LinkRayTracingShaderGroups(raygen())
 
-	raygenRecord := gpu.MakeSliceUncached[[32]byte](1)
-	raygenRecord.Value()[0] = raygen().Handle()
-
-	missRecords := gpu.MakeSliceUncached[[32]byte](1)
-	missRecords.Value()[0] = sky().Handle()
-
-	// TODO: should we decouple hit records from instance IDs?
-	// TODO: with EXT_shader_invocation_reorder we could couple hit records to
-	// materials instead, but we'd need an extra indirection to know which
-	// material to use for each geometry (mesh part.)
-	hitRecords := gpu.MakeSliceUncached[hitRecord](n * maxPartsPerMesh)
+	raygenRecord := gpu.NewUncached[gpu.RayTracingShaderGroupHandle]()
+	*raygenRecord.Value() = raygen().Handle()
 
 	return &Scene{
-		hitRecords: hitRecords,
-		pipeline:   pipeline, // TODO: relink this after materials change and stuff
-		sbt: gpu.ShaderBindingTable{
-			RaygenShaderRecordAddress:     gpu.UnsafePointer(gpu.SliceData(raygenRecord)),
-			RaygenShaderRecordSize:        gpuSliceLenInBytes(raygenRecord),
-			MissShaderBindingTableAddress: gpu.UnsafePointer(gpu.SliceData(missRecords)),
-			MissShaderBindingTableSize:    gpuSliceLenInBytes(missRecords),
-			MissShaderBindingTableStride:  32,
-			HitShaderBindingTableAddress:  gpu.UnsafePointer(gpu.SliceData(hitRecords)),
-			HitShaderBindingTableSize:     gpuSliceLenInBytes(hitRecords),
-			HitShaderBindingTableStride:   int(unsafe.Sizeof(hitRecords.Value()[0])),
-		},
-		instances:      instances,
-		accelInstances: gpu.MakeSliceUncached[gpu.AccelInstance](n),
-		accel:          gpu.NewTopLevelAccel(n),
+		maxPartsPerMesh: maxPartsPerMesh,
+		pipeline:        pipeline, // TODO: relink this after materials change and stuff
+		sbt:             gpu.MakeShaderBindingTable(raygenRecord, gpu.Slice[struct{}]{}, gpu.Slice[struct{}]{}, gpu.Slice[struct{}]{}),
+		instances:       instances,
+		accelInstances:  gpu.MakeSliceUncached[gpu.AccelInstance](n),
+		accel:           gpu.NewTopLevelAccel(n),
 		sampler: gpu.NewSampler(&vk.SamplerCreateInfo{
 			SType:            vk.STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
 			MinFilter:        vk.FILTER_LINEAR,

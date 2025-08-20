@@ -24,6 +24,13 @@ public struct Accel {
     // public void TraceRay()
 };
 
+public struct AccelInstance {
+    public float transform[3][4]; // TODO: we could have this be a float3x4 or w/e
+    public uint32_t instanceIDAndMask;
+    public uint32_t sbtOffsetAndFlags;
+    public uint8_t *accel; // TODO: replace with Accel when we make it match on host as well.
+};
+
 struct imageDescriptors {
 	uint32_t sampling;
 	uint32_t loadStore;
@@ -54,8 +61,6 @@ public struct Sampler {
     __init(uint32_t x) { handle = x; }
 };
 
-// TODO: I honestly dislike these names, could we perhaps rename these to Image
-// or whatever?
 public struct SamplingView {
 	internal uint32_t handle;
 

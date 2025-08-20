@@ -59,13 +59,6 @@ struct Update {
 };
 */
 
-struct AccelInstance {
-    float transform[3][4];
-    uint32_t instanceIDAndMask;
-    uint32_t sbtOffsetAndFlags;
-    uint8_t *accelerationStructure;
-};
-
 struct Scene {
     uint32_t *parent;
     TRS3 *transformT0;

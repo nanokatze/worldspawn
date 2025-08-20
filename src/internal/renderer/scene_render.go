@@ -47,7 +47,7 @@ var blueNoise = sync.OnceValue(func() *gpu.Image {
 
 		var jq gpu.JobQueue
 
-		// TODO: come up where non-game data should live
+		// TODO: come up where non-game data should live. Maybe embed this?
 		f, err := os.Open(fmt.Sprintf("BlueNoise/2D/256_256/LDR_RGBA_%d.png", i))
 		if err != nil {
 			panic(err)
@@ -89,16 +89,6 @@ var raygen = sync.OnceValue(func() *gpu.RayTracingShaderGroup {
 	return gpu.NewGeneralRayTracingShaderGroup(gpu.NewFunc(mustReadFile("shaders/scene_render.spv"), vk.SHADER_STAGE_RAYGEN_BIT_KHR, "raygen"))
 })
 
-var sky = sync.OnceValue(func() *gpu.RayTracingShaderGroup {
-	sky := gpu.NewFunc(mustReadFile("shaders/scene_render.spv"), vk.SHADER_STAGE_MISS_BIT_KHR, "sky")
-	return gpu.NewGeneralRayTracingShaderGroup(sky)
-})
-
-var chitInterpreter = sync.OnceValue(func() *gpu.RayTracingShaderGroup {
-	chit := gpu.NewFunc(mustReadFile("shaders/scene_render.spv"), vk.SHADER_STAGE_CLOSEST_HIT_BIT_KHR, "chit")
-	return gpu.NewTrianglesRayTracingShaderGroup(chit, nil)
-})
-
 func gpuSliceLenInBytes[T any](s gpu.Slice[T]) int {
 	return gpu.SliceLen(s) * int(unsafe.Sizeof(*new(T)))
 }
@@ -124,32 +114,19 @@ var toClipSpace = geometry.Mat4x4{
 
 // TODO: struct for per-view stuff, with history for TAA, etc.
 
-// TODO: we might need more bits about the dst like format, etc, depending on if
-// we do compute or what.
-//
 // TODO: res should probably be a rect?
 //
-// TODO: it would be nice if we could require that dst is either storage image
-// writable, color attachment, transfer dst, ...
-//
 // TODO: we need to pass other stuff like max aniso etc settings...
-//
-// TODO: make it a method on a Scene
-// func (scene *Scene) EnqueueRender(jq *gpu.JobQueue, dst *gpu.Image, res gpu.Int3, t float32, camera *Camera)
-func (scene *Scene) Render(jq *gpu.JobQueue, t float32, camera *Camera, dst *gpu.Image, res gpu.Int3) {
-	// TODO: we can get rid of hardware aniso sampling, which is annoying and
-	// has the wrong filter for many things.
-	//
-	// See https://mastodon.gamedev.place/@BartWronski/112445872458391965
-	//
-	// TODO: samplers we need to create are really dictated by materials
+// TODO: change fn to be an int?
+func (scene *Scene) Render(jq *gpu.JobQueue, t float32, fn uint32, camera *Camera, dst *gpu.Image, res gpu.Int3) {
+	// asdasd
+	bn := blueNoise()
+
+	bnlayer := bn.SubImage(bn.Dim(), bn.Format(), int(fn%8), int(fn%8)+1, 0, 1)
+	defer jq.Cleanup(bnlayer.Destroy)
 
 	frameData := gpu.NewUncached[_FrameData]()
 	defer jq.Cleanup(func() { gpu.Free(gpu.UnsafePointer(frameData)) })
-
-	dscene := gpu.NewUncached[Scene]()
-	defer jq.Cleanup(func() { gpu.Free(gpu.UnsafePointer(dscene)) })
-	*dscene.Value() = *scene
 
 	{
 		proj := geometry.Mat4x4InfinitePerspective(
@@ -167,7 +144,8 @@ func (scene *Scene) Render(jq *gpu.JobQueue, t float32, camera *Camera, dst *gpu
 		view := viewInverse.Inverse()
 
 		*frameData.Value() = _FrameData{
-			FrameNumber: uint32(0),
+			FrameNumber: fn,
+			BlueNoise:   bnlayer.SamplingDescriptor(),
 			Proj:        proj,
 			ProjInverse: proj.Inverse(),
 			View:        view,
@@ -176,6 +154,10 @@ func (scene *Scene) Render(jq *gpu.JobQueue, t float32, camera *Camera, dst *gpu
 			ViewProj: proj.Mul4x4(view),
 		}
 	}
+
+	dscene := gpu.NewUncached[Scene]()
+	*dscene.Value() = *scene
+	defer jq.Cleanup(func() { gpu.Free(gpu.UnsafePointer(dscene)) })
 
 	// RT
 

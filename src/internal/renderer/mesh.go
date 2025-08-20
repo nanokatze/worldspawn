@@ -175,7 +175,8 @@ func (m *Mesh) InitFromFile(r io.ReaderAt, filename string) error {
 	}
 
 	type Rendering struct {
-		Parts []Part
+		Attributes []AttributeDesc
+		Parts      []Part
 	}
 
 	type GeometryHeader struct {
