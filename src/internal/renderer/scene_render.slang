@@ -5,16 +5,17 @@ import material_interpreter;
 import internal.lds;
 import sampling;
 import spectrum;
-
-static const float M_PI = 3.141592653589793;
+import bsdf;
+import bsdf_diffuse;
 
 struct ColorPayload {
+    Spectrum beta;
+    Spectrum L;
     float3 raydir;
-    Spectrum attenuation;
 };
 
 // TODO: move this to sampling.slang or something idk
-static const let Bounces = 1;
+static const let Bounces = 2;
 
 enum Dimension {
     X,
@@ -27,6 +28,8 @@ struct FrameData {
     uint32_t frameNumber; // TODO: rename
 
     SamplingView blueNoise;
+
+    // int bounces;
 
     matrix<float, 4, 4> proj;
     matrix<float, 4, 4> projInverse;
@@ -94,37 +97,69 @@ RaytracingAccelerationStructure rtas(uint64_t bda) {
     return spirv_asm { result:$$RaytracingAccelerationStructure = OpConvertUToAccelerationStructureKHR $bda };
 }
 
+/*
+bool unoccluded(float3 a, float3 b) {
+    RayDesc rayDesc;
+    rayDesc.Origin = a;
+    rayDesc.Direction = b - a;
+    rayDesc.TMin = 0;
+    rayDesc.TMax = 1;
+    RayQuery<RAY_FLAG_FORCE_OPAQUE> rq;
+    rq.TraceRayInline(
+        rtas(push.scene->accel.ptr),
+        0, // OR'd with flags above
+        0b10,
+        rayDesc);
+    rq.Proceed();
+}
+*/
+
+float getLDSValue(int bounce, int dimension) {
+    let lds = Roberts(Dimension::Num * Bounces);
+    let point = push.camera->frameNumber;
+
+    return lds.Get(bounce * Bounces + dimension, point);
+}
+
 [[shader("raygeneration")]]
 void raygen() {
     uint3 LaunchID = DispatchRaysIndex();
     uint3 LaunchSize = DispatchRaysDimensions();
 
-    const float2 pixelCenter = float2(LaunchID.xy) + float2(0.5, 0.5);
-    const float2 inUV = pixelCenter / float2(LaunchSize.xy);
+    float2 pixelCenter = float2(LaunchID.xy) + float2(0.5, 0.5);
+    // TODO: the host should fill this in.
+    // float2 pixelCenter = float2(LaunchID.xy) + float2(getLDSValue(0, 0), getLDSValue(0, 1));
+    float2 inUV = pixelCenter / float2(LaunchSize.xy);
     float2 d = inUV * 2.0 - 1.0;
     float4 target = mul(push.camera->projInverse, float4(d.x, d.y, 1, 1));
 
+    // TODO: special case the first bounce, we need to get the primary surface
+    // for denoiser and motion vectors/mask out for TAA
+
+    Spectrum beta = Spectrum(1.0);
+    Spectrum L = Spectrum(0.0);
     RayDesc rayDesc;
     rayDesc.Origin = mul(push.camera->viewInverse, float4(0, 0, 0, 1)).xyz;
-    rayDesc.Direction = mul(push.camera->viewInverse, float4(normalize(target.xyz), 0)).xyz;
+    // TODO: do we actually need normalize here?
+    rayDesc.Direction = normalize(mul(push.camera->viewInverse, float4(normalize(target.xyz), 0)).xyz);
     rayDesc.TMin = 0.01;
-    rayDesc.TMax = 69420.0;
-    Spectrum attenuation = Spectrum(1.0);
-    Spectrum L = float3(0.0);
-    for (int i = 0; i < 2; i++) {
+    rayDesc.TMax = 1024.0; // TODO: make these user-configurable
+    // TODO: make the number of bounces configurable by host
+    for (int bounce = 0; bounce < 2; bounce++) {
         RayQuery<RAY_FLAG_FORCE_OPAQUE> rq;
         rq.TraceRayInline(
             rtas(push.scene->accel.ptr),
             0, // OR'd with flags above
-            0b01,
+            bounce == 0 ? 0b01 : 0b10,
             rayDesc);
         rq.Proceed();
 
         ColorPayload payload = {};
 
         if (rq.CommittedStatus() == COMMITTED_TRIANGLE_HIT) {
-            /* TODO: we should do a CallShader */
+            /* TODO: we should do a CallShader here */
             chit2(
+                bounce,
                 LaunchID,
                 rq.CommittedInstanceID(),
                 rq.CommittedGeometryIndex(),
@@ -134,10 +169,19 @@ void raygen() {
                 payload,
                 rq.CommittedTriangleBarycentrics());
 
-            attenuation *= payload.attenuation;
+            beta *= payload.beta;
 
-            rayDesc.Origin = rq.WorldRayOrigin() + rq.WorldRayDirection() * rq.CommittedRayT();
+            rayDesc.Origin = rq.WorldRayOrigin() + rq.WorldRayDirection() * rq.CommittedRayT() - normalize(rq.WorldRayDirection()) * 0.01;
             rayDesc.Direction = payload.raydir;
+
+            if (bounce > 0) {
+                // TODO: introduce Spectrum.MaxComponentValue()
+                float q = max(0, 1.0 - max(max(beta.x, beta.y), beta.z));
+                // TODO: use an ordinary RNG here
+                if (q <= getLDSValue(bounce, 0))
+                    break;
+                beta /= 1.0 - q;
+            }
         } else {
             float3 V = rq.WorldRayDirection();
 
@@ -146,7 +190,7 @@ void raygen() {
             // Actually, aniso sampling is broken across many impls. We might wanna look
             // into filtering after shading for sky as well, but hopefully things might
             // get fixed.
-            L += attenuation * push.scene->sky.SampleCubeLOD(float3(-V.y, V.z, V.x), 0).xyz;
+            L += beta * push.scene->sky.SampleCubeLOD(float3(-V.y, V.z, V.x), 0).xyz;
 
             break;
         }
@@ -228,91 +272,44 @@ struct ShaderRecordData {
 
 [[vk::shader_record]] ConstantBuffer<ShaderRecordData> srd;
 
-enum BSDFSampleFlags {
-    // Absorbed = 0,
-    Emitted = 1 << 0,
-    Reflected = 1 << 1,
-    Transmitted = 1 << 2,
-    Diffuse = 1 << 3,
-    Glossy = 1 << 4,
-    Specular = 1 << 5,
-};
-
-struct BSDFSample {
-    Spectrum f;
-    float3 wi;
-    float pdf; // rename to just pd
-    BSDFSampleFlags flags;
-    // float eta;
-};
-
-struct BSDFEvaluatedResult {
-    Spectrum f;
-    float pdf; // rename to just pd
-};
-
-interface BxDF {
-    // BSDFSample Sample(float3 wo);
-    // BSDFEvaluatedResult Evaluate(float3 wo, float3 wi);
-};
-
-float absCosTheta(float3 w) { return abs(w.z); }
-
 // TODO: replace this with just a float3x3/Mat3x3
 struct Frame {
-  float3 x, y, z;
+    float3 x, y, z;
 
-  static Frame fromNormal(float3 n) {
-    float3 a = abs(n.x) > 0.5 ? float3(0, 0, 1) : float3(1, 0, 0);
+    static Frame fromNormal(float3 n) {
+        float3 a = abs(n.x) > 0.5 ? float3(0, 0, 1) : float3(1, 0, 0);
 
-    float3 b = normalize(cross(n, a));
-    float3 t = cross(n, b);
+        float3 b = normalize(cross(n, a));
+        float3 t = cross(n, b);
 
-    return {t, b, n};
-  }
-
-  static Frame fromNT(float3 n, float3 t, float sign = 1.0) {
-    if (abs(dot(n, t)) > 0.9) return fromNormal(n);
-
-    float3 b = normalize(cross(n, t)) * sign;
-    t = cross(b, n);
-
-    return {t, b, n};
-  }
-
-  float3 worldToLocal(float3 w) {
-    return float3(dot(w, x), dot(w, y), dot(w, z));
-  }
-
-  float3 localToWorld(float3 l) {
-    return x * l.x + y * l.y + z * l.z;
-  }
-};
-
-struct OrenNayarDiffuse : BxDF {
-    Spectrum R;
-    float roughness;
-
-    BSDFSample Sample(float3 wo, float uc, float2 u) {
-        float3 wi = SampleCosineHemisphere(u);
-
-        return {
-            R / M_PI,
-            wi,
-            CosineHemispherePDF(absCosTheta(wi)),
-            BSDFSampleFlags::Reflected,
-        };
+        return {t, b, n};
     }
 
-    BSDFEvaluatedResult Evaluate(float3 wo, float3 wi) {
-        if (wo.z < 1.5e-3f || wi.z < 1.5e-3f)
-            return {};
+    static Frame fromNT(float3 n, float3 t, float sign = 1.0) {
+        if (abs(dot(n, t)) > 0.9) return fromNormal(n);
 
-        return {R / M_PI, CosineHemispherePDF(absCosTheta(wi))};
+        float3 b = normalize(cross(n, t)) * sign;
+        t = cross(b, n);
+
+        return {t, b, n};
+    }
+
+    float3 worldToLocal(float3 w) {
+        return float3(dot(w, x), dot(w, y), dot(w, z));
+    }
+
+    float3 localToWorld(float3 l) {
+        return x * l.x + y * l.y + z * l.z;
     }
 };
+
+// This also needs to get us the pdf and everything. TODO
+float3 sampleLight() {
+    return float3(0.0);
+}
 
 void chit2(
+    int bounce,
     uint3 dispatchRaysIndex,
     uint instanceID,
     uint geometryIndex,
@@ -324,9 +321,6 @@ void chit2(
     let bntex = push.camera->blueNoise;
     float3 bn = push.camera->blueNoise.At2D(dispatchRaysIndex.xy & (bntex.Extent2D() - 1)).xyz;
 
-    LDS lds = Roberts(Dimension::Num * Bounces);
-    let ldsPointIndex = push.camera->frameNumber;
-
     let barys = float3(1.0 - barys_yz.x - barys_yz.y, barys_yz);
 
     let instance = &push.scene->instances.data[instanceID * push.scene->maxPartsPerMesh + geometryIndex];
@@ -335,16 +329,6 @@ void chit2(
     IndexSlice idxs = {(uint8_t*)instance->triangles, (uint64_t)2 << 62};
 
     let triangleIndices = idxs.Load3(primitiveIndex);
-
-    let wo = -WorldRayDirection;
-
-    // This is supposed to be provided by the material
-    let N = mul((float3x3)ObjectToWorld, // ns
-        interpolate3(float3x3(
-            instance->normals[triangleIndices[0]],
-            instance->normals[triangleIndices[1]],
-            instance->normals[triangleIndices[2]]),
-        barys));
 
     Fetcher fetcher;
     fetcher.pc = instance->code;
@@ -427,7 +411,7 @@ evalLoop:
         case Op::Load: {
             uint32_t dst = fetcher.fetch();
             uint32_t off = fetcher.fetch();
-            regs[dst] = *((uint32_t*)instance + off / 4);
+            regs[dst] = *(uint32_t*)((uint8_t*)instance + off);
             break;
         }
         case Op::LoadAttribute: {
@@ -447,7 +431,7 @@ evalLoop:
             break;
         }
 
-        case Op::BSDFOrenNayarDiffuse: {
+        case Op::BSDFDiffuse: {
             uint32_t dst = fetcher.fetch();
             uint32_t src = fetcher.fetch();
 
@@ -458,20 +442,30 @@ evalLoop:
 
     float3 color = reinterpret<float3>(uint3(regs[0], regs[1], regs[2]));
 
-    let frame = Frame::fromNormal(N);
+    // TODO: get this from regs as well
+    let N = mul((float3x3)ObjectToWorld, // ns
+        interpolate3(float3x3(
+            instance->normals[triangleIndices[0]],
+            instance->normals[triangleIndices[1]],
+            instance->normals[triangleIndices[2]]),
+        barys));
+    let shadingFrame = Frame::fromNormal(N);
 
-    let woLocal = frame.worldToLocal(wo);
+    let wo = shadingFrame.worldToLocal(-WorldRayDirection);
 
-    OrenNayarDiffuse bsdf = {
+    Diffuse bsdf = {
         color,
         0.0,
     };
 
-    let sample = bsdf.Sample(woLocal, lds.Get(0, ldsPointIndex), fmod(bn.xy + float2(lds.Get(1, ldsPointIndex), lds.Get(2, ldsPointIndex)), 1.0));
+    // TODO: make it possible that sampling can fail.
+    // TODO: we need to consider the bounce when pulling a point from the LDS.
+    let bsdfSample = bsdf.Sample(wo, getLDSValue(bounce, 0), fmod(bn.xy + float2(getLDSValue(bounce, 1), getLDSValue(bounce, 2)), 1.0));
 
-    // payload.color = bsdf.Evaluate(woLocal, sample.wi).f;
-    payload.raydir = frame.localToWorld(sample.wi);
-    payload.attenuation = sample.f * abs(sample.wi.z) / sample.pdf;
+    if (bsdfSample.flags & (BSDFSampleFlags::Diffuse | BSDFSampleFlags::Glossy)) {
+        // TODO: sample the lights here
+    }
 
-    // payload.color = color;
+    payload.raydir = shadingFrame.localToWorld(bsdfSample.wi);
+    payload.beta = bsdfSample.f * abs(bsdfSample.wi.z) / bsdfSample.pdf;
 }

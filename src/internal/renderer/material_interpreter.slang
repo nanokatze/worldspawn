@@ -21,6 +21,8 @@ public enum Op {
 
     Load, // TODO: rename
     LoadAttribute, // TODO: rename
+    // TODO: make normal be loaded either with LoadAttribute or with a dedicated
+    // thing.
 
-    BSDFOrenNayarDiffuse,
+    BSDFDiffuse,
 };
