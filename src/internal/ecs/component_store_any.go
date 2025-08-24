@@ -5,7 +5,7 @@ import (
 	"iter"
 	"reflect"
 
-	"worldspawn/ecs/bitset"
+	"worldspawn/internal/ecs/bitset"
 )
 
 // TODO: idk if I like the name "Reflect" or "Any". We'll want to think about it

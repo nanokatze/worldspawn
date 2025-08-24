@@ -3,7 +3,7 @@ package worldspawn
 import (
 	"time"
 
-	"worldspawn/ecs"
+	"worldspawn/internal/ecs"
 )
 
 type GrenadeLauncherGrenade struct {

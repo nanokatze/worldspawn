@@ -6,7 +6,7 @@ import (
 
 	"github.com/go-json-experiment/json"
 
-	"worldspawn/ecs"
+	"worldspawn/internal/ecs"
 )
 
 /*

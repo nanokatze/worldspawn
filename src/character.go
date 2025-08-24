@@ -1,7 +1,7 @@
 package worldspawn
 
 import (
-	"worldspawn/ecs"
+	"worldspawn/internal/ecs"
 )
 
 // TODO: rename this to something like "accepts input packets"

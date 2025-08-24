@@ -3,8 +3,8 @@ package worldspawn
 import (
 	"time"
 
-	"worldspawn/ecs"
 	"worldspawn/geometry-go"
+	"worldspawn/internal/ecs"
 )
 
 // TODO: swap weaponID and operatorID places?

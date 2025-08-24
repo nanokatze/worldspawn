@@ -25,13 +25,13 @@ import (
 	"golang.org/x/text/message"
 
 	"worldspawn"
-	"worldspawn/ecs"
 	sfx "worldspawn/fuckwwise"
 	"worldspawn/fuckwwise/opusfile"
 	"worldspawn/fuckwwise/wav"
 	"worldspawn/geometry-go"
 	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
+	"worldspawn/internal/ecs"
 	"worldspawn/internal/renderer"
 	"worldspawn/sdl"
 )

@@ -1,8 +1,8 @@
 package worldspawn
 
 import (
-	"worldspawn/ecs"
 	"worldspawn/geometry-go"
+	"worldspawn/internal/ecs"
 )
 
 type WeaponGenericMelee struct {

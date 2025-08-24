@@ -3,7 +3,7 @@ package ecs
 import (
 	"iter"
 
-	"worldspawn/ecs/bitset"
+	"worldspawn/internal/ecs/bitset"
 )
 
 type Tuple[V1, V2 any] struct {

@@ -4,8 +4,8 @@ import (
 	"math"
 	"time"
 
-	"worldspawn/ecs"
 	"worldspawn/geometry-go"
+	"worldspawn/internal/ecs"
 	"worldspawn/physics"
 )
 

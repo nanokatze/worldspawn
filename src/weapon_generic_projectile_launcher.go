@@ -4,8 +4,8 @@ import (
 	"math"
 	"time"
 
-	"worldspawn/ecs"
 	"worldspawn/geometry-go"
+	"worldspawn/internal/ecs"
 )
 
 // TODO: I think the way we should do attachments is by spawning two models

@@ -9,9 +9,9 @@ import (
 
 	"github.com/go-json-experiment/json"
 
-	"worldspawn/ecs"
-	"worldspawn/ecs/bitset"
 	"worldspawn/geometry-go"
+	"worldspawn/internal/ecs"
+	"worldspawn/internal/ecs/bitset"
 	"worldspawn/internal/nice"
 	"worldspawn/physics"
 )
@@ -35,19 +35,13 @@ var WorldNiceOptions = nice.JoinOptions(
 	nice.WithUnmarshaler(EntityNiceUnmarshaler),
 )
 
-type UpdateFlags int
-
-const (
-	Speculating UpdateFlags = 1 << iota
-)
-
 type UpdateParams struct {
 	Δt          time.Duration
 	Speculating bool
 	Logger      *slog.Logger
 }
 
-// TODO: move this into the World object
+// TODO: move this into the World object?
 var Data fs.FS
 
 // TODO: something to let us control what gets sent to a client.
@@ -80,12 +74,7 @@ func (w *World) Transform(id ecs.ID) (geometry.Mat4x4, bool) {
 type SingletonComponents struct {
 	Now Time
 
-	// TODO: replace it with full blown sky material struct/map?
-	//
-	// TODO: make this a non-singleton component so we can have different parts
-	// of the map have different skies? Yes, actually, we'll probably want to
-	// make a "Scene" entity that envelopes a scene. Scenes will live in their
-	// separate TLASes so Sky can always be just a miss shader.
+	// TODO: replace it with sky material
 	Sky string
 
 	Gravity geometry.Vec3

@@ -3,7 +3,7 @@ package ecs
 import (
 	"fmt"
 
-	"worldspawn/ecs/bitset"
+	"worldspawn/internal/ecs/bitset"
 )
 
 // TODO: rename into something else, e.g. IDManager

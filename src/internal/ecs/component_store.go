@@ -7,7 +7,7 @@ import (
 	"github.com/go-json-experiment/json"
 	"github.com/go-json-experiment/json/jsontext"
 
-	"worldspawn/ecs/bitset"
+	"worldspawn/internal/ecs/bitset"
 )
 
 type ComponentStore[V any] struct {

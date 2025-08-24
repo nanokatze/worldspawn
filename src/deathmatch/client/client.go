@@ -17,7 +17,7 @@ import (
 	"github.com/quic-go/quic-go"
 
 	"worldspawn"
-	"worldspawn/ecs"
+	"worldspawn/internal/ecs"
 	"worldspawn/internal/nice"
 	"worldspawn/internal/protocol"
 )
