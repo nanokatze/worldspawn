@@ -216,8 +216,7 @@ func (w *Scene) IsEntityValid(id ecs.ID) bool {
 	return w.IDAlloc.Valid(id)
 }
 
-// TODO: rename to CreateEntity
-func (w *Scene) SpawnEntity() ecs.ID {
+func (w *Scene) CreateEntity() ecs.ID {
 	return w.IDAlloc.Alloc()
 }
 
