@@ -19,9 +19,9 @@ func init() {
 }
 
 func (grenade GrenadeLauncherGrenade) UpdateAfterPhysics(w *Scene, id ecs.ID, info *UpdateParams) {
-	spawnTime, _ := w.CreatedAt.Load(id)
-
-	if w.Now < spawnTime.Add(grenade.Fuse) {
+	createdAt, _ := w.CreatedAt.Load(id)
+	explosionTime := createdAt.Add(grenade.Fuse)
+	if w.Now.Before(explosionTime) {
 		return
 	}
 
