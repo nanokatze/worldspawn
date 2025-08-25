@@ -376,8 +376,8 @@ var comps = []string{
 	"ViewPunchVelocity",
 	"Viewmodel",
 	"PlayerSpawn",
-	"ResetCosmeticOffsetOnContact",
-	"SpawnTime",
+	"DeleteCosmeticOffsetOnContact",
+	"CreatedAt",
 	"DeleteAfter",
 }
 

@@ -258,8 +258,8 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 		"ViewPunchVelocity",
 		"Viewmodel",
 		"PlayerSpawn",
-		"ResetCosmeticOffsetOnContact",
-		"SpawnTime",
+		"DeleteCosmeticOffsetOnContact",
+		"CreatedAt",
 		"DeleteAfter",
 	}
 

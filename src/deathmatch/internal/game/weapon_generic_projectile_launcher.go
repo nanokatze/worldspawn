@@ -101,8 +101,8 @@ func (weapon WeaponGenericProjectileLauncher) WeaponUpdateSubtick(w *Scene, id, 
 		// can be e.g. hitboxes etc) should be specified through WeaponAim
 		w.PhysicsFilter.Store(projectile, []ecs.ID{playerID})
 		// w.PhysicsInertiaOverride.Store(projectile, geometry.Mat4x4Diagonal(geometry.Vec4Broadcast(1)))
-		w.ResetCosmeticOffsetOnContact.Store(projectile, struct{}{})
-		w.SpawnTime.Store(projectile, w.Now)
+		w.DeleteCosmeticOffsetOnContact.Store(projectile, struct{}{})
+		w.CreatedAt.Store(projectile, w.Now)
 	}
 
 	w.SoundEffect.Store(id, SoundEffect{

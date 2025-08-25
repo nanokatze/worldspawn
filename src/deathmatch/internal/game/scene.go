@@ -101,7 +101,7 @@ type SingletonComponents struct {
 type Components struct {
 	Name ecs.ComponentStore[string]
 
-	Entity ecs.ComponentStore[Entity]
+	CreatedAt ecs.ComponentStore[Time]
 
 	Parent   ecs.ComponentStore[ecs.ID]
 	Children ecs.ComponentStore[[]ecs.ID] // map[ecs.ID]struct{} ?
@@ -111,12 +111,12 @@ type Components struct {
 
 	Velocity ecs.ComponentStore[Velocity]
 
+	CosmeticOffset                ecs.ComponentStore[CosmeticOffset]
+	DeleteCosmeticOffsetOnContact ecs.ComponentStore[struct{}]
+
 	RenderingGeometry ecs.ComponentStore[RenderingGeometry]
 
 	SoundEffect ecs.ComponentStore[SoundEffect]
-
-	CosmeticOffset               ecs.ComponentStore[CosmeticOffset]
-	ResetCosmeticOffsetOnContact ecs.ComponentStore[struct{}]
 
 	// Posing test
 	Animation ecs.ComponentStore[Animation]
@@ -149,8 +149,6 @@ type Components struct {
 
 	PlayerSpawn ecs.ComponentStore[struct{}]
 
-	SpawnTime ecs.ComponentStore[Time]
-
 	DeleteAfter ecs.ComponentStore[Time]
 
 	// Timer ecs.ComponentStore[time.Duration]
@@ -161,9 +159,13 @@ type Components struct {
 	// TODO: generalize to all events, including damage etc?
 	ContactEvents ecs.ComponentStore[[]ContactEvent]
 
-	Delete ecs.ComponentStore[struct{}]
-
+	// TODO: rename to just Collection?
 	CollectionInstance ecs.ComponentStore[CollectionInstance]
+
+	// TODO: rename, to e.g. Logic?
+	Entity ecs.ComponentStore[Entity]
+
+	Delete ecs.ComponentStore[struct{}]
 }
 
 type Scene struct {
@@ -407,7 +409,7 @@ func (w *Scene) Update(info *UpdateParams) {
 			})
 	*/
 
-	for id, v := range ecs.Join(w.ContactEvents, w.ResetCosmeticOffsetOnContact) {
+	for id, v := range ecs.Join(w.ContactEvents, w.DeleteCosmeticOffsetOnContact) {
 		for _, ce := range v.V1 {
 			if ce.Type == 1 {
 				w.CosmeticOffset.Delete(id)
