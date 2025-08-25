@@ -41,11 +41,14 @@ def cook_objects_into(context, xform, collection, cooked_scene):
 
         comps = dict(obj.get('worldspawn', {}).get('components', {}))
 
+        # TODO: should we always overwrite the components?
+        # We might want to warn or error if these comps are already set. Or
+        # don't overwrite if these are already set. Erroring out seems to be the
+        # more useful option of the two.
+
+        comps['Name'] = obj.name
+
         T, R, S = (xform @ obj.matrix_world).decompose()
-        # TODO: should we always overwrite these?
-        # We might want to warn or error if these comps are already set.
-        # Or don't overwrite if these are already set.
-        # Erroring out seems to be the more useful option of the two.
         comps['TranslationRotation'] = {
             'Translation': T,
             'Rotation': R,
@@ -71,8 +74,6 @@ def cook_objects_into(context, xform, collection, cooked_scene):
             comps['CollectionInstance'] = {
                 'Filename': context.path_for_datablock(obj.instance_collection),
             }
-
-        # comps['Name'] = obj.name
 
         cooked_scene.add_entity(comps)
 

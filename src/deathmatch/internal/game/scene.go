@@ -99,6 +99,8 @@ type SingletonComponents struct {
 // TODO: rename
 // TODO: introduce struct tags like compatibility names etc
 type Components struct {
+	Name ecs.ComponentStore[string]
+
 	Entity ecs.ComponentStore[Entity]
 
 	Parent   ecs.ComponentStore[ecs.ID]
