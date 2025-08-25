@@ -24,7 +24,7 @@ import (
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 
-	"worldspawn"
+	"worldspawn/deathmatch/internal/game"
 	sfx "worldspawn/fuckwwise"
 	"worldspawn/fuckwwise/opusfile"
 	"worldspawn/fuckwwise/wav"
@@ -123,7 +123,7 @@ func main() {
 
 	// TODO: should newRemoteSession do the logging instead? Yes.
 
-	worldspawn.Data = os.DirFS(*dataDir)
+	game.Data = os.DirFS(*dataDir)
 
 	session, err := newClient(clientRenderer, raddr)
 	if err != nil {
@@ -450,10 +450,10 @@ type idk struct {
 	sceneMu        sync.Mutex // TODO: rename, embed or leave as is?
 	scene          *renderer.SceneDirty
 	t0sdl, t1sdl   uint64 // TODO: special type to represent SDL ticks?
-	t0game, t1game worldspawn.Time
+	t0game, t1game game.Time
 }
 
-func (sr *idk) Tick(w *worldspawn.World, playerID ecs.ID, t0, t1 worldspawn.Time, frameDuration time.Duration) {
+func (sr *idk) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration) {
 	sr.sceneMu.Lock()
 	defer sr.sceneMu.Unlock()
 
@@ -482,7 +482,7 @@ func (sr *idk) Tick(w *worldspawn.World, playerID ecs.ID, t0, t1 worldspawn.Time
 		playerEntity, _ := w.Entity.Load(playerID)
 
 		// TODO: we should just parent stuff to bone
-		activeWeapon := playerEntity.(worldspawn.FPSCharacter).ActiveWeapon
+		activeWeapon := playerEntity.(game.FPSCharacter).ActiveWeapon
 
 		for id, v := range ecs.Join(w.RenderingGeometry, w.TranslationRotation) {
 			renderingGeometry := v.V1
@@ -517,7 +517,7 @@ func (sr *idk) Tick(w *worldspawn.World, playerID ecs.ID, t0, t1 worldspawn.Time
 				horizontalVelocity := velocity.Linear.Add(up.Scale(-velocity.Linear.Dot(up)))
 
 				// worldspawn.Time{} here is an ugly hack, stop doing that
-				viewmodelSway := geometry.Vec3{0, float32(math.Sin(10*durationSeconds(w.Now.Sub(worldspawn.Time(0)))) * 0.01 * min(float64(horizontalVelocity.Length()), 1)), 0}
+				viewmodelSway := geometry.Vec3{0, float32(math.Sin(10*durationSeconds(w.Now.Sub(game.Time(0)))) * 0.01 * min(float64(horizontalVelocity.Length()), 1)), 0}
 
 				sr.scene.Parent[i] = 1999
 
@@ -588,7 +588,7 @@ func (sr *idk) Tick(w *worldspawn.World, playerID ecs.ID, t0, t1 worldspawn.Time
 		i := 1999
 		{
 			playerEntity, _ := w.Entity.Load(playerID)
-			fpsCharacter := playerEntity.(worldspawn.FPSCharacter)
+			fpsCharacter := playerEntity.(game.FPSCharacter)
 			positionRotation, _ := w.TranslationRotation.Load(playerID)
 			viewPunch, ok := w.ViewPunch.Load(playerID)
 			if !ok {
@@ -633,7 +633,7 @@ func (sr *idk) Tick(w *worldspawn.World, playerID ecs.ID, t0, t1 worldspawn.Time
 
 			effect, ok := sources[soundEffect.Effect]
 			if !ok {
-				f, err := worldspawn.Data.Open(soundEffect.Effect)
+				f, err := game.Data.Open(soundEffect.Effect)
 				if err != nil {
 					// TODO: should be non-fatal
 					panic(fmt.Sprintf("failed to open file %v", soundEffect.Effect))
@@ -667,24 +667,24 @@ func (sr *idk) Tick(w *worldspawn.World, playerID ecs.ID, t0, t1 worldspawn.Time
 			scene.Instance = append(scene.Instance, sfx.Instance{
 				Transform: len(scene.TransformT0) - 1,
 				Source:    effect,
-				PlayTime:  soundEffect.PlayTime.Sub(worldspawn.Time(0)),
+				PlayTime:  soundEffect.PlayTime.Sub(game.Time(0)),
 			})
 		}
 
 		// TODO: let us do multiple audio renders per frame. Should be nice for
 		// sessions with long ticks
-		renderAudio(scene, t0.Sub(worldspawn.Time(0)), t1.Sub(t0))
+		renderAudio(scene, t0.Sub(game.Time(0)), t1.Sub(t0))
 	}
 }
 
-func (sr *idk) Subtick(w *worldspawn.World, playerID ecs.ID) {
+func (sr *idk) Subtick(w *game.Scene, playerID ecs.ID) {
 	sr.sceneMu.Lock()
 	defer sr.sceneMu.Unlock()
 
 	i := 1999
 
 	playerEntity, _ := w.Entity.Load(playerID)
-	fpsCharacter := playerEntity.(worldspawn.FPSCharacter)
+	fpsCharacter := playerEntity.(game.FPSCharacter)
 	positionRotation, _ := w.TranslationRotation.Load(playerID)
 	viewPunch, ok := w.ViewPunch.Load(playerID)
 	if !ok {
@@ -708,7 +708,7 @@ type flickStick struct {
 
 var flickStickTest flickStick
 
-func sdlTimeToGameTime(ticks uint64) worldspawn.Time {
+func sdlTimeToGameTime(ticks uint64) game.Time {
 	clientRenderer.sceneMu.Lock()
 	defer clientRenderer.sceneMu.Unlock()
 
@@ -721,15 +721,15 @@ func sdlTimeToGameTime(ticks uint64) worldspawn.Time {
 // https://github.com/libsdl-org/SDL/issues/4464 🥺
 
 var keyActions = map[sdl.Keycode]int{
-	sdl.K_SPACE: worldspawn.ActionJump,
-	sdl.K_LCTRL: worldspawn.ActionCrouch,
+	sdl.K_SPACE: game.ActionJump,
+	sdl.K_LCTRL: game.ActionCrouch,
 }
 
 var gamepadButtonActions = map[sdl.GamepadButton]int{
-	sdl.GAMEPAD_BUTTON_DPAD_UP:    worldspawn.ActionSlot1,
-	sdl.GAMEPAD_BUTTON_DPAD_DOWN:  worldspawn.ActionSlot3,
-	sdl.GAMEPAD_BUTTON_DPAD_LEFT:  worldspawn.ActionSlot0,
-	sdl.GAMEPAD_BUTTON_DPAD_RIGHT: worldspawn.ActionSlot2,
+	sdl.GAMEPAD_BUTTON_DPAD_UP:    game.ActionSlot1,
+	sdl.GAMEPAD_BUTTON_DPAD_DOWN:  game.ActionSlot3,
+	sdl.GAMEPAD_BUTTON_DPAD_LEFT:  game.ActionSlot0,
+	sdl.GAMEPAD_BUTTON_DPAD_RIGHT: game.ActionSlot2,
 }
 
 // GAMEPAD_BUTTON_START and K_ESC act as ways to switch between the menu and the
@@ -741,7 +741,7 @@ var gamepadButtonActions = map[sdl.GamepadButton]int{
 // TODO: we can filter out unchanging actions here
 
 func handleInput(e any) {
-	var cmds []worldspawn.TimestampedInputCmd
+	var cmds []game.TimestampedInputCmd
 
 	switch e := e.(type) {
 	case *sdl.WindowPixelSizeChangedEvent:
@@ -751,21 +751,21 @@ func handleInput(e any) {
 		etime := sdlTimeToGameTime(e.Timestamp)
 
 		if action, ok := keyActions[e.Key]; ok {
-			cmds = worldspawn.AppendAction(cmds, etime, action, 1)
+			cmds = game.AppendAction(cmds, etime, action, 1)
 		}
 
 	case *sdl.KeyUpEvent:
 		etime := sdlTimeToGameTime(e.Timestamp)
 
 		if action, ok := keyActions[e.Key]; ok {
-			cmds = worldspawn.AppendAction(cmds, etime, action, 0)
+			cmds = game.AppendAction(cmds, etime, action, 0)
 		}
 
 	case *sdl.MouseMotionEvent:
 		etime := sdlTimeToGameTime(e.Timestamp)
 
-		cmds = worldspawn.AppendAction(cmds, etime, worldspawn.ActionDLookX, e.XRel*0.0005)
-		cmds = worldspawn.AppendAction(cmds, etime, worldspawn.ActionDLookY, e.YRel*0.0005)
+		cmds = game.AppendAction(cmds, etime, game.ActionDLookX, e.XRel*0.0005)
+		cmds = game.AppendAction(cmds, etime, game.ActionDLookY, e.YRel*0.0005)
 
 	case *sdl.GamepadAxisMotionEvent:
 		etime := sdlTimeToGameTime(e.Timestamp)
@@ -778,14 +778,14 @@ func handleInput(e any) {
 				value = 0
 			}
 
-			cmds = worldspawn.AppendAction(cmds, etime, worldspawn.ActionMoveX, value)
+			cmds = game.AppendAction(cmds, etime, game.ActionMoveX, value)
 
 		case sdl.GAMEPAD_AXIS_LEFTY:
 			if math.Abs(float64(value)) < 0.2 {
 				value = 0
 			}
 
-			cmds = worldspawn.AppendAction(cmds, etime, worldspawn.ActionMoveY, -value)
+			cmds = game.AppendAction(cmds, etime, game.ActionMoveY, -value)
 
 		case sdl.GAMEPAD_AXIS_RIGHTX:
 			flickStickTest.deflection.X = value
@@ -794,7 +794,7 @@ func handleInput(e any) {
 			flickStickTest.deflection.Y = value
 
 		case sdl.GAMEPAD_AXIS_RIGHT_TRIGGER:
-			cmds = worldspawn.AppendAction(cmds, etime, worldspawn.ActionAttack, step(0.9, value))
+			cmds = game.AppendAction(cmds, etime, game.ActionAttack, step(0.9, value))
 		}
 
 	case *sdl.GamepadButtonDownEvent:
@@ -805,14 +805,14 @@ func handleInput(e any) {
 		}
 
 		if action, ok := gamepadButtonActions[sdl.GamepadButton(e.Button)]; ok {
-			cmds = worldspawn.AppendAction(cmds, etime, action, 1)
+			cmds = game.AppendAction(cmds, etime, action, 1)
 		}
 
 	case *sdl.GamepadButtonUpEvent:
 		etime := sdlTimeToGameTime(e.Timestamp)
 
 		if action, ok := gamepadButtonActions[sdl.GamepadButton(e.Button)]; ok {
-			cmds = worldspawn.AppendAction(cmds, etime, action, 0)
+			cmds = game.AppendAction(cmds, etime, action, 0)
 		}
 
 	case *sdl.GamepadUpdateCompleteEvent:
@@ -847,7 +847,7 @@ func handleInput(e any) {
 
 			dlookx := float32(math.Atan2(float64(imag(D)), float64(real(D))) / (2 * math.Pi))
 
-			cmds = worldspawn.AppendAction(cmds, etime, worldspawn.ActionDLookX, dlookx)
+			cmds = game.AppendAction(cmds, etime, game.ActionDLookX, dlookx)
 
 			flickStickTest.lastDeflection = flickStickTest.deflection
 		}

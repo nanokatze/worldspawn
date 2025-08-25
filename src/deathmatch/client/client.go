@@ -16,7 +16,7 @@ import (
 
 	"github.com/quic-go/quic-go"
 
-	"worldspawn"
+	"worldspawn/deathmatch/internal/game"
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/nice"
 	"worldspawn/internal/protocol"
@@ -27,12 +27,11 @@ var _ = hex.Dump
 // TODO: make both calls usable for updating other state (notably action
 // sets/layers but also gamepad LEDs/rumble?) Actually LEDs/rumble would be figured out
 // TODO: shrink the interface so that we only pass the components that the
-// renderer cares about
-// TODO: reformulate the interface in terms of renderer's scene instead of
-// worldspawn component stores?
+// renderer cares about, or reformulate the interface in terms of renderer's
+// scene instead of worldspawn component stores?
 type Renderer interface {
-	Tick(w *worldspawn.World, camera ecs.ID, t0, t1 worldspawn.Time, frameDuration time.Duration)
-	Subtick(w *worldspawn.World, camera ecs.ID)
+	Tick(w *game.Scene, camera ecs.ID, t0, t1 game.Time, frameDuration time.Duration)
+	Subtick(w *game.Scene, camera ecs.ID)
 }
 
 type Client struct {
@@ -43,10 +42,10 @@ type Client struct {
 	conn        *quic.Conn
 	inputStream *quic.SendStream
 
-	inputCmds []worldspawn.TimestampedInputCmd
+	inputCmds []game.TimestampedInputCmd
 
 	Δt    time.Duration
-	world *worldspawn.World
+	world *game.Scene
 
 	// TODO: we could be in control of many player entities
 	player ecs.ID
@@ -120,7 +119,7 @@ func newClient(renderer Renderer, addr string) (*Client, error) {
 				// secondary (above the primary)
 				log.Print("maxEntities=", maxEntities)
 				s.mu.Lock()
-				s.world = worldspawn.NewWorld(int(maxEntities))
+				s.world = game.NewScene(int(maxEntities))
 				// TODO: we should also stop rendering until we get the first
 				// UpdateWorld
 				s.mu.Unlock()
@@ -191,7 +190,7 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 
 	r := bytes.NewReader(buf)
 
-	dec := nice.NewDecoder(r, nice.WithUnmarshaler(worldspawn.EntityNiceUnmarshaler))
+	dec := nice.NewDecoder(r, nice.WithUnmarshaler(game.EntityNiceUnmarshaler))
 
 	if err := nice.UnmarshalDecode(dec, &s.world.SingletonComponents); err != nil {
 		return err
@@ -305,14 +304,14 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 	return nil
 }
 
-func (s *Client) HandleInput(cmds []worldspawn.TimestampedInputCmd) {
+func (s *Client) HandleInput(cmds []game.TimestampedInputCmd) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	s.inputCmds = append(s.inputCmds, cmds...)
 
 	for _, cmd := range cmds {
-		s.world.HandleInput(s.player, cmd, &worldspawn.UpdateParams{Δt: s.Δt, Speculating: true, Logger: slog.Default()})
+		s.world.HandleInput(s.player, cmd, &game.UpdateParams{Δt: s.Δt, Speculating: true, Logger: slog.Default()})
 	}
 	s.renderer.Subtick(s.world, s.player)
 }
@@ -337,18 +336,18 @@ func (s *Client) tick(Δt time.Duration) {
 		msg.Next()
 	}
 
-	s.world.Update(&worldspawn.UpdateParams{Δt: Δt, Speculating: true, Logger: slog.Default()})
+	s.world.Update(&game.UpdateParams{Δt: Δt, Speculating: true, Logger: slog.Default()})
 
 	s.renderer.Tick(s.world, s.player, s.world.Now, s.world.Now.Add(Δt), Δt)
 
-	worldspawn.ClearTransientComponents(s.world)
+	game.ClearTransientComponents(s.world)
 
 	s.world.Now = s.world.Now.Add(Δt)
 }
 
 // TODO: remove this func in favor of the caller just using nice directly?
-func writeInputCmds(w io.Writer, cmds []worldspawn.TimestampedInputCmd) error {
-	enc := nice.NewEncoder(w, nice.WithMarshaler(worldspawn.InputCommandNiceMarshal))
+func writeInputCmds(w io.Writer, cmds []game.TimestampedInputCmd) error {
+	enc := nice.NewEncoder(w, nice.WithMarshaler(game.InputCommandNiceMarshal))
 	return nice.MarshalEncode(enc, &cmds)
 }
 

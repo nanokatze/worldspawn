@@ -1,4 +1,4 @@
-package worldspawn
+package game
 
 import (
 	"fmt"
@@ -164,8 +164,7 @@ type Components struct {
 	CollectionInstance ecs.ComponentStore[CollectionInstance]
 }
 
-// TODO: rename to Scene?
-type World struct {
+type Scene struct {
 	SingletonComponents
 
 	IDAlloc *ecs.IDAlloc
@@ -176,8 +175,8 @@ type World struct {
 	physicsBodyExists  ecs.ComponentStore[struct{}]
 }
 
-func NewWorld(n int) *World {
-	w := new(World)
+func NewScene(n int) *Scene {
+	w := new(Scene)
 
 	w.IDAlloc = ecs.NewIDAlloc(n)
 
@@ -204,17 +203,17 @@ func NewWorld(n int) *World {
 	return w
 }
 
-func (w *World) Destroy() {
+func (w *Scene) Destroy() {
 	// TODO: stop and destroy physicsSystem here
 }
 
 // TODO: remove these entity-related funcs?
-func (w *World) IsEntityValid(id ecs.ID) bool {
+func (w *Scene) IsEntityValid(id ecs.ID) bool {
 	return w.IDAlloc.Valid(id)
 }
 
 // TODO: rename to CreateEntity
-func (w *World) SpawnEntity() ecs.ID {
+func (w *Scene) SpawnEntity() ecs.ID {
 	return w.IDAlloc.Alloc()
 }
 
@@ -222,7 +221,7 @@ func (w *World) SpawnEntity() ecs.ID {
 //
 // TODO: is the way we use it correct (deleting entities in-between ticks?)
 // TODO: could we bulk delete things?
-func (w *World) DeleteEntityImmediately(id ecs.ID) {
+func (w *Scene) DeleteEntityImmediately(id ecs.ID) {
 	components := reflect.ValueOf(w).Elem().FieldByName("Components")
 	for i := range components.NumField() {
 		components.Field(i).Addr().Interface().(interface{ Delete(ecs.ID) }).Delete(id)
@@ -236,7 +235,7 @@ func (w *World) DeleteEntityImmediately(id ecs.ID) {
 }
 
 // TODO: rename to User/Player/etc Input
-func (w *World) HandleInput(id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
+func (w *Scene) HandleInput(id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
 	if entity, ok := assertEntity[Character](w, id); ok {
 		entity.CharacterUpdate(w, id, cmd, info)
 	} else {
@@ -247,7 +246,7 @@ func (w *World) HandleInput(id ecs.ID, cmd TimestampedInputCmd, info *UpdatePara
 // TODO: parallel for in blender for example specifies bulk number for tasks so
 // we might want to do the same.
 
-func (w *World) Update(info *UpdateParams) {
+func (w *Scene) Update(info *UpdateParams) {
 	if w.Now == 0 {
 		panic("Now must never be zero")
 	}
@@ -447,14 +446,14 @@ func (w *World) Update(info *UpdateParams) {
 	}
 }
 
-func ClearTransientComponents(w *World) {
+func ClearTransientComponents(w *Scene) {
 	// TODO: uncomment this when we find a good way to draw view models
 	// w.WeaponAim.Clear()
 
 	w.ContactEvents.Clear()
 }
 
-func assertEntity[T any](w *World, id ecs.ID) (T, bool) {
+func assertEntity[T any](w *Scene, id ecs.ID) (T, bool) {
 	entity, _ := w.Entity.Load(id)
 	entityT, ok := entity.(T)
 	if !ok {

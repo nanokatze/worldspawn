@@ -1,4 +1,4 @@
-package worldspawn
+package game
 
 import (
 	"math"
@@ -47,7 +47,7 @@ func init() {
 
 var _ Character = FPSCharacter{}
 
-func (entity FPSCharacter) CharacterUpdate(w *World, id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
+func (entity FPSCharacter) CharacterUpdate(w *Scene, id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
 	positionRotation, _ := w.TranslationRotation.Load(id)
 	inventory, _ := w.ArmedCharacter.Load(id)
 
@@ -130,7 +130,7 @@ func (entity FPSCharacter) CharacterUpdate(w *World, id ecs.ID, cmd TimestampedI
 
 var _ UpdateBeforePhysics = FPSCharacter{}
 
-func (fpsCharacter FPSCharacter) UpdateBeforePhysics(w *World, id ecs.ID, info *UpdateParams) {
+func (fpsCharacter FPSCharacter) UpdateBeforePhysics(w *Scene, id ecs.ID, info *UpdateParams) {
 	positionRotation, _ := w.TranslationRotation.Load(id)
 	velocity, _ := w.Velocity.Load(id)
 
@@ -175,7 +175,7 @@ func planeSignedDistance(plane geometry.Vec4, point geometry.Vec3) float32 {
 	return point.Dot(planeNormal(plane)) + plane[3]
 }
 
-func (fpsCharacter *FPSCharacter) asdasd(w *World, id ecs.ID, velocity geometry.Vec3, Δt time.Duration) geometry.Vec3 {
+func (fpsCharacter *FPSCharacter) asdasd(w *Scene, id ecs.ID, velocity geometry.Vec3, Δt time.Duration) geometry.Vec3 {
 	positionRotation, _ := w.TranslationRotation.Load(id)
 	shape, _ := w.CollisionGeometry.Load(id)
 

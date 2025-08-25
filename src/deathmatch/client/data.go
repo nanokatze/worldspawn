@@ -3,7 +3,7 @@ package main
 import (
 	"io"
 
-	"worldspawn"
+	"worldspawn/deathmatch/internal/game"
 	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
 	"worldspawn/image/ktx2"
@@ -21,7 +21,7 @@ func texture(filename string) *renderer.Texture {
 	if !ok {
 		// TODO: move this code into its own func + handle errors and everything.
 
-		f, err := worldspawn.Data.Open(filename)
+		f, err := game.Data.Open(filename)
 		if err != nil {
 			panic(err)
 		}
@@ -90,7 +90,7 @@ func texture(filename string) *renderer.Texture {
 func model(filename string) *renderer.Mesh {
 	m, ok := modelcache[filename]
 	if !ok {
-		f, err := worldspawn.Data.Open(filename)
+		f, err := game.Data.Open(filename)
 		if err != nil {
 			panic(err)
 		}

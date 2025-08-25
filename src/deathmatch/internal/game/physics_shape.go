@@ -1,4 +1,4 @@
-package worldspawn
+package game
 
 //go:generate stringer -trimprefix PhysicsShape -type PhysicsShapeKind -output physics_shape_kind_string.go
 

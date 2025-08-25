@@ -1,10 +1,11 @@
-package worldspawn
+package game
 
 import (
 	"cmp"
 	"time"
 )
 
+// TODO: move this to common code
 // TODO: hide that it's int64 internally
 // type Time struct { T int64 }
 type Time int64

@@ -1,4 +1,4 @@
-package worldspawn
+package game
 
 import (
 	"fmt"

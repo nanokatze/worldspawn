@@ -1,4 +1,4 @@
-package worldspawn
+package game
 
 import (
 	"math"
@@ -63,7 +63,7 @@ var _ Weapon = WeaponSniperRifle{}
 
 // TODO: change to value receiver? we might want the network differ to assume
 // that the state only changed if it's different by value comparison.
-func (weapon WeaponSniperRifle) WeaponUpdateSubtick(w *World, weaponID, operatorID ecs.ID, now Time, info *UpdateParams) (recoil geometry.Vec3) {
+func (weapon WeaponSniperRifle) WeaponUpdateSubtick(w *Scene, weaponID, operatorID ecs.ID, now Time, info *UpdateParams) (recoil geometry.Vec3) {
 	if w.Now < weapon.NextAttack {
 		return
 	}

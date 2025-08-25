@@ -5,7 +5,7 @@ import "reflect"
 type options struct {
 	customMarshalers   map[reflect.Type]marshaler
 	customUnmarshalers map[reflect.Type]unmarshaler
-	sizeLimit          int // TODO: expose this
+	sizeLimit          int
 }
 
 type Option func(opts *options)

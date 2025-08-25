@@ -1,4 +1,4 @@
-package worldspawn
+package game
 
 import (
 	"time"
@@ -9,12 +9,12 @@ import (
 
 // TODO: rename to BeforePhysics
 type UpdateBeforePhysics interface {
-	UpdateBeforePhysics(w *World, id ecs.ID, info *UpdateParams)
+	UpdateBeforePhysics(w *Scene, id ecs.ID, info *UpdateParams)
 }
 
 // TODO: rename to AfterPhysics
 type UpdateAfterPhysics interface {
-	UpdateAfterPhysics(w *World, id ecs.ID, info *UpdateParams)
+	UpdateAfterPhysics(w *Scene, id ecs.ID, info *UpdateParams)
 }
 
 // TODO: rename to just Layer and move it to worldspawn.go? We'll want another
@@ -95,7 +95,7 @@ type ContactEvent struct {
 
 // Always execute this system before systems performing physics queries!!!
 // TODO: a more descriptive name
-func worldToPhysics(w *World) {
+func worldToPhysics(w *Scene) {
 	for id := range w.physicsBodyExists.All() {
 		if _, ok := w.CollisionLayer.Load(id); !ok {
 			w.physicsSystem.RemoveBody(physics.BodyID(id))
@@ -179,7 +179,7 @@ func worldToPhysics(w *World) {
 }
 
 // TODO: we could split this back so that we can run stuff in parallel
-func updatePhysics(w *World, Δt time.Duration) {
+func updatePhysics(w *Scene, Δt time.Duration) {
 	w.physicsSystem.SetGravity(w.Gravity)
 	w.physicsSystem.Update(float32(durationToFloatSeconds(Δt)))
 

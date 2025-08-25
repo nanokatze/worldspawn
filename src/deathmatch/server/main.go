@@ -26,7 +26,7 @@ import (
 
 	"github.com/quic-go/quic-go"
 
-	"worldspawn"
+	"worldspawn/deathmatch/internal/game"
 	"worldspawn/geometry-go"
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/nice"
@@ -47,14 +47,14 @@ type Server struct {
 
 	maxEntities int
 
-	world *worldspawn.World
+	world *game.Scene
 
 	// TODO: we only need a subset of the entire world: only networked
 	// components, no physics, etc.
 	//
 	// For lag compensation, we might need physics for queries, but it's not yet
 	// clear how that should be done exactly.
-	prevWorld *worldspawn.World
+	prevWorld *game.Scene
 
 	dirty dirty
 
@@ -66,9 +66,9 @@ type dirty struct {
 	// TODO: should we have a linked list of IDs and place newest updated IDs at
 	// the beginning of the list?
 
-	IDAlloc []worldspawn.Time
+	IDAlloc []game.Time
 
-	Components [][]worldspawn.Time
+	Components [][]game.Time
 }
 
 // TODO: rename to conn?
@@ -84,7 +84,7 @@ type user struct {
 	// has the state for
 	//
 	// protected by WorldMu (TODO: ideally it shouldn't be that way)
-	time worldspawn.Time
+	time game.Time
 
 	send             chan struct{} // TODO: rename to make it clear that this is a sending backpressure semaphore
 	marshaledUpdates chan []byte
@@ -246,7 +246,7 @@ func (s *Server) handleInputPackets(u *user, stream io.Reader) error {
 		// TODO: we don't need double layering of messages and input packets. I
 		// guess we could have a message per input packet?
 
-		var cmds []worldspawn.TimestampedInputCmd
+		var cmds []game.TimestampedInputCmd
 		if err := readInputCmds(deframer, &cmds); err != nil {
 			return err
 		}
@@ -265,7 +265,7 @@ func (s *Server) handleInputPackets(u *user, stream io.Reader) error {
 			// u.time = max(u.time, tmpTime)
 
 			for _, cmd := range cmds {
-				s.world.HandleInput(u.player, cmd, &worldspawn.UpdateParams{Δt: s.Δt, Logger: slog.Default()})
+				s.world.HandleInput(u.player, cmd, &game.UpdateParams{Δt: s.Δt, Logger: slog.Default()})
 			}
 		}()
 
@@ -282,7 +282,7 @@ func (s *Server) tick(Δt time.Duration) {
 	defer s.mu.Unlock()
 
 	trace.WithRegion(context.Background(), "World Update", func() {
-		s.world.Update(&worldspawn.UpdateParams{Δt: s.Δt, Logger: slog.Default()})
+		s.world.Update(&game.UpdateParams{Δt: s.Δt, Logger: slog.Default()})
 	})
 
 	// update s.dirty. TODO: move into its own code?
@@ -333,7 +333,7 @@ func (s *Server) tick(Δt time.Duration) {
 	// TODO: any reason not to clear transients *before* sending updates, etc? I
 	// guess demo recording would want to record the transients. Should we
 	// separate demo recording, relay (tv) and normal replication?
-	worldspawn.ClearTransientComponents(s.world)
+	game.ClearTransientComponents(s.world)
 
 	// Copy the current s.World to s.PrevWorld
 
@@ -395,7 +395,7 @@ func (s *Server) sendUpdates(u *user) {
 	// TODO: we could use our own Buffer with Seek depending on how we're going
 	// to arrange things (where compression will happen etc)
 	buf := new(bytes.Buffer)
-	enc := nice.NewEncoder(buf, worldspawn.WorldNiceOptions)
+	enc := nice.NewEncoder(buf, game.WorldNiceOptions)
 
 	{
 		// TODO: only send SingletonComponents that changed
@@ -410,7 +410,7 @@ func (s *Server) sendUpdates(u *user) {
 		// TODO: we should seek instead of doing extra allocations I think...
 
 		buf2 := new(bytes.Buffer)
-		enc2 := nice.NewEncoder(buf2, worldspawn.WorldNiceOptions)
+		enc2 := nice.NewEncoder(buf2, game.WorldNiceOptions)
 
 		n := 0
 		for i, dirtied := range s.dirty.IDAlloc {
@@ -448,7 +448,7 @@ func (s *Server) sendUpdates(u *user) {
 		cs := ecs.Reflect(reflect.ValueOf(&s.world.Components).Elem().FieldByName(comp).Addr().Interface())
 
 		buf2 := new(bytes.Buffer)
-		enc2 := nice.NewEncoder(buf2, worldspawn.WorldNiceOptions)
+		enc2 := nice.NewEncoder(buf2, game.WorldNiceOptions)
 
 		n := 0
 		v := reflect.New(cs.ElemType())
@@ -516,12 +516,12 @@ func (w *CountingWriter) Write(b []byte) (int, error) {
 
 // TODO: remove this function in favor of just having the caller use
 // nice directly?
-func readInputCmds(r io.Reader, cmds *[]worldspawn.TimestampedInputCmd) error {
-	dec := nice.NewDecoder(r, nice.WithUnmarshaler(worldspawn.InputCommandNiceUnmarshal))
+func readInputCmds(r io.Reader, cmds *[]game.TimestampedInputCmd) error {
+	dec := nice.NewDecoder(r, nice.WithUnmarshaler(game.InputCommandNiceUnmarshal))
 	return nice.UnmarshalDecode(dec, cmds)
 }
 
-func spawnplayer(w *worldspawn.World) ecs.ID {
+func spawnplayer(w *game.Scene) ecs.ID {
 	player := w.IDAlloc.Alloc()
 
 	var playerSpawns []ecs.ID
@@ -529,7 +529,7 @@ func spawnplayer(w *worldspawn.World) ecs.ID {
 		playerSpawns = append(playerSpawns, id)
 	}
 
-	w.Entity.Store(player, worldspawn.FPSCharacter{
+	w.Entity.Store(player, game.FPSCharacter{
 		WalkVelocity:                21.6 / 3.6,
 		BackwardsWalkVelocityFactor: 0.8,
 		WalkAcceleration:            35,
@@ -542,46 +542,46 @@ func spawnplayer(w *worldspawn.World) ecs.ID {
 	w.TranslationRotation.Store(player, t)
 
 	w.Scale.Store(player, geometry.Vec3Broadcast(1))
-	w.RenderingGeometry.Store(player, worldspawn.RenderingGeometry{Filename: "testcharacter4/geometries/TestCharacter4"})
-	w.CollisionGeometry.Store(player, worldspawn.CollisionGeometry{
+	w.RenderingGeometry.Store(player, game.RenderingGeometry{Filename: "testcharacter4/geometries/TestCharacter4"})
+	w.CollisionGeometry.Store(player, game.CollisionGeometry{
 		Translation: geometry.Vec3{0, 0, 1.9 / 2},
 		Rotation:    geometry.Rot3One(),
 		Scale:       geometry.Vec3Broadcast(1),
 
-		Kind:         worldspawn.PhysicsShapeCylinder,
+		Kind:         game.PhysicsShapeCylinder,
 		HalfExtent:   geometry.Vec3{1, 1, 0}.Scale(0.4).Add(geometry.Vec3{0, 0, 1.9 / 2}),
 		ConvexRadius: 0.0,
 	})
-	w.CollisionLayer.Store(player, worldspawn.PhysicsLayerMovingKinematic)
+	w.CollisionLayer.Store(player, game.PhysicsLayerMovingKinematic)
 	w.PhysicsMassOverride.Store(player, 100)
 
 	slots := []ecs.ID{}
 
 	{
-		gun := w.SpawnPrefab(worldspawn.PrefabRef{Filename: "weapons/grenade_launcher/grenade_launcher.json"})
-		w.TranslationRotation.Store(gun, worldspawn.TranslationRotationOne())
+		gun := w.SpawnPrefab(game.PrefabRef{Filename: "weapons/grenade_launcher/grenade_launcher.json"})
+		w.TranslationRotation.Store(gun, game.TranslationRotationOne())
 		w.Scale.Store(gun, geometry.Vec3Broadcast(1))
 
 		slots = append(slots, gun)
 	}
 
 	{
-		gun := w.SpawnPrefab(worldspawn.PrefabRef{Filename: "weapons/rocket_launcher/rocket_launcher.json"})
-		w.TranslationRotation.Store(gun, worldspawn.TranslationRotationOne())
+		gun := w.SpawnPrefab(game.PrefabRef{Filename: "weapons/rocket_launcher/rocket_launcher.json"})
+		w.TranslationRotation.Store(gun, game.TranslationRotationOne())
 		w.Scale.Store(gun, geometry.Vec3Broadcast(1))
 
 		slots = append(slots, gun)
 	}
 
 	if false {
-		gun := w.SpawnPrefab(worldspawn.PrefabRef{Filename: "weapons/sniper_rifle/sniper_rifle.json"})
-		w.TranslationRotation.Store(gun, worldspawn.TranslationRotationOne())
+		gun := w.SpawnPrefab(game.PrefabRef{Filename: "weapons/sniper_rifle/sniper_rifle.json"})
+		w.TranslationRotation.Store(gun, game.TranslationRotationOne())
 		w.Scale.Store(gun, geometry.Vec3Broadcast(1))
 
 		slots = append(slots, gun)
 	}
 
-	w.ArmedCharacter.Store(player, worldspawn.ArmedCharacter{Slots: slots})
+	w.ArmedCharacter.Store(player, game.ArmedCharacter{Slots: slots})
 
 	return player
 }
@@ -613,28 +613,28 @@ func main() {
 	// TODO: set up a control endpoint (JSON REST API with commands to dump the
 	// current state, etc)
 
-	worldspawn.Data = os.DirFS(*dataDir)
+	game.Data = os.DirFS(*dataDir)
 
 	s := new(Server)
 
 	s.Δt = time.Second / 64
 	s.maxEntities = 1000
-	s.world = worldspawn.NewWorld(s.maxEntities)
-	s.prevWorld = worldspawn.NewWorld(s.maxEntities)
-	s.dirty.IDAlloc = make([]worldspawn.Time, s.maxEntities)
-	s.dirty.Components = make([][]worldspawn.Time, len(comps))
+	s.world = game.NewScene(s.maxEntities)
+	s.prevWorld = game.NewScene(s.maxEntities)
+	s.dirty.IDAlloc = make([]game.Time, s.maxEntities)
+	s.dirty.Components = make([][]game.Time, len(comps))
 	for i := range len(comps) {
-		s.dirty.Components[i] = make([]worldspawn.Time, s.maxEntities)
+		s.dirty.Components[i] = make([]game.Time, s.maxEntities)
 	}
 
 	// TODO: move loading into worldspawn? It needs to handle instancing
 	// collections, so that seems like it would be the right place for it.
 	// Alternatively we can instance collections in an ad-hoc manner.
-	sceneFile, err := worldspawn.Data.Open("maps/lockdown/scenes/Scene")
+	sceneFile, err := game.Data.Open("maps/lockdown/scenes/Scene")
 	if err != nil {
 		log.Fatal("newSinglePlayerSession: ", err)
 	}
-	if err := json.UnmarshalRead(sceneFile, s.world, worldspawn.WorldJSONOptions); err != nil {
+	if err := json.UnmarshalRead(sceneFile, s.world, game.WorldJSONOptions); err != nil {
 		log.Fatalf("newSinglePlayerSession %v: %v", sceneFile, err)
 	}
 	sceneFile.Close()

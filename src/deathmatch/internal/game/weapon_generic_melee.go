@@ -1,4 +1,4 @@
-package worldspawn
+package game
 
 import (
 	"worldspawn/geometry-go"
@@ -14,7 +14,7 @@ func init() {
 
 var _ Weapon = WeaponGenericMelee{}
 
-func (weapon WeaponGenericMelee) WeaponUpdateSubtick(w *World, weaponID, operatorID ecs.ID, now Time, info *UpdateParams) (recoil geometry.Vec3) {
+func (weapon WeaponGenericMelee) WeaponUpdateSubtick(w *Scene, weaponID, operatorID ecs.ID, now Time, info *UpdateParams) (recoil geometry.Vec3) {
 	w.Entity.Store(weaponID, weapon)
 	return geometry.Vec3{}
 }

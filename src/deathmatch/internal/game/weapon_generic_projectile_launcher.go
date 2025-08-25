@@ -1,4 +1,4 @@
-package worldspawn
+package game
 
 import (
 	"math"
@@ -34,7 +34,7 @@ func init() {
 
 var _ WeaponDeployedInterface = WeaponGenericProjectileLauncher{}
 
-func (weapon WeaponGenericProjectileLauncher) WeaponDeployed(w *World, weaponID, operatorID ecs.ID, now Time, Δt time.Duration) {
+func (weapon WeaponGenericProjectileLauncher) WeaponDeployed(w *Scene, weaponID, operatorID ecs.ID, now Time, Δt time.Duration) {
 	weapon.NextAttack = now.Add(weapon.DeployDuration)
 
 	if weapon.DeployAnimation != "" {
@@ -58,7 +58,7 @@ func (weapon WeaponGenericProjectileLauncher) WeaponDeployed(w *World, weaponID,
 
 var _ Weapon = WeaponGenericProjectileLauncher{}
 
-func (weapon WeaponGenericProjectileLauncher) WeaponUpdateSubtick(w *World, id, playerID ecs.ID, now Time, info *UpdateParams) (recoil geometry.Vec3) {
+func (weapon WeaponGenericProjectileLauncher) WeaponUpdateSubtick(w *Scene, id, playerID ecs.ID, now Time, info *UpdateParams) (recoil geometry.Vec3) {
 	if w.Now < weapon.NextAttack {
 		return
 	}

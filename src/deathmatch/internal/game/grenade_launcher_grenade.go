@@ -1,4 +1,4 @@
-package worldspawn
+package game
 
 import (
 	"time"
@@ -18,7 +18,7 @@ func init() {
 	registerEntity[GrenadeLauncherGrenade]()
 }
 
-func (grenade GrenadeLauncherGrenade) UpdateAfterPhysics(w *World, id ecs.ID, info *UpdateParams) {
+func (grenade GrenadeLauncherGrenade) UpdateAfterPhysics(w *Scene, id ecs.ID, info *UpdateParams) {
 	spawnTime, _ := w.SpawnTime.Load(id)
 
 	if w.Now < spawnTime.Add(grenade.Fuse) {

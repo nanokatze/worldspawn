@@ -1,4 +1,4 @@
-package worldspawn
+package game
 
 import (
 	"log"
@@ -62,7 +62,7 @@ type PrefabRef struct {
 // TODO: rename this to make it clear that we're instanting collections
 // specified by CollectionInstance components. E.g.
 // Realize{,Collection,Prefab}Instances?
-func (w *World) InstantinateCollections() {
+func (w *Scene) InstantinateCollections() {
 	for id, collection := range w.CollectionInstance.All() {
 		w.CollectionInstance.Delete(id)
 		w.InstanceCollectionAt(id, PrefabRef{Filename: collection.Filename})
@@ -90,7 +90,7 @@ func prefab(filename string) *Components {
 }
 
 // TODO: rename to InstanceCollection
-func (w *World) SpawnPrefab(prefabRef PrefabRef) ecs.ID {
+func (w *Scene) SpawnPrefab(prefabRef PrefabRef) ecs.ID {
 	e := w.SpawnEntity()
 	w.CopyEntities(e, prefab(prefabRef.Filename))
 	return e
@@ -98,7 +98,7 @@ func (w *World) SpawnPrefab(prefabRef PrefabRef) ecs.ID {
 
 // TODO: make this a standalone method?
 // TODO: rename to InstantinateCollectionAt
-func (w *World) InstanceCollectionAt(id ecs.ID, prefabRef PrefabRef) {
+func (w *Scene) InstanceCollectionAt(id ecs.ID, prefabRef PrefabRef) {
 	translationRotation, _ := w.TranslationRotation.Load(id)
 	scale, _ := w.Scale.Load(id)
 
