@@ -548,10 +548,10 @@ func spawnplayer(w *game.Scene) ecs.ID {
 		Rotation:    geometry.Rot3One(),
 		Scale:       geometry.Vec3Broadcast(1),
 
-		Kind:         game.PhysicsShapeCylinder,
+		Kind:         game.CollisionGeometryCylinder,
 		HalfExtent:   geometry.Vec3{1, 1, 0}.Scale(0.4).Add(geometry.Vec3{0, 0, 1.9 / 2}),
 		ConvexRadius: 0.0,
-	})
+	}.Pack())
 	w.CollisionLayer.Store(player, game.PhysicsLayerMovingKinematic)
 	w.PhysicsMassOverride.Store(player, 100)
 
