@@ -132,8 +132,8 @@ type Components struct {
 	//
 	// TODO: merge some of these components?
 
-	CollisionGeometry      ecs.ComponentStore[CollisionGeometry2]
 	CollisionLayer         ecs.ComponentStore[CollisionLayer]
+	CollisionGeometry      ecs.ComponentStore[CollisionGeometry2]
 	PhysicsFilter          ecs.ComponentStore[[]ecs.ID] // TODO: rename to something like PairwiseFilters?
 	GravityFactor          ecs.ComponentStore[float32]
 	PhysicsMassOverride    ecs.ComponentStore[float32] // TODO: remove "Physics" prefix from these
