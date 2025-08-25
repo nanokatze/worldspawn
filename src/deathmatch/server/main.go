@@ -510,7 +510,7 @@ func readInputCmds(r io.Reader, cmds *[]game.TimestampedInputCmd) error {
 }
 
 func spawnplayer(w *game.Scene) ecs.ID {
-	player := w.IDAlloc.Alloc()
+	player := w.CreateEntity()
 
 	var playerSpawns []ecs.ID
 	for id := range w.PlayerSpawn.All() {
