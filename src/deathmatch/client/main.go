@@ -534,7 +534,7 @@ func (sr *idk) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDurat
 
 			var offset geometry.Vec3
 			if !conf.DisableCosmeticOffset {
-				offset = cosmeticOffset.Evaluate(w.Now)
+				offset = cosmeticOffset.Eval(w.Now)
 			}
 
 			sr.scene.TransformT1[i] = geometry.TRS3{

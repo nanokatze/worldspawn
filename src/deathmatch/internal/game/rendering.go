@@ -15,7 +15,7 @@ type CosmeticOffset struct {
 	EndTime   Time
 }
 
-func (cosmeticOffset CosmeticOffset) Evaluate(now Time) geometry.Vec3 {
+func (cosmeticOffset CosmeticOffset) Eval(now Time) geometry.Vec3 {
 	// TODO: rename
 	x := durationToFloatSeconds(cosmeticOffset.EndTime.Sub(now)) /
 		durationToFloatSeconds(cosmeticOffset.EndTime.Sub(cosmeticOffset.StartTime))
