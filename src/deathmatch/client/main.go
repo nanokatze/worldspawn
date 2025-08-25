@@ -485,7 +485,8 @@ func (sr *idk) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDurat
 		activeWeapon := playerEntity.(game.FPSCharacter).ActiveWeapon
 
 		for id, v := range ecs.Join(w.RenderingGeometry, w.TranslationRotation) {
-			renderingGeometry := v.V1
+			var renderingGeometry game.RenderingGeometry
+			renderingGeometry.Unpack(v.V1)
 			positionRotation := v.V2
 			scale, ok := w.Scale.Load(id)
 			if !ok {

@@ -542,7 +542,7 @@ func spawnplayer(w *game.Scene) ecs.ID {
 	w.TranslationRotation.Store(player, t)
 
 	w.Scale.Store(player, geometry.Vec3Broadcast(1))
-	w.RenderingGeometry.Store(player, game.RenderingGeometry{Filename: "testcharacter4/geometries/TestCharacter4"})
+	w.RenderingGeometry.Store(player, game.RenderingGeometry{Filename: "testcharacter4/geometries/TestCharacter4"}.Pack())
 	w.CollisionGeometry.Store(player, game.CollisionGeometry{
 		Translation: geometry.Vec3{0, 0, 1.9 / 2},
 		Rotation:    geometry.Rot3One(),

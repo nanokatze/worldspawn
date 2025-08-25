@@ -114,7 +114,7 @@ type Components struct {
 	CosmeticOffset                ecs.ComponentStore[CosmeticOffset]
 	DeleteCosmeticOffsetOnContact ecs.ComponentStore[struct{}]
 
-	RenderingGeometry ecs.ComponentStore[RenderingGeometry]
+	RenderingGeometry ecs.ComponentStore[RenderingGeometry2]
 
 	SoundEffect ecs.ComponentStore[SoundEffect]
 
