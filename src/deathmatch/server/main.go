@@ -356,32 +356,20 @@ func (s *Server) tick(Δt time.Duration) {
 // use to get AnyComponentStore for each component store that needs to be
 // de/serialized in that manner. This code should not assume anything about the
 // struct layout.
-var comps = []string{
-	"Entity",
-	"TranslationRotation",
-	"Scale",
-	"RenderingGeometry",
-	"SoundEffect",
-	"CosmeticOffset",
-	"Animation", // stress test map nice un/marshaling
-	"Pose",      // stress test map nice un/marshaling
-	"CollisionGeometry",
-	"CollisionLayer",
-	"PhysicsFilter",
-	"GravityFactor",
-	"PhysicsMassOverride",
-	"PhysicsInertiaOverride",
-	"ArmedCharacter",
-	"ViewPunch",
-	"ViewPunchVelocity",
-	"Viewmodel",
-	"PlayerSpawn",
-	"DeleteCosmeticOffsetOnContact",
-	"CreatedAt",
-	"DeleteAfter",
-}
+//
+// TODO: ugh!!
+var comps = func() []string {
+	typ := reflect.TypeFor[game.Components]()
 
-// called with u.server.WorldMu held
+	var fields []string
+	for i := range typ.NumField() {
+		fields = append(fields, typ.Field(i).Name)
+	}
+
+	return fields
+}()
+
+// Must be called with u.server.WorldMu held
 func (s *Server) sendUpdates(u *user) {
 	// This code is really alloc-happy right now, we'll work on minimizing that
 

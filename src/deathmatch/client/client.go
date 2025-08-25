@@ -184,6 +184,18 @@ func newClient(renderer Renderer, addr string) (*Client, error) {
 	return s, nil
 }
 
+// TODO: ugh!!
+var comps = func() []string {
+	typ := reflect.TypeFor[game.Components]()
+
+	var fields []string
+	for i := range typ.NumField() {
+		fields = append(fields, typ.Field(i).Name)
+	}
+
+	return fields
+}()
+
 func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -235,33 +247,6 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 	}
 
 	// TODO: clean this horrible mess up
-
-	// TODO: see server/main.go for how we should deal with
-	// this.
-	comps := []string{
-		"Entity",
-		"TranslationRotation",
-		"Scale",
-		"RenderingGeometry",
-		"SoundEffect",
-		"CosmeticOffset",
-		"Animation", // stress test map nice un/marshaling
-		"Pose",      // stress test map nice un/marshaling
-		"CollisionGeometry",
-		"CollisionLayer",
-		"PhysicsFilter",
-		"GravityFactor",
-		"PhysicsMassOverride",
-		"PhysicsInertiaOverride",
-		"ArmedCharacter",
-		"ViewPunch",
-		"ViewPunchVelocity",
-		"Viewmodel",
-		"PlayerSpawn",
-		"DeleteCosmeticOffsetOnContact",
-		"CreatedAt",
-		"DeleteAfter",
-	}
 
 	for _, comp := range comps {
 		cs := ecs.Reflect(reflect.ValueOf(&s.world.Components).Elem().FieldByName(comp).Addr().Interface())
