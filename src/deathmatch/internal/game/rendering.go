@@ -1,12 +1,7 @@
 package game
 
 import (
-	"strings"
 	"worldspawn/geometry-go"
-	"worldspawn/internal/nice"
-
-	"github.com/go-json-experiment/json"
-	"github.com/go-json-experiment/json/jsontext"
 )
 
 type CosmeticOffset struct {
@@ -22,40 +17,6 @@ func (cosmeticOffset CosmeticOffset) Eval(now Time) geometry.Vec3 {
 	xClamped := min(max(x, 0), 1)
 
 	return cosmeticOffset.Offset.Scale(float32(xClamped))
-}
-
-// TODO: let us do a transform here?
-// TODO: procedural geometry? (e.g. spheres, for lights)
-type RenderingGeometry struct {
-	// Kind     string
-	Filename string
-}
-
-type RenderingGeometry2 string
-
-// TODO: rename
-func (tmp *RenderingGeometry) Unpack(asd RenderingGeometry2) {
-	if err := nice.UnmarshalDecode(nice.NewDecoder(strings.NewReader(string(asd))), tmp); err != nil {
-		panic(err)
-	}
-}
-
-// TODO: rename
-func (tmp RenderingGeometry) Pack() RenderingGeometry2 {
-	var buf strings.Builder
-	if err := nice.MarshalEncode(nice.NewEncoder(&buf), &tmp); err != nil {
-		panic(err)
-	}
-	return RenderingGeometry2(buf.String())
-}
-
-func (geo *RenderingGeometry2) UnmarshalJSONFrom(d *jsontext.Decoder) error {
-	var tmp RenderingGeometry
-	if err := json.UnmarshalDecode(d, &tmp); err != nil {
-		return err
-	}
-	*geo = tmp.Pack()
-	return nil
 }
 
 type SoundEffect struct {

@@ -1,6 +1,8 @@
 package game
 
 import (
+	"fmt"
+	"log"
 	"time"
 
 	"worldspawn/internal/ecs"
@@ -219,4 +221,44 @@ func updatePhysics(w *Scene, Δt time.Duration) {
 			w.ContactEvents.Store(entityID2, contactEvents)
 		}
 	}
+}
+
+var shapeCache = make(map[GeometryPacked]*physics.Shape)
+
+func getShape(key2 GeometryPacked) *physics.Shape {
+	shape, ok := shapeCache[key2]
+	if ok {
+		return shape
+	}
+
+	key := key2.Unpack()
+
+	var err error
+	switch key.Kind {
+	case GeometrySphere:
+		shape, err = physics.NewSphereShape(key.HalfExtent[0])
+
+	case GeometryBox:
+		shape, err = physics.NewBoxShape(key.HalfExtent, key.ConvexRadius)
+
+	case GeometryCylinder:
+		shape, err = physics.NewCylinderShape(key.HalfExtent[0], key.HalfExtent[2], key.ConvexRadius)
+
+	case GeometryFileBacked:
+		shape, err = physics.NewFileBackedShape(Data, key.Filename)
+
+	default:
+		panic(fmt.Sprintf("unknown physics shape kind %v", key.Kind))
+	}
+	if err != nil {
+		// TODO: actually print a warning and return a box?
+		log.Fatal(err)
+	}
+	shape, err = physics.NewTransformedShape(key.Translation, key.Rotation, key.Scale, shape)
+	if err != nil {
+		// TODO: actually print a warning and return a box
+		log.Fatal(err)
+	}
+	shapeCache[key2] = shape
+	return shape
 }

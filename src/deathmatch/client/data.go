@@ -13,7 +13,7 @@ import (
 // TODO: rename this file to something else
 
 var texturecache = make(map[string]*renderer.Texture)
-var modelcache = make(map[string]*renderer.Mesh)
+var modelcache = make(map[game.GeometryPacked]*renderer.Mesh)
 
 // TODO: should support streaming etc.
 func texture(filename string) *renderer.Texture {
@@ -87,19 +87,20 @@ func texture(filename string) *renderer.Texture {
 	return t
 }
 
-func model(filename string) *renderer.Mesh {
-	m, ok := modelcache[filename]
+func model(geo game.GeometryPacked) *renderer.Mesh {
+	m, ok := modelcache[geo]
 	if !ok {
-		f, err := game.Data.Open(filename)
+		unpacked := geo.Unpack()
+		f, err := game.Data.Open(unpacked.Filename)
 		if err != nil {
 			panic(err)
 		}
 		defer f.Close()
 		m = new(renderer.Mesh)
-		if err := m.InitFromFile(f.(io.ReaderAt), filename); err != nil {
+		if err := m.InitFromFile(f.(io.ReaderAt), unpacked.Filename); err != nil {
 			panic(err)
 		}
-		modelcache[filename] = m
+		modelcache[geo] = m
 	}
 	return m
 }

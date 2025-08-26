@@ -485,8 +485,7 @@ func (sr *idk) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDurat
 		activeWeapon := playerEntity.(game.FPSCharacter).ActiveWeapon
 
 		for id, v := range ecs.Join(w.RenderingGeometry, w.TranslationRotation) {
-			var renderingGeometry game.RenderingGeometry
-			renderingGeometry.Unpack(v.V1)
+			renderingGeometry := v.V1
 			positionRotation := v.V2
 			scale, ok := w.Scale.Load(id)
 			if !ok {
@@ -548,7 +547,7 @@ func (sr *idk) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDurat
 			// 	{0, 0.4, 1},
 			// }[i%2]
 
-			mesh := model(renderingGeometry.Filename)
+			mesh := model(renderingGeometry)
 
 			sr.scene.Mesh[i] = mesh
 			sr.scene.Materials[i] = mesh.DefaultMaterials
