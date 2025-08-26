@@ -149,12 +149,6 @@ func And(bss ...Bitset) iter.Seq[int] {
 	}
 }
 
-/*
-func AndCoarse(bss ...BitSet) iter.Seq2[int, int] {
-
-}
-*/
-
 func divRoundUp(x, y int) int {
 	return (x + y - 1) / y
 }

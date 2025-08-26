@@ -73,25 +73,18 @@ func (a *IDAlloc) Free(id ID) {
 	}
 }
 
+// TODO: rename to IDIsValid, etc?
 func (a *IDAlloc) Valid(id ID) bool {
 	index := id.Index()
 	return a.used.Test(index) && a.gens[index] == id.Generation()
 }
 
+// TODO: rename?
 func (a *IDAlloc) Index(index int) ID {
 	if !a.used.Test(index) {
 		return 0
 	}
 	return MakeID(index, a.gens[index])
-}
-
-// TODO: this is wack. Remove in favor of just Valid
-func (a *IDAlloc) validate(id ID) (int, bool) {
-	index := id.Index()
-	if a.used.Test(index) && a.gens[index] == id.Generation() {
-		return index, true
-	}
-	return -1, false
 }
 
 func (a *IDAlloc) Cap() int {

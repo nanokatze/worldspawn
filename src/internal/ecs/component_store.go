@@ -67,16 +67,16 @@ func (m ComponentStore[V]) Load(id ID) (V, bool) {
 	if m.idAlloc == nil {
 		return *new(V), false
 	}
-	index, ok := m.idAlloc.validate(id)
-	if !ok || !m.valid.Test(index) {
+	index := id.Index()
+	if !m.idAlloc.Valid(id) || !m.valid.Test(index) {
 		return *new(V), false
 	}
 	return m.data[index], true
 }
 
 func (m ComponentStore[V]) Store(id ID, v V) {
-	index, ok := m.idAlloc.validate(id)
-	if !ok {
+	index := id.Index()
+	if !m.idAlloc.Valid(id) {
 		panic("bad")
 	}
 	m.data[index] = v
@@ -84,8 +84,8 @@ func (m ComponentStore[V]) Store(id ID, v V) {
 }
 
 func (m ComponentStore[V]) Delete(id ID) {
-	index, ok := m.idAlloc.validate(id)
-	if !ok {
+	index := id.Index()
+	if !m.idAlloc.Valid(id) {
 		panic("bad")
 	}
 	if m.valid.Unset(index) {
@@ -105,8 +105,6 @@ func (m ComponentStore[V]) Clear() {
 	for i := range bitset.And(m.valid) {
 		m.data[i] = *new(V)
 	}
-
-	// hbitset.And(m.valid)(func(i int) bool { m.data[i] = *new(V); return true })
 
 	m.valid.Reset()
 }
