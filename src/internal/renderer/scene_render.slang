@@ -430,13 +430,6 @@ evalLoop:
             // I guess?
             break;
         }
-
-        case Op::BSDFDiffuse: {
-            uint32_t dst = fetcher.fetch();
-            uint32_t src = fetcher.fetch();
-
-            break;
-        }
         }
     }
 

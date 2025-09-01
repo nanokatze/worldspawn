@@ -31,8 +31,6 @@ const (
 
 	OpLoad          // TODO: rename
 	OpLoadAttribute // TODO: rename
-
-	OpBSDFDiffuse
 )
 
 type Material struct {
@@ -58,7 +56,6 @@ var TestMaterial = sync.OnceValue(func() *Material {
 		OpConditionalSelect, 0, 5, 6, 0,
 		OpConditionalSelect, 1, 5, 6, 1,
 		OpConditionalSelect, 2, 5, 6, 2,
-		OpBSDFDiffuse, 0, 0,
 		OpStop,
 	}
 
