@@ -9,12 +9,18 @@ import numpy_utils as nputils
 # TODO: rename to object_cooker?
 
 
-def deps(context, object, dset):
-    dset.add_product((context.path_for_datablock(object), 'Object', object.name))
+def deps(context, obj, dset):
+    dset.add_product((context.path_for_datablock(obj), 'Object', obj.name))
 
 
-def cook(context, object):
-    mesh = object.to_mesh()
+def cook(context, obj):
+    materials = [None] * max(len(obj.material_slots), 1)
+    for i, material_slot in enumerate(obj.material_slots):
+        # TODO: should we produce a diagnostic when material is None?
+        if material_slot.material is not None:
+            materials[i] = context.path_for_datablock(material_slot.material)
+
+    mesh = obj.to_mesh()
 
     mesh.calc_loop_triangles()
 
@@ -61,4 +67,6 @@ def cook(context, object):
 
     tri_mat_idxs = nputils.array_from_bpy_collection(mesh.loop_triangles, 'material_index', dtype=np.uint32)
 
-    mesh_cooker2.cook(mesh_cooker2.Raw(tris, tri_mat_idxs), context.path_for_datablock(object))
+    # TODO: fold tri_mat_idxs into tris
+
+    mesh_cooker2.cook(mesh_cooker2.Raw(materials, tris, tri_mat_idxs), context.path_for_datablock(obj))

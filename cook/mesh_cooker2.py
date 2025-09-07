@@ -13,8 +13,9 @@ import struct
 class Raw:
 
 
-    def __init__(self, tris, tri_mat_idxs):
+    def __init__(self, materials, tris, tri_mat_idxs):
         # TODO: should these be private?
+        self.materials = materials
         self.tris = tris
         self.tri_mat_idxs = tri_mat_idxs
 
@@ -45,14 +46,14 @@ class Rendering:
 
 @dataclasses.dataclass
 class Header:
-    Materials: list[int]
+    Materials: list[str]
     Collision: Collision
     Rendering: Rendering
 
 
 def cook(raw, directory):
     collision = None
-    parts = []
+    rendering = None
     blob = io.BytesIO() # TODO: use a stricter alignment when writing to blob
 
     if True:
@@ -76,44 +77,50 @@ def cook(raw, directory):
             TriangleCount=len(vert_idxs)//3,
         )
 
-    for material_index in np.unique(raw.tri_mat_idxs):
-        tris = raw.tris[raw.tri_mat_idxs == material_index]
-        if len(tris) == 0:
-            continue
+    if True:
+        parts = []
+        for material_index in np.unique(raw.tri_mat_idxs):
+            assert material_index < len(raw.materials)
 
-        verts_unindexed = tris.flat
+            tris = raw.tris[raw.tri_mat_idxs == material_index]
+            if len(tris) == 0:
+                continue
 
-        verts_indexed, vert_idxs = np.unique(verts_unindexed, return_inverse=True)
+            verts_unindexed = tris.flat
 
-        index_size = 2 if len(verts_indexed) <= 65535 else 4
+            verts_indexed, vert_idxs = np.unique(verts_unindexed, return_inverse=True)
 
-        # TODO: check whether indices are actually a benefit
+            index_size = 2 if len(verts_indexed) <= 65535 else 4
 
-        index_buffer = seek_align(blob, 4)
-        nputils.write_ndarray(blob, vert_idxs.astype(f'<u{index_size}'))
+            # TODO: check whether indices are actually a benefit
 
-        verts = verts_indexed
+            index_buffer = seek_align(blob, 4)
+            nputils.write_ndarray(blob, vert_idxs.astype(f'<u{index_size}'))
 
-        pos_buffer = seek_align(blob, 4)
-        nputils.write_ndarray(blob, verts['position'])
+            verts = verts_indexed
 
-        normal_buffer = seek_align(blob, 4)
-        nputils.write_ndarray(blob, verts['normal'])
+            pos_buffer = seek_align(blob, 4)
+            nputils.write_ndarray(blob, verts['position'])
 
-        attrib_buffers = []
+            normal_buffer = seek_align(blob, 4)
+            nputils.write_ndarray(blob, verts['normal'])
 
-        attrib_buffers.append(seek_align(blob, 4))
-        nputils.write_ndarray(blob, verts['UVMap'])
+            attrib_buffers = []
 
-        parts.append(Part(
-            PosBuffer=pos_buffer,
-            NormalBuffer=normal_buffer,
-            AttribBuffers=attrib_buffers,
-            VertexCount=len(verts),
-            IndexType={2: 'UINT16', 4: 'UINT32'}[index_size], # TODO: factor this map out pls
-            IndexBuffer=index_buffer,
-            TriangleCount=len(tris),
-        ))
+            attrib_buffers.append(seek_align(blob, 4))
+            nputils.write_ndarray(blob, verts['UVMap'])
+
+            parts.append(Part(
+                PosBuffer=pos_buffer,
+                NormalBuffer=normal_buffer,
+                AttribBuffers=attrib_buffers,
+                VertexCount=len(verts),
+                IndexType={2: 'UINT16', 4: 'UINT32'}[index_size], # TODO: factor this map out pls
+                IndexBuffer=index_buffer,
+                TriangleCount=len(tris),
+            ))
+
+        rendering = Rendering(Parts=parts)
 
     with open(directory, 'wb') as f:
         f.write(b'Worldspawn')
@@ -126,9 +133,9 @@ def cook(raw, directory):
 
         json_offset = f.seek(0, 1)
         h = Header(
-            Materials=None,
+            Materials=raw.materials,
             Collision=collision,
-            Rendering=Rendering(parts),
+            Rendering=rendering,
         )
         d = dataclasses.asdict(h, dict_factory=dict_skip_nulls)
         d = fixupdict(d)
