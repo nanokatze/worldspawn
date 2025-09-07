@@ -51,7 +51,7 @@ func NewTransformedShape(translation geometry.Vec3, rotation geometry.Rot3, scal
 }
 
 // TODO: move this into a file separate from other shapes, probably
-func NewFileBackedShape(fsys fs.FS, filename string) (*Shape, error) {
+func NewFileBackedShape(fsys fs.FS, filename string, concave bool) (*Shape, error) {
 	f, err := fsys.Open(filename)
 	if err != nil {
 		return nil, err
@@ -92,23 +92,12 @@ func NewFileBackedShape(fsys fs.FS, filename string) (*Shape, error) {
 		return nil, err
 	}
 
-	return NewConvexHullShape(verts, 0.05)
-
-	// switch shape.Kind {
-	// case ShapeConvexHull:
-	// 	return NewConvexHullShape(shape.Vertices, 0.05)
-
-	// case ShapeMesh:
-	// 	return NewMeshShape(shape.Vertices, shape.Triangles)
-
-	// default:
-	// 	panic("unreachable")
-	// }
+	if concave {
+		return NewMeshShape(verts, tris)
+	} else {
+		return NewConvexHullShape(verts, 0.05)
+	}
 }
-
-// func NewShape() *Shape {
-// 	return (*Shape)(C.newShape())
-// }
 
 func (s *Shape) Mass() float32 {
 	return float32(C.shapeMass((*C.Shape)(s)))

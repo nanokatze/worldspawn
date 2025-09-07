@@ -108,7 +108,6 @@ func worldToPhysics(w *Scene) {
 	for id, layer := range w.CollisionLayer.All() {
 		translationRotation, _ := w.TranslationRotation.Load(id)
 		velocity, _ := w.Velocity.Load(id)
-		shape, _ := w.CollisionGeometry.Load(id)
 		filter, _ := w.PhysicsFilter.Load(id)
 
 		// TODO: pairwise filter should pass ecs.IDs as is and we should store
@@ -129,7 +128,7 @@ func worldToPhysics(w *Scene) {
 			gravityFactor = 1
 		}
 
-		shape2 := getShape(shape)
+		shape2 := getShape(w, id)
 
 		mass, overrideMass := w.PhysicsMassOverride.Load(id)
 		if !overrideMass {
@@ -180,6 +179,22 @@ func worldToPhysics(w *Scene) {
 	}
 }
 
+func getShape(w *Scene, id ecs.ID) *physics.Shape {
+	layer, _ := w.CollisionLayer.Load(id)
+	shape, _ := w.CollisionGeometry.Load(id)
+
+	motionType2 := collisionLayerMotionType[layer]
+
+	var shape2 *physics.Shape
+	if motionType2 == 0 {
+		shape2 = getConcaveShape(shape)
+	} else {
+		shape2 = getConvexShape(shape)
+	}
+
+	return shape2
+}
+
 // TODO: we could split this back so that we can run stuff in parallel
 func updatePhysics(w *Scene, Δt time.Duration) {
 	w.physicsSystem.SetGravity(w.Gravity)
@@ -223,10 +238,13 @@ func updatePhysics(w *Scene, Δt time.Duration) {
 	}
 }
 
-var shapeCache = make(map[GeometryPacked]*physics.Shape)
+// TODO: don't duplicate things we don't need to.
 
-func getShape(key2 GeometryPacked) *physics.Shape {
-	shape, ok := shapeCache[key2]
+var convexCache = make(map[GeometryPacked]*physics.Shape)
+var concaveCache = make(map[GeometryPacked]*physics.Shape)
+
+func getConvexShape(key2 GeometryPacked) *physics.Shape {
+	shape, ok := convexCache[key2]
 	if ok {
 		return shape
 	}
@@ -245,7 +263,7 @@ func getShape(key2 GeometryPacked) *physics.Shape {
 		shape, err = physics.NewCylinderShape(key.HalfExtent[0], key.HalfExtent[2], key.ConvexRadius)
 
 	case GeometryFileBacked:
-		shape, err = physics.NewFileBackedShape(Data, key.Filename)
+		shape, err = physics.NewFileBackedShape(Data, key.Filename, false)
 
 	default:
 		panic(fmt.Sprintf("unknown physics shape kind %v", key.Kind))
@@ -259,6 +277,44 @@ func getShape(key2 GeometryPacked) *physics.Shape {
 		// TODO: actually print a warning and return a box
 		log.Fatal(err)
 	}
-	shapeCache[key2] = shape
+	convexCache[key2] = shape
+	return shape
+}
+
+func getConcaveShape(key2 GeometryPacked) *physics.Shape {
+	shape, ok := concaveCache[key2]
+	if ok {
+		return shape
+	}
+
+	key := key2.Unpack()
+
+	var err error
+	switch key.Kind {
+	case GeometrySphere:
+		shape, err = physics.NewSphereShape(key.HalfExtent[0])
+
+	case GeometryBox:
+		shape, err = physics.NewBoxShape(key.HalfExtent, key.ConvexRadius)
+
+	case GeometryCylinder:
+		shape, err = physics.NewCylinderShape(key.HalfExtent[0], key.HalfExtent[2], key.ConvexRadius)
+
+	case GeometryFileBacked:
+		shape, err = physics.NewFileBackedShape(Data, key.Filename, true)
+
+	default:
+		panic(fmt.Sprintf("unknown physics shape kind %v", key.Kind))
+	}
+	if err != nil {
+		// TODO: actually print a warning and return a box?
+		log.Fatal(err)
+	}
+	shape, err = physics.NewTransformedShape(key.Translation, key.Rotation, key.Scale, shape)
+	if err != nil {
+		// TODO: actually print a warning and return a box
+		log.Fatal(err)
+	}
+	concaveCache[key2] = shape
 	return shape
 }

@@ -65,7 +65,7 @@ def cook(raw, directory):
         tri_buffer = seek_align(blob, 4)
         # TODO: probably deinterleave?
         nputils.write_ndarray(blob, np.c_[
-            vert_idxs.reshape((-1, 3)),
+            vert_idxs.astype('<u4').reshape((-1, 3)),
             raw.tri_mat_idxs,
         ])
 
