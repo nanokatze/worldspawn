@@ -99,23 +99,6 @@ RaytracingAccelerationStructure rtas(uint64_t bda) {
     return spirv_asm { result:$$RaytracingAccelerationStructure = OpConvertUToAccelerationStructureKHR $bda };
 }
 
-/*
-bool unoccluded(float3 a, float3 b) {
-    RayDesc rayDesc;
-    rayDesc.Origin = a;
-    rayDesc.Direction = b - a;
-    rayDesc.TMin = 0;
-    rayDesc.TMax = 1;
-    RayQuery<RAY_FLAG_FORCE_OPAQUE> rq;
-    rq.TraceRayInline(
-        rtas(push.scene->accel.ptr),
-        0, // OR'd with flags above
-        0b10,
-        rayDesc);
-    rq.Proceed();
-}
-*/
-
 float getLDSValue(int bounce, int dimension) {
     let lds = Roberts(Dimension::Num * Bounces);
     let point = push.camera->frameNumber;
@@ -160,9 +143,8 @@ void raygen() {
         rq.Proceed();
 
         if (rq.CommittedStatus() == COMMITTED_TRIANGLE_HIT) {
-            let hitpos = rq.WorldRayOrigin() + rq.WorldRayDirection() * rq.CommittedRayT() - normalize(rq.WorldRayDirection()) * 0.01;
+            let hitpos = rq.WorldRayOrigin() + rq.WorldRayDirection() * max(rq.CommittedRayT() - 0.001, 0);
 
-            /* TODO: we should do a CallShader here */
             closesthit(
                 bounce,
                 LaunchID,
@@ -437,8 +419,8 @@ evalLoop:
         float asd = fmod(bn.z + getLDSValue(bounce, 3), 1.0);
 
         // TODO: encapsulate this into lightSampler->SampleLight
-        let instanceIndex = lightSampler->emissiveInstanceCount;
-        let instance = &lightSampler->emissiveInstances.data[0]; // TODO: randomly pick an instance
+        let instanceIndex = (int)(asd * (float)lightSampler->emissiveInstanceCount);
+        let instance = &lightSampler->emissiveInstances.data[instanceIndex];
 
         let instancePdf = 1.0 / (float)lightSampler->emissiveInstanceCount;
 
@@ -467,7 +449,7 @@ evalLoop:
         // TODO: ls.dist can be inf for infinite lights, so we should clamp it
         // to max ray length
         // TODO: move this epsilon into a top level constant
-        rd.TMax = ls.dist - 0.01;
+        rd.TMax = max(ls.dist - 0.001, 0);
         RayQuery<RAY_FLAG_FORCE_OPAQUE> rq;
         rq.TraceRayInline(
             rtas(push.scene->accel.ptr),
