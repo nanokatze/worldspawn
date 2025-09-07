@@ -33,10 +33,12 @@ var skinMesh = sync.OnceValue(func() *gpu.Func {
 //
 //   - eventually we'll want to look into support for LODs
 
+/*
 type IndexSlice struct {
 	data gpu.UnsafePointer
 	aux  uint64 // TODO: rename to reflect that it's packed index type and length
 }
+*/
 
 type MeshPart struct {
 	PosBuffer     gpu.Slice[[3]float32]

@@ -79,35 +79,25 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 	// fun.
 	// TODO: hard-require sky?
 	if dirty.Sky != nil {
-		scene.sky = dirty.Sky.SamplingDescriptor().WithSampler(scene.sampler)
+		scene.lightSampler.env = dirty.Sky.SamplingDescriptor().WithSampler(scene.sampler)
 	} else {
-		scene.sky = gpu.SamplingViewWithSampler{}
+		scene.lightSampler.env = gpu.SamplingViewWithSampler{}
 	}
 
 	// BUG: writes should happen after all commands in jq complete. We should
 	// just put things into a staging buffer and perform a copy on the device.
 
 	var instanceCount int
+	var emissiveInstanceCount int
 
-	instancesHost := scene.instances.Value()
+	materialParamsHost := scene.materialParams.Value()
 	accelInstancesHost := scene.accelInstances.Value()
+	emissiveInstancesHost := scene.lightSampler.emissiveInstances.Value()
 	for instanceIndex, instance := range dirty.Instance {
 		// TODO: is this necessary?
 		if instanceIndex == 0 || instance.Transform == 0 {
 			accelInstancesHost[instanceIndex] = gpu.AccelInstance{}
 			continue
-		}
-
-		mesh := dirty.Mesh[instanceIndex]
-
-		for i, part := range mesh.parts {
-			instancesHost[instanceIndex*scene.maxPartsPerMesh+i] = _MaterialParams{
-				Code:      gpu.SliceData(dirty.Materials[instanceIndex][i].Material.code),
-				Triangles: gpu.SliceData(part.IndexBuffer),
-				Normals:   gpu.SliceData(part.NormalBuffer),
-				UVs:       gpu.SliceData(part.AttribBuffers[0].(gpu.Slice[[2]float32])),
-				Hmm:       dirty.Materials[instanceIndex][i].Hmm,
-			}
 		}
 
 		// Should be done on the device
@@ -121,6 +111,30 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 			}
 		}
 
+		mesh := dirty.Mesh[instanceIndex]
+
+		for i, part := range mesh.parts {
+			materialParamsHost[instanceIndex*scene.maxPartsPerMesh+i] = _MaterialParams{
+				Code:      gpu.SliceData(dirty.Materials[instanceIndex][i].Material.code),
+				Triangles: gpu.SliceData(part.IndexBuffer),
+				Normals:   gpu.SliceData(part.NormalBuffer),
+				UVs:       gpu.SliceData(part.AttribBuffers[0].(gpu.Slice[[2]float32])),
+				Hmm:       dirty.Materials[instanceIndex][i].Hmm,
+			}
+		}
+
+		// TODO: we need to check whether this instance has any emissive
+		// geometries and only then add it here.
+		if instanceIndex == 45 {
+			// TODO: compaction should be done by the gpu.
+			emissiveInstancesHost[emissiveInstanceCount] = emissiveInstance{
+				transform:   A,
+				posBuffer:   mesh.parts[1].PosBuffer,
+				indexBuffer: mesh.parts[1].IndexBuffer,
+			}
+			emissiveInstanceCount++
+		}
+
 		// TODO: is this necessary?
 		var accel gpu.UnsafePointer
 		if mesh != nil {
@@ -129,13 +143,15 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 
 		accelInstancesHost[instanceIndex] = gpu.AccelInstance{
 			Transform:         A,
-			InstanceIDAndMask: pack24_8(uint32(instanceIndex), uint32(instance.Mask)),
+			InstanceIDAndMask: pack24_8(0, uint32(instance.Mask)),
 			SBTOffsetAndFlags: pack24_8(uint32(instanceIndex*scene.maxPartsPerMesh), 0),
 			Accel:             accel,
 		}
 
 		instanceCount = max(instanceCount, instanceIndex+1)
 	}
+
+	scene.lightSampler.emissiveInstanceCount = emissiveInstanceCount
 
 	scene.accel.EnqueueBuild(jq,
 		&gpu.AccelBuildConfig{

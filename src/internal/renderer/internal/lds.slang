@@ -1,8 +1,5 @@
 [require(spirv, spirv_1_0)] module;
 
-// TODO: move into internal/lds?
-// TODO: rename to sampler?
-
 #define assert(x)
 
 public interface LDS {
@@ -11,6 +8,8 @@ public interface LDS {
 
 // n-dimensional R-sequence by M. Roberts
 // https://extremelearning.com.au/unreasonable-effectiveness-of-quasirandom-sequences/
+//
+// TODO: see also https://www.martysmods.com/a-better-r2-sequence/
 public struct Roberts : LDS {
 	float phi_d;
 
@@ -51,9 +50,9 @@ float mulMod1Naive(float x, int y) {
 
 float mulMod1FixedPoint(float x, int y) {
 	assert(0 <= x);
-	assert(y >= 0);
+	assert(0 <= y);
 
-	float scale = 1ULL << 32;
+	float scale = 1ULL << 24;
 
 	return (float)((uint32_t)(x * scale) * (uint32_t)y) / scale;
 }

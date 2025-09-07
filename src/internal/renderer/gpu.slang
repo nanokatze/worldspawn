@@ -10,16 +10,20 @@ public struct Slice<T> {
     uint64_t cap;
 
 	// TODO: can we somehow allow taking a pointer?
+	// TODO: this should take uint64_t index
     public __subscript(int i) -> T
     {
 		// TODO: do bounds checking
         get { return data[i]; }
         set { data[i] = newValue; }
     }
+
+	public uint64_t Len() { return len; }
 };
 
 public struct Accel {
     public uint64_t ptr; // TODO: make private
+	public uint64_t size;
 
     // public void TraceRay()
 };

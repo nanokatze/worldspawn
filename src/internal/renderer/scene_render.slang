@@ -5,13 +5,14 @@ import material_interpreter;
 import internal.lds;
 import sampling;
 import spectrum;
-import bsdf;
+import bxdf;
 import bsdf_diffuse;
 
 struct ColorPayload {
     Spectrum beta;
     Spectrum L;
     float3 raydir;
+    bool worldBounce; // TODO: rename this
 };
 
 // TODO: move this to sampling.slang or something idk
@@ -21,6 +22,7 @@ enum Dimension {
     X,
     Y,
     Z,
+    W,
     Num,
 };
 
@@ -136,8 +138,11 @@ void raygen() {
     // TODO: special case the first bounce, we need to get the primary surface
     // for denoiser and motion vectors/mask out for TAA
 
-    Spectrum beta = Spectrum(1.0);
-    Spectrum L = Spectrum(0.0);
+    ColorPayload payload = {};
+    // TODO: make a InstanceVisibilityFlags enum or whatever
+    payload.beta = Spectrum(1.0);
+    payload.L = Spectrum(0.0);
+    payload.worldBounce = false;
     RayDesc rayDesc;
     rayDesc.Origin = mul(push.camera->viewInverse, float4(0, 0, 0, 1)).xyz;
     // TODO: do we actually need normalize here?
@@ -150,39 +155,40 @@ void raygen() {
         rq.TraceRayInline(
             rtas(push.scene->accel.ptr),
             0, // OR'd with flags above
-            bounce == 0 ? 0b01 : 0b10,
+            payload.worldBounce ? 0b10 : 0b01,
             rayDesc);
         rq.Proceed();
 
-        ColorPayload payload = {};
-
         if (rq.CommittedStatus() == COMMITTED_TRIANGLE_HIT) {
+            let hitpos = rq.WorldRayOrigin() + rq.WorldRayDirection() * rq.CommittedRayT() - normalize(rq.WorldRayDirection()) * 0.01;
+
             /* TODO: we should do a CallShader here */
-            chit2(
+            closesthit(
                 bounce,
                 LaunchID,
-                rq.CommittedInstanceID(),
+                rq.CommittedInstanceIndex(),
                 rq.CommittedGeometryIndex(),
                 rq.CommittedPrimitiveIndex(),
+                hitpos,
                 rq.WorldRayDirection(),
                 rq.CommittedObjectToWorld3x4(),
                 payload,
                 rq.CommittedTriangleBarycentrics());
 
-            beta *= payload.beta;
-
-            rayDesc.Origin = rq.WorldRayOrigin() + rq.WorldRayDirection() * rq.CommittedRayT() - normalize(rq.WorldRayDirection()) * 0.01;
-            rayDesc.Direction = payload.raydir;
-
             if (bounce > 0) {
                 // TODO: introduce Spectrum.MaxComponentValue()
-                float q = max(0, 1.0 - max(max(beta.x, beta.y), beta.z));
+                float q = max(0, 1.0 - max(max(payload.beta.x, payload.beta.y), payload.beta.z));
                 // TODO: use an ordinary RNG here
                 if (q <= getLDSValue(bounce, 0))
                     break;
-                beta /= 1.0 - q;
+                payload.beta /= 1.0 - q;
             }
-        } else {
+
+            rayDesc.Origin = hitpos;
+            rayDesc.Direction = payload.raydir;
+        } else if (rq.CommittedStatus() == COMMITTED_NOTHING) {
+            // TODO: this is miss code, it should live in its own func
+
             float3 V = rq.WorldRayDirection();
 
             // TODO: make a matrix to convert from our convention to KTX2 convention
@@ -190,16 +196,20 @@ void raygen() {
             // Actually, aniso sampling is broken across many impls. We might wanna look
             // into filtering after shading for sky as well, but hopefully things might
             // get fixed.
-            L += beta * push.scene->sky.SampleCubeLOD(float3(-V.y, V.z, V.x), 0).xyz;
+            payload.L += payload.beta * push.scene->lightSampler.env.SampleCubeLOD(float3(-V.y, V.z, V.x), 0).xyz;
 
+            break;
+        } else {
+            /* unreachable */
             break;
         }
     }
 
     // TODO: pack if we're storing into e5rgb9
-    push.out.Store2D((int2)LaunchID.xy, float4(oetf(0, L), 1));
+    push.out.Store2D((int2)LaunchID.xy, float4(oetf(0, payload.L), 1));
 }
 
+// TODO: change float3 barys to be barys_yz
 float
 interpolate1(float3x1 attrs, float3 barys)
 {
@@ -207,15 +217,15 @@ interpolate1(float3x1 attrs, float3 barys)
 }
 
 float2
-interpolate2(float3x2 attrs, float3 barys)
+interpolate2(float3x2 attrs, float2 barys)
 {
-    return mul(transpose(attrs), barys);
+    return mul(transpose(attrs), float3(1.0 - barys.x - barys.y, barys));
 }
 
 float3
-interpolate3(float3x3 attrs, float3 barys)
+interpolate3(float3x3 attrs, float2 barys)
 {
-    return mul(transpose(attrs), barys);
+    return mul(transpose(attrs), float3(1.0 - barys.x - barys.y, barys));
 }
 
 struct Fetcher {
@@ -227,22 +237,9 @@ struct Fetcher {
     }
 };
 
-/*
-struct Instr {
-    Op op;
-    uint32_t dst;
-    uint32_t src0;
-    uint32_t src1;
-};
-
-Instr decode(inout Fetcher fetcher) {
-}
-*/
-
 struct Registers {
     // TODO: place the first few regs in actual hw regs and the rest into
     // scratch.
-    // uint32_t regs[2];
     uint32_t scratch[32];
 
     __subscript(int i) -> uint32_t
@@ -254,15 +251,6 @@ struct Registers {
         set {
             scratch[i] = newValue;
         }
-    }
-
-    uint4 load4(int i) {
-        return uint4(
-            this[i+0],
-            this[i+1],
-            this[i+2],
-            this[i+3],
-        );
     }
 };
 
@@ -303,42 +291,52 @@ struct Frame {
     }
 };
 
-// This also needs to get us the pdf and everything. TODO
-float3 sampleLight() {
-    return float3(0.0);
-}
-
-void chit2(
+void closesthit(
     int bounce,
     uint3 dispatchRaysIndex,
-    uint instanceID,
+    uint instanceIndex,
     uint geometryIndex,
     uint primitiveIndex,
+    float3 hitpos,
     float3 WorldRayDirection,
     float3x4 ObjectToWorld,
     inout ColorPayload payload, in float2 barys_yz)
 {
+    // TODO: explain what's going on here
+    if (!payload.worldBounce) {
+        if ((push->scene->accelInstances[instanceIndex].instanceIDAndMask >> 24) & 0b10)
+            payload.worldBounce = true;
+    }
+
     let bntex = push.camera->blueNoise;
-    float3 bn = push.camera->blueNoise.At2D(dispatchRaysIndex.xy & (bntex.Extent2D() - 1)).xyz;
+    let bn = push.camera->blueNoise.At2D(dispatchRaysIndex.xy & (bntex.Extent2D() - 1)).xyz;
 
-    let barys = float3(1.0 - barys_yz.x - barys_yz.y, barys_yz);
-
-    let instance = &push.scene->instances.data[instanceID * push.scene->maxPartsPerMesh + geometryIndex];
+    let materialParams = &push.scene->materialParams.data[instanceIndex * push.scene->maxPartsPerMesh + geometryIndex];
 
     // TODO: pass the entire thing from host, rather than constructing it here.
-    IndexSlice idxs = {(uint8_t*)instance->triangles, (uint64_t)2 << 62};
+    IndexSlice idxs = {(uint8_t*)materialParams->triangles, (uint64_t)2 << 62};
 
     let triangleIndices = idxs.Load3(primitiveIndex);
 
     Fetcher fetcher;
-    fetcher.pc = instance->code;
+    fetcher.pc = materialParams->code;
 
     Registers regs;
 
     // TODO: factor decoding out
 evalLoop:
     for (;;) {
-        let op = (Op)fetcher.fetch();
+        let instrw = fetcher.fetch();
+
+        let op = (Op)(instrw & 0xff);
+        let dst = (instrw >> 8) & 0xff;
+        let src0 = (instrw >> 16) & 0xff;
+        let src1 = (instrw >> 24) & 0xff;
+
+        // TODO: reorganize instr encoding to be hierarchical, with the first
+        // step being basically "instruction template" and ops following. So
+        // e.g. we'd have a enum Opc and we'd have the following Opcs: Stop,
+        // DstImm32, DstOneSrc, DstTwoSrc, PredTwoSrc, ...
         switch (op) {
         default:
             // TODO: default should abort()
@@ -346,34 +344,24 @@ evalLoop:
             break evalLoop;
 
         case Op::Movk: {
-            uint32_t dst = fetcher.fetch();
             uint32_t val = fetcher.fetch();
             regs[dst] = val;
             break;
         }
 
         case Op::AddF32: {
-            uint32_t dst = fetcher.fetch();
-            uint32_t src0 = fetcher.fetch();
-            uint32_t src1 = fetcher.fetch();
             regs[dst] = reinterpret<uint32_t>(
                 reinterpret<float>(regs[src0]) +
                 reinterpret<float>(regs[src1]));
             break;
         }
         case Op::SubF32: {
-            uint32_t dst = fetcher.fetch();
-            uint32_t src0 = fetcher.fetch();
-            uint32_t src1 = fetcher.fetch();
             regs[dst] = reinterpret<uint32_t>(
                 reinterpret<float>(regs[src0]) -
                 reinterpret<float>(regs[src1]));
             break;
         }
         case Op::MinF32: {
-            uint32_t dst = fetcher.fetch();
-            uint32_t src0 = fetcher.fetch();
-            uint32_t src1 = fetcher.fetch();
             regs[dst] = reinterpret<uint32_t>(min(
                 reinterpret<float>(regs[src0]),
                 reinterpret<float>(regs[src1])));
@@ -381,49 +369,35 @@ evalLoop:
         }
 
         case Op::FracF32: {
-            uint32_t dst = fetcher.fetch();
-            uint32_t src = fetcher.fetch();
-            regs[dst] = reinterpret<uint32_t>(frac(reinterpret<float>(regs[src])));
+            regs[dst] = reinterpret<uint32_t>(frac(reinterpret<float>(regs[src0])));
             break;
         }
 
         case Op::LessOrEqualF32: {
-            uint32_t dst = fetcher.fetch();
-            uint32_t src0 = fetcher.fetch();
-            uint32_t src1 = fetcher.fetch();
-            // TODO: write to predicate register instead
-            regs[dst] = reinterpret<float>(regs[src0]) <= reinterpret<float>(regs[src1])
-                ? reinterpret<uint32_t>((float)1.0)
-                : reinterpret<uint32_t>((float)0.0);
+            regs[dst] = reinterpret<float>(regs[src0]) <= reinterpret<float>(regs[src1]);
             break;
         }
 
-        case Op::ConditionalSelect: {
-            uint32_t dst = fetcher.fetch();
-            uint32_t cond = fetcher.fetch();
-            uint32_t src0 = fetcher.fetch();
-            uint32_t src1 = fetcher.fetch();
-            // TODO: use the predicate register instead
-            regs[dst] = regs[cond] ? regs[src0] : regs[src1];
+        case Op::ConditionalSelect32: {
+            uint32_t predicate = fetcher.fetch();
+            regs[dst] = regs[predicate] ? regs[src0] : regs[src1];
             break;
         }
 
         case Op::Load: {
-            uint32_t dst = fetcher.fetch();
             uint32_t off = fetcher.fetch();
-            regs[dst] = *(uint32_t*)((uint8_t*)instance + off);
+            regs[dst] = *(uint32_t*)((uint8_t*)materialParams + off);
             break;
         }
         case Op::LoadAttribute: {
-            uint32_t dst = fetcher.fetch();
             uint32_t off = fetcher.fetch();
-            float2 *attrbuf = *(float2**)((uint8_t*)instance + off);
+            float2 *attrbuf = *(float2**)((uint8_t*)materialParams + off);
             float2 attr0 = attrbuf[triangleIndices[0]];
             float2 attr1 = attrbuf[triangleIndices[1]];
             float2 attr2 = attrbuf[triangleIndices[2]];
             // TODO: make a dedicated interpolation function which will take care of the
             // edge cases
-            float2 attr = interpolate2(float3x2(attr0, attr1, attr2), barys);
+            float2 attr = interpolate2(float3x2(attr0, attr1, attr2), barys_yz);
             regs[dst+0] = reinterpret<uint32_t>(attr.x);
             regs[dst+1] = reinterpret<uint32_t>(attr.y);
             // TODO: we'll probs be loading the entire vec3 or vec4 at all times
@@ -433,32 +407,93 @@ evalLoop:
         }
     }
 
-    float3 color = reinterpret<float3>(uint3(regs[0], regs[1], regs[2]));
-
+    let color = reinterpret<float3>(uint3(regs[0], regs[1], regs[2]));
     // TODO: get this from regs as well
-    let N = mul((float3x3)ObjectToWorld, // ns
-        interpolate3(float3x3(
-            instance->normals[triangleIndices[0]],
-            instance->normals[triangleIndices[1]],
-            instance->normals[triangleIndices[2]]),
-        barys));
-    let shadingFrame = Frame::fromNormal(N);
+    let normal = mul((float3x3)ObjectToWorld, // ns
+        interpolate3(
+            float3x3(
+                materialParams->normals[triangleIndices[0]],
+                materialParams->normals[triangleIndices[1]],
+                materialParams->normals[triangleIndices[2]]),
+            barys_yz));
+
+    let shadingFrame = Frame::fromNormal(normal);
 
     let wo = shadingFrame.worldToLocal(-WorldRayDirection);
 
     Diffuse bsdf = {
         color,
-        0.0,
+        // 0.0,
     };
 
-    // TODO: make it possible that sampling can fail.
-    // TODO: we need to consider the bounce when pulling a point from the LDS.
-    let bsdfSample = bsdf.Sample(wo, getLDSValue(bounce, 0), fmod(bn.xy + float2(getLDSValue(bounce, 1), getLDSValue(bounce, 2)), 1.0));
+    let lightSampler = &push.scene->lightSampler;
 
-    if (bsdfSample.flags & (BSDFSampleFlags::Diffuse | BSDFSampleFlags::Glossy)) {
-        // TODO: sample the lights here
+    if ((bsdf.Flags() & (BSDFFlags::Diffuse | BSDFFlags::Glossy)) &&
+        lightSampler->emissiveInstanceCount > 0) {
+        float u = fmod(bn.z + getLDSValue(bounce, 2), 1.0);
+
+        float2 b = fmod(bn.yx + float2(getLDSValue(bounce, 0), getLDSValue(bounce, 1)), 1.0);
+
+        float asd = fmod(bn.z + getLDSValue(bounce, 3), 1.0);
+
+        // TODO: encapsulate this into lightSampler->SampleLight
+        let instanceIndex = lightSampler->emissiveInstanceCount;
+        let instance = &lightSampler->emissiveInstances.data[0]; // TODO: randomly pick an instance
+
+        let instancePdf = 1.0 / (float)lightSampler->emissiveInstanceCount;
+
+        if (instance->indexBuffer.data) {
+
+        let triPdf = 1.0 / (float)instance->indexBuffer.Len();
+        // TODO: we need to make sure this actually triangle < len always
+        let triIdx = (int)((float)instance->indexBuffer.Len() * u);
+        let vertIdxs = instance->indexBuffer[triIdx];
+
+        light l = {
+            {
+                mul(instance->transform, float4(instance->posBuffer[vertIdxs[0]], 1.0)),
+                mul(instance->transform, float4(instance->posBuffer[vertIdxs[1]], 1.0)),
+                mul(instance->transform, float4(instance->posBuffer[vertIdxs[2]], 1.0)),
+            },
+            Spectrum(100.0),
+        };
+
+        let ls = l.Sample(hitpos, b);
+
+        RayDesc rd;
+        rd.Origin = hitpos;
+        rd.Direction = ls.wi;
+        rd.TMin = 0.0;
+        // TODO: ls.dist can be inf for infinite lights, so we should clamp it
+        // to max ray length
+        // TODO: move this epsilon into a top level constant
+        rd.TMax = ls.dist - 0.01;
+        RayQuery<RAY_FLAG_FORCE_OPAQUE> rq;
+        rq.TraceRayInline(
+            rtas(push.scene->accel.ptr),
+            0, // OR'd with flags above
+            payload.worldBounce ? 0b10 : 0b01,
+            rd);
+        rq.Proceed();
+
+        if (rq.CommittedStatus() == COMMITTED_NOTHING) {
+            let pdfLight = ls.pdf * triPdf * instancePdf;
+
+            let wi = shadingFrame.worldToLocal(ls.wi);
+
+            let fLight = l.Li(b);
+            let bsdfEvaluation = bsdf.Eval(wo, wi);
+
+            let Ld = fLight * bsdfEvaluation.f * (abs(wi.z) /
+                (pdfLight + bsdfEvaluation.pdf));
+
+            payload.L += payload.beta * Ld;
+        }
+    }
     }
 
+    let bsdfSample = bsdf.Sample(wo, getLDSValue(bounce, 0), fmod(bn.xy + float2(getLDSValue(bounce, 1), getLDSValue(bounce, 2)), 1.0));
+
+    payload.beta *= bsdfSample.f * abs(bsdfSample.wi.z) / bsdfSample.pdf;
     payload.raydir = shadingFrame.localToWorld(bsdfSample.wi);
-    payload.beta = bsdfSample.f * abs(bsdfSample.wi.z) / bsdfSample.pdf;
 }

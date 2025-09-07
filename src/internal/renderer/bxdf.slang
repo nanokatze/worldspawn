@@ -1,7 +1,7 @@
 import spectrum;
 
-// TODO: rename to smth like BSDF sample properties
-public enum BSDFSampleFlags {
+// TODO: rename to smth like surface properties or idk
+public enum BSDFFlags {
     // Absorbed = 0,
     Emitted = 1 << 0,
     Reflected = 1 << 1,
@@ -14,17 +14,19 @@ public enum BSDFSampleFlags {
 public struct BSDFSample {
     public Spectrum f;
     public float3 wi;
-    public float pdf; // rename to just pd
-    public BSDFSampleFlags flags;
+    public float pdf;
+    public BSDFFlags flags;
     // float eta;
 };
 
+// TODO: rename
 public struct BSDFEvaluatedResult {
     public Spectrum f;
-    public float pdf; // rename to just pd
+    public float pdf;
 };
 
 public interface BxDF {
+    BSDFFlags Flags();
+    BSDFEvaluatedResult Eval(float3 wo, float3 wi);
     BSDFSample Sample(float3 wo, float uc, float2 u);
-    BSDFEvaluatedResult Evaluate(float3 wo, float3 wi);
 };

@@ -28,39 +28,73 @@ type _MaterialParams struct {
 	Hmm       [3]float32
 }
 
-// TODO: make NewMaterial etc update these
-var rtCallables gpu.Slice[struct{}]
-var rtPipeline *gpu.RayTracingPipeline
-
 // TODO: I guess we'll need to do some involved memory management in Scene.
 
 // TODO: to abstract over still AS and motion AS we could introduce two scenes
 // that implement the same interface. Though that would be insufficient of an
 // abstraction as shader code would still have to be aware about still vs motion
 // AS. I guess let's just not.
+
+type light struct {
+	_ structs.HostLayout
+
+	// TODO: replace this with an instance index, geometry index and a triangle
+	// triplet.
+	verts [3]geometry.Vec3
+
+	// TODO: we'll need more info for power sampling, but that seems complicated
+	// in presence of materials defining emission.
+
+	// TODO: evaluate the material for emission
+	emission geometry.Vec3
+}
+
+// TODO: should probs be emissiveBLAS or something
+type emissiveInstance struct {
+	_ structs.HostLayout
+
+	// TODO: we also have parts, actually!
+	transform   [3][4]float32
+	posBuffer   gpu.Slice[[3]float32]
+	indexBuffer gpu.Slice[[3]uint16]
+}
+
+type lightSampler struct {
+	_ structs.HostLayout
+
+	// TODO: drop SamplingViewWithSampler in favor passing an image descriptor
+	// and reconstructing it in the shader.
+	// TODO: rename
+	env gpu.SamplingViewWithSampler
+
+	emissiveInstances     gpu.Slice[emissiveInstance]
+	emissiveInstanceCount int
+}
+
 type Scene struct {
 	_ structs.HostLayout
 
 	// TODO: rename, kinda don't like what it's called
 	maxPartsPerMesh int
 
-	sky gpu.SamplingViewWithSampler
+	materialParams gpu.Slice[_MaterialParams]
 
-	// TODO: rename
-	instances      gpu.Slice[_MaterialParams]
 	accelInstances gpu.Slice[gpu.AccelInstance]
-	accel          gpu.Accel
 
+	accel gpu.Accel
+
+	lightSampler lightSampler
+
+	// TODO: this probs belongs to MaterialLibrary too
 	sampler gpu.Sampler
 
 	// TODO: append experimental stuff at the end for now: we have a skill issue
 	// in that we need to manually sync host and device type definitions.
 
-	// TODO: delegate linked pipeline management to the user
-	// TODO: actually, have global pipelines for these
+	// TODO: move pipelines + SBT into a separate object that's like a
+	// MaterialLibrary or whatever
 	pipeline *gpu.RayTracingPipeline
-	// TODO: construct sbt when requested rather than store?
-	sbt gpu.ShaderBindingTable
+	sbt      gpu.ShaderBindingTable
 }
 
 /*
@@ -77,6 +111,8 @@ type hitRecord struct {
 func NewScene(n int, maxPartsPerMesh int) *Scene {
 	instances := gpu.MakeSliceUncached[_MaterialParams](n * maxPartsPerMesh)
 
+	emissiveInstances := gpu.MakeSliceUncached[emissiveInstance](n)
+
 	// TODO: make pipeline be relinked when some material is created or removed
 	// or whatever.
 	pipeline := gpu.LinkRayTracingShaderGroups(raygen())
@@ -88,9 +124,12 @@ func NewScene(n int, maxPartsPerMesh int) *Scene {
 		maxPartsPerMesh: maxPartsPerMesh,
 		pipeline:        pipeline, // TODO: relink this after materials change and stuff
 		sbt:             gpu.MakeShaderBindingTable(raygenRecord, gpu.Slice[struct{}]{}, gpu.Slice[struct{}]{}, gpu.Slice[struct{}]{}),
-		instances:       instances,
+		materialParams:  instances,
 		accelInstances:  gpu.MakeSliceUncached[gpu.AccelInstance](n),
 		accel:           gpu.NewTopLevelAccel(n),
+		lightSampler: lightSampler{
+			emissiveInstances: emissiveInstances,
+		},
 		sampler: gpu.NewSampler(&vk.SamplerCreateInfo{
 			SType:            vk.STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
 			MinFilter:        vk.FILTER_LINEAR,
