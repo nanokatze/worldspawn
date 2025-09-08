@@ -6,6 +6,7 @@ static const float M_PI = 3.141592653589793;
 
 // TODO: implement roughness
 
+// TODO: rename to DiffuseBSDF?
 public struct Diffuse : BxDF {
     public Spectrum R;
     // public float roughness;

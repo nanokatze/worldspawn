@@ -1,6 +1,6 @@
 import spectrum;
 
-// TODO: rename to smth like surface properties or idk
+// TODO: rename to smth like surface interaction or idk
 public enum BSDFFlags {
     // Absorbed = 0,
     Emitted = 1 << 0,
@@ -27,6 +27,8 @@ public struct BSDFEvaluatedResult {
 
 public interface BxDF {
     BSDFFlags Flags();
+    // Spectrum F(float3 wo, float3 wi);
+    // TODO: decouple spectrum evaluation from PDF evaluation
     BSDFEvaluatedResult Eval(float3 wo, float3 wi);
     BSDFSample Sample(float3 wo, float uc, float2 u);
 };

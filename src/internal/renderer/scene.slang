@@ -9,6 +9,7 @@ public struct MaterialParams {
     public float3 *normals;
     public float2 *uvs;
     public float hmm[3];
+    public float emission[3];
 };
 
 float3

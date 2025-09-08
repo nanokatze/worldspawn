@@ -7,12 +7,23 @@ import sampling;
 import spectrum;
 import bxdf;
 import bsdf_diffuse;
+import attribute;
 
 struct ColorPayload {
-    Spectrum beta;
+    // Light transmitted along the path
     Spectrum L;
+
+    // Path throughput
+    Spectrum beta;
+
     float3 raydir;
-    bool worldBounce; // TODO: rename this
+
+    // TODO: we also need to shove p_b here
+
+    // Whether this path has bounced off non-vampire geometry.
+    bool antiVampirePath;
+
+    // bool specularBounce;
 };
 
 // TODO: move this to sampling.slang or something idk
@@ -33,6 +44,8 @@ struct FrameData {
 
     // int bounces;
 
+    float maxRayDist;
+
     matrix<float, 4, 4> proj;
     matrix<float, 4, 4> projInverse;
     matrix<float, 4, 4> view;
@@ -41,50 +54,6 @@ struct FrameData {
     // Precomputed stuff goes at the end
 
     matrix<float, 4, 4> viewProj; // precomputed extras should always go at the end
-};
-
-// This should be purely a description with no data associated.
-//
-// We should support everything we can get from blender.
-struct AttributeDesc {
-    int unused;
-};
-
-// TODO: we will sneak in the index type out of band so we'll construct it in
-// the shader.
-struct IndexSlice {
-    uint8_t *data;
-    uint64_t aux; // length in bytes and index type, packed
-
-    uint32_t Load(int i) {
-        int index_type = (int)(aux >> 62);
-
-        if (index_type == 0)
-           return i;
-
-        uint64_t stride = 1 << (index_type - 1);
-        uint64_t off = i * stride;
-
-        // TODO: have reasonable robustness behavior, or abort on out of bounds
-        // and do the checking on startup
-
-        uint8_t *p = data + off;
-        switch (index_type) {
-        case 1:
-            return *(uint8_t*)p;
-        case 2:
-            return *(uint16_t*)p;
-        case 3:
-            return *(uint32_t*)p;
-        default:
-            // we should be able to put unreachable() here
-            return i;
-        }
-    }
-
-    uint3 Load3(int i) {
-        return uint3(Load(3 * i + 0), Load(3 * i + 1), Load(3 * i + 2));
-    }
 };
 
 struct Push {
@@ -122,23 +91,26 @@ void raygen() {
     // for denoiser and motion vectors/mask out for TAA
 
     ColorPayload payload = {};
-    // TODO: make a InstanceVisibilityFlags enum or whatever
-    payload.beta = Spectrum(1.0);
     payload.L = Spectrum(0.0);
-    payload.worldBounce = false;
+    payload.beta = Spectrum(1.0);
+    payload.antiVampirePath = false;
+    // payload.specularBounce = false;
+
     RayDesc rayDesc;
     rayDesc.Origin = mul(push.camera->viewInverse, float4(0, 0, 0, 1)).xyz;
     // TODO: do we actually need normalize here?
     rayDesc.Direction = normalize(mul(push.camera->viewInverse, float4(normalize(target.xyz), 0)).xyz);
-    rayDesc.TMin = 0.01;
-    rayDesc.TMax = 1024.0; // TODO: make these user-configurable
+    rayDesc.TMin = 0.0;
+    rayDesc.TMax = push.camera->maxRayDist; // TODO: make these user-configurable
+
     // TODO: make the number of bounces configurable by host
+
     for (int bounce = 0; bounce < 2; bounce++) {
         RayQuery<RAY_FLAG_FORCE_OPAQUE> rq;
         rq.TraceRayInline(
             rtas(push.scene->accel.ptr),
             0, // OR'd with flags above
-            payload.worldBounce ? 0b10 : 0b01,
+            payload.antiVampirePath ? 0b10 : 0b01,
             rayDesc);
         rq.Proceed();
 
@@ -273,6 +245,11 @@ struct Frame {
     }
 };
 
+struct composedBxDF /* : BxDF */ {
+    Registers regs; // it would be nice if this could be just a pointer...
+    // TODO: a table that describes how to interpreter regs
+};
+
 void closesthit(
     int bounce,
     uint3 dispatchRaysIndex,
@@ -284,11 +261,10 @@ void closesthit(
     float3x4 ObjectToWorld,
     inout ColorPayload payload, in float2 barys_yz)
 {
-    // TODO: explain what's going on here
-    if (!payload.worldBounce) {
-        if ((push->scene->accelInstances[instanceIndex].instanceIDAndMask >> 24) & 0b10)
-            payload.worldBounce = true;
-    }
+    // For an optimization we could check payload.antiVampirePath. If it's set,
+    // there's no way this could be a vampire instance, so we don't need to
+    // check the visibility mask.
+    bool nonVampire = ((push->scene->accelInstances[instanceIndex].instanceIDAndMask >> 24) & 0b10) != 0;
 
     let bntex = push.camera->blueNoise;
     let bn = push.camera->blueNoise.At2D(dispatchRaysIndex.xy & (bntex.Extent2D() - 1)).xyz;
@@ -389,6 +365,11 @@ evalLoop:
         }
     }
 
+    // TODO: introduce a bxdf type which will represent composed bxdf in terms
+    // of Registers and a table describing which bxdfs to compose and where in
+    // the registers the inputs and weights lie. We'll use this to neatly
+    // represent bxdfs composed "dynamically".
+
     let color = reinterpret<float3>(uint3(regs[0], regs[1], regs[2]));
     // TODO: get this from regs as well
     let normal = mul((float3x3)ObjectToWorld, // ns
@@ -425,7 +406,6 @@ evalLoop:
         let instancePdf = 1.0 / (float)lightSampler->emissiveInstanceCount;
 
         if (instance->indexBuffer.data) {
-
         let triPdf = 1.0 / (float)instance->indexBuffer.Len();
         // TODO: we need to make sure this actually triangle < len always
         let triIdx = (int)((float)instance->indexBuffer.Len() * u);
@@ -454,7 +434,7 @@ evalLoop:
         rq.TraceRayInline(
             rtas(push.scene->accel.ptr),
             0, // OR'd with flags above
-            payload.worldBounce ? 0b10 : 0b01,
+            nonVampire ? 0b10 : 0b01, // Bounces off non-vampire instances are always anti-vampire.
             rd);
         rq.Proceed();
 
@@ -471,11 +451,22 @@ evalLoop:
 
             payload.L += payload.beta * Ld;
         }
-    }
+        }
     }
 
     let bsdfSample = bsdf.Sample(wo, getLDSValue(bounce, 0), fmod(bn.xy + float2(getLDSValue(bounce, 1), getLDSValue(bounce, 2)), 1.0));
 
+    // TODO: once we get diffuse cache, (optionally) terminate the path for
+    // diffuse-only bsdfSamples and instead get the information from the cache.
+
     payload.beta *= bsdfSample.f * abs(bsdfSample.wi.z) / bsdfSample.pdf;
     payload.raydir = shadingFrame.localToWorld(bsdfSample.wi);
+
+    // Bounces that are reflected become anti-vampire if the surface was
+    // non-vampire.
+    //
+    // Bounces that are transmitted stay vampire.
+    if ((bsdfSample.flags & BSDFFlags::Reflected) && nonVampire) {
+        payload.antiVampirePath = true;
+    }
 }

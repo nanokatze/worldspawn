@@ -28,3 +28,14 @@ public float2 SampleTriangle(float2 u) {
 
     return float2(b0, b1);
 }
+
+float sqr(float x) {
+    return x * x;
+}
+
+public float PowerHeuristic(int nf, float fPdf, int ng, float gPdf) {
+    float f = nf * fPdf, g = ng * gPdf;
+    if (sqr(f) == 1.0 / 0.0)
+        return 1;
+    return sqr(f) / (sqr(f) + sqr(g));
+}

@@ -18,7 +18,6 @@ type MaterialInstance struct {
 	Material *Material
 	// TODO: these should be expressed somehow generically
 	Hmm [3]float32
-	// TODO: add Emissive [3]float32
 }
 
 // TODO: actually remove this entirely from here and push any kind of tracking
@@ -132,6 +131,8 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 			// we'll enable/disable geometries (by specifying emission power for
 			// those geometries)
 			if material.Material.emissive {
+				materialParamsHost[instanceIndex*scene.maxPartsPerMesh+i].Emission = [3]float32{10, 10, 10}
+
 				emissiveInstancesHost[emissiveInstanceCount] = emissiveInstance{
 					transform:   A,
 					posBuffer:   part.PosBuffer,

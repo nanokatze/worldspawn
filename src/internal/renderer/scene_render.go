@@ -6,7 +6,6 @@ import (
 	"image/png"
 	"os"
 	"sync"
-	"unsafe"
 
 	"worldspawn/geometry-go"
 	"worldspawn/gpu"
@@ -17,6 +16,8 @@ type _FrameData struct {
 	FrameNumber uint32
 
 	BlueNoise gpu.SamplingView
+
+	MaxRayDist float32
 
 	Proj        geometry.Mat4x4
 	ProjInverse geometry.Mat4x4
@@ -89,10 +90,6 @@ var raygen = sync.OnceValue(func() *gpu.RayTracingShaderGroup {
 	return gpu.NewGeneralRayTracingShaderGroup(gpu.NewFunc(mustReadFile("shaders/scene_render.spv"), vk.SHADER_STAGE_RAYGEN_BIT_KHR, "raygen"))
 })
 
-func gpuSliceLenInBytes[T any](s gpu.Slice[T]) int {
-	return gpu.SliceLen(s) * int(unsafe.Sizeof(*new(T)))
-}
-
 func mustReadFile(filename string) []byte {
 	data, err := os.ReadFile(filename)
 	if err != nil {
@@ -136,6 +133,8 @@ func (scene *Scene) Render(jq *gpu.JobQueue, t float32, fn uint32, camera *Camer
 			Mul4x4(toClipSpace)
 
 		// TODO: jitter the camera slightly using an LDS of some sort.
+		// TODO: DLSS strongly recommends using halton as it's trained on it or
+		// whatever.
 		//
 		// See also
 		// https://blog.demofox.org/2022/01/01/interleaved-gradient-noise-a-different-kind-of-low-discrepancy-sequence/
@@ -146,6 +145,9 @@ func (scene *Scene) Render(jq *gpu.JobQueue, t float32, fn uint32, camera *Camer
 		*frameData.Value() = _FrameData{
 			FrameNumber: fn,
 			BlueNoise:   bnlayer.SamplingDescriptor(),
+
+			MaxRayDist: 1024.0,
+
 			Proj:        proj,
 			ProjInverse: proj.Inverse(),
 			View:        view,
