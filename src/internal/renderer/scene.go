@@ -26,6 +26,7 @@ type _MaterialParams struct {
 	Normals   gpu.Pointer[[3]float32]
 	UVs       gpu.Pointer[[2]float32]
 	Hmm       [3]float32
+	// TODO: Emissive [3]float32
 }
 
 // TODO: I guess we'll need to do some involved memory management in Scene.

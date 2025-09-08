@@ -30,6 +30,7 @@ class Collision:
 
 @dataclasses.dataclass
 class Part:
+    MaterialIndex: int
     PosBuffer: int
     NormalBuffer: int
     AttribBuffers: list[int]
@@ -111,6 +112,7 @@ def cook(raw, directory):
             nputils.write_ndarray(blob, verts['UVMap'])
 
             parts.append(Part(
+                MaterialIndex=int(material_index),
                 PosBuffer=pos_buffer,
                 NormalBuffer=normal_buffer,
                 AttribBuffers=attrib_buffers,

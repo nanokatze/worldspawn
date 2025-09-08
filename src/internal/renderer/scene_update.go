@@ -18,6 +18,7 @@ type MaterialInstance struct {
 	Material *Material
 	// TODO: these should be expressed somehow generically
 	Hmm [3]float32
+	// TODO: add Emissive [3]float32
 }
 
 // TODO: actually remove this entirely from here and push any kind of tracking
@@ -95,6 +96,9 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 	emissiveInstancesHost := scene.lightSampler.emissiveInstances.Value()
 	for instanceIndex, instance := range dirty.Instance {
 		// TODO: is this necessary?
+		// TODO: actually we might have instances at index 0: this would happen
+		// if the entity at index 0 is in the next generation. Maybe we should
+		// just forbid index 0 in our entities.
 		if instanceIndex == 0 || instance.Transform == 0 {
 			accelInstancesHost[instanceIndex] = gpu.AccelInstance{}
 			continue
@@ -114,25 +118,27 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 		mesh := dirty.Mesh[instanceIndex]
 
 		for i, part := range mesh.parts {
+			material := dirty.Materials[instanceIndex][i]
+
 			materialParamsHost[instanceIndex*scene.maxPartsPerMesh+i] = _MaterialParams{
-				Code:      gpu.SliceData(dirty.Materials[instanceIndex][i].Material.code),
+				Code:      gpu.SliceData(material.Material.code),
 				Triangles: gpu.SliceData(part.IndexBuffer),
 				Normals:   gpu.SliceData(part.NormalBuffer),
 				UVs:       gpu.SliceData(part.AttribBuffers[0].(gpu.Slice[[2]float32])),
-				Hmm:       dirty.Materials[instanceIndex][i].Hmm,
+				Hmm:       material.Hmm,
 			}
-		}
 
-		// TODO: we need to check whether this instance has any emissive
-		// geometries and only then add it here.
-		if instanceIndex == 45 {
-			// TODO: compaction should be done by the gpu.
-			emissiveInstancesHost[emissiveInstanceCount] = emissiveInstance{
-				transform:   A,
-				posBuffer:   mesh.parts[1].PosBuffer,
-				indexBuffer: mesh.parts[1].IndexBuffer,
+			// TODO: we should build an emissive blas and when instancing it
+			// we'll enable/disable geometries (by specifying emission power for
+			// those geometries)
+			if material.Material.emissive {
+				emissiveInstancesHost[emissiveInstanceCount] = emissiveInstance{
+					transform:   A,
+					posBuffer:   part.PosBuffer,
+					indexBuffer: part.IndexBuffer,
+				}
+				emissiveInstanceCount++
 			}
-			emissiveInstanceCount++
 		}
 
 		// TODO: is this necessary?

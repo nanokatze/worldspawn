@@ -162,6 +162,7 @@ func (m *Mesh) InitFromFile(r io.ReaderAt, filename string) error {
 	}
 
 	type Part struct {
+		MaterialIndex int
 		PosBuffer     int64
 		NormalBuffer  int64
 		AttribBuffers []int64
@@ -182,6 +183,7 @@ func (m *Mesh) InitFromFile(r io.ReaderAt, filename string) error {
 	}
 
 	type GeometryHeader struct {
+		Materials []string
 		Rendering Rendering
 	}
 
@@ -226,8 +228,13 @@ func (m *Mesh) InitFromFile(r io.ReaderAt, filename string) error {
 			panic("bug")
 		}
 
+		mat := TestMaterial()
+		if header2.Materials[serializedPart.MaterialIndex] == "maps/lockdown/materials/Material_003" {
+			mat = TestMaterial2()
+		}
+
 		m.DefaultMaterials[i] = MaterialInstance{
-			Material: TestMaterial(),
+			Material: mat,
 			Hmm:      [3]float32{rand.Float32(), rand.Float32(), rand.Float32()},
 		}
 

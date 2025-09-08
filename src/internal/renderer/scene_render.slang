@@ -437,7 +437,7 @@ evalLoop:
                 mul(instance->transform, float4(instance->posBuffer[vertIdxs[1]], 1.0)),
                 mul(instance->transform, float4(instance->posBuffer[vertIdxs[2]], 1.0)),
             },
-            Spectrum(100.0),
+            Spectrum(10.0),
         };
 
         let ls = l.Sample(hitpos, b);

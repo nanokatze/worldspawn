@@ -122,10 +122,18 @@ var TestMaterial = sync.OnceValue(func() *Material {
 })
 
 var TestMaterial2 = sync.OnceValue(func() *Material {
-	base := TestMaterial()
+	host := []uint32{
+		packinstr(OpMovk, 0, 0, 0), math.Float32bits(1.0),
+		packinstr(OpMovk, 1, 0, 0), math.Float32bits(1.0),
+		packinstr(OpMovk, 2, 0, 0), math.Float32bits(1.0),
+		packinstr(OpStop, 0, 0, 0),
+	}
+
+	device := gpu.MakeSliceUncached[uint32](len(host))
+	copy(device.Value(), host)
 
 	return &Material{
-		code:     base.code,
+		code:     device,
 		emissive: true,
 	}
 })
