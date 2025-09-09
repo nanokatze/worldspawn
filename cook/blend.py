@@ -31,27 +31,19 @@ class Context:
 
         library = datablock.library
         name = self.__name_for_datablock(datablock)
-        if name is None: # TODO: express ignored things somehow differently?
-            return None
-        # TODO: have a directory for each datablock type rather than just a prefix?
         return self.output_directory + ('../' + library.filepath[2:-6] + '/' if library else '') + name + '/' + bpy.path.clean_name(datablock.name)
 
 
     def __name_for_datablock(self, datablock):
         match datablock:
             case bpy.types.Collection():
-                return 'collections' # TODO: rename to prefabs?
+                return 'collections'
             case bpy.types.Scene():
                 return 'scenes'
             case bpy.types.Material():
                 return 'materials'
             case bpy.types.Object():
-                object = datablock
-                match object.type:
-                    case 'LIGHT':
-                        return None
-                    case 'MESH' | 'FONT':
-                        return 'geometries'
+                return 'geometries'
             case _:
                 assert False, 'unsupported type {}'.format(datablock)
 
@@ -92,8 +84,9 @@ def main(m, o, blend, datablock_type, datablock_name):
                 if datablock.library:
                     continue
                 settings = datablock.get('worldspawn', {})
-                if settings.get('export'):
-                    collection_cooker.deps(ctx, datablock.evaluated_get(depsgraph), dset)
+                if not settings.get('export'):
+                    continue
+                collection_cooker.deps(ctx, datablock.evaluated_get(depsgraph), dset)
             from blender_cookers import material as material_cooker
             for datablock in bpy_context.blend_data.materials:
                 settings = datablock.get('worldspawn', {})
@@ -107,8 +100,9 @@ def main(m, o, blend, datablock_type, datablock_name):
             import scene_cooker
             for datablock in bpy_context.blend_data.scenes:
                 settings = datablock.get('worldspawn', {})
-                if settings.get('export'):
-                    scene_cooker.deps(ctx, datablock.evaluated_get(depsgraph), dset)
+                if not settings.get('export'):
+                    continue
+                scene_cooker.deps(ctx, datablock.evaluated_get(depsgraph), dset)
 
         with open('build.ninja', 'w') as f:
             f.write('rule blend\n')

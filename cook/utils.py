@@ -1,5 +1,9 @@
+import codecs
 import idprop
 from mathutils import Vector, Quaternion
+
+
+UTF8Writer = codecs.getwriter('utf-8')
 
 
 # TODO: eventually switch back to vectors and rotation objects being serialized
@@ -12,6 +16,7 @@ def asdasd(o):
         case Quaternion():
             return [str(o[i]) for i in [1, 2, 3, 0]]
     return None
+
 
 # TODO: rename to dict_fixup?
 def fixupdict(d):

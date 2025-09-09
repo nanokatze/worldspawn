@@ -1,5 +1,4 @@
 import bpy
-import codecs
 import json
 from mathutils import Matrix, Vector, Quaternion
 
@@ -9,15 +8,21 @@ import utils
 
 
 def deps(context, scene, dset):
-    import mesh_cooker
+    # import mesh_cooker
 
     dset.add_product((context.path_for_datablock(scene), 'Scene', scene.name))
 
-    for obj in scene.objects:
-        if obj.hide_render:
-            continue
+    __handle_collection2(context, scene.collection, dset)
 
-        mesh_cooker.deps(context, obj, dset)
+
+def __handle_collection2(context, collection, dset):
+    for child_collection in collection.children:
+        if child_collection.hide_render:
+            continue
+        __handle_collection2(context, child_collection, dset)
+
+    # TODO: introduce deps_into for the purpose of skipping root scene?
+    collection_cooker.deps(context, collection, dset)
 
 
 # TODO: move this into cookers (not blender_cookers)
@@ -76,4 +81,4 @@ def cook(context, scene):
 
     cooked_scene = utils.fixupdict(cooked_scene) # pain
     with open(context.path_for_datablock(scene), 'wb') as f:
-        json.dump(cooked_scene, codecs.getwriter('utf-8')(f), indent='\t', default=utils.asdasd)
+        json.dump(cooked_scene, utils.UTF8Writer(f), indent='\t', default=utils.asdasd)

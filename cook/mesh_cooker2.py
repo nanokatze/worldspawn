@@ -2,7 +2,6 @@
 
 import dataclasses
 import numpy as np
-import codecs
 import json
 import io
 import utils
@@ -141,7 +140,7 @@ def cook(raw, directory):
         )
         d = dataclasses.asdict(h, dict_factory=dict_skip_nulls)
         d = fixupdict(d)
-        json.dump(d, codecs.getwriter('utf-8')(f), default=utils.asdasd)
+        json.dump(d, utils.UTF8Writer(f), default=utils.asdasd)
         json_length = f.seek(0, 1) - json_offset
 
         blob_offset = f.seek(0, 1)

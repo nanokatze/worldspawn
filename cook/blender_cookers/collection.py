@@ -1,23 +1,42 @@
 import utils
 import json
-import codecs
 
 from mathutils import Matrix
 
-def deps(context, datablock, dset):
-    for child in datablock.children:
-        if datablock.hide_render:
-            continue
-        deps(ctx, child, dset)
 
+def __should_cook_object(obj):
+    if obj.hide_render:
+        return False
+    return True
+
+
+def __should_cook_object_data(obj):
+    if obj.type not in {'MESH', 'FONT'}:
+        return False
+    return True
+
+
+def deps(context, collection, dset):
     import mesh_cooker
 
-    for obj in datablock.objects:
-        if obj.hide_render:
+    for child in collection.children:
+        if collection.hide_render:
+            continue
+        deps(context, child, dset)
+
+    for obj in collection.objects:
+        if not __should_cook_object(obj):
+            continue
+        # TODO: diagnose when there's objects we don't know how to handle? e.g.
+        # LIGHT
+        if not __should_cook_object_data(obj):
             continue
         mesh_cooker.deps(context, obj, dset)
 
-    dset.add_product((context.path_for_datablock(datablock), 'Collection', datablock.name))
+    # HACK: we should skip exporting scene.collection (it's special and doesn't
+    # appear in the collection datablocks) but not in this horrible way
+    if collection.name != 'Scene Collection':
+        dset.add_product((context.path_for_datablock(collection), 'Collection', collection.name))
 
 
 # TODO: don't duplicate this,,,
@@ -36,7 +55,7 @@ class __Cooker:
 # TODO: make this take objects rather than the entire collection
 def cook_objects_into(context, xform, collection, cooked_scene):
     for obj in collection.objects:
-        if obj.hide_render:
+        if not __should_cook_object(obj):
             continue
 
         comps = dict(obj.get('worldspawn', {}).get('components', {}))
@@ -55,8 +74,9 @@ def cook_objects_into(context, xform, collection, cooked_scene):
         }
         comps['Scale'] = S
 
-        geometry = context.path_for_datablock(obj)
-        if geometry:
+        if __should_cook_object_data(obj):
+            geometry = context.path_for_datablock(obj)
+
             # TODO: do we need to do anything about this?
             if 'RenderingGeometry' not in comps:
                 comps['RenderingGeometry'] = {
@@ -87,7 +107,7 @@ def cook(context, datablock):
 
     cooked = utils.fixupdict(tmp.cooked) # pain
     with open(context.path_for_datablock(datablock), 'wb') as f:
-        json.dump(cooked, codecs.getwriter('utf-8')(f), indent='\t', default=utils.asdasd)
+        json.dump(cooked, utils.UTF8Writer(f), indent='\t', default=utils.asdasd)
 
 
 
