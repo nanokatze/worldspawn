@@ -1,7 +1,7 @@
-static const float M_PI = 3.141592653589793;
+static const float M_PI_F = 3.141592653589793;
 
 public float3 SampleCosineHemisphere(float2 u) {
-    let phi = u.x * 2.0f * M_PI;
+    let phi = u.x * 2.0f * M_PI_F;
     let sinTheta = sqrt(u.y);
     let cosTheta = sqrt(1.0f - u.y);
 
@@ -13,7 +13,7 @@ public float3 SampleCosineHemisphere(float2 u) {
 }
 
 public float CosineHemispherePDF(float cosTheta) {
-    return cosTheta / M_PI;
+    return cosTheta / M_PI_F;
 }
 
 public float2 SampleTriangle(float2 u) {
@@ -27,6 +27,16 @@ public float2 SampleTriangle(float2 u) {
     }
 
     return float2(b0, b1);
+}
+
+public float2 SampleDisk(float2 u) {
+    float r = sqrt(u.x);
+    float theta = 2.0f * M_PI_F * u.y;
+
+    float cos;
+    float sin;
+    sincos(theta, sin, cos);
+    return float2(r * cos, r * sin);
 }
 
 float sqr(float x) {

@@ -12,7 +12,7 @@ public struct Diffuse : BxDF {
     // public float roughness;
 
     public BSDFFlags Flags() {
-        // TODO: as an "opt" we can return 0 when R is 0
+        // TODO: as an "opt" we should return 0 when R is 0
         return BSDFFlags::Diffuse | BSDFFlags::Reflected;
     }
 

@@ -17,7 +17,8 @@ type Instance struct {
 type MaterialInstance struct {
 	Material *Material
 	// TODO: these should be expressed somehow generically
-	Hmm [3]float32
+	BaseColor [3]float32
+	Emission  [3]float32
 }
 
 // TODO: actually remove this entirely from here and push any kind of tracking
@@ -93,18 +94,18 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 	materialParamsHost := scene.materialParams.Value()
 	accelInstancesHost := scene.accelInstances.Value()
 	emissiveInstancesHost := scene.lightSampler.emissiveInstances.Value()
-	for instanceIndex, instance := range dirty.Instance {
+	for instanceIdx, instance := range dirty.Instance {
 		// TODO: is this necessary?
 		// TODO: actually we might have instances at index 0: this would happen
 		// if the entity at index 0 is in the next generation. Maybe we should
 		// just forbid index 0 in our entities.
-		if instanceIndex == 0 || instance.Transform == 0 {
-			accelInstancesHost[instanceIndex] = gpu.AccelInstance{}
+		if instanceIdx == 0 || instance.Transform == 0 {
+			accelInstancesHost[instanceIdx] = gpu.AccelInstance{}
 			continue
 		}
 
 		// Should be done on the device
-		instanceTransform := dirty.Transform(instanceIndex, t)
+		instanceTransform := dirty.Transform(instanceIdx, t)
 
 		// TODO: outline into a func
 		var A [3][4]float32
@@ -114,29 +115,33 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 			}
 		}
 
-		mesh := dirty.Mesh[instanceIndex]
+		mesh := dirty.Mesh[instanceIdx]
 
-		for i, part := range mesh.parts {
-			material := dirty.Materials[instanceIndex][i]
+		for partIdx, part := range mesh.parts {
+			material := dirty.Materials[instanceIdx][partIdx]
 
-			materialParamsHost[instanceIndex*scene.maxPartsPerMesh+i] = _MaterialParams{
-				Code:      gpu.SliceData(material.Material.code),
-				Triangles: gpu.SliceData(part.IndexBuffer),
-				Normals:   gpu.SliceData(part.NormalBuffer),
-				UVs:       gpu.SliceData(part.AttribBuffers[0].(gpu.Slice[[2]float32])),
-				Hmm:       material.Hmm,
+			materialParamsHost[instanceIdx*scene.maxPartsPerMesh+partIdx] = materialParams{
+				Code:         gpu.SliceData(material.Material.code),
+				EmissionCode: gpu.SliceData(material.Material.emissive),
+				Triangles:    gpu.SliceData(part.IndexBuffer),
+				NumTriangles: uint32(gpu.SliceLen(part.IndexBuffer)),
+				PosBuffer:    gpu.SliceData(part.PosBuffer),
+				Normals:      gpu.SliceData(part.NormalBuffer),
+				UVs:          gpu.SliceData(part.AttribBuffers[0].(gpu.Slice[[2]float32])),
+				BaseColor:    material.BaseColor,
+				Emission:     material.Emission,
 			}
 
 			// TODO: we should build an emissive blas and when instancing it
 			// we'll enable/disable geometries (by specifying emission power for
 			// those geometries)
-			if material.Material.emissive {
-				materialParamsHost[instanceIndex*scene.maxPartsPerMesh+i].Emission = [3]float32{10, 10, 10}
+			if material.Material.emissive != (gpu.Slice[uint32]{}) {
+				materialParamsHost[instanceIdx*scene.maxPartsPerMesh+partIdx].Emission = material.Emission
 
 				emissiveInstancesHost[emissiveInstanceCount] = emissiveInstance{
-					transform:   A,
-					posBuffer:   part.PosBuffer,
-					indexBuffer: part.IndexBuffer,
+					transform:             A,
+					originalInstanceIndex: uint32(instanceIdx),
+					originalGeometryIndex: uint32(partIdx),
 				}
 				emissiveInstanceCount++
 			}
@@ -148,14 +153,14 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 			accel = mesh.Accel.Data
 		}
 
-		accelInstancesHost[instanceIndex] = gpu.AccelInstance{
+		accelInstancesHost[instanceIdx] = gpu.AccelInstance{
 			Transform:         A,
 			InstanceIDAndMask: pack24_8(0, uint32(instance.Mask)),
-			SBTOffsetAndFlags: pack24_8(uint32(instanceIndex*scene.maxPartsPerMesh), 0),
+			SBTOffsetAndFlags: pack24_8(uint32(instanceIdx*scene.maxPartsPerMesh), 0),
 			Accel:             accel,
 		}
 
-		instanceCount = max(instanceCount, instanceIndex+1)
+		instanceCount = max(instanceCount, instanceIdx+1)
 	}
 
 	scene.lightSampler.emissiveInstanceCount = emissiveInstanceCount

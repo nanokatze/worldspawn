@@ -17,8 +17,6 @@ type _FrameData struct {
 
 	BlueNoise gpu.SamplingView
 
-	MaxRayDist float32
-
 	Proj        geometry.Mat4x4
 	ProjInverse geometry.Mat4x4
 	View        geometry.Mat4x4
@@ -145,8 +143,6 @@ func (scene *Scene) Render(jq *gpu.JobQueue, t float32, fn uint32, camera *Camer
 		*frameData.Value() = _FrameData{
 			FrameNumber: fn,
 			BlueNoise:   bnlayer.SamplingDescriptor(),
-
-			MaxRayDist: 1024.0,
 
 			Proj:        proj,
 			ProjInverse: proj.Inverse(),

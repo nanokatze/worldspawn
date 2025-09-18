@@ -228,15 +228,17 @@ func (m *Mesh) InitFromFile(r io.ReaderAt, filename string) error {
 			panic("bug")
 		}
 
-		mat := TestMaterial()
-		if header2.Materials[serializedPart.MaterialIndex] == "maps/lockdown/materials/Material_003" {
-			mat = TestMaterial2()
+		mat := MaterialInstance{
+			Material:  TestMaterial(),
+			BaseColor: [3]float32{rand.Float32(), rand.Float32(), rand.Float32()},
 		}
 
-		m.DefaultMaterials[i] = MaterialInstance{
-			Material: mat,
-			Hmm:      [3]float32{rand.Float32(), rand.Float32(), rand.Float32()},
+		if header2.Materials[serializedPart.MaterialIndex] == "maps/lockdown/materials/Material_003" {
+			mat.Material = TestMaterial2()
+			mat.Emission = [3]float32{10, 10, 10}
 		}
+
+		m.DefaultMaterials[i] = mat
 
 		accelBuildInputs[i] = &gpu.AccelBuildInputTriangles{
 			VertexFormat:  vk.FORMAT_R32G32B32_SFLOAT,

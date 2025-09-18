@@ -19,45 +19,29 @@ type Camera struct {
 	NearClipPlane float32
 }
 
-type _MaterialParams struct {
-	_         structs.HostLayout
-	Code      gpu.Pointer[uint32]
-	Triangles gpu.Pointer[[3]uint16]
-	Normals   gpu.Pointer[[3]float32]
-	UVs       gpu.Pointer[[2]float32]
-	Hmm       [3]float32
-	Emission  [3]float32
+type materialParams struct {
+	_ structs.HostLayout
+	// ABI       bxdfabi
+	Code         gpu.Pointer[uint32]
+	EmissionCode gpu.Pointer[uint32]
+	Triangles    gpu.Pointer[[3]uint16]
+	NumTriangles uint32
+	PosBuffer    gpu.Pointer[[3]float32]
+	Normals      gpu.Pointer[[3]float32]
+	UVs          gpu.Pointer[[2]float32]
+	BaseColor    [3]float32
+	Emission     [3]float32
 }
 
 // TODO: I guess we'll need to do some involved memory management in Scene.
-
-// TODO: to abstract over still AS and motion AS we could introduce two scenes
-// that implement the same interface. Though that would be insufficient of an
-// abstraction as shader code would still have to be aware about still vs motion
-// AS. I guess let's just not.
-
-type light struct {
-	_ structs.HostLayout
-
-	// TODO: replace this with an instance index, geometry index and a triangle
-	// triplet.
-	verts [3]geometry.Vec3
-
-	// TODO: we'll need more info for power sampling, but that seems complicated
-	// in presence of materials defining emission.
-
-	// TODO: evaluate the material for emission
-	emission geometry.Vec3
-}
 
 // TODO: should probs be emissiveBLAS or something
 type emissiveInstance struct {
 	_ structs.HostLayout
 
-	// TODO: we also have parts, actually!
-	transform   [3][4]float32
-	posBuffer   gpu.Slice[[3]float32]
-	indexBuffer gpu.Slice[[3]uint16]
+	transform             [3][4]float32
+	originalInstanceIndex uint32
+	originalGeometryIndex uint32 // TODO: we should not need this I think?
 }
 
 type lightSampler struct {
@@ -72,14 +56,21 @@ type lightSampler struct {
 	emissiveInstanceCount int
 }
 
+// TODO: to abstract over still AS and motion AS we could introduce two scenes
+// that implement the same interface. Though that would be insufficient of an
+// abstraction as shader code would still have to be aware about still vs motion
+// AS. I guess let's just not.
 type Scene struct {
 	_ structs.HostLayout
 
 	// TODO: rename, kinda don't like what it's called
 	maxPartsPerMesh int
 
-	materialParams gpu.Slice[_MaterialParams]
+	// TODO: rename to materialData? materialInstanceData?
+	// materialInstanceParams?
+	materialParams gpu.Slice[materialParams]
 
+	// TODO: rename to accelData etc?
 	accelInstances gpu.Slice[gpu.AccelInstance]
 
 	accel gpu.Accel
@@ -110,7 +101,7 @@ type hitRecord struct {
 
 // TODO: we'll probs end up needing to take a struct with params
 func NewScene(n int, maxPartsPerMesh int) *Scene {
-	instances := gpu.MakeSliceUncached[_MaterialParams](n * maxPartsPerMesh)
+	instances := gpu.MakeSliceUncached[materialParams](n * maxPartsPerMesh)
 
 	emissiveInstances := gpu.MakeSliceUncached[emissiveInstance](n)
 

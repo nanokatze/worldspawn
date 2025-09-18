@@ -5,64 +5,36 @@ import lighting;
 
 public struct MaterialParams {
     public uint32_t *code;
+    public uint32_t *emissionCode;
     public void *triangles;
+    public uint32_t num_triangles;
+    public float3 *posBuffer;
     public float3 *normals;
     public float2 *uvs;
-    public float hmm[3];
+    public float baseColor[3];
     public float emission[3];
 };
 
-float3
-interpolate3(float3x3 attrs, float2 barys)
-{
-    return mul(transpose(attrs), float3(1.0 - barys.x - barys.y, barys));
+// TODO: naming
+public struct leSample {
+    public Spectrum Le;
+    public float3 normal;
+    public float pdf;
 }
 
-// TODO: instead of having public light objects, we should instead pass light
-// identifier, which could be e.g. an uint32. This light identifier would be
-// used by RIS/ReSTIR, and would have to be passed back to lightSampler in order
-// to sample the light.
-
-public struct light {
-    // TODO: lights should just point to triangles (or quads) in meshes.
-    public float3 verts[3];
-    public Spectrum emission;
-
-    // TODO: rename
-    public Spectrum Li(float2 idk) {
-        return emission;
-    }
-
-    // TODO: rename hitpos to something else, like p_surf or w/e
-    public lightSample Sample(float3 hitpos, float2 idk) {
-        // TODO: switch to spherical triangle sampling for better distribution
-        // instead.
-
-        let area = length(cross(verts[1] - verts[0], verts[2] - verts[0])) * 0.5;
-        let normal = normalize(cross(verts[1] - verts[0], verts[2] - verts[0]));
-
-        let barys = SampleTriangle(idk);
-        let p = interpolate3(reinterpret<float3x3>(verts), barys);
-
-        let uhh = p - hitpos;
-
-        let wi = normalize(uhh);
-
-        return {
-            wi,
-            length(uhh),
-            normal,
-            dot(uhh, uhh) / (abs(dot(normal, wi)) * area),
-        };
-    }
-};
+// TODO: naming
+public struct lightSampleA {
+    public float3 wi;
+    public float dist;
+}
 
 public struct emissiveInstance {
     public float3x4 transform;
-    public Slice<float3> posBuffer;
-    public Slice<uint16_t3> indexBuffer;
+    public uint32_t originalInstanceIndex;
+    public uint32_t originalGeometryIndex;
 };
 
+// TODO: stable light IDs so that we can use them in RIS/ReSTIR etc
 public struct lightSampler {
     public SamplingViewWithSampler env;
 
