@@ -19,11 +19,6 @@ type WeaponDeployedInterface interface {
 	WeaponDeployed(w *Scene, weaponID, operatorID ecs.ID, now Time, Δt time.Duration)
 }
 
-// TODO: we need a more general mechanism
-type Viewmodel struct {
-	Translation geometry.Vec3
-}
-
 // TODO: just remove this component
 type WeaponAim struct {
 	// TODO: should also include the shooter's entity

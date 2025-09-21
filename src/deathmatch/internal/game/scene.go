@@ -16,6 +16,8 @@ import (
 	"worldspawn/physics"
 )
 
+// TODO: use "object" instead of "entity" throughout the code?
+
 // TODO: split this file up
 
 // TODO: it is up to the server and client to implement un/marshalers, we should
@@ -81,6 +83,9 @@ type SingletonComponents struct {
 }
 
 // TODO: introduce Camera component which will specify fov etc
+type Camera struct {
+	FieldOfView float32
+}
 
 // TODO: component for viewmodels and being drawn at custom fov or something
 // TODO: we'll probably want viewmodels to be separate entities
@@ -96,27 +101,36 @@ type SingletonComponents struct {
 // should also update it reactively when we add dirty tracking, to minimize the
 // amount of work we do.
 
+// TODO: or SetParent?
+func (scene *Scene) ParentTo(child, parent ecs.ID) {
+	scene.Parent.Store(child, parent)
+	// children, _ := scene.Children.Load(parent)
+	// children
+}
+
 // TODO: rename
 // TODO: introduce struct tags like compatibility names etc
 type Components struct {
 	Name ecs.ComponentStore[string]
 
-	CreatedAt ecs.ComponentStore[Time]
+	CreationTime ecs.ComponentStore[Time]
 
-	Parent   ecs.ComponentStore[ecs.ID]
-	Children ecs.ComponentStore[[]ecs.ID] // map[ecs.ID]struct{} ?
+	Parent ecs.ComponentStore[ecs.ID]
+	// Children ecs.ComponentStore[map[ecs.ID] // map[ecs.ID]struct{} ?
 
 	TranslationRotation ecs.ComponentStore[TranslationRotation]
 	Scale               ecs.ComponentStore[geometry.Vec3] // TODO: default this to 1
 
 	Velocity ecs.ComponentStore[Velocity]
 
-	CosmeticOffset                ecs.ComponentStore[CosmeticOffset]
-	DeleteCosmeticOffsetOnContact ecs.ComponentStore[struct{}]
-
 	RenderingGeometry ecs.ComponentStore[GeometryPacked]
 
 	SoundEffect ecs.ComponentStore[SoundEffect]
+
+	Viewmodel2 ecs.ComponentStore[Viewmodel2]
+
+	CosmeticOffset                ecs.ComponentStore[CosmeticOffset]
+	DeleteCosmeticOffsetOnContact ecs.ComponentStore[struct{}]
 
 	// Posing test
 	Animation ecs.ComponentStore[Animation]
@@ -211,7 +225,7 @@ func (w *Scene) Destroy() {
 	// TODO: stop and destroy physicsSystem here
 }
 
-// TODO: remove these entity-related funcs?
+// TODO: rename to EntityIsValid?
 func (w *Scene) IsEntityValid(id ecs.ID) bool {
 	return w.IDAlloc.Valid(id)
 }
@@ -249,7 +263,7 @@ func (w *Scene) HandleInput(id ecs.ID, cmd TimestampedInputCmd, info *UpdatePara
 // TODO: parallel for in blender for example specifies bulk number for tasks so
 // we might want to do the same.
 
-func (w *Scene) Update(info *UpdateParams) {
+func (w *Scene) Update(updateParams *UpdateParams) {
 	if w.Now == 0 {
 		panic("Now must never be zero")
 	}
@@ -260,29 +274,29 @@ func (w *Scene) Update(info *UpdateParams) {
 	for id, entity := range w.Entity.All() {
 		if char, ok := entity.(Character); ok {
 			// TODO: not sure what to put in Time here, w.Now or w.Now + Δt?
-			char.CharacterUpdate(w, id, TimestampedInputCmd{Time: 0}, info)
+			char.CharacterUpdate(w, id, TimestampedInputCmd{Time: 0}, updateParams)
 		}
 	}
 
 	for id, entity := range w.Entity.All() {
 		if entity, ok := entity.(UpdateBeforePhysics); ok {
-			entity.UpdateBeforePhysics(w, id, info)
+			entity.UpdateBeforePhysics(w, id, updateParams)
 		}
 	}
 
 	worldToPhysics(w)
-	updatePhysics(w, info.Δt)
+	updatePhysics(w, updateParams.Δt)
 
 	for id, entity := range w.Entity.All() {
 		if entity, ok := entity.(UpdateAfterPhysics); ok {
-			entity.UpdateAfterPhysics(w, id, info)
+			entity.UpdateAfterPhysics(w, id, updateParams)
 		}
 	}
 
 	// TODO: simulate viewpunch motion better. View punch is a sphere with
 	// inertia and damping which we should simulate.
 	for id, viewPunch := range w.ViewPunch.All() {
-		w.ViewPunch.Store(id, viewPunch.NLerp(geometry.Rot3One(), float32(durationToFloatSeconds(info.Δt))))
+		w.ViewPunch.Store(id, viewPunch.NLerp(geometry.Rot3One(), float32(durationToFloatSeconds(updateParams.Δt))))
 	}
 
 	for id, animation := range w.Animation.All() {

@@ -19,6 +19,9 @@ import (
 // TODO: this code is in serious need of work!!!
 
 type FPSCharacter struct {
+	// TODO: move this into a separate component?
+	Camera ecs.ID
+
 	// TODO: shape
 	StandingHeight float32
 
@@ -126,6 +129,12 @@ func (entity FPSCharacter) CharacterUpdate(w *Scene, id ecs.ID, cmd TimestampedI
 
 	// TODO: avoid unnecessary updates
 	w.Entity.Store(id, entity)
+
+	// TODO: factor this out
+	w.TranslationRotation.Store(entity.Camera, TranslationRotation{
+		Translation: geometry.DVec3{0, 0, float64(entity.StandingViewHeight)},
+		Rotation:    geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, -1}, 2*math.Pi*entity.Look.X).Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, 2*math.Pi*entity.Look.Y)),
+	})
 }
 
 var _ UpdateBeforePhysics = FPSCharacter{}

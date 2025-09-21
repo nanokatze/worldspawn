@@ -517,14 +517,6 @@ func spawnplayer(w *game.Scene) ecs.ID {
 		playerSpawns = append(playerSpawns, id)
 	}
 
-	w.Entity.Store(player, game.FPSCharacter{
-		WalkVelocity:                21.6 / 3.6,
-		BackwardsWalkVelocityFactor: 0.8,
-		WalkAcceleration:            35,
-		JumpVelocity:                4,
-		StandingViewHeight:          1.9 - 0.1,
-	})
-
 	// meh
 	t, _ := w.TranslationRotation.Load(playerSpawns[rand.IntN(len(playerSpawns))])
 	w.TranslationRotation.Store(player, t)
@@ -534,6 +526,7 @@ func spawnplayer(w *game.Scene) ecs.ID {
 		Kind:     game.GeometryFileBacked,
 		Filename: "testcharacter4/geometries/TestCharacter4",
 	}))
+	w.Viewmodel2.Store(player, game.Viewmodel2{Mode: 2})
 	w.CollisionGeometry.Store(player, game.PackGeometry(game.Geometry{
 		Translation: geometry.Vec3{0, 0, 1.9 / 2},
 		Rotation:    geometry.Rot3One(),
@@ -546,7 +539,29 @@ func spawnplayer(w *game.Scene) ecs.ID {
 	w.CollisionLayer.Store(player, game.PhysicsLayerMovingKinematic)
 	w.PhysicsMassOverride.Store(player, 100)
 
+	camera := w.CreateEntity()
+	w.ParentTo(camera, player)
+	// TODO: poke a method on fpscharacter to perform this
+	w.TranslationRotation.Store(camera, game.TranslationRotation{
+		Translation: geometry.DVec3{0, 0, 1.9 - 0.1}, // standing height
+		Rotation:    geometry.Rot3One(),
+	})
+	w.Scale.Store(camera, geometry.Vec3Broadcast(1))
+
+	w.Entity.Store(player, game.FPSCharacter{
+		Camera:                      camera,
+		WalkVelocity:                21.6 / 3.6,
+		BackwardsWalkVelocityFactor: 0.8,
+		WalkAcceleration:            35,
+		JumpVelocity:                4,
+		StandingViewHeight:          1.9 - 0.1,
+	})
+
 	slots := []ecs.ID{}
+
+	// TODO: really redo how we do weapons. We probably do not want literal
+	// entities attached to the player, but rather different data structures
+	// that player's CharacterUpdate would drive.
 
 	{
 		gun := w.SpawnPrefab(game.PrefabRef{Filename: "weapons/grenade_launcher/grenade_launcher.json"})

@@ -102,7 +102,7 @@ func (weapon WeaponGenericProjectileLauncher) WeaponUpdateSubtick(w *Scene, id, 
 		w.PhysicsFilter.Store(projectile, []ecs.ID{playerID})
 		// w.PhysicsInertiaOverride.Store(projectile, geometry.Mat4x4Diagonal(geometry.Vec4Broadcast(1)))
 		w.DeleteCosmeticOffsetOnContact.Store(projectile, struct{}{})
-		w.CreatedAt.Store(projectile, w.Now)
+		w.CreationTime.Store(projectile, w.Now)
 	}
 
 	w.SoundEffect.Store(id, SoundEffect{

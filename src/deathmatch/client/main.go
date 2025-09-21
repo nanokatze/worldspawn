@@ -295,9 +295,6 @@ func redrawLocked() bool {
 		MaxLod:           vk.LOD_CLAMP_NONE,
 	})
 
-	// testTexture := texture("Editor/measure2.ktx2")
-
-	clientRenderer.privateScene.OurCamera.Transform = clientRenderer.privateScene.Transform(1999, float32(t))
 	clientRenderer.privateScene2.EnqueueUpdate(&jq, clientRenderer.privateScene, float32(t))
 
 	clientRenderer.privateScene2.Render(&jq,
@@ -480,13 +477,12 @@ func (sr *idk) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDurat
 		sr.scene.Sky = texture(w.Sky).Image
 
 		playerEntity, _ := w.Entity.Load(playerID)
+		fpsCharacter := playerEntity.(game.FPSCharacter)
 
 		// TODO: we should just parent stuff to bone
-		activeWeapon := playerEntity.(game.FPSCharacter).ActiveWeapon
+		// activeWeapon := playerEntity.(game.FPSCharacter).ActiveWeapon
 
-		for id, v := range ecs.Join(w.RenderingGeometry, w.TranslationRotation) {
-			renderingGeometry := v.V1
-			positionRotation := v.V2
+		for id, tr := range w.TranslationRotation.All() {
 			scale, ok := w.Scale.Load(id)
 			if !ok {
 				scale = geometry.Vec3Broadcast(1)
@@ -495,40 +491,9 @@ func (sr *idk) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDurat
 
 			i := id.Index()
 
-			mask := uint8(0b11)
-
-			if id == playerID {
-				mask = 0b10
-			}
-
-			// We'll probably want extra code for figuring out where to draw/play
-			// sound of certain entities instead of having dedicated viewmodel
-			// components
-			if id == activeWeapon {
-				viewmodel, _ := w.Viewmodel.Load(id)
-
-				// TODO: should we use a pivot point for viewmodel?
-
-				positionRotation, _ = w.TranslationRotation.Load(playerID)
-				velocity, _ := w.Velocity.Load(playerID)
-
-				up := positionRotation.Rotation.Rotate(geometry.Vec3{0, 0, 1})
-
-				horizontalVelocity := velocity.Linear.Add(up.Scale(-velocity.Linear.Dot(up)))
-
-				// worldspawn.Time{} here is an ugly hack, stop doing that
-				viewmodelSway := geometry.Vec3{0, float32(math.Sin(10*durationSeconds(w.Now.Sub(game.Time(0)))) * 0.01 * min(float64(horizontalVelocity.Length()), 1)), 0}
-
-				sr.scene.Parent[i] = 1999
-
-				positionRotation.Translation = geometry.DVec3FromVec3(viewmodel.Translation.Add(viewmodelSway))
-				positionRotation.Rotation = geometry.Rot3One()
-
-				// I don't like the idea of changing the scale for viewmodels to
-				// be honest, so let's just not
-				scale = geometry.Vec3Broadcast(1)
-
-				mask = 0b01
+			parent, hasParent := w.Parent.Load(id)
+			if hasParent {
+				sr.scene.Parent[i] = parent.Index()
 			}
 
 			var offset geometry.Vec3
@@ -537,9 +502,27 @@ func (sr *idk) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDurat
 			}
 
 			sr.scene.TransformT1[i] = geometry.TRS3{
-				Translation: positionRotation.Translation.Add(geometry.DVec3FromVec3(offset)).Vec3(),
-				Rotation:    positionRotation.Rotation,
+				Translation: tr.Translation.Add(geometry.DVec3FromVec3(offset)).Vec3(),
+				Rotation:    tr.Rotation,
 				Scale:       scale,
+			}
+		}
+
+		for id, v := range ecs.Join(w.RenderingGeometry, w.TranslationRotation) {
+			renderingGeometry := v.V1
+
+			i := id.Index()
+
+			mask := uint8(0b11)
+
+			viewmodel, hasViewmodel := w.Viewmodel2.Load(id)
+			if hasViewmodel {
+				switch viewmodel.Mode {
+				case 1:
+					mask = 0b01
+				case 2:
+					mask = 0b10
+				}
 			}
 
 			// color := [][3]float32{
@@ -585,34 +568,11 @@ func (sr *idk) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDurat
 			sr.scene.Instance[i].Transform = i
 		}
 
-		i := 1999
-		{
-			playerEntity, _ := w.Entity.Load(playerID)
-			fpsCharacter := playerEntity.(game.FPSCharacter)
-			positionRotation, _ := w.TranslationRotation.Load(playerID)
-			viewPunch, ok := w.ViewPunch.Load(playerID)
-			if !ok {
-				viewPunch = geometry.Rot3One()
-			}
-
-			sr.scene.TransformT1[i] = geometry.TRS3{
-				Translation: positionRotation.Translation.Add(geometry.DVec3FromVec3(positionRotation.Rotation.Rotate(geometry.Vec3{0, 0, fpsCharacter.StandingViewHeight}))).Vec3(),
-				Rotation: positionRotation.Rotation.
-					Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, -1}, 2*math.Pi*fpsCharacter.Look.X)).
-					Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, 2*math.Pi*fpsCharacter.Look.Y)).
-					Mul(viewPunch),
-				Scale: geometry.Vec3Broadcast(1),
-			}
-
-			// TODO: should we change FieldOfView to FocalLength? It potentially
-			// might be more intuitive, such as when adding or multiplying.
-			// Alternatively we could just use InverseFieldOfView or some other
-			// thing with comparable properties but not ambiguous (FocalLength
-			// depends on sensor size which is commonly understood to be 35 mm)
-			sr.scene.OurCamera = renderer.Camera{
-				FieldOfView:   float32(geometry.Radians(67.5)),
-				NearClipPlane: 0.01,
-			}
+		// TODO: factor out into a function, this gets reused in Subtick
+		sr.scene.OurCamera = renderer.Camera{
+			Transform:     sr.scene.Transform(fpsCharacter.Camera.Index(), 0),
+			FieldOfView:   float32(geometry.Radians(67.5)),
+			NearClipPlane: 0.01,
 		}
 	}
 
@@ -681,23 +641,23 @@ func (sr *idk) Subtick(w *game.Scene, playerID ecs.ID) {
 	sr.sceneMu.Lock()
 	defer sr.sceneMu.Unlock()
 
-	i := 1999
-
 	playerEntity, _ := w.Entity.Load(playerID)
 	fpsCharacter := playerEntity.(game.FPSCharacter)
-	positionRotation, _ := w.TranslationRotation.Load(playerID)
-	viewPunch, ok := w.ViewPunch.Load(playerID)
-	if !ok {
-		viewPunch = geometry.Rot3One()
+	cameraID := fpsCharacter.Camera
+	tr, _ := w.TranslationRotation.Load(cameraID)
+
+	rot := tr.Rotation
+
+	// TODO: chase the entire parent chain and update that as well?
+
+	sr.scene.TransformT0[cameraID.Index()].Rotation = rot
+	sr.scene.TransformT1[cameraID.Index()].Rotation = rot
+
+	sr.scene.OurCamera = renderer.Camera{
+		Transform:     sr.scene.Transform(cameraID.Index(), 0),
+		FieldOfView:   float32(geometry.Radians(67.5)),
+		NearClipPlane: 0.01,
 	}
-
-	rot := positionRotation.Rotation.
-		Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, -1}, 2*math.Pi*fpsCharacter.Look.X)).
-		Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, 2*math.Pi*fpsCharacter.Look.Y)).
-		Mul(viewPunch)
-
-	sr.scene.TransformT0[i].Rotation = rot
-	sr.scene.TransformT1[i].Rotation = rot
 }
 
 type flickStick struct {

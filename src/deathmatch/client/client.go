@@ -290,6 +290,10 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 }
 
 func (s *Client) HandleInput(cmds []game.TimestampedInputCmd) {
+	if len(cmds) == 0 {
+		return
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

@@ -2,6 +2,7 @@ package game
 
 import (
 	"worldspawn/geometry-go"
+	"worldspawn/internal/ecs"
 )
 
 type CosmeticOffset struct {
@@ -25,4 +26,19 @@ type SoundEffect struct {
 	// own component
 	PlayTime Time
 	// StopTime time.Duration
+}
+
+// Deprecated; TODO: remove in favor of creating a separate entity with
+// visibility restricted through Viewmodel2 and parenting it to camera at a
+// particular offset
+type Viewmodel struct {
+	Translation geometry.Vec3
+}
+
+// TODO: rename
+type Viewmodel2 struct {
+	// TODO: replace with an arbitrary int64 id so we can have the same cameras
+	// share visibility sets? Or should this be a set of ids/ecs.IDs?
+	Camera ecs.ID
+	Mode   int8 // 1=viewmodel, 2=worldmodel; TODO: make a enum
 }
