@@ -175,8 +175,6 @@ func (scene *Scene) Render(jq *gpu.JobQueue, t float32, fn uint32, camera *Camer
 		}
 		gpu.EnqueueTraceRays(jq, scene.pipeline, scene.sbt, res.X, res.Y, 1, &args)
 	}
-
-	// TODO: compositor here, perhaps user-provided.
 }
 
 // TODO: move into gpu/vk or at least just gpu?
