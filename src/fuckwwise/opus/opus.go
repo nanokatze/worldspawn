@@ -111,7 +111,7 @@ var packetSamplesPerFrame = [32]int{
 }
 
 func PacketSamplesPerFrame(data []byte, Fs int) (int, error) {
-	if len(data) < 0 {
+	if len(data) < 1 {
 		return 0, ErrInvalidPacket
 	}
 	config := data[0] >> 3
