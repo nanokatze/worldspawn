@@ -17,32 +17,17 @@ var ErrBadHeader = errors.New("invalid Ogg Opus header")
 
 var ErrBadPacket = errors.New("packet failed to decode properly")
 
-type tags struct {
-}
-
-func parseTags(src []byte, tags *tags) error {
-	if len(src) < 8 {
-		return ErrBadHeader
-	}
-
-	if string(src[0:8]) != "OpusTags" {
-		return ErrBadHeader
-	}
-
-	return nil
-}
-
 type Reader struct {
-	oggr           oggReader
+	pr             oggReader
 	channels       int
-	preSkipSamples int64
+	preSkipSamples int
 	gain           float32
-	// tags           tags
-	decoder     *opus.MSDecoder
-	pcm         []byte // decoded page contents
-	off         int    // offset within pcm for the next read
-	nextPagePos int64  // granule position of the next page, in bytes
-	err         error
+	tags           *opusTags
+	decoder        *opus.MSDecoder
+	pcm            []byte // decoded page contents, will be cast to []float32 so must be appropriately aligned
+	off            int    // offset within pcm for the next read
+	nextPagePos    int64  // granule position of the next page, in bytes
+	err            error
 }
 
 func NewReader(r io.Reader) (*Reader, error) {
@@ -54,8 +39,8 @@ func NewReader(r io.Reader) (*Reader, error) {
 	if err != nil {
 		return nil, err
 	}
-	var header header
-	if err := parseHeader(p, &header); err != nil {
+	head, err := parseHead(p)
+	if err != nil {
 		return nil, err
 	}
 
@@ -63,25 +48,24 @@ func NewReader(r io.Reader) (*Reader, error) {
 	if err != nil {
 		return nil, err
 	}
-	var tags tags
-	if err := parseTags(p, &tags); err != nil {
+	tags, err := parseTags(p)
+	if err != nil {
 		return nil, err
 	}
 
-	decoder, err := opus.NewMSDecoder(48000, header.StreamCount, header.CoupledCount, header.Mapping[:header.ChannelCount])
+	decoder, err := opus.NewMSDecoder(48000, head.StreamCount, head.CoupledCount, head.Mapping[:head.ChannelCount])
 	if err != nil {
 		return nil, err
 	}
 
 	rr := &Reader{
-		oggr:           oggr,
-		channels:       header.ChannelCount,
-		preSkipSamples: int64(header.PreSkip),
-		gain:           float32(math.Pow(10, float64(header.OutputGain)/5120)),
-		// tags:           tags,
-		decoder: decoder,
+		channels:       head.ChannelCount,
+		preSkipSamples: head.PreSkip,
+		gain:           float32(math.Pow(10, float64(head.OutputGain)/5120)),
+		tags:           tags,
+		pr:             oggr,
+		decoder:        decoder,
 	}
-
 	// Seek to the actual start
 	if _, err := rr.Seek(0, io.SeekStart); err != nil {
 		return nil, err
@@ -94,16 +78,16 @@ func (r *Reader) Channels() int {
 	return r.channels
 }
 
-func (r *Reader) sampleSize() int {
-	return r.channels * 4
+func (r *Reader) SampleRate() int {
+	return 48000
 }
 
 func (r *Reader) preSkip() int64 {
-	return r.preSkipSamples * int64(r.sampleSize())
+	return int64(r.preSkipSamples) * int64(r.sampleSize())
 }
 
-func (r *Reader) SampleRate() int {
-	return 48000
+func (r *Reader) sampleSize() int {
+	return r.channels * 4
 }
 
 func (r *Reader) Read(b []byte) (int, error) {
@@ -112,42 +96,41 @@ func (r *Reader) Read(b []byte) (int, error) {
 	}
 
 	if r.off >= len(r.pcm) {
-		packet, err := r.oggr.NextPacket()
+		packet, err := r.pr.NextPacket()
 		if err != nil {
-			r.err = err
-			return 0, r.err
+			return 0, err
 		}
 
 		durSamples, err := packetDurationSamples(packet)
 		if err != nil {
-			r.err = err
-			return 0, r.err
+			return 0, err
 		}
 		dur := durSamples * r.sampleSize()
 
-		// If b is appropriately aligned and big enough to fit the decoded data,
-		// decode directly into it.
+		// Fast path: if b is appropriately aligned and big enough to fit the
+		// decoded data, decode directly into it.
 		if uintptr(unsafe.Pointer(unsafe.SliceData(b)))%4 == 0 && len(b) >= dur {
 			decodedSamples, err := multistreamDecodeAndApplyGain(r.decoder, packet, asFloatSlice(b), false, r.gain)
-			if err != nil {
-				r.err = err
-				return 0, r.err
-			}
 			decoded := decodedSamples * r.sampleSize()
+			if err != nil {
+				return decoded, err
+			}
 			r.nextPagePos += int64(decoded)
 			return decoded, nil
 		}
 
 		pcm := r.pcm[:cap(r.pcm)]
 		if len(pcm) < dur {
+			// TODO: should we allocate []float32 and then cast it into []byte
+			// to guarantee alignment? Alternatively we should have a comment
+			// explaining why pcm always end up suitably aligned.
 			pcm = make([]byte, dur)
 		}
 		decodedSamples, err := multistreamDecodeAndApplyGain(r.decoder, packet, asFloatSlice(pcm), false, r.gain)
-		if err != nil {
-			r.err = err
-			return 0, r.err
-		}
 		decoded := decodedSamples * r.sampleSize()
+		if err != nil {
+			return decoded, err
+		}
 		r.pcm = pcm[:decoded]
 		r.off = 0
 		r.nextPagePos += int64(decoded)
@@ -160,16 +143,18 @@ func (r *Reader) Read(b []byte) (int, error) {
 
 func multistreamDecodeAndApplyGain(decoder *opus.MSDecoder, data []byte, pcm []float32, decodeFEC bool, gain float32) (int, error) {
 	decoded, err := decoder.Decode(data, pcm, decodeFEC)
-	if err == nil {
-		for i := range pcm[:decoded] {
-			pcm[i] *= gain
-		}
+	for i := range pcm[:decoded] {
+		pcm[i] *= gain
 	}
 	return decoded, err
 }
 
 // Seek sets the offset, in bytes, for the next Read.
 func (r *Reader) Seek(offset int64, whence int) (int64, error) {
+	if r.err != nil {
+		return r.pos(), r.err
+	}
+
 	var abs int64
 	switch whence {
 	case io.SeekStart:
@@ -177,10 +162,10 @@ func (r *Reader) Seek(offset int64, whence int) (int64, error) {
 	case io.SeekCurrent:
 		abs = r.pos() + offset
 	case io.SeekEnd:
-		// TODO: remember LastPosition
-		endPosSamples, err := r.oggr.LastPosition()
+		// TODO: poke LastPosition once
+		endPosSamples, err := r.pr.LastPosition()
 		if err != nil {
-			// BUG: we might not be able to continue after the error
+			// BUG: the error might be unrecoverable
 			return r.pos(), err
 		}
 		abs = endPosSamples*int64(r.sampleSize()) + offset - r.preSkip()
@@ -198,9 +183,9 @@ func (r *Reader) Seek(offset int64, whence int) (int64, error) {
 		return r.pos(), nil
 	}
 
-	pagePosSamples, err := r.oggr.SeekPageBefore(abs / int64(r.sampleSize()))
+	pagePosSamples, err := r.pr.SeekPageBefore(abs / int64(r.sampleSize()))
 	if err != nil {
-		// BUG: we might not be able to continue after the error
+		// BUG: the error might be unrecoverable
 		return r.pos(), err
 	}
 	pagePos := pagePosSamples * int64(r.sampleSize())
@@ -242,5 +227,9 @@ func packetDurationSamples(packet []byte) (int, error) {
 }
 
 func asFloatSlice(s []byte) []float32 {
-	return unsafe.Slice((*float32)(unsafe.Pointer(unsafe.SliceData(s))), len(s)/4)
+	p := unsafe.Pointer(unsafe.SliceData(s))
+	if uintptr(p)%4 != 0 {
+		panic("misaligned pointer")
+	}
+	return unsafe.Slice((*float32)(p), len(s)/4)
 }
