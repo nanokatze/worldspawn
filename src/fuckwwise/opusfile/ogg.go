@@ -102,6 +102,8 @@ func (r *oggReader) LastPosition() (int64, error) {
 	}
 }
 
+// TODO: SeekPageBefore should perform binary search, rather than linear
+
 func (r *oggReader) SeekPageBefore(pos int64) (int64, error) {
 	r.seeker.Seek(0, io.SeekStart)
 	r.buffer = nil
