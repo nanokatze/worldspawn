@@ -1,5 +1,7 @@
 package opusfile
 
+// https://github.com/golang/go/issues/60992
+
 var crcTable [256]uint32
 
 func init() {
