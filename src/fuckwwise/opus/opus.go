@@ -15,21 +15,17 @@ var ErrBadArg = errors.New("one or more invalid/out of range arguments")
 
 var ErrInvalidPacket = errors.New("the compressed data passed is corrupted")
 
-func opusErr(result C.int) error {
-	if result < 0 {
-		switch result {
+func opusErr(ret C.int) error {
+	if ret < 0 {
+		switch ret {
 		case C.OPUS_BAD_ARG:
 			return ErrBadArg
 		case C.OPUS_INVALID_PACKET:
 			return ErrInvalidPacket
-		case C.OPUS_BUFFER_TOO_SMALL,
-			C.OPUS_INTERNAL_ERROR,
-			C.OPUS_UNIMPLEMENTED,
-			C.OPUS_INVALID_STATE,
-			C.OPUS_ALLOC_FAIL:
+		default:
+			// should not happen
+			panic(fmt.Sprintf("unexpected opus error code %d", ret))
 		}
-		// should not happen
-		panic(fmt.Sprintf("unexpected opus error code %d", result))
 	}
 	return nil
 }
@@ -40,41 +36,42 @@ type MSDecoder struct {
 }
 
 func NewMSDecoder(Fs, streams, coupledStreams int, channels []uint8) (*MSDecoder, error) {
-	decoderSize := int(C.opus_multistream_decoder_get_size(C.int(streams), C.int(coupledStreams)))
-	if err := opusErr(C.int(decoderSize)); err != nil {
+	var ret C.int
+
+	ret = C.opus_multistream_decoder_get_size(C.int(streams), C.int(coupledStreams))
+	if err := opusErr(ret); err != nil {
 		return nil, err
 	}
-	d := unsafe.Pointer(unsafe.SliceData(make([]byte, decoderSize)))
-	if err := opusErr(C.opus_multistream_decoder_init(
+	d := unsafe.Pointer(unsafe.SliceData(make([]byte, ret)))
+	ret = C.opus_multistream_decoder_init(
 		(*C.OpusMSDecoder)(d),
 		C.int(Fs),
 		C.int(len(channels)),
 		C.int(streams),
 		C.int(coupledStreams),
-		(*C.uchar)(unsafe.SliceData(channels)))); err != nil {
+		(*C.uchar)(unsafe.SliceData(channels)))
+	if err := opusErr(ret); err != nil {
 		return nil, err
 	}
-	return &MSDecoder{
-		channels: len(channels),
-		d:        d,
-	}, nil
+	return &MSDecoder{len(channels), d}, nil
 }
 
 func (d *MSDecoder) Decode(data []byte, pcm []float32, decodeFEC bool) (int, error) {
 	// BUG: we should error out when data is too long
 
 	const maxFrameSize = 120 * 48
+
 	frameSize := len(pcm) / d.channels
 
-	decoded := int(C.opus_multistream_decode_float(
+	ret := C.opus_multistream_decode_float(
 		(*C.OpusMSDecoder)(d.d),
 		(*C.uchar)(unsafe.SliceData(data)), C.opus_int32(len(data)),
 		(*C.float)(unsafe.SliceData(pcm)), C.int(max(frameSize, maxFrameSize)),
-		C.int(bool2int(decodeFEC))))
-	if err := opusErr(C.int(decoded)); err != nil {
+		C.int(bool2int(decodeFEC)))
+	if err := opusErr(ret); err != nil {
 		return 0, err
 	}
-	return decoded, nil
+	return int(ret), nil
 }
 
 func PacketFrames(data []byte) (int, error) {
