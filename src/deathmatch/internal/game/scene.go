@@ -74,6 +74,7 @@ func (w *World) Transform(id ecs.ID) (geometry.Mat4x4, bool) {
 
 // TODO: rename
 type SingletonComponents struct {
+	// TODO: document what this means when we're in the middle of an Update
 	Now Time
 
 	// TODO: replace it with sky material

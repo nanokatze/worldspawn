@@ -6,9 +6,9 @@ import (
 )
 
 type readSeekerReaderAt struct {
-	mu  sync.Mutex
-	r   io.ReadSeeker
-	off int64
+	mu sync.Mutex
+	r  io.ReadSeeker
+	// off int64
 }
 
 var _ io.ReaderAt = (*readSeekerReaderAt)(nil)

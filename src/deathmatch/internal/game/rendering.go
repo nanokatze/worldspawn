@@ -8,7 +8,7 @@ import (
 type CosmeticOffset struct {
 	Offset    geometry.Vec3
 	StartTime Time
-	EndTime   Time
+	EndTime   Time // TODO: make this duration instead, should improve compression
 }
 
 func (cosmeticOffset CosmeticOffset) Eval(now Time) geometry.Vec3 {
