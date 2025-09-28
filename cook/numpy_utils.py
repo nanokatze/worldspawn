@@ -3,6 +3,7 @@ import numpy as np
 
 vec2 = np.dtype((np.float32, 2))
 vec3 = np.dtype((np.float32, 3))
+vec3 = np.dtype((np.float32, 3))
 
 
 # TODO: move to bpy_utils?

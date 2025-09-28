@@ -1,4 +1,5 @@
 import bpy
+import bmesh
 import dataclasses
 import numpy as np
 
@@ -13,14 +14,28 @@ def deps(context, obj, dset):
     dset.add_product((context.path_for_datablock(obj), 'Object', obj.name))
 
 
+def __triangulate(mesh):
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    bmesh.ops.triangulate(bm, faces=bm.faces[:])
+    bm.to_mesh(mesh)
+    bm.free()
+
+
 def cook(context, obj):
     materials = [None] * max(len(obj.material_slots), 1)
-    for i, material_slot in enumerate(obj.material_slots):
+    for i, slot in enumerate(obj.material_slots):
         # TODO: should we produce a diagnostic when material is None?
-        if material_slot.material is not None:
-            materials[i] = context.path_for_datablock(material_slot.material)
+        if slot.material is not None:
+            materials[i] = context.path_for_datablock(slot.material)
 
     mesh = obj.to_mesh()
+
+    # TODO: for perf try to apply calc_tangents and if that fails triangulate
+    # and apply again
+    __triangulate(mesh)
+
+    mesh.calc_tangents()
 
     mesh.calc_loop_triangles()
 
@@ -47,6 +62,7 @@ def cook(context, obj):
     # fanning out material_index
     fields.append(('position', nputils.vec3))
     fields.append(('normal', nputils.vec3))
+    fields.append(('tangent', nputils.vec3)) # TODO: should be vec4 (x, y, z, sign)
     # group stuff here
     # user defined attrs here
     # TODO: prefix user attrs? e.g. with "attributes."
@@ -58,6 +74,12 @@ def cook(context, obj):
 
     # TODO: encode octahedrally
     loops['normal'] = nputils.array_from_bpy_collection(mesh.loops, 'normal', dtype=nputils.vec3)
+
+    # TODO: encode in a smarter way
+    # TODO: are these the tangents we need? Does this match cycles' tangents
+    # derived from ATTR_STD_GENERATED? There's also tangent spaces necessary for
+    # normal mapping, which are computed from UV.
+    loops['tangent'] = nputils.array_from_bpy_collection(mesh.loops, 'tangent', dtype=nputils.vec3)
 
     # TODO: user attribs here
     loops['UVMap'] = nputils.array_from_bpy_collection(mesh.uv_layers['UVMap'].uv, 'vector', dtype=nputils.vec2)
