@@ -7,11 +7,6 @@ import (
 	"worldspawn/geometry-go"
 )
 
-const (
-	SNORM16 = 1
-	FLOAT32 = 2
-)
-
 // TODO: fold this with the graphics renderer
 
 // Make this opaque?

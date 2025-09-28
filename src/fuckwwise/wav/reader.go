@@ -6,111 +6,152 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"strconv"
+
+	sfx "worldspawn/fuckwwise"
+	"worldspawn/fuckwwise/wav/internal/riff"
 )
 
-// TODO: change this to take a Reader and return a ReaderAt opportunistically?
+type redundantChunkError [4]byte
 
-/*
-type Reader interface {
-	io.Reader
-	io.Seeker
-	io.Closer
-	Format() int
-	Channels() int
-	SampleRate() int
+func (e redundantChunkError) Error() string {
+	return fmt.Sprintf("redundant %q chunk", string(e[:]))
 }
-*/
+
+type unsupportedBitsPerSampleError uint16
+
+func (e unsupportedBitsPerSampleError) Error() string {
+	return "unsupported bits per sample " + strconv.FormatInt(int64(e), 10)
+}
+
+type config struct {
+	format     sfx.Format
+	channels   int32
+	sampleRate uint32
+}
 
 type Reader struct {
-	r          *io.SectionReader
-	channels   int
-	sampleRate int
+	r    *io.SectionReader
+	conf config
 }
 
 func NewReader(r io.ReaderAt) (*Reader, error) {
 	sr := io.NewSectionReader(r, 0, math.MaxInt64)
 
-	var header chunk
-	if err := binary.Read(sr, binary.LittleEndian, &header); err != nil {
+	var riffHeader riff.Chunk
+	if err := binary.Read(sr, binary.LittleEndian, &riffHeader); err != nil {
 		return nil, err
 	}
-	if string(header.Id[:]) != "RIFF" {
+	if string(riffHeader.Id[:]) != "RIFF" {
 		return nil, errors.New("not a WAVE file")
 	}
-	if string(header.Format[:]) != "WAVE" {
+	if string(riffHeader.Format[:]) != "WAVE" {
 		return nil, errors.New("not a WAVE file")
 	}
 
-	var waveformat *_WAVEFORMAT
-
+	var conf config
 	for {
-		var subchunkHeader subchunk
-		if err := binary.Read(sr, binary.LittleEndian, &subchunkHeader); err != nil {
+		var header riff.Subchunk
+		if err := binary.Read(sr, binary.LittleEndian, &header); err != nil {
 			return nil, err
 		}
 
 		off, _ := sr.Seek(0, io.SeekCurrent)
 
-		switch string(subchunkHeader.Id[:]) {
-		default:
-			// unrecognized subchunk
+		data := io.NewSectionReader(r, off, int64(header.Size))
 
+		switch string(header.Id[:]) {
 		case "fmt ":
-			if waveformat != nil {
-				return nil, errors.New("duplicate fmt subchunk")
+			if conf != (config{}) {
+				return nil, redundantChunkError(header.Id)
 			}
 
-			waveformat = new(_WAVEFORMAT)
-			if err := binary.Read(sr, binary.LittleEndian, waveformat); err != nil {
+			var wavefmt _WAVEFORMAT
+			if err := binary.Read(data, binary.LittleEndian, &wavefmt); err != nil {
 				return nil, err
 			}
+			data.Seek(0, io.SeekStart)
 
-			// ffmpeg sets fmt_.FormatTag to 0xfffe whenever we want
-			// an unusual sampling rate; the actual format is then
-			// set in subFormat field of WAVEFORMATEXTENSIBLE. We
-			// don't handle that for now.
+			if wavefmt.Channels < 1 {
+				return nil, fmt.Errorf("unsupported channel count %d", wavefmt.Channels)
+			}
+			if wavefmt.SamplesPerSec < 1 {
+				return nil, fmt.Errorf("unsupported sample rate %d", wavefmt.SamplesPerSec)
+			}
+
+			var format sfx.Format
+			switch wavefmt.FormatTag {
+			case _WAVE_FORMAT_PCM:
+				var wavefmt _PCMWAVEFORMAT
+				if err := binary.Read(data, binary.LittleEndian, &wavefmt); err != nil {
+					return nil, err
+				}
+
+				switch wavefmt.BitsPerSample {
+				case 16:
+					format = sfx.FORMAT_S16
+				default:
+					return nil, unsupportedBitsPerSampleError(wavefmt.BitsPerSample)
+				}
+
+			case _WAVE_FORMAT_IEEE_FLOAT:
+				var wavefmt _PCMWAVEFORMAT
+				if err := binary.Read(data, binary.LittleEndian, &wavefmt); err != nil {
+					return nil, err
+				}
+
+				switch wavefmt.BitsPerSample {
+				case 32:
+					format = sfx.FORMAT_F32
+				default:
+					return nil, unsupportedBitsPerSampleError(wavefmt.BitsPerSample)
+				}
+
+			default:
+				return nil, fmt.Errorf("unsupported format tag 0x%x", wavefmt.FormatTag)
+			}
+
+			conf = config{
+				format:     format,
+				channels:   int32(wavefmt.Channels),
+				sampleRate: wavefmt.SamplesPerSec,
+			}
 
 		case "data":
-			if waveformat == nil {
-				return nil, errors.New("expecting fmt subchunk before data")
-			}
-
-			if waveformat.SamplesPerSec < 1 {
-				return nil, fmt.Errorf("invalid sample rate %d", waveformat.SamplesPerSec)
-			}
-			if waveformat.Channels < 1 {
-				return nil, fmt.Errorf("invalid channel count %d", waveformat.Channels)
-			}
-			// We only support 16-bit samples.
-			if waveformat.BitsPerSample != 16 {
-				return nil, fmt.Errorf("unsupported bits per sample %d", waveformat.BitsPerSample)
+			if conf == (config{}) {
+				return nil, errors.New("no fmt chunk")
 			}
 
 			return &Reader{
-				r:          io.NewSectionReader(r, off, int64(subchunkHeader.Size)),
-				channels:   int(waveformat.Channels),
-				sampleRate: int(waveformat.SamplesPerSec),
+				r:    data,
+				conf: conf,
 			}, nil
+
+		default:
 		}
 
-		sr.Seek(off+int64(subchunkHeader.Size), io.SeekStart)
+		sr.Seek(off+int64(header.Size), io.SeekStart)
 	}
 }
 
-func (r *Reader) Format() int {
-	return 1
+func (r *Reader) Format() sfx.Format {
+	return r.conf.format
 }
 
 func (r *Reader) Channels() int {
-	return r.channels
+	return int(r.conf.channels)
 }
 
 func (r *Reader) SampleRate() int {
-	return r.sampleRate
+	return int(r.conf.sampleRate)
 }
 
 func (r *Reader) Read(b []byte) (n int, err error) {
 	return r.r.Read(b)
+}
+
+func (r *Reader) Seek(offset int64, whence int) (int64, error) {
+	return r.r.Seek(offset, whence)
 }
 
 func (r *Reader) ReadAt(b []byte, off int64) (n int, err error) {

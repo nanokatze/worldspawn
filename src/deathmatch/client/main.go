@@ -400,14 +400,14 @@ var clientRenderer = &idk{
 	scene: renderer.NewSceneDirty(10000),
 }
 
-func readSamples(r io.Reader, format int) ([]float32, error) {
+func readSamples(r io.Reader, format sfx.Format) ([]float32, error) {
 	buf, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
 
 	switch format {
-	case 1:
+	case sfx.FORMAT_S16:
 		bufSNORM16 := unsafe.Slice((*int16)(unsafe.Pointer(unsafe.SliceData(buf))), len(buf)/2)
 		bufFLOAT32 := make([]float32, len(bufSNORM16))
 		for i := range bufFLOAT32 {
@@ -415,7 +415,7 @@ func readSamples(r io.Reader, format int) ([]float32, error) {
 		}
 		return bufFLOAT32, nil
 
-	case 2:
+	case sfx.FORMAT_F32:
 		bufFLOAT32 := unsafe.Slice((*float32)(unsafe.Pointer(unsafe.SliceData(buf))), len(buf)/4)
 		return bufFLOAT32, nil
 
@@ -603,7 +603,7 @@ func (sr *idk) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDurat
 				case ".wav":
 					reader, _ := wav.NewReader(f.(io.ReaderAt))
 					// TODO: wav should implement normal io.Reader tbh.
-					samples, _ := readSamples(io.NewSectionReader(reader, 0, math.MaxInt64), reader.Format())
+					samples, _ := readSamples(reader, reader.Format())
 					effect = &sfx.Source{
 						Samples:    extractChannel(samples, reader.Channels(), 0),
 						SampleRate: reader.SampleRate(),
@@ -611,7 +611,7 @@ func (sr *idk) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDurat
 
 				case ".opus":
 					reader, _ := opusfile.NewReader(f)
-					samples, _ := readSamples(reader, 2)
+					samples, _ := readSamples(reader, sfx.FORMAT_F32)
 					effect = &sfx.Source{
 						Samples:    extractChannel(samples, reader.Channels(), 0),
 						SampleRate: reader.SampleRate(),

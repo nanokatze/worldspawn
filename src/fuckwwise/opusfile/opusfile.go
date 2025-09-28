@@ -19,8 +19,8 @@ var ErrBadPacket = errors.New("packet failed to decode properly")
 
 type Reader struct {
 	pr             oggReader
-	channels       int
-	preSkipSamples int
+	channels       int32
+	preSkipSamples uint32
 	gain           float32
 	tags           *opusTags
 	decoder        *opus.MSDecoder
@@ -53,13 +53,13 @@ func NewReader(r io.Reader) (*Reader, error) {
 		return nil, err
 	}
 
-	decoder, err := opus.NewMSDecoder(48000, head.StreamCount, head.CoupledCount, head.Mapping[:head.ChannelCount])
+	decoder, err := opus.NewMSDecoder(48000, int(head.StreamCount), int(head.CoupledCount), head.Mapping[:head.ChannelCount])
 	if err != nil {
 		return nil, err
 	}
 
 	rr := &Reader{
-		channels:       head.ChannelCount,
+		channels:       int32(head.ChannelCount),
 		preSkipSamples: head.PreSkip,
 		gain:           float32(math.Pow(10, float64(head.OutputGain)/5120)),
 		tags:           tags,
@@ -75,7 +75,7 @@ func NewReader(r io.Reader) (*Reader, error) {
 }
 
 func (r *Reader) Channels() int {
-	return r.channels
+	return int(r.channels)
 }
 
 func (r *Reader) SampleRate() int {
@@ -87,7 +87,7 @@ func (r *Reader) preSkip() int64 {
 }
 
 func (r *Reader) sampleSize() int {
-	return r.channels * 4
+	return r.Channels() * 4
 }
 
 func (r *Reader) Read(b []byte) (int, error) {
@@ -121,9 +121,6 @@ func (r *Reader) Read(b []byte) (int, error) {
 
 		pcm := r.pcm[:cap(r.pcm)]
 		if len(pcm) < dur {
-			// TODO: should we allocate []float32 and then cast it into []byte
-			// to guarantee alignment? Alternatively we should have a comment
-			// explaining why pcm always end up suitably aligned.
 			pcm = make([]byte, dur)
 		}
 		decodedSamples, err := multistreamDecodeAndApplyGain(r.decoder, packet, asFloatSlice(pcm), false, r.gain)
