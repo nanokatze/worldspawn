@@ -47,7 +47,7 @@ type Server struct {
 
 	maxEntities int
 
-	world *game.Scene
+	scene *game.Scene
 
 	// TODO: we only need a subset of the entire world: only networked
 	// components, no physics, etc.
@@ -152,7 +152,7 @@ func (s *Server) serveConn(conn *quic.Conn, logger *slog.Logger) error {
 	// TODO: we shouldn't need to spawn the player immediately. The game should
 	// decide when to do so
 	s.mu.Lock()
-	u.player = spawnplayer(s.world)
+	u.player = spawnplayer(s.scene)
 	s.mu.Unlock()
 
 	framer := protocol.NewFramer(stream2)
@@ -177,7 +177,7 @@ func (s *Server) serveConn(conn *quic.Conn, logger *slog.Logger) error {
 			// TODO: depending on the type of game, removing the entity is not
 			// necessarily what we want (e.g. we might want to let the AI take
 			// over the control, or put the character to sleep, or ...)
-			s.world.Delete.Store(u.player, struct{}{})
+			s.scene.Delete.Store(u.player, struct{}{})
 		}()
 	}
 
@@ -265,7 +265,7 @@ func (s *Server) handleInputPackets(u *user, stream io.Reader) error {
 			// u.time = max(u.time, tmpTime)
 
 			for _, cmd := range cmds {
-				s.world.HandleInput(u.player, cmd, &game.UpdateParams{Δt: s.Δt, Logger: slog.Default()})
+				s.scene.HandleInput(u.player, cmd, &game.UpdateParams{Δt: s.Δt, Logger: slog.Default()})
 			}
 		}()
 
@@ -282,18 +282,18 @@ func (s *Server) tick(Δt time.Duration) {
 	defer s.mu.Unlock()
 
 	trace.WithRegion(context.Background(), "World Update", func() {
-		s.world.Update(&game.UpdateParams{Δt: s.Δt, Logger: slog.Default()})
+		s.scene.Update(&game.UpdateParams{Δt: s.Δt, Logger: slog.Default()})
 	})
 
 	// update s.dirty. TODO: move into its own code?
 
 	{
 		a := s.prevWorld.IDAlloc
-		b := s.world.IDAlloc
+		b := s.scene.IDAlloc
 
 		for i := range b.Cap() {
 			if a.Index(i) != b.Index(i) {
-				s.dirty.IDAlloc[i] = s.world.Now
+				s.dirty.IDAlloc[i] = s.scene.Now
 			}
 		}
 	}
@@ -301,7 +301,7 @@ func (s *Server) tick(Δt time.Duration) {
 	for i, comp := range comps {
 		old := ecs.Reflect(reflect.ValueOf(&s.prevWorld.Components).
 			Elem().FieldByName(comp).Addr().Interface())
-		cur := ecs.Reflect(reflect.ValueOf(&s.world.Components).
+		cur := ecs.Reflect(reflect.ValueOf(&s.scene.Components).
 			Elem().FieldByName(comp).Addr().Interface())
 
 		t := cur.ElemType()
@@ -318,7 +318,7 @@ func (s *Server) tick(Δt time.Duration) {
 				equal = reflect.DeepEqual(oldc.Interface(), curc.Interface())
 			}
 			if !equal {
-				s.dirty.Components[i][id.Index()] = s.world.Now
+				s.dirty.Components[i][id.Index()] = s.scene.Now
 			}
 		}
 	}
@@ -333,20 +333,20 @@ func (s *Server) tick(Δt time.Duration) {
 	// TODO: any reason not to clear transients *before* sending updates, etc? I
 	// guess demo recording would want to record the transients. Should we
 	// separate demo recording, relay (tv) and normal replication?
-	game.ClearTransientComponents(s.world)
+	game.ClearTransientComponents(s.scene)
 
 	// Copy the current s.World to s.PrevWorld
 
 	// TODO: move this into a method on the World
-	s.prevWorld.Now = s.world.Now
-	s.prevWorld.IDAlloc.Copy(s.world.IDAlloc)
+	s.prevWorld.Now = s.scene.Now
+	s.prevWorld.IDAlloc.Copy(s.scene.IDAlloc)
 	for _, comp := range comps {
 		dst := ecs.Reflect(reflect.ValueOf(&s.prevWorld.Components).Elem().FieldByName(comp).Addr().Interface())
-		src := ecs.Reflect(reflect.ValueOf(&s.world.Components).Elem().FieldByName(comp).Addr().Interface())
+		src := ecs.Reflect(reflect.ValueOf(&s.scene.Components).Elem().FieldByName(comp).Addr().Interface())
 		ecs.CopyComponentStore(dst, src)
 	}
 
-	s.world.Now = s.world.Now.Add(Δt)
+	s.scene.Now = s.scene.Now.Add(Δt)
 }
 
 // TODO: remove in favor of struct tags
@@ -387,7 +387,7 @@ func (s *Server) sendUpdates(u *user) {
 
 	{
 		// TODO: only send SingletonComponents that changed
-		if err := nice.MarshalEncode(enc, &s.world.SingletonComponents); err != nil {
+		if err := nice.MarshalEncode(enc, &s.scene.SingletonComponents); err != nil {
 			panic(err)
 		}
 	}
@@ -406,7 +406,7 @@ func (s *Server) sendUpdates(u *user) {
 				continue
 			}
 
-			id := s.world.IDAlloc.Index(i)
+			id := s.scene.IDAlloc.Index(i)
 
 			gen := ^uint32(0)
 			if id != 0 {
@@ -433,7 +433,7 @@ func (s *Server) sendUpdates(u *user) {
 	// TODO: insert various canaries to make debugging easier
 
 	for idx, comp := range comps {
-		cs := ecs.Reflect(reflect.ValueOf(&s.world.Components).Elem().FieldByName(comp).Addr().Interface())
+		cs := ecs.Reflect(reflect.ValueOf(&s.scene.Components).Elem().FieldByName(comp).Addr().Interface())
 
 		buf2 := new(bytes.Buffer)
 		enc2 := nice.NewEncoder(buf2, game.WorldNiceOptions)
@@ -445,7 +445,7 @@ func (s *Server) sendUpdates(u *user) {
 				continue
 			}
 
-			id := s.world.IDAlloc.Index(i)
+			id := s.scene.IDAlloc.Index(i)
 			if id == 0 {
 				continue
 			}
@@ -478,7 +478,7 @@ func (s *Server) sendUpdates(u *user) {
 	// Because we're sending stuff reliably, we can do this.
 	//
 	// TODO: set this if we're actually sending stuff.
-	u.time = s.world.Now
+	u.time = s.scene.Now
 
 	// TODO: we could compress now or later. Compressing now means we increase
 	// the server's critical section, compressing later means our memory usage
@@ -625,7 +625,7 @@ func main() {
 
 	s.Δt = time.Second / 64
 	s.maxEntities = 1000
-	s.world = game.NewScene(s.maxEntities)
+	s.scene = game.NewScene(s.maxEntities)
 	s.prevWorld = game.NewScene(s.maxEntities)
 	s.dirty.IDAlloc = make([]game.Time, s.maxEntities)
 	s.dirty.Components = make([][]game.Time, len(comps))
@@ -640,25 +640,36 @@ func main() {
 	if err != nil {
 		log.Fatal("newSinglePlayerSession: ", err)
 	}
-	if err := json.UnmarshalRead(sceneFile, s.world, game.WorldJSONOptions); err != nil {
+	if err := json.UnmarshalRead(sceneFile, s.scene, game.WorldJSONOptions); err != nil {
 		log.Fatalf("newSinglePlayerSession %v: %v", sceneFile, err)
 	}
 	sceneFile.Close()
 
-	s.world.InstantinateCollections()
+	{
+		obj := s.scene.CreateEntity()
+		s.scene.TranslationRotation.Store(obj, game.TranslationRotationOne())
+		s.scene.Scale.Store(obj, geometry.Vec3Broadcast(1))
+		tmp := game.LoopedSound{
+			Sound: "lamphum.wav",
+		}
+		tmp.Init()
+		s.scene.Entity.Store(obj, tmp)
+	}
 
-	s.world.Now = max(s.world.Now, 1)
+	s.scene.InstantinateCollections()
+
+	s.scene.Now = max(s.scene.Now, 1)
 
 	// Reset dirty times
 	for _, comp := range s.dirty.Components {
 		for j := range comp {
-			comp[j] = s.world.Now
+			comp[j] = s.scene.Now
 		}
 	}
 
 	for _, comp := range s.dirty.Components {
 		for _, dirtied := range comp {
-			if dirtied == 0 || dirtied.After(s.world.Now) {
+			if dirtied == 0 || dirtied.After(s.scene.Now) {
 				panic("dirtied should never be 0 nor in the future")
 			}
 		}

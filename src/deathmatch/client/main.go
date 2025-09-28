@@ -398,6 +398,10 @@ var clientRenderer = &idk{
 	privateScene2: renderer.NewScene(10000, 5),
 
 	scene: renderer.NewSceneDirty(10000),
+
+	sfxScene: &sfx.Scene{
+		Instance: make([]sfx.Instance, 10000),
+	},
 }
 
 func readSamples(r io.Reader, format sfx.Format) ([]float32, error) {
@@ -448,6 +452,8 @@ type idk struct {
 	scene          *renderer.SceneDirty
 	t0sdl, t1sdl   uint64 // TODO: special type to represent SDL ticks?
 	t0game, t1game game.Time
+
+	sfxScene *sfx.Scene
 }
 
 func (sr *idk) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration) {
@@ -478,9 +484,6 @@ func (sr *idk) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDurat
 
 		playerEntity, _ := w.Entity.Load(playerID)
 		fpsCharacter := playerEntity.(game.FPSCharacter)
-
-		// TODO: we should just parent stuff to bone
-		// activeWeapon := playerEntity.(game.FPSCharacter).ActiveWeapon
 
 		for id, tr := range w.TranslationRotation.All() {
 			scale, ok := w.Scale.Load(id)
@@ -577,19 +580,32 @@ func (sr *idk) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDurat
 	}
 
 	{
-		var scene sfx.Scene
-		scene.TransformT0 = []geometry.TRS3{{}} // 0th transform is reserved
-		scene.Instance = []sfx.Instance{}
+		scene := sr.sfxScene
+
+		a := int64(t1.Sub(t0) * 48000 / 1e9)
+
+		clear(scene.Instance)
+
+		// for i, instance := range scene.Instance {
+		// 	if instance.Samples == nil {
+		// 		continue
+		// 	}
+
+		// 	if _, ok := w.SoundEffect.Load(w.IDAlloc.Index(i)); !ok {
+		// 		scene.Instance[i] = sfx.Instance{}
+		// 	}
+		// }
 
 		for id, soundEffect := range w.SoundEffect.All() {
 			positionRotation, _ := w.TranslationRotation.Load(id)
 			scale, _ := w.Scale.Load(id)
 
-			scene.TransformT0 = append(scene.TransformT0, geometry.TRS3{
-				Translation: positionRotation.Translation.Vec3(), // TODO: we should also be applying cosmetic offset like in rendering
+			// TODO: take hierarchy into account
+			xform := geometry.TRS3{
+				Translation: positionRotation.Translation.Vec3(), // TODO: we should also be applying cosmetic offset like in video
 				Rotation:    positionRotation.Rotation,
 				Scale:       scale,
-			})
+			}.Mat4x4()
 
 			effect, ok := sources[soundEffect.Effect]
 			if !ok {
@@ -602,19 +618,16 @@ func (sr *idk) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDurat
 				switch path.Ext(soundEffect.Effect) {
 				case ".wav":
 					reader, _ := wav.NewReader(f.(io.ReaderAt))
-					// TODO: wav should implement normal io.Reader tbh.
 					samples, _ := readSamples(reader, reader.Format())
 					effect = &sfx.Source{
-						Samples:    extractChannel(samples, reader.Channels(), 0),
-						SampleRate: reader.SampleRate(),
+						Samples: extractChannel(samples, reader.Channels(), 0),
 					}
 
 				case ".opus":
 					reader, _ := opusfile.NewReader(f)
 					samples, _ := readSamples(reader, sfx.FORMAT_F32)
 					effect = &sfx.Source{
-						Samples:    extractChannel(samples, reader.Channels(), 0),
-						SampleRate: reader.SampleRate(),
+						Samples: extractChannel(samples, reader.Channels(), 0),
 					}
 
 				default:
@@ -624,16 +637,15 @@ func (sr *idk) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDurat
 				sources[soundEffect.Effect] = effect
 			}
 
-			scene.Instance = append(scene.Instance, sfx.Instance{
-				Transform: len(scene.TransformT0) - 1,
-				Source:    effect,
-				PlayTime:  soundEffect.PlayTime.Sub(game.Time(0)),
-			})
+			inst := &scene.Instance[id.Index()]
+			inst.Transform = xform
+			inst.Samples = effect.Samples
+			inst.PlayTime = int64(soundEffect.PlayTime.Sub(game.Time(0)) * 48000 / 1e9)
 		}
 
 		// TODO: let us do multiple audio renders per frame. Should be nice for
 		// sessions with long ticks
-		renderAudio(scene, t0.Sub(game.Time(0)), t1.Sub(t0))
+		renderAudio(sr.sfxScene, int64(t0.Sub(game.Time(0))*48000/1e9), a)
 	}
 }
 

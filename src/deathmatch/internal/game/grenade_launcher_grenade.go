@@ -29,7 +29,7 @@ func (grenade GrenadeLauncherGrenade) UpdateAfterPhysics(w *Scene, id ecs.ID, in
 		effect := w.CreateEntity()
 		positionRotation, _ := w.TranslationRotation.Load(id)
 		w.TranslationRotation.Store(effect, positionRotation)
-		w.SoundEffect.Store(effect, SoundEffect{
+		w.SoundEffect.Store(effect, SoundEmitter{
 			Effect:   "later.wav",
 			PlayTime: w.Now.Add(info.Δt),
 		})

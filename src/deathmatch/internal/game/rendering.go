@@ -20,12 +20,9 @@ func (cosmeticOffset CosmeticOffset) Eval(now Time) geometry.Vec3 {
 	return cosmeticOffset.Offset.Scale(float32(xClamped))
 }
 
-type SoundEffect struct {
-	Effect string
-	// TODO: we might want to place some (all?) effect arguments into their
-	// own component
+type SoundEmitter struct {
+	Effect   string
 	PlayTime Time
-	// StopTime time.Duration
 }
 
 // Deprecated; TODO: remove in favor of creating a separate entity with

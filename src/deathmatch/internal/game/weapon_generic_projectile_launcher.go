@@ -105,7 +105,7 @@ func (weapon WeaponGenericProjectileLauncher) WeaponUpdateSubtick(w *Scene, id, 
 		w.CreationTime.Store(projectile, w.Now)
 	}
 
-	w.SoundEffect.Store(id, SoundEffect{
+	w.SoundEffect.Store(id, SoundEmitter{
 		Effect:   weapon.ShootSound,
 		PlayTime: w.Now, // + time.Duration(rng(w.Time, entityID, 0).Int63n(int64(1*time.Millisecond))),
 	})

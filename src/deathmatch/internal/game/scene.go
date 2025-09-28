@@ -125,7 +125,8 @@ type Components struct {
 
 	RenderingGeometry ecs.ComponentStore[GeometryPacked]
 
-	SoundEffect ecs.ComponentStore[SoundEffect]
+	// TODO: rename to SoundEmitter
+	SoundEffect ecs.ComponentStore[SoundEmitter]
 
 	Viewmodel2 ecs.ComponentStore[Viewmodel2]
 

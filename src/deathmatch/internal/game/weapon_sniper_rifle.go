@@ -81,7 +81,7 @@ func (weapon WeaponSniperRifle) WeaponUpdateSubtick(w *Scene, weaponID, operator
 
 		chargeImpactMultiplier := 1 + 2*charge
 
-		w.SoundEffect.Store(weaponID, SoundEffect{
+		w.SoundEffect.Store(weaponID, SoundEmitter{
 			Effect:   weapon.ShootSound,
 			PlayTime: w.Now,
 		})
@@ -108,7 +108,7 @@ func (weapon WeaponSniperRifle) WeaponUpdateSubtick(w *Scene, weaponID, operator
 
 	case weapon.Charging && w.Now.Sub(weapon.ChargeBeginTime) >= weapon.ChargeDuration && !weapon.NotifiedChargeReady:
 		if weapon.ChargeReadySound != "" {
-			w.SoundEffect.Store(weaponID, SoundEffect{
+			w.SoundEffect.Store(weaponID, SoundEmitter{
 				Effect:   weapon.ChargeReadySound,
 				PlayTime: w.Now,
 			})
