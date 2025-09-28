@@ -35,7 +35,7 @@ func InitSubSystem(flags InitFlags) error {
 	defer runtime.UnlockOSThread()
 
 	if !C.SDL_InitSubSystem(C.SDL_InitFlags(flags)) {
-		return getsdlerror()
+		return getError()
 	}
 	return nil
 }
@@ -47,7 +47,7 @@ func SetHint(name, value string) error {
 	defer runtime.UnlockOSThread()
 
 	if !C.SDL_SetHint(cstring(name), cstring(value)) {
-		return getsdlerror()
+		return getError()
 	}
 	return nil
 }
@@ -62,7 +62,7 @@ func CreateProperties() (PropertiesID, error) {
 
 	props := PropertiesID(C.SDL_CreateProperties())
 	if props == 0 {
-		return 0, getsdlerror()
+		return 0, getError()
 	}
 	return props, nil
 }
@@ -81,7 +81,7 @@ func (props PropertiesID) SetBoolean(prop string, value bool) error {
 	defer runtime.UnlockOSThread()
 
 	if !C.SDL_SetBooleanProperty(C.SDL_PropertiesID(props), cstring(prop), C.bool(value)) {
-		return getsdlerror()
+		return getError()
 	}
 	return nil
 }
@@ -91,7 +91,7 @@ func (props PropertiesID) SetNumber(prop string, value int64) error {
 	defer runtime.UnlockOSThread()
 
 	if !C.SDL_SetNumberProperty(C.SDL_PropertiesID(props), cstring(prop), C.Sint64(value)) {
-		return getsdlerror()
+		return getError()
 	}
 	return nil
 }
@@ -101,7 +101,7 @@ func (props PropertiesID) SetString(prop string, value string) error {
 	defer runtime.UnlockOSThread()
 
 	if !C.SDL_SetStringProperty(C.SDL_PropertiesID(props), cstring(prop), cstring(value)) {
-		return getsdlerror()
+		return getError()
 	}
 	return nil
 }
@@ -262,7 +262,7 @@ func WaitEvent() (any, error) {
 
 	var event C.SDL_Event
 	if !C.SDL_WaitEvent(&event) {
-		return nil, getsdlerror()
+		return nil, getError()
 	}
 
 	return translateEvent(&event), nil
@@ -332,7 +332,7 @@ func CreateWindowWithProperties(props PropertiesID) (*Window, error) {
 
 	window := (*Window)(C.SDL_CreateWindowWithProperties(C.SDL_PropertiesID(props)))
 	if window == nil {
-		return nil, getsdlerror()
+		return nil, getError()
 	}
 	return window, nil
 }
@@ -347,7 +347,7 @@ func (w *Window) DisplayScale() (float32, error) {
 
 	scale := float32(C.SDL_GetWindowDisplayScale((*C.SDL_Window)(w)))
 	if scale == 0 {
-		return 0, getsdlerror()
+		return 0, getError()
 	}
 	return scale, nil
 }
@@ -644,7 +644,7 @@ func (window *Window) SetWindowRelativeMouseMode(enabled bool) error {
 	defer runtime.UnlockOSThread()
 
 	if !C.SDL_SetWindowRelativeMouseMode((*C.SDL_Window)(window), C.bool(enabled)) {
-		return getsdlerror()
+		return getError()
 	}
 	return nil
 }
@@ -720,7 +720,7 @@ func OpenGamepad(instanceID JoystickID) (*Gamepad, error) {
 
 	gamepad := (*Gamepad)(C.SDL_OpenGamepad(C.SDL_JoystickID(instanceID)))
 	if gamepad == nil {
-		return nil, getsdlerror()
+		return nil, getError()
 	}
 	return gamepad, nil
 }
@@ -742,7 +742,7 @@ func (g *Gamepad) SetSensorEnabled(sensorType SensorType, enabled bool) error {
 	defer runtime.UnlockOSThread()
 
 	if !C.SDL_SetGamepadSensorEnabled((*C.SDL_Gamepad)(g), C.SDL_SensorType(sensorType), C.bool(enabled)) {
-		return getsdlerror()
+		return getError()
 	}
 	return nil
 }
@@ -752,7 +752,7 @@ func (g *Gamepad) SetLED(red, green, blue uint8) error {
 	defer runtime.UnlockOSThread()
 
 	if !C.SDL_SetGamepadLED((*C.SDL_Gamepad)(g), C.Uint8(red), C.Uint8(green), C.Uint8(blue)) {
-		return getsdlerror()
+		return getError()
 	}
 	return nil
 }
@@ -762,7 +762,7 @@ func (g *Gamepad) SendEffect(effect []byte) error {
 	defer runtime.UnlockOSThread()
 
 	if !C.SDL_SendGamepadEffect((*C.SDL_Gamepad)(g), unsafe.Pointer(unsafe.SliceData(effect)), C.int(len(effect))) {
-		return getsdlerror()
+		return getError()
 	}
 	return nil
 }
@@ -817,7 +817,7 @@ func (device AudioDeviceID) Resume() error {
 	defer runtime.UnlockOSThread()
 
 	if !C.SDL_ResumeAudioDevice(C.SDL_AudioDeviceID(device)) {
-		return getsdlerror()
+		return getError()
 	}
 	return nil
 }
@@ -828,7 +828,7 @@ func OpenAudioDeviceStream(devId AudioDeviceID, spec *AudioSpec /*, callback fun
 
 	stream := (*AudioStream)(C.SDL_OpenAudioDeviceStream(C.SDL_AudioDeviceID(devId), (*C.SDL_AudioSpec)(unsafe.Pointer(spec)), nil, nil))
 	if stream == nil {
-		return nil, getsdlerror()
+		return nil, getError()
 	}
 	return stream, nil
 }
@@ -846,7 +846,7 @@ func (s *AudioStream) Write(b []byte) (int, error) {
 	defer runtime.UnlockOSThread()
 
 	if !C.SDL_PutAudioStreamData((*C.SDL_AudioStream)(s), unsafe.Pointer(unsafe.SliceData(b)), C.int(len(b))) {
-		return 0, getsdlerror()
+		return 0, getError()
 	}
 	return len(b), nil
 }
@@ -860,7 +860,7 @@ func TicksNS() uint64 {
 // Internal helpers
 
 // Must be called on the same OS thread that did the SDL call.
-func getsdlerror() error {
+func getError() error {
 	return errors.New(C.GoString(C.SDL_GetError()))
 }
 
