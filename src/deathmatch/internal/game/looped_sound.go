@@ -12,7 +12,9 @@ import (
 
 // TODO: add ability to randomize the repeating segments
 
-// TODO: should this be embeddable into other entities?
+// TODO: should be embeddable/reusable with other entities or be made into a
+// component, maybe significantly generalzed in that case
+// TODO: rename to LoopingSound?
 type LoopedSound struct {
 	Sound           string
 	LengthInSamples int64 // TODO: make this private and non-txable?

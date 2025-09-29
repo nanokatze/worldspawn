@@ -580,21 +580,16 @@ func (sr *idk) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDurat
 	}
 
 	{
+		playerEntity, _ := w.Entity.Load(playerID)
+		fpsCharacter := playerEntity.(game.FPSCharacter)
+		camera := sr.scene.Transform(fpsCharacter.Camera.Index(), 0)
+		cameraPos := geometry.Vec3{camera[0][3], camera[1][3], camera[2][3]}
+
 		scene := sr.sfxScene
 
 		a := int64(t1.Sub(t0) * 48000 / 1e9)
 
 		clear(scene.Instance)
-
-		// for i, instance := range scene.Instance {
-		// 	if instance.Samples == nil {
-		// 		continue
-		// 	}
-
-		// 	if _, ok := w.SoundEffect.Load(w.IDAlloc.Index(i)); !ok {
-		// 		scene.Instance[i] = sfx.Instance{}
-		// 	}
-		// }
 
 		for id, soundEffect := range w.SoundEffect.All() {
 			positionRotation, _ := w.TranslationRotation.Load(id)
@@ -637,15 +632,16 @@ func (sr *idk) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDurat
 				sources[soundEffect.Effect] = effect
 			}
 
-			inst := &scene.Instance[id.Index()]
-			inst.Transform = xform
-			inst.Samples = effect.Samples
-			inst.PlayTime = int64(soundEffect.PlayTime.Sub(game.Time(0)) * 48000 / 1e9)
+			scene.Instance[id.Index()] = sfx.Instance{
+				Transform: xform,
+				Samples:   effect.Samples,
+				PlayTime:  int64(soundEffect.PlayTime.Sub(game.Time(0)) * 48000 / 1e9),
+			}
 		}
 
 		// TODO: let us do multiple audio renders per frame. Should be nice for
 		// sessions with long ticks
-		renderAudio(sr.sfxScene, int64(t0.Sub(game.Time(0))*48000/1e9), a)
+		renderAudio(sr.sfxScene, cameraPos, int64(t0.Sub(game.Time(0))*48000/1e9), a)
 	}
 }
 

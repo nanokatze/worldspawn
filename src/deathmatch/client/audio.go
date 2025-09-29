@@ -7,6 +7,7 @@ import (
 
 	sfx "worldspawn/fuckwwise"
 	"worldspawn/fuckwwise/interpolators"
+	"worldspawn/geometry-go"
 	"worldspawn/sdl"
 )
 
@@ -39,7 +40,7 @@ func initAudio() {
 var sources = make(map[string]*sfx.Source)
 
 // TODO: make this possible to run async pls
-func renderAudio(scene *sfx.Scene, t0, Δt int64) {
+func renderAudio(scene *sfx.Scene, camera geometry.Vec3, t0, Δt int64) {
 	// TODO: make this tunable at runtime
 	queueingTargetSamples := 48000 / 50
 
@@ -51,7 +52,7 @@ func renderAudio(scene *sfx.Scene, t0, Δt int64) {
 
 	tmp := make([]float32, L*2)
 
-	sfx.Render(scene, t0, tmp, 2, sampleRate)
+	sfx.Render(scene, camera, t0, tmp, 2, sampleRate)
 
 	nudge := queueingTargetSamples - au.Queued()/(2*4)
 

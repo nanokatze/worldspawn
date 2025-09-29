@@ -49,7 +49,7 @@ func sliceLoadOrZero[T any](s []T, i int) T {
 // TODO: channels should be IR spheres for HRTF.
 // TODO: make sfx.Render output fixed points, and have the caller be responsible
 // for interleaving. We should still convert to float32 or whatevs.
-func Render(scene *Scene, now int64, dst []float32, channels, sampleRate int) {
+func Render(scene *Scene, camera geometry.Vec3, now int64, dst []float32, channels, sampleRate int) {
 	if channels != 2 {
 		panic("not implemented")
 	}
@@ -72,8 +72,15 @@ func Render(scene *Scene, now int64, dst []float32, channels, sampleRate int) {
 
 		t0 := now - instance.PlayTime
 
+		dist := geometry.Vec3{
+			instance.Transform[0][3],
+			instance.Transform[1][3],
+			instance.Transform[2][3],
+		}.Sub(camera).Length()
+		contribution := min(10.0/(dist*dist), 1)
+
 		for i := 0; i < L; i++ {
-			sample := sliceLoadOrZero(src, int(t0)+i)
+			sample := sliceLoadOrZero(src, int(t0)+i) * contribution
 
 			for j := 0; j < channels; j++ {
 				accumulators[j][i] += int32(sample * 32787.0)
