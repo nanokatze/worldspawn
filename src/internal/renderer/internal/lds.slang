@@ -26,7 +26,8 @@ public struct Roberts : LDS {
 		dim = startingdim;
 	}
 
-	// TODO: rename to Get1D and introduce Get2D for uncorrelated 2D values
+	// TODO: rename to Get1D and introduce Get2D for proper 2D values (two
+	// consecutive 1D samples are correlated)
 	[[mutating]]
 	public float Get() {
 		return Get(dim++, point);

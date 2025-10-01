@@ -13,8 +13,8 @@ import attribute;
 
 struct Path {
     // TODO: also include raysrc so we can implement portals
-    float3 rayorigin;
-    float3 raydir;
+    float3 rayOrigin;
+    float3 rayDir;
 
     // Light transmitted along the path
     Spectrum L;
@@ -83,12 +83,6 @@ float getLDSValue(int bounce, int dimension) {
     return lds.Get(bounce * Bounces + dimension, point);
 }
 
-public struct BlueNoiseRotated<T : LDS> : LDS {
-	public __init(lds T) {
-
-    }
-}
-
 [[shader("raygeneration")]]
 void raygen() {
     uint3 LaunchID = DispatchRaysIndex();
@@ -105,9 +99,9 @@ void raygen() {
     // for denoiser and motion vectors/mask out for TAA
 
     Path path = {};
-    path.rayorigin = mul(push.camera->viewInverse, float4(0, 0, 0, 1)).xyz;
+    path.rayOrigin = mul(push.camera->viewInverse, float4(0, 0, 0, 1)).xyz;
     // TODO: do we actually need normalize here?
-    path.raydir = normalize(mul(push.camera->viewInverse, float4(normalize(target.xyz), 0)).xyz);
+    path.rayDir = normalize(mul(push.camera->viewInverse, float4(normalize(target.xyz), 0)).xyz);
     path.L = Spectrum(0.0);
     path.beta = Spectrum(1.0);
     path.vampire = true;
@@ -118,8 +112,8 @@ void raygen() {
     // TODO: we should stop mid-way (after applying lights and stuff)
     for (int bounce = 0; bounce < 2; bounce++) {
         RayDesc rayDesc;
-        rayDesc.Origin = path.rayorigin;
-        rayDesc.Direction = path.raydir;
+        rayDesc.Origin = path.rayOrigin;
+        rayDesc.Direction = path.rayDir;
         rayDesc.TMin = 0.0;
         rayDesc.TMax = 1.0 / 0.0;
 
@@ -399,14 +393,15 @@ Spectrum sampleLd<T : BxDF>(
     float3 normal,
     float3 wo,
     T bsdf,
-    float3 ldsp, // TODO: split into two values
+    float u,
+    float2 uLight,
 ) {
     let lightSampler = &push.scene->lightSampler;
 
     // float u = fmod(bn.z + getLDSValue(bounce, 2), 1.0);
 
-    float2 b = ldsp.xy;
-    float asd = ldsp.z;
+    float2 b = uLight;
+    float asd = u;
     // float2 b = fmod(bn.yx + float2(getLDSValue(bounce, 0), getLDSValue(bounce, 1)), 1.0);
 
     // float asd = fmod(bn.z + getLDSValue(bounce, 3), 1.0);
@@ -543,7 +538,7 @@ void closesthit(
     // Direct light sampling
     float3 u_Ld = fmod(bn + float3(lds.Get(), lds.Get(), lds.Get()), 1);
     if (bsdf.Flags() & (BSDFFlags::Diffuse | BSDFFlags::Glossy)) {
-        Spectrum Ld = sampleLd(bounce, bn, vampire, hitpos, normal, wo, bsdf, u_Ld);
+        Spectrum Ld = sampleLd(bounce, bn, vampire, hitpos, normal, wo, bsdf, u_Ld.x, u_Ld.yz);
 
         if (any(Ld > float3(0)))
             path.L += path.beta * Ld;
@@ -557,8 +552,8 @@ void closesthit(
     // diffuse-only bsdfSamples and instead get the information from the cache.
 
     path.beta *= bsdfSample.f * dot(bsdfSample.wi, normal) / bsdfSample.pdf;
-    path.rayorigin = hitpos;
-    path.raydir = bsdfSample.wi; // TODO: should we normalize() here?
+    path.rayOrigin = hitpos;
+    path.rayDir = bsdfSample.wi; // TODO: should we normalize() here?
 
     // Vampire bounces that are reflected become anti-vampire if the surface was
     // not vampire.
