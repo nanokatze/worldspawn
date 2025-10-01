@@ -168,13 +168,5 @@ def fixupdict(d):
 
 
 # TODO: move into utils or something like that package
-# TODO: this should be like seek (i.e. take offset and whence) but also take align
-# TODO: rename to something else? this also does write, which isn't really
-# appropriate for something called seek? :thinking:
 def seek_align(f, align=1):
-    off = f.seek(0, 1)
-    pad = -off % align
-    if pad > 0:
-        f.write(b'\x00' * pad)
-        off += pad
-    return off
+    return f.seek(-f.tell() % align, 1)
