@@ -292,21 +292,23 @@ func NewImage(config *ImageConfig) *Image {
 	return tmp
 }
 
-func newImage(base *imageData,
+func newImage(
+	base *imageData,
 	dim ImageDim,
 	format Format,
 	baseLayer, layers int,
 	baseMipLevel, mipLevels int) *Image {
 	extent := int3Minify(int3FromVkExtent3D(base.extent), baseMipLevel)
-	// TODO: make this less ugly
-	block1 := formatutil.Describe(format).BlockExtent
-	block2 := formatutil.Describe(base.format).BlockExtent
-	if block1 != block2 {
-		// Block sizes differ, therefore format classes differ, this can only be
-		// possible if we're reinterpreting a compressed format as uncompressed,
-		// so block1 must be 1, 1, 1.
-		if block1 != (vk.Extent3D{Width: 1, Height: 1, Depth: 1}) {
-			panic("bad compressed image reinterpretation")
+	formatClass := formatutil.Describe(format).Class
+	baseFormatClass := formatutil.Describe(base.format).Class
+	if formatClass != baseFormatClass {
+		// Format classes differ, this can only be possible if we're
+		// reinterpreting a compressed format as uncompressed, so block1 must be
+		// 1, 1, 1.
+		// TODO: check that formatClass is uncompressed, while baseFormatClass
+		// is compressed instead of this hack
+		if formatutil.Describe(format).BlockExtent != (vk.Extent3D{Width: 1, Height: 1, Depth: 1}) {
+			panic(fmt.Sprintf("cannot create a %v view of a %v class image", format, baseFormatClass))
 		}
 		extent = divByBlockExtentRoundUp(extent, base.format)
 	}

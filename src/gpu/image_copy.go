@@ -317,6 +317,9 @@ func chooseQueueFamiliesForImageCopy(
 	imageFormat Format, imageExtent [3]int,
 	aspects vk.ImageAspectFlags, level int,
 	offsetBlocks, extentBlocks [3]int) uint32 {
+	levelExtent := int3Minify(imageExtent, level)
+	levelExtentBlocks := divByBlockExtentRoundUp(levelExtent, imageFormat)
+
 	families := queueFamilies.Mask(0b100)
 
 	if aspects&vk.ImageAspectFlags(vk.IMAGE_ASPECT_DEPTH_BIT) != 0 {
@@ -326,8 +329,7 @@ func chooseQueueFamiliesForImageCopy(
 		families &= queueFamilies.Mask(0b001)
 	}
 
-	entire := offsetBlocks == ([3]int{}) &&
-		extentBlocks == divByBlockExtentRoundUp(int3Minify(imageExtent, level), imageFormat)
+	entire := offsetBlocks == ([3]int{}) && extentBlocks == levelExtentBlocks
 	if !entire {
 		for family := range ones32(families &^ queueFamilies.Mask(0b010)) {
 			granularity := int3FromVkExtent3D(queueFamilies.props[family].MinImageTransferGranularity)

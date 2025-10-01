@@ -51,6 +51,8 @@ func getFormatPropsSlow(format Format) *formatProps {
 	}
 }
 
+// TODO: move these helpers to formatutil
+
 func divByBlockExtent(texels [3]int, format Format) [3]int {
 	blockExtent := int3FromVkExtent3D(formatutil.Describe(format).BlockExtent)
 
