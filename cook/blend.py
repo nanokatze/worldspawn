@@ -1,6 +1,11 @@
 import bpy
 import click
 
+# TODO: move (along with blender_cookers) into a subdirectory dedicated to
+# cooking .blend. We might add other cookers in the future (e.g. when
+# migrating.) Note that the build.ninja generator should remain as a single
+# program and it should be able to generate rules using all of the cookers.
+
 # TODO: give the vars proper names
 
 # TODO: we'll want a context of sorts
@@ -92,12 +97,12 @@ def main(m, o, blend, datablock_type, datablock_name):
                 settings = datablock.get('worldspawn', {})
                 if settings.get('export'):
                     material_cooker.deps(ctx, datablock.evaluated_get(depsgraph), dset)
-            import mesh_cooker
+            from blender_cookers import mesh as mesh_cooker
             for datablock in bpy_context.blend_data.objects:
                 settings = datablock.get('worldspawn', {})
                 if settings.get('export'):
                     mesh_cooker.deps(ctx, datablock.evaluated_get(depsgraph), dset)
-            import scene_cooker
+            from blender_cookers import scene as scene_cooker
             for datablock in bpy_context.blend_data.scenes:
                 settings = datablock.get('worldspawn', {})
                 if not settings.get('export'):
@@ -135,12 +140,12 @@ def main(m, o, blend, datablock_type, datablock_name):
 
             case 'Object':
                 datablocks = blend_data.objects
-                import mesh_cooker
+                from blender_cookers import mesh as mesh_cooker
                 cook = mesh_cooker.cook
 
             case 'Scene':
                 datablocks = blend_data.scenes
-                import scene_cooker
+                from blender_cookers import scene as scene_cooker
                 cook = scene_cooker.cook
 
         datablock = datablocks[datablock_name]

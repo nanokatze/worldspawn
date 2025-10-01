@@ -1,9 +1,14 @@
-import codecs
+import numpy as np
 import idprop
 from mathutils import Vector, Quaternion
 
 
-UTF8Writer = codecs.getwriter('utf-8')
+def array_from_prop_collection(collection, attr, dtype):
+    array = np.empty(len(collection), dtype=dtype)
+    array_flat = array.view()
+    array_flat.shape = -1
+    collection.foreach_get(attr, array_flat)
+    return array
 
 
 # TODO: eventually switch back to vectors and rotation objects being serialized

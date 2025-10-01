@@ -2,9 +2,10 @@ import bpy
 import json
 from mathutils import Matrix, Vector, Quaternion
 
-from blender_cookers import collection as collection_cooker
+import util
+import bpyutil
 
-import utils
+from . import collection as collection_cooker
 
 
 def deps(context, scene, dset):
@@ -79,6 +80,6 @@ def cook(context, scene):
 
     __handle_collection(context, tmp, scene.collection, Matrix())
 
-    cooked_scene = utils.fixupdict(cooked_scene) # pain
+    cooked_scene = bpyutil.fixupdict(cooked_scene) # pain
     with open(context.path_for_datablock(scene), 'wb') as f:
-        json.dump(cooked_scene, utils.UTF8Writer(f), indent='\t', default=utils.asdasd)
+        json.dump(cooked_scene, util.UTF8Writer(f), indent='\t', default=bpyutil.asdasd)

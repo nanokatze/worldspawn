@@ -1,7 +1,9 @@
-import utils
 import json
 
 from mathutils import Matrix
+
+import util
+import bpyutil
 
 
 def __should_cook_object(obj):
@@ -105,9 +107,9 @@ def cook(context, datablock):
 
     __handle_collection(context, tmp, datablock, Matrix())
 
-    cooked = utils.fixupdict(tmp.cooked) # pain
+    cooked = bpyutil.fixupdict(tmp.cooked) # pain
     with open(context.path_for_datablock(datablock), 'wb') as f:
-        json.dump(cooked, utils.UTF8Writer(f), indent='\t', default=utils.asdasd)
+        json.dump(cooked, util.UTF8Writer(f), indent='\t', default=bpyutil.asdasd)
 
 
 

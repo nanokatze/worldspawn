@@ -1,13 +1,14 @@
 import bpy
-import bmesh
 import dataclasses
 import numpy as np
 
-import mesh_cooker2
-import numpy_utils as nputils
+from cookers import mesh as mesh_cooker2
+
+import numpyutil as nputil
+import bpyutil
 
 
-# TODO: rename to object_cooker?
+# TODO: should this be called an object cooker instead?
 
 
 def deps(context, obj, dset):
@@ -15,6 +16,7 @@ def deps(context, obj, dset):
 
 
 def __triangulate(mesh):
+    import bmesh
     bm = bmesh.new()
     bm.from_mesh(mesh)
     bmesh.ops.triangulate(bm, faces=bm.faces[:])
@@ -31,19 +33,20 @@ def cook(context, obj):
 
     mesh = obj.to_mesh()
 
-    # TODO: for perf try to apply calc_tangents and if that fails triangulate
-    # and apply again
-    __triangulate(mesh)
-
-    mesh.calc_tangents()
+    # TODO: avoid generating tangents and get tangents the same way cycles does?
+    try:
+        mesh.calc_tangents()
+    except Exception:
+        __triangulate(mesh)
+        mesh.calc_tangents()
 
     mesh.calc_loop_triangles()
 
     # TODO: use "corners" instead of "loops"? "loops" is a horrible name
 
     # blender_attr_type_to_np_type = {
-    #     'FLOAT_VECTOR': nputils.vec3,
-    #     'FLOAT2': nputils.vec2,
+    #     'FLOAT_VECTOR': nputil.vec3,
+    #     'FLOAT2': nputil.vec2,
     # }
 
     # TODO: the user might want to specify quantization modes for varios
@@ -52,7 +55,7 @@ def cook(context, obj):
     # print(object.get('worldspawn.export_attributes'))
 
     # vertices -> loops permutation
-    loop_vert_idxs = nputils.array_from_bpy_collection(mesh.loops, 'vertex_index', dtype=np.uint32)
+    loop_vert_idxs = bpyutil.array_from_prop_collection(mesh.loops, 'vertex_index', dtype=np.uint32)
 
     # TODO: we don't ever manipulate these so we can always just use uint
     # vectors actually
@@ -60,34 +63,34 @@ def cook(context, obj):
     # TODO: also stick a material_index in here? If we're going to be exporting
     # custom user prims and they're gonna be per-primitive, we'll need to solve
     # fanning out material_index
-    fields.append(('position', nputils.vec3))
-    fields.append(('normal', nputils.vec3))
-    fields.append(('tangent', nputils.vec3)) # TODO: should be vec4 (x, y, z, sign)
+    fields.append(('position', nputil.vec3))
+    fields.append(('normal', nputil.vec3))
+    fields.append(('tangent', nputil.vec3)) # TODO: should be vec4 (x, y, z, sign)
     # group stuff here
     # user defined attrs here
     # TODO: prefix user attrs? e.g. with "attributes."
-    fields.append(('UVMap', nputils.vec2))
+    fields.append(('UVMap', nputil.vec2))
 
     loops = np.empty(len(mesh.loops), dtype=np.dtype(fields))
 
-    loops['position'] = nputils.array_from_bpy_collection(mesh.vertices, 'co', dtype=nputils.vec3)[loop_vert_idxs]
+    loops['position'] = bpyutil.array_from_prop_collection(mesh.vertices, 'co', dtype=nputil.vec3)[loop_vert_idxs]
 
     # TODO: encode octahedrally
-    loops['normal'] = nputils.array_from_bpy_collection(mesh.loops, 'normal', dtype=nputils.vec3)
+    loops['normal'] = bpyutil.array_from_prop_collection(mesh.loops, 'normal', dtype=nputil.vec3)
 
     # TODO: encode in a smarter way
     # TODO: are these the tangents we need? Does this match cycles' tangents
     # derived from ATTR_STD_GENERATED? There's also tangent spaces necessary for
     # normal mapping, which are computed from UV.
-    loops['tangent'] = nputils.array_from_bpy_collection(mesh.loops, 'tangent', dtype=nputils.vec3)
+    loops['tangent'] = bpyutil.array_from_prop_collection(mesh.loops, 'tangent', dtype=nputil.vec3)
 
     # TODO: user attribs here
-    loops['UVMap'] = nputils.array_from_bpy_collection(mesh.uv_layers['UVMap'].uv, 'vector', dtype=nputils.vec2)
+    loops['UVMap'] = bpyutil.array_from_prop_collection(mesh.uv_layers['UVMap'].uv, 'vector', dtype=nputil.vec2)
 
-    tri_loop_idxs = nputils.array_from_bpy_collection(mesh.loop_triangles, 'loops', dtype=(np.uint32, 3))
+    tri_loop_idxs = bpyutil.array_from_prop_collection(mesh.loop_triangles, 'loops', dtype=(np.uint32, 3))
     tris = loops[tri_loop_idxs]
 
-    tri_mat_idxs = nputils.array_from_bpy_collection(mesh.loop_triangles, 'material_index', dtype=np.uint32)
+    tri_mat_idxs = bpyutil.array_from_prop_collection(mesh.loop_triangles, 'material_index', dtype=np.uint32)
 
     # TODO: fold tri_mat_idxs into tris
 

@@ -4,9 +4,12 @@ import dataclasses
 import numpy as np
 import json
 import io
-import utils
-import numpy_utils as nputils
 import struct
+
+
+import numpyutil as nputil
+import util
+import bpyutil
 
 
 class Raw:
@@ -61,11 +64,11 @@ def cook(raw, directory):
         verts_indexed, vert_idxs = np.unique(verts_unindexed, return_inverse=True, axis=0)
 
         vertex_buffer = seek_align(blob, 4)
-        nputils.write_ndarray(blob, verts_indexed)
+        nputil.tofile(blob, verts_indexed)
 
         tri_buffer = seek_align(blob, 4)
         # TODO: probably deinterleave?
-        nputils.write_ndarray(blob, np.c_[
+        nputil.tofile(blob, np.c_[
             vert_idxs.astype('<u4').reshape((-1, 3)),
             raw.tri_mat_idxs,
         ])
@@ -95,20 +98,20 @@ def cook(raw, directory):
             # TODO: check whether indices are actually a benefit
 
             index_buffer = seek_align(blob, 4)
-            nputils.write_ndarray(blob, vert_idxs.astype(f'<u{index_size}'))
+            nputil.tofile(blob, vert_idxs.astype(f'<u{index_size}'))
 
             verts = verts_indexed
 
             pos_buffer = seek_align(blob, 4)
-            nputils.write_ndarray(blob, verts['position'])
+            nputil.tofile(blob, verts['position'])
 
             normal_buffer = seek_align(blob, 4)
-            nputils.write_ndarray(blob, verts['normal'])
+            nputil.tofile(blob, verts['normal'])
 
             attrib_buffers = []
 
             attrib_buffers.append(seek_align(blob, 4))
-            nputils.write_ndarray(blob, verts['UVMap'])
+            nputil.tofile(blob, verts['UVMap'])
 
             parts.append(Part(
                 MaterialIndex=int(material_index),
@@ -140,7 +143,7 @@ def cook(raw, directory):
         )
         d = dataclasses.asdict(h, dict_factory=dict_skip_nulls)
         d = fixupdict(d)
-        json.dump(d, utils.UTF8Writer(f), default=utils.asdasd)
+        json.dump(d, util.UTF8Writer(f), default=bpyutil.asdasd)
         json_length = f.seek(0, 1) - json_offset
 
         blob_offset = f.seek(0, 1)
