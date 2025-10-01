@@ -37,13 +37,18 @@ func NewConvexHullShape(vertices []geometry.Vec3, convexRadius float32) (*Shape,
 }
 
 func NewMeshShape(vertices []geometry.Vec3, triangles []Triangle) (*Shape, error) {
-	// HACK: remove this when we plumb materials
+	// HACK
+	triangles2 := make([]struct {
+		Triangle
+		UserData uint32
+	}, len(triangles))
 	for i := range triangles {
-		triangles[i].MaterialIndex = 0
+		triangles2[i].Triangle = triangles[i]
+		triangles2[i].Triangle.MaterialIndex = 0
 	}
 	return (*Shape)(C.newMeshShape(
 		(*C.vec3)(unsafe.Pointer(unsafe.SliceData(vertices))), C.size_t(len(vertices)),
-		unsafe.Pointer(unsafe.SliceData(triangles)), C.size_t(len(triangles)))), nil
+		unsafe.Pointer(unsafe.SliceData(triangles2)), C.size_t(len(triangles2)))), nil
 }
 
 func NewTransformedShape(translation geometry.Vec3, rotation geometry.Rot3, scale geometry.Vec3, shape *Shape) (*Shape, error) {
