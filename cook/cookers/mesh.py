@@ -6,24 +6,20 @@ import json
 import io
 import struct
 
-
 import numpyutil as nputil
 import util
 import bpyutil
 
 
+@dataclasses.dataclass
 class Raw:
-
-
-    def __init__(self, materials, tris, tri_mat_idxs):
-        # TODO: should these be private?
-        self.materials = materials
-        self.tris = tris
-        self.tri_mat_idxs = tri_mat_idxs
+    _materials: list[str]
+    _tris: object
+    _tri_mat_idxs: object
 
 
 @dataclasses.dataclass
-class Collision:
+class _Collision:
     VertexBuffer: int
     VertexCount: int
     TriangleBuffer: int
@@ -31,7 +27,7 @@ class Collision:
 
 
 @dataclasses.dataclass
-class Part:
+class _Part:
     MaterialIndex: int
     PosBuffer: int
     NormalBuffer: int
@@ -43,15 +39,15 @@ class Part:
 
 
 @dataclasses.dataclass
-class Rendering:
-    Parts: list[Part]
+class _Rendering:
+    Parts: list[_Part]
 
 
 @dataclasses.dataclass
-class Header:
+class _Header:
     Materials: list[str]
-    Collision: Collision
-    Rendering: Rendering
+    Collision: _Collision
+    Rendering: _Rendering
 
 
 def cook(raw, directory):
@@ -60,7 +56,7 @@ def cook(raw, directory):
     blob = io.BytesIO() # TODO: use a stricter alignment when writing to blob
 
     if True:
-        verts_unindexed = raw.tris.reshape(-1)['position']
+        verts_unindexed = raw._tris.reshape(-1)['position']
         verts_indexed, vert_idxs = np.unique(verts_unindexed, return_inverse=True, axis=0)
 
         vertex_buffer = seek_align(blob, 4)
@@ -70,10 +66,10 @@ def cook(raw, directory):
         # TODO: probably deinterleave?
         nputil.tofile(blob, np.c_[
             vert_idxs.astype('<u4').reshape((-1, 3)),
-            raw.tri_mat_idxs,
+            raw._tri_mat_idxs,
         ])
 
-        collision = Collision(
+        collision = _Collision(
             VertexBuffer=vertex_buffer,
             VertexCount=len(verts_indexed),
             TriangleBuffer=tri_buffer,
@@ -82,10 +78,10 @@ def cook(raw, directory):
 
     if True:
         parts = []
-        for material_index in np.unique(raw.tri_mat_idxs):
-            assert material_index < len(raw.materials)
+        for material_index in np.unique(raw._tri_mat_idxs):
+            assert material_index < len(raw._materials)
 
-            tris = raw.tris[raw.tri_mat_idxs == material_index]
+            tris = raw._tris[raw._tri_mat_idxs == material_index]
             if len(tris) == 0:
                 continue
 
@@ -113,7 +109,7 @@ def cook(raw, directory):
             attrib_buffers.append(seek_align(blob, 4))
             nputil.tofile(blob, verts['UVMap'])
 
-            parts.append(Part(
+            parts.append(_Part(
                 MaterialIndex=int(material_index),
                 PosBuffer=pos_buffer,
                 NormalBuffer=normal_buffer,
@@ -124,7 +120,7 @@ def cook(raw, directory):
                 TriangleCount=len(tris),
             ))
 
-        rendering = Rendering(Parts=parts)
+        rendering = _Rendering(Parts=parts)
 
     with open(directory, 'wb') as f:
         f.write(b'Worldspawn')
@@ -136,8 +132,8 @@ def cook(raw, directory):
         f.write(struct.pack('<qqqq', 0, 0, 0, 0))
 
         json_offset = f.seek(0, 1)
-        h = Header(
-            Materials=raw.materials,
+        h = _Header(
+            Materials=raw._materials,
             Collision=collision,
             Rendering=rendering,
         )
