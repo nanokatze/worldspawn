@@ -4,7 +4,9 @@ import (
 	"runtime"
 	"sync"
 	"unsafe"
+
 	"worldspawn/gpu/vk"
+	"worldspawn/gpu/vk/formatutil"
 )
 
 type Format = vk.Format
@@ -47,4 +49,21 @@ func getFormatPropsSlow(format Format) *formatProps {
 	return &formatProps{
 		OptimalTilingFeatures: props3.OptimalTilingFeatures,
 	}
+}
+
+func divByBlockExtent(texels [3]int, format Format) [3]int {
+	blockExtent := int3FromVkExtent3D(formatutil.Describe(format).BlockExtent)
+
+	// TODO: make sure texels is divisible by blockExtent?
+	// TODO: we can speed the division up as there's only a small set of
+	// different values that can appear in the sides of blockExtent, which we
+	// can treat specially.
+
+	return int3(texels).Div(blockExtent)
+}
+
+func divByBlockExtentRoundUp(texels [3]int, format Format) [3]int {
+	blockExtent := int3FromVkExtent3D(formatutil.Describe(format).BlockExtent)
+
+	return int3DivRoundUp(texels, blockExtent)
 }

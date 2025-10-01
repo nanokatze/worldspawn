@@ -1,38 +1,36 @@
 package gpu
 
-type Int3 struct {
-	X, Y, Z int
+// TODO: move to util?
+type int3 [3]int
+
+func (a int3) Add(b int3) int3 {
+	return int3{a[0] + b[0], a[1] + b[1], a[2] + b[2]}
 }
 
-// TODO: should these methods be public?
-func (a Int3) Add(b Int3) Int3 {
-	return Int3{a.X + b.X, a.Y + b.Y, a.Z + b.Z}
+func (a int3) Sub(b int3) int3 {
+	return int3{a[0] - b[0], a[1] - b[1], a[2] - b[2]}
 }
 
-func (a Int3) Sub(b Int3) Int3 {
-	return Int3{a.X - b.X, a.Y - b.Y, a.Z - b.Z}
+func (a int3) Mul(b int3) int3 {
+	return int3{a[0] * b[0], a[1] * b[1], a[2] * b[2]}
 }
 
-func (a Int3) Mul(b Int3) Int3 {
-	return Int3{a.X * b.X, a.Y * b.Y, a.Z * b.Z}
+func (a int3) Div(b int3) int3 {
+	return int3{a[0] / b[0], a[1] / b[1], a[2] / b[2]}
 }
 
-func (a Int3) Div(b Int3) Int3 {
-	return Int3{a.X / b.X, a.Y / b.Y, a.Z / b.Z}
+func (a int3) Mod(b int3) int3 {
+	return int3{a[0] % b[0], a[1] % b[1], a[2] % b[2]}
 }
 
-func (a Int3) Mod(b Int3) Int3 {
-	return Int3{a.X % b.X, a.Y % b.Y, a.Z % b.Z}
+func (a int3) Rsh(b int3) int3 {
+	return int3{a[0] >> b[0], a[1] >> b[1], a[2] >> b[2]}
 }
 
-func (a Int3) Rsh(b Int3) Int3 {
-	return Int3{a.X >> b.X, a.Y >> b.Y, a.Z >> b.Z}
+func int3Min(a, b int3) int3 {
+	return int3{min(a[0], b[0]), min(a[1], b[1]), min(a[2], b[2])}
 }
 
-func int3Min(a, b Int3) Int3 {
-	return Int3{min(a.X, b.X), min(a.Y, b.Y), min(a.Z, b.Z)}
-}
-
-func int3Max(a, b Int3) Int3 {
-	return Int3{max(a.X, b.X), max(a.Y, b.Y), max(a.Z, b.Z)}
+func int3Max(a, b int3) int3 {
+	return int3{max(a[0], b[0]), max(a[1], b[1]), max(a[2], b[2])}
 }

@@ -41,7 +41,7 @@ func texture(filename string) *renderer.Texture {
 
 		t = renderer.NewTexture(
 			viewType,
-			gpu.Int3{
+			[3]int{
 				int(textureHeader.Width),
 				int(max(textureHeader.Height, 1)),
 				int(max(textureHeader.Depth, 1)),
@@ -67,7 +67,7 @@ func texture(filename string) *renderer.Texture {
 			img.EnqueueInit(&jq)
 
 			gpu.EnqueueCopyMemoryToImage(&jq,
-				img, gpu.Int3{},
+				img, [3]int{},
 				tmp, 0, 0,
 				img.Extent())
 

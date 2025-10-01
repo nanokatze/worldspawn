@@ -28,36 +28,40 @@ func ones32(x uint32) iter.Seq[int] {
 	}
 }
 
-func minify(extent Int3, mipLevel int) Int3 {
+func int3Minify(extent int3, mipLevel int) int3 {
 	return int3Max(extent.Rsh(int3Splat(mipLevel)), int3Splat(1))
 }
 
-func int3Splat(x int) Int3 {
-	return Int3{x, x, x}
+func int3Splat(x int) int3 {
+	return int3{x, x, x}
 }
 
-func int3FromVkOffset3D(offset vk.Offset3D) Int3 {
-	return Int3{int(offset.X), int(offset.Y), int(offset.Z)}
+func int3FromVkOffset3D(offset vk.Offset3D) int3 {
+	return int3{int(offset.X), int(offset.Y), int(offset.Z)}
 }
 
-func int3FromVkExtent3D(extent vk.Extent3D) Int3 {
-	return Int3{int(extent.Width), int(extent.Height), int(extent.Depth)}
+func int3FromVkExtent3D(extent vk.Extent3D) int3 {
+	return int3{int(extent.Width), int(extent.Height), int(extent.Depth)}
 }
 
-func int3ToVkOffset3D(a Int3) vk.Offset3D {
+func int3ToVkOffset3D(a int3) vk.Offset3D {
 	return vk.Offset3D{
-		X: int32(a.X),
-		Y: int32(a.Y),
-		Z: int32(a.Z),
+		X: int32(a[0]),
+		Y: int32(a[1]),
+		Z: int32(a[2]),
 	}
 }
 
-func int3ToVkExtent3D(a Int3) vk.Extent3D {
+func int3ToVkExtent3D(a int3) vk.Extent3D {
 	return vk.Extent3D{
-		Width:  uint32(a.X),
-		Height: uint32(a.Y),
-		Depth:  uint32(a.Z),
+		Width:  uint32(a[0]),
+		Height: uint32(a[1]),
+		Depth:  uint32(a[2]),
 	}
+}
+
+func int3DivRoundUp(a, b [3]int) [3]int {
+	return int3(a).Add(b).Sub(int3Splat(1)).Div(b)
 }
 
 func byteSliceToString(s []byte) string {

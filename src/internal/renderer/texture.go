@@ -11,7 +11,7 @@ type Texture struct {
 	Image *gpu.Image
 }
 
-func NewTexture(_type vk.ImageViewType, extent gpu.Int3, mipLevels, layers int, format gpu.Format) *Texture {
+func NewTexture(_type vk.ImageViewType, extent [3]int, mipLevels, layers int, format gpu.Format) *Texture {
 	texture := new(Texture)
 
 	// TODO: should be sparse

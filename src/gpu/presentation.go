@@ -103,7 +103,7 @@ func (swapchain *Swapchain) reconfigure(config *SwapchainConfig) *Swapchain {
 		MinImageCount:         minImageCount,
 		ImageFormat:           config.Format,
 		ImageColorSpace:       config.ColorSpace,
-		ImageExtent:           vk.Extent2D{Width: uint32(config.Extent.X), Height: uint32(config.Extent.Y)},
+		ImageExtent:           vk.Extent2D{Width: uint32(config.Extent[0]), Height: uint32(config.Extent[1])},
 		ImageArrayLayers:      uint32(config.Layers),
 		ImageUsage:            config.Usage.vkImageUsageFlags(config.Format),
 		ImageSharingMode:      vk.SHARING_MODE_CONCURRENT,
@@ -132,7 +132,7 @@ func (swapchain *Swapchain) reconfigure(config *SwapchainConfig) *Swapchain {
 		imageData := new(imageData)
 		imageData.vkImage = vkImage
 		imageData.dim = ImageDim2D
-		imageData.extent = config.Extent
+		imageData.extent = int3ToVkExtent3D(config.Extent)
 		imageData.layers = uint32(config.Layers)
 		imageData.mipLevels = 1
 		imageData.format = config.Format

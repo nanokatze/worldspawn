@@ -101,7 +101,7 @@ type imageData struct {
 
 	// TODO: review which of these fields we need
 	dim       ImageDim
-	extent    Int3 // TODO: change this back to vk.Extent3D?
+	extent    vk.Extent3D
 	layers    uint32
 	mipLevels uint32
 	format    Format
@@ -142,7 +142,7 @@ type Image struct {
 
 	// precomputed stuff
 
-	extent Int3 // TODO: change to Extent3D for a more compact representation?
+	extent vk.Extent3D
 
 	// ownsBase specifies whether this *Image owns the data and Destroy should
 	// actually destroy it.
@@ -156,7 +156,7 @@ type Image struct {
 // TODO: do we need any other fields here?
 type ImageConfig struct {
 	Dim       ImageDim
-	Extent    Int3
+	Extent    [3]int
 	Layers    int
 	MipLevels int
 	Samples   uint32 // TODO: remove multisampled images altogether from our abstraction?
@@ -173,7 +173,7 @@ func (config *ImageConfig) vkImageCreateInfo(queueFamilies []uint32, createInfo 
 	flags |= vk.ImageCreateFlags(vk.IMAGE_CREATE_MUTABLE_FORMAT_BIT)
 
 	if config.Dim == ImageDim2D &&
-		config.Extent.X == config.Extent.Y &&
+		config.Extent[0] == config.Extent[1] &&
 		config.Layers >= 6 &&
 		config.Samples == 1 {
 		flags |= vk.ImageCreateFlags(vk.IMAGE_CREATE_CUBE_COMPATIBLE_BIT)
@@ -268,7 +268,7 @@ func NewImage(config *ImageConfig) *Image {
 	}
 
 	base.dim = config.Dim
-	base.extent = config.Extent
+	base.extent = int3ToVkExtent3D(config.Extent)
 	base.layers = uint32(config.Layers)
 	base.mipLevels = uint32(config.MipLevels)
 	base.format = config.Format
@@ -297,7 +297,7 @@ func newImage(base *imageData,
 	format Format,
 	baseLayer, layers int,
 	baseMipLevel, mipLevels int) *Image {
-	extent := minify(base.extent, baseMipLevel)
+	extent := int3Minify(int3FromVkExtent3D(base.extent), baseMipLevel)
 	// TODO: make this less ugly
 	block1 := formatutil.Describe(format).BlockExtent
 	block2 := formatutil.Describe(base.format).BlockExtent
@@ -319,7 +319,7 @@ func newImage(base *imageData,
 		layers:       uint32(layers),
 		baseMipLevel: uint8(baseMipLevel),
 		mipLevels:    uint8(mipLevels),
-		extent:       extent,
+		extent:       int3ToVkExtent3D(extent),
 	}
 
 	formatFeatures := getFormatProps(format).OptimalTilingFeatures
@@ -439,7 +439,7 @@ func (img *Image) Dim() ImageDim { return img.dim }
 
 func (img *Image) Format() Format { return img.format }
 
-func (img *Image) Extent() Int3 { return img.extent }
+func (img *Image) Extent() [3]int { return int3FromVkExtent3D(img.extent) }
 
 func (img *Image) EnqueueInit(jq *JobQueue) {
 	img.enqueueTransitionLayout(jq, vk.IMAGE_LAYOUT_UNDEFINED, vk.IMAGE_LAYOUT_GENERAL)

@@ -46,7 +46,7 @@ var window *sdl.Window
 var redrawMu sync.Mutex
 var resizeCond = sync.Cond{L: &redrawMu}
 
-var currentExtent gpu.Int3
+var currentExtent [3]int
 var swapchain *gpu.Swapchain
 var swapchainImage *gpu.Image
 
@@ -159,7 +159,7 @@ func resize(width, height int) {
 
 	slog.Info("resize", "width", width, "height", height)
 
-	currentExtent = gpu.Int3{width, height, 1}
+	currentExtent = [3]int{width, height, 1}
 
 	swapchain = gpu.NewSwapchain(&gpu.SwapchainConfig{
 		Window:     window,
@@ -327,7 +327,7 @@ func redrawLocked() bool {
 						StoreOp: vk.ATTACHMENT_STORE_OP_STORE,
 					},
 				},
-				RenderArea: vk.Rect2D{Extent: vk.Extent2D{Width: uint32(currentExtent.X), Height: uint32(currentExtent.Y)}},
+				RenderArea: vk.Rect2D{Extent: vk.Extent2D{Width: uint32(currentExtent[0]), Height: uint32(currentExtent[1])}},
 				LayerCount: 1,
 			})
 		defer rp.End()
@@ -339,14 +339,14 @@ func redrawLocked() bool {
 			{
 				X:        0,
 				Y:        0,
-				Width:    float32(currentExtent.X),
-				Height:   float32(currentExtent.Y),
+				Width:    float32(currentExtent[0]),
+				Height:   float32(currentExtent[1]),
 				MinDepth: 0,
 				MaxDepth: 1,
 			},
 		})
 		rp.SetScissors([]vk.Rect2D{
-			{Extent: vk.Extent2D{Width: uint32(currentExtent.X), Height: uint32(currentExtent.Y)}},
+			{Extent: vk.Extent2D{Width: uint32(currentExtent[0]), Height: uint32(currentExtent[1])}},
 		})
 
 		rp.SetRasterizerDiscardEnable(false)

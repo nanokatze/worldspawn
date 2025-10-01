@@ -10,7 +10,7 @@ import (
 func TestImageExtent(t *testing.T) {
 	img := NewImage(&ImageConfig{
 		Dim:       ImageDim2D,
-		Extent:    Int3{15, 15, 1},
+		Extent:    [3]int{15, 15, 1},
 		Layers:    1,
 		MipLevels: completeMipChainLength(15, 15, 1), // TODO: have an option for this?
 		Samples:   1,
@@ -27,7 +27,7 @@ func TestImageExtent(t *testing.T) {
 func TestImageCopy1(t *testing.T) {
 	a := NewImage(&ImageConfig{
 		Dim:       ImageDim2D,
-		Extent:    Int3{4, 4, 1},
+		Extent:    [3]int{4, 4, 1},
 		Layers:    1,
 		MipLevels: 1,
 		Samples:   1,
@@ -37,7 +37,7 @@ func TestImageCopy1(t *testing.T) {
 
 	b := NewImage(&ImageConfig{
 		Dim:       ImageDim2D,
-		Extent:    Int3{1, 1, 1},
+		Extent:    [3]int{1, 1, 1},
 		Layers:    1,
 		MipLevels: 1,
 		Samples:   1,
@@ -52,15 +52,15 @@ func TestImageCopy1(t *testing.T) {
 	b.EnqueueInit(&jq)
 
 	EnqueueCopyImage(&jq,
-		a, Int3{0, 0, 0},
-		b, Int3{0, 0, 0},
-		Int3{1, 1, 1})
+		a, [3]int{0, 0, 0},
+		b, [3]int{0, 0, 0},
+		[3]int{1, 1, 1})
 }
 
 func TestImageCopy3(t *testing.T) {
 	a := NewImage(&ImageConfig{
 		Dim:       ImageDim2D,
-		Extent:    Int3{3, 3, 1},
+		Extent:    [3]int{3, 3, 1},
 		Layers:    1,
 		MipLevels: 1,
 		Samples:   1,
@@ -70,7 +70,7 @@ func TestImageCopy3(t *testing.T) {
 
 	b := NewImage(&ImageConfig{
 		Dim:       ImageDim2D,
-		Extent:    Int3{4, 4, 1},
+		Extent:    [3]int{4, 4, 1},
 		Layers:    1,
 		MipLevels: 1,
 		Samples:   1,
@@ -85,15 +85,15 @@ func TestImageCopy3(t *testing.T) {
 	b.EnqueueInit(&jq)
 
 	EnqueueCopyImage(&jq,
-		a, Int3{},
-		b, Int3{},
-		Int3{4, 4, 1})
+		a, [3]int{},
+		b, [3]int{},
+		[3]int{4, 4, 1})
 }
 
 func TestImageCopy2(t *testing.T) {
 	img := NewImage(&ImageConfig{
 		Dim:       ImageDim2D,
-		Extent:    Int3{6, 6, 1},
+		Extent:    [3]int{6, 6, 1},
 		Layers:    1,
 		MipLevels: 1,
 		Samples:   1,
@@ -114,13 +114,13 @@ func TestImageCopy2(t *testing.T) {
 	img2.EnqueueInit(&jq)
 
 	EnqueueCopyMemoryToImage(&jq,
-		img, Int3{0, 0, 0},
+		img, [3]int{0, 0, 0},
 		tmp, 0, 0,
-		Int3{6, 6, 1})
+		[3]int{6, 6, 1})
 	EnqueueCopyMemoryToImage(&jq,
-		img2, Int3{0, 0, 0},
+		img2, [3]int{0, 0, 0},
 		tmp, 0, 0,
-		Int3{2, 2, 1})
+		[3]int{2, 2, 1})
 }
 
 func completeMipChainLength(width, height, depth uint32) int {

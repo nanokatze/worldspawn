@@ -30,7 +30,7 @@ type _FrameData struct {
 var blueNoise = sync.OnceValue(func() *gpu.Image {
 	gpuImg := gpu.NewImage(&gpu.ImageConfig{
 		Dim:       gpu.ImageDim2D,
-		Extent:    gpu.Int3{256, 256, 1},
+		Extent:    [3]int{256, 256, 1},
 		Layers:    8,
 		MipLevels: 1,
 		Samples:   1,
@@ -73,9 +73,9 @@ var blueNoise = sync.OnceValue(func() *gpu.Image {
 				gpuImg.Format(),
 				i, i+1,
 				0, 1),
-			gpu.Int3{},
+			[3]int{},
 			staging, 0, 0,
-			gpu.Int3{imgNRGBA.Rect.Max.X, imgNRGBA.Rect.Max.Y, 1})
+			[3]int{imgNRGBA.Rect.Max.X, imgNRGBA.Rect.Max.Y, 1})
 		wg.EnqueueDone(&jq)
 	}
 
@@ -113,7 +113,7 @@ var toClipSpace = geometry.Mat4x4{
 //
 // TODO: we need to pass other stuff like max aniso etc settings...
 // TODO: change fn to be an int?
-func (scene *Scene) Render(jq *gpu.JobQueue, t float32, fn uint32, camera *Camera, dst *gpu.Image, res gpu.Int3) {
+func (scene *Scene) Render(jq *gpu.JobQueue, t float32, fn uint32, camera *Camera, dst *gpu.Image, res [3]int) {
 	// asdasd
 	bn := blueNoise()
 
@@ -126,7 +126,7 @@ func (scene *Scene) Render(jq *gpu.JobQueue, t float32, fn uint32, camera *Camer
 	{
 		proj := geometry.Mat4x4InfinitePerspective(
 			float32(camera.FieldOfView),
-			float32(res.X)/float32(res.Y),
+			float32(res[0])/float32(res[1]),
 			float32(camera.NearClipPlane)).
 			Mul4x4(toClipSpace)
 
@@ -173,7 +173,7 @@ func (scene *Scene) Render(jq *gpu.JobQueue, t float32, fn uint32, camera *Camer
 			Camera: frameData,
 			Out:    dst.LoadStoreDescriptor(),
 		}
-		gpu.EnqueueTraceRays(jq, scene.pipeline, scene.sbt, res.X, res.Y, 1, &args)
+		gpu.EnqueueTraceRays(jq, scene.pipeline, scene.sbt, res[0], res[1], 1, &args)
 	}
 }
 
