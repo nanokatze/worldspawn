@@ -1,4 +1,5 @@
 //go:generate go run gen.go -o format_table.go /usr/share/vulkan/registry/vk.xml
+//go:generate stringer -type Class -trimprefix CLASS_
 
 package formatutil
 
