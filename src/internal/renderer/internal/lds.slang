@@ -3,21 +3,36 @@
 #define assert(x)
 
 public interface LDS {
-	public float Get(int dimension, int i);
+	[[mutating]]
+	public float Get();
+
+	// [[mutating]]
+	// public float Get2D();
 }
 
 // n-dimensional R-sequence by M. Roberts
 // https://extremelearning.com.au/unreasonable-effectiveness-of-quasirandom-sequences/
 //
 // TODO: see also https://www.martysmods.com/a-better-r2-sequence/
+// TODO: copy rtx remix's getNextSampleBlueNoise.
 public struct Roberts : LDS {
 	float phi_d;
+	int point;
+	int dim;
 
-	public __init(int d) {
+	public __init(int d, int pt = 0, int startingdim = 0) {
 		phi_d = _RobertsPhi(d);
+		point = pt;
+		dim = startingdim;
 	}
 
-	// TODO: swap dimension and point index
+	// TODO: rename to Get1D and introduce Get2D for uncorrelated 2D values
+	[[mutating]]
+	public float Get() {
+		return Get(dim++, point);
+	}
+
+	// TODO: make this private
 	[require(spirv, spirv_1_0)]
 	public float Get(int dimension, int i) {
 		assert(dimension >= 0);

@@ -83,6 +83,12 @@ float getLDSValue(int bounce, int dimension) {
     return lds.Get(bounce * Bounces + dimension, point);
 }
 
+public struct BlueNoiseRotated<T : LDS> : LDS {
+	public __init(lds T) {
+
+    }
+}
+
 [[shader("raygeneration")]]
 void raygen() {
     uint3 LaunchID = DispatchRaysIndex();
@@ -393,18 +399,23 @@ Spectrum sampleLd<T : BxDF>(
     float3 normal,
     float3 wo,
     T bsdf,
+    float3 ldsp, // TODO: split into two values
 ) {
     let lightSampler = &push.scene->lightSampler;
 
-    float u = fmod(bn.z + getLDSValue(bounce, 2), 1.0);
+    // float u = fmod(bn.z + getLDSValue(bounce, 2), 1.0);
 
-    float2 b = fmod(bn.yx + float2(getLDSValue(bounce, 0), getLDSValue(bounce, 1)), 1.0);
+    float2 b = ldsp.xy;
+    float asd = ldsp.z;
+    // float2 b = fmod(bn.yx + float2(getLDSValue(bounce, 0), getLDSValue(bounce, 1)), 1.0);
 
-    float asd = fmod(bn.z + getLDSValue(bounce, 3), 1.0);
+    // float asd = fmod(bn.z + getLDSValue(bounce, 3), 1.0);
 
     // TODO: encapsulate this into lightSampler->SampleLight
     let emissiveInstanceIndex = (int)(asd * (float)lightSampler->emissiveInstanceCount);
     let emissiveInstance = &lightSampler->emissiveInstances.data[emissiveInstanceIndex];
+
+    float u = fmod(asd * (float)lightSampler->emissiveInstanceCount, 1.0);
 
     let instancePmf = 1.0 / (float)lightSampler->emissiveInstanceCount;
 
@@ -469,7 +480,7 @@ Spectrum sampleLd<T : BxDF>(
 // TODO: encapsulate this garbage into a nice Interaction struct or something
 // like that.
 void closesthit(
-    inout Path path,
+    __ref Path path,
     int bounce,
     uint3 dispatchRaysIndex,
     uint instanceIndex,
@@ -487,6 +498,8 @@ void closesthit(
 
     let bntex = push.camera->blueNoise;
     let bn = push.camera->blueNoise.At2D(dispatchRaysIndex.xy & (bntex.Extent2D() - 1)).xyz;
+
+    Roberts lds = Roberts(10 * Bounces, push.camera->frameNumber, 10 * bounce);
 
     let materialParams = &push.scene->materialParams.data[instanceIndex * push.scene->maxPartsPerMesh + geometryIndex];
 
@@ -528,8 +541,9 @@ void closesthit(
     // TODO: radiance cache sampling would fit into somewhere in here
 
     // Direct light sampling
+    float3 u_Ld = fmod(bn + float3(lds.Get(), lds.Get(), lds.Get()), 1);
     if (bsdf.Flags() & (BSDFFlags::Diffuse | BSDFFlags::Glossy)) {
-        Spectrum Ld = sampleLd(bounce, bn, vampire, hitpos, normal, wo, bsdf);
+        Spectrum Ld = sampleLd(bounce, bn, vampire, hitpos, normal, wo, bsdf, u_Ld);
 
         if (any(Ld > float3(0)))
             path.L += path.beta * Ld;
@@ -537,7 +551,7 @@ void closesthit(
 
     // Sample the bsdf for the next ray
 
-    let bsdfSample = bsdf.Sample(wo, fmod(bn.z + getLDSValue(bounce, 0), 1), fmod(bn.xy + float2(getLDSValue(bounce, 1), getLDSValue(bounce, 2)), 1.0));
+    let bsdfSample = bsdf.Sample(wo, fmod(bn.z + lds.Get(), 1), fmod(bn.xy + float2(lds.Get(), lds.Get()), 1.0));
 
     // TODO: once we get diffuse cache, (optionally) terminate the path for
     // diffuse-only bsdfSamples and instead get the information from the cache.

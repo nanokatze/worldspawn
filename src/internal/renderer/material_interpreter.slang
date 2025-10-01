@@ -65,7 +65,7 @@ public enum TwoSrc {
 */
 
 public void mateval(
-    inout Registers regs,
+    __ref Registers regs,
     const uint32_t *program,
     const MaterialParams *materialParams,
     float3x4 ObjectToWorld,
