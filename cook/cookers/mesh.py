@@ -131,7 +131,7 @@ def cook(raw, directory):
         sections = f.tell()
         f.write(struct.pack('<qqqq', 0, 0, 0, 0))
 
-        json_offset = f.seek(0, 1)
+        json_offset = f.tell()
         h = _Header(
             Materials=raw._materials,
             Collision=collision,
@@ -140,11 +140,11 @@ def cook(raw, directory):
         d = dataclasses.asdict(h, dict_factory=dict_skip_nulls)
         d = fixupdict(d)
         json.dump(d, util.UTF8Writer(f), default=bpyutil.asdasd)
-        json_length = f.seek(0, 1) - json_offset
+        json_length = f.tell() - json_offset
 
-        blob_offset = f.seek(0, 1)
+        blob_offset = f.tell()
         f.write(blob.getbuffer())
-        blob_length = f.seek(0, 1) - blob_offset
+        blob_length = f.tell() - blob_offset
 
         f.seek(sections)
         f.write(struct.pack('<qqqq', json_offset, json_length, blob_offset, blob_length))
