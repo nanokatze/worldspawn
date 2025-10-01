@@ -326,6 +326,10 @@ const (
 	PROP_WINDOW_CREATE_WAYLAND_SURFACE_ROLE_CUSTOM_BOOLEAN = C.SDL_PROP_WINDOW_CREATE_WAYLAND_SURFACE_ROLE_CUSTOM_BOOLEAN
 )
 
+// TODO: introduce a wrapped CreateWindow with func vararg config with
+// properties (i.e. the thing would accept stuff like WithStringProperty,
+// WithNumberProperty, etc)
+
 func CreateWindowWithProperties(props PropertiesID) (*Window, error) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
