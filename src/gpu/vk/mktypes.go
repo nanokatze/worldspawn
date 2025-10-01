@@ -20,15 +20,15 @@ import (
 
 // TODO: clean up this garbage
 
-// TODO: generate sType helper
+// What we have to do is *first* walk over all the type, enum, etc, definitions,
+// and collect them. Next, we walk the requires (by core and extensions), filter
+// things appropriately, expand enum defs with more entries, etc. We should
+// always skip union types and types containing bit fields, and handroll them
+// instead (at least for now.)
 
 var api = flag.String("api", "vulkan", "API to generate bindings for")
 var platforms = flag.String("platforms", "", "Platforms to generate bindings for")
 var output = flag.String("o", "types.go", "b")
-
-type GoFile struct {
-	// TODO: put all the stuff we're working on here
-}
 
 func main() {
 	log.SetFlags(0)
