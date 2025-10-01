@@ -4,7 +4,8 @@
 
 //go:generate go run mkfuncs.go -o funcs.go /usr/share/vulkan/registry/vk.xml
 //go:generate go run mktypes.go -o types.go /usr/share/vulkan/registry/vk.xml
-//go:generate stringer -type Format
+
+//go:generate stringer -type Format -trimprefix FORMAT_
 //go:generate stringer -type Result
 
 package vk
