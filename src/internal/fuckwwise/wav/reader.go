@@ -8,8 +8,8 @@ import (
 	"math"
 	"strconv"
 
-	sfx "worldspawn/fuckwwise"
-	"worldspawn/fuckwwise/wav/internal/riff"
+	sfx "worldspawn/internal/fuckwwise"
+	"worldspawn/internal/fuckwwise/wav/internal/riff"
 )
 
 type redundantChunkError [4]byte

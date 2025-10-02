@@ -25,13 +25,13 @@ import (
 	"golang.org/x/text/message"
 
 	"worldspawn/deathmatch/internal/game"
-	sfx "worldspawn/fuckwwise"
-	"worldspawn/fuckwwise/opusfile"
-	"worldspawn/fuckwwise/wav"
 	"worldspawn/geometry-go"
 	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
 	"worldspawn/internal/ecs"
+	sfx "worldspawn/internal/fuckwwise"
+	"worldspawn/internal/fuckwwise/opusfile"
+	"worldspawn/internal/fuckwwise/wav"
 	"worldspawn/internal/renderer"
 	"worldspawn/sdl"
 )

@@ -5,9 +5,9 @@ import (
 	"math"
 	"unsafe"
 
-	sfx "worldspawn/fuckwwise"
-	"worldspawn/fuckwwise/interpolators"
 	"worldspawn/geometry-go"
+	sfx "worldspawn/internal/fuckwwise"
+	"worldspawn/internal/fuckwwise/interpolators"
 	"worldspawn/sdl"
 )
 

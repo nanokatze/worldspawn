@@ -5,9 +5,9 @@ import (
 	"log"
 	"time"
 
-	sfx "worldspawn/fuckwwise"
-	"worldspawn/fuckwwise/wav"
 	"worldspawn/internal/ecs"
+	sfx "worldspawn/internal/fuckwwise"
+	"worldspawn/internal/fuckwwise/wav"
 )
 
 // TODO: add ability to randomize the repeating segments
