@@ -19,7 +19,7 @@ func MarshalEncode(enc *Encoder, in any) error {
 
 	t := v.Type()
 
-	marshal := loadOrElse(enc.customMarshalers, t, func() marshaler { return defaultMarshaler(t) })
+	marshal := mapGetOrElse(enc.customMarshalers, t, func() marshaler { return defaultMarshaler(t) })
 	return marshal(enc, v)
 }
 
@@ -127,8 +127,8 @@ func makeDefaultMarshaler(t reflect.Type) marshaler {
 				return nil
 			}
 
-			marshalKey := loadOrDefault(enc.customMarshalers, t.Key(), defaultMarshalKey)
-			marshalVal := loadOrDefault(enc.customMarshalers, t.Elem(), defaultMarshalVal)
+			marshalKey := mapGetOrDefault(enc.customMarshalers, t.Key(), defaultMarshalKey)
+			marshalVal := mapGetOrDefault(enc.customMarshalers, t.Elem(), defaultMarshalVal)
 
 			k := reflect.New(t.Key()).Elem()
 			v := reflect.New(t.Elem()).Elem()
@@ -165,7 +165,7 @@ func makeDefaultMarshaler(t reflect.Type) marshaler {
 				return nil
 			}
 
-			marshal := loadOrDefault(enc.customMarshalers, t.Elem(), defaultMarshal)
+			marshal := mapGetOrDefault(enc.customMarshalers, t.Elem(), defaultMarshal)
 			return marshal(enc, v.Elem())
 		}
 
@@ -185,7 +185,7 @@ func makeDefaultMarshaler(t reflect.Type) marshaler {
 
 			// TODO: enforce size limits when encoding too
 
-			marshal := loadOrDefault(enc.customMarshalers, t.Elem(), defaultMarshal)
+			marshal := mapGetOrDefault(enc.customMarshalers, t.Elem(), defaultMarshal)
 			for i := range n {
 				if err := marshal(enc, v.Index(i)); err != nil {
 					return err
@@ -218,7 +218,7 @@ func makeDefaultMarshaler(t reflect.Type) marshaler {
 
 		return func(enc *Encoder, v reflect.Value) error {
 			for _, f := range fs {
-				marshal := loadOrDefault(enc.customMarshalers, f.Type, f.DefaultMarshal)
+				marshal := mapGetOrDefault(enc.customMarshalers, f.Type, f.DefaultMarshal)
 				if err := marshal(enc, v.Field(f.Index)); err != nil {
 					return err
 				}

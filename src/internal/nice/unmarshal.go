@@ -19,7 +19,7 @@ func UnmarshalDecode(dec *Decoder, out any) error {
 
 	t := v.Type()
 
-	unmarshal := loadOrElse(dec.customUnmarshalers, t, func() unmarshaler { return defaultUnmarshaler(t) })
+	unmarshal := mapGetOrElse(dec.customUnmarshalers, t, func() unmarshaler { return defaultUnmarshaler(t) })
 	return unmarshal(dec, v)
 }
 
@@ -148,8 +148,8 @@ func makeDefaultUnmarshaler(t reflect.Type) unmarshaler {
 
 			m.Set(reflect.MakeMapWithSize(t, n))
 
-			unmarshalKey := loadOrDefault(dec.customUnmarshalers, t.Key(), defaultUnmarshalKey)
-			unmarshalVal := loadOrDefault(dec.customUnmarshalers, t.Elem(), defaultUnmarshalVal)
+			unmarshalKey := mapGetOrDefault(dec.customUnmarshalers, t.Key(), defaultUnmarshalKey)
+			unmarshalVal := mapGetOrDefault(dec.customUnmarshalers, t.Elem(), defaultUnmarshalVal)
 
 			k := reflect.New(t.Key()).Elem()
 			v := reflect.New(t.Elem()).Elem()
@@ -184,7 +184,7 @@ func makeDefaultUnmarshaler(t reflect.Type) unmarshaler {
 
 			v.Set(reflect.New(t.Elem()))
 
-			unmarshal := loadOrDefault(dec.customUnmarshalers, t.Elem(), defaultUnmarshal)
+			unmarshal := mapGetOrDefault(dec.customUnmarshalers, t.Elem(), defaultUnmarshal)
 			return unmarshal(dec, v.Elem())
 		}
 
@@ -207,7 +207,7 @@ func makeDefaultUnmarshaler(t reflect.Type) unmarshaler {
 
 			v.Set(reflect.MakeSlice(t, n, n))
 
-			unmarshal := loadOrDefault(dec.customUnmarshalers, t.Elem(), defaultUnmarshal)
+			unmarshal := mapGetOrDefault(dec.customUnmarshalers, t.Elem(), defaultUnmarshal)
 			for i := range n {
 				if err := unmarshal(dec, v.Index(i)); err != nil {
 					return err
@@ -246,7 +246,7 @@ func makeDefaultUnmarshaler(t reflect.Type) unmarshaler {
 
 		return func(dec *Decoder, v reflect.Value) error {
 			for _, f := range fs {
-				unmarshal := loadOrDefault(dec.customUnmarshalers, f.Type, f.DefaultUnmarshal)
+				unmarshal := mapGetOrDefault(dec.customUnmarshalers, f.Type, f.DefaultUnmarshal)
 				if err := unmarshal(dec, v.Field(f.Index)); err != nil {
 					return err
 				}

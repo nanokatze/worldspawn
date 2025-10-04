@@ -9,7 +9,6 @@ import (
 )
 
 type codec interface {
-	Name() string
 	Marshal(buf *bytes.Buffer, in any) error
 	Unmarshal(buf *bytes.Reader, out any) error
 }
@@ -18,8 +17,6 @@ type niceCodec struct {
 	enc Encoder
 	dec Decoder
 }
-
-func (b *niceCodec) Name() string { return "nice" }
 
 func (b *niceCodec) Marshal(buf *bytes.Buffer, in any) error {
 	b.enc.Reset(buf)
@@ -31,9 +28,9 @@ func (b *niceCodec) Unmarshal(buf *bytes.Reader, out any) error {
 	return UnmarshalDecode(&b.dec, out)
 }
 
-type encodingBinaryCodec struct{}
+func (b *niceCodec) String() string { return "nice" }
 
-func (*encodingBinaryCodec) Name() string { return "encodingBinary" }
+type encodingBinaryCodec struct{}
 
 func (*encodingBinaryCodec) Marshal(buf *bytes.Buffer, in any) error {
 	return binary.Write(buf, binary.LittleEndian, in)
@@ -42,6 +39,8 @@ func (*encodingBinaryCodec) Marshal(buf *bytes.Buffer, in any) error {
 func (*encodingBinaryCodec) Unmarshal(buf *bytes.Reader, out any) error {
 	return binary.Read(buf, binary.LittleEndian, out)
 }
+
+func (*encodingBinaryCodec) String() string { return "encodingBinary" }
 
 var codecs = []func() codec{
 	func() codec { return new(niceCodec) },
@@ -62,7 +61,7 @@ func BenchmarkMarshalUnmarshal(b *testing.B) {
 	for _, newCodec := range codecs {
 		codec := newCodec()
 		for _, bench := range codecBenchmarks {
-			b.Run(fmt.Sprintf("%s/%v", codec.Name(), bench), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/%v", codec, bench), func(b *testing.B) {
 				want := reflect.New(bench).Interface()
 				got := reflect.New(bench).Interface()
 
@@ -106,31 +105,125 @@ func BenchmarkMarshalUnmarshal(b *testing.B) {
 	}
 }
 
-func TestDecodeAllocationAccounting(t *testing.T) {
-	memoryLimit := 1 << 20
+func TestUnmarshalAllocationAccounting(t *testing.T) {
+	budget := 1 << 20
 
-	for i := 1; ; i *= 2 {
-		buf := new(bytes.Buffer)
+	for _, test := range []struct {
+		name string
+		make func(n int) any
+	}{
+		{"map[int]int", func(n int) any {
+			m := make(map[int]int)
+			for i := range n {
+				m[i] = i
+			}
+			return m
+		}},
+		{"map[int]struct{}", func(n int) any {
+			m := make(map[int]struct{})
+			for i := range n {
+				m[i] = struct{}{}
+			}
+			return m
+		}},
+		{"*[]byte", func(n int) any { tmp := make([]byte, n); return &tmp }},
+		{"[]byte", func(n int) any { return make([]byte, n) }},
+		{"[][3]byte", func(n int) any { return make([][3]byte, n) }},
+		{"[]*byte", func(n int) any {
+			tmp := make([]*byte, n)
+			for i := range tmp {
+				tmp[i] = new(byte)
+			}
+			return tmp
+		}},
+		{"string", func(n int) any { return string(make([]byte, n)) }},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			for n := 1; ; n *= 2 {
+				v := test.make(n)
 
-		x := make([]byte, i)
-		var y []byte
+				rv := reflect.ValueOf(v)
 
-		if err := MarshalEncode(NewEncoder(buf), &x); err != nil {
-			t.Fatal(err)
-		}
+				p := reflect.New(rv.Type()).Elem()
+				p.Set(rv)
 
-		if err := UnmarshalDecode(NewDecoder(buf, WithMemoryLimit(memoryLimit)), &y); err != nil {
-			if oom, ok := err.(*outOfMemoryError); ok {
-				t.Log(i, oom)
+				q := reflect.New(rv.Type()).Elem()
 
-				break
+				buf := new(bytes.Buffer)
+
+				if err := MarshalEncode(NewEncoder(buf), p.Addr().Interface()); err != nil {
+					t.Fatal(err)
+				}
+
+				if err := UnmarshalDecode(NewDecoder(buf, WithBudget(budget)), q.Addr().Interface()); err != nil {
+					if oob, ok := err.(*outOfBudgetError); ok {
+						t.Logf("%d causes out of budget error (%d needed %d left)", n, oob.N, oob.Budget)
+
+						break
+					}
+
+					t.Fatal(err)
+				}
+
+				if n > budget {
+					t.Fatalf("%d is way past the %d budget but no error was produced", n, budget)
+				}
+			}
+		})
+	}
+}
+
+func TestUnmarshalObjectReplacement(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		new  func() any
+		muck func(any)
+	}{
+		{
+			"map[int]int",
+			func() any { return map[int]int{0: 1} },
+			func(v any) { m := v.(map[int]int); m[1] = 2 },
+		},
+		{
+			"*int",
+			func() any { tmp := 1; return &tmp },
+			func(v any) { *v.(*int) = 42 },
+		},
+		{
+			"[]int",
+			func() any { return []int{1, 0} },
+			func(v any) { s := v.([]int); s[1] = 2 },
+		},
+		// TODO: a more involved test
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			v := test.new()
+
+			rv := reflect.ValueOf(v)
+
+			p := reflect.New(rv.Type()).Elem()
+			p.Set(rv)
+
+			q := reflect.New(rv.Type()).Elem()
+			q.Set(rv)
+
+			buf := new(bytes.Buffer)
+
+			if err := MarshalEncode(NewEncoder(buf), p.Addr().Interface()); err != nil {
+				t.Fatal(err)
+			}
+			if err := UnmarshalDecode(NewDecoder(buf), q.Addr().Interface()); err != nil {
+				t.Fatal(err)
 			}
 
-			t.Fatal(err)
-		}
+			// Change something about v
+			test.muck(v)
 
-		if i > memoryLimit {
-			t.Fatal("bad", i)
-		}
+			// At this point, p points to v and q should be pointing to a different
+			// object, which should've been unaffected by mucking v.
+			if reflect.DeepEqual(p.Interface(), q.Interface()) {
+				t.Fatalf("object was not replaced")
+			}
+		})
 	}
 }

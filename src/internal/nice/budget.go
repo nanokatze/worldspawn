@@ -5,13 +5,12 @@ import (
 	"reflect"
 )
 
-type outOfMemoryError struct {
-	n      int
-	budget int
+type outOfBudgetError struct {
+	N, Budget int
 }
 
-func (e *outOfMemoryError) Error() string {
-	return fmt.Sprintf("out of memory: %d (remaining budget %d)", e.n, e.budget)
+func (e *outOfBudgetError) Error() string {
+	return fmt.Sprintf("out of memory: %d (remaining budget %d)", e.N, e.Budget)
 }
 
 type Budget struct {
@@ -27,7 +26,7 @@ func (budget *Budget) Account(n int) error {
 		panic("uhh?")
 	}
 	if budget.n < n {
-		return &outOfMemoryError{n, budget.n}
+		return &outOfBudgetError{n, budget.n}
 	}
 	budget.n -= n
 	return nil
