@@ -25,7 +25,7 @@ func (d *Decoder) Reset(r io.Reader, opts ...Option) {
 	collectedOpts := collectOptions(opts...)
 
 	d.r = r
-	d.budget.reset(collectedOpts.sizeLimit)
+	d.budget.reset(collectedOpts.memoryLimit)
 	d.customUnmarshalers = collectedOpts.customUnmarshalers
 }
 

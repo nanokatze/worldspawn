@@ -107,7 +107,7 @@ func BenchmarkMarshalUnmarshal(b *testing.B) {
 }
 
 func TestDecodeAllocationAccounting(t *testing.T) {
-	sizeLimit := 1 << 20
+	memoryLimit := 1 << 20
 
 	for i := 1; ; i *= 2 {
 		buf := new(bytes.Buffer)
@@ -119,7 +119,7 @@ func TestDecodeAllocationAccounting(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if err := UnmarshalDecode(NewDecoder(buf, WithMemoryLimit(sizeLimit)), &y); err != nil {
+		if err := UnmarshalDecode(NewDecoder(buf, WithMemoryLimit(memoryLimit)), &y); err != nil {
 			if oom, ok := err.(*outOfMemoryError); ok {
 				t.Log(i, oom)
 
@@ -129,7 +129,7 @@ func TestDecodeAllocationAccounting(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if i > sizeLimit {
+		if i > memoryLimit {
 			t.Fatal("bad", i)
 		}
 	}

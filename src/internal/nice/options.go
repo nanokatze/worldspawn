@@ -5,7 +5,7 @@ import "reflect"
 type options struct {
 	customMarshalers   map[reflect.Type]marshaler
 	customUnmarshalers map[reflect.Type]unmarshaler
-	sizeLimit          int
+	memoryLimit        int
 }
 
 type Option func(opts *options)
@@ -13,7 +13,7 @@ type Option func(opts *options)
 func collectOptions(opts ...Option) options {
 	// ughhhhhhhhh
 	if len(opts) == 0 {
-		return options{sizeLimit: 1 << 30}
+		return options{memoryLimit: 1 << 30}
 	}
 
 	// TODO: this is kinda slow with small marshals and unmarshals because
@@ -22,7 +22,7 @@ func collectOptions(opts ...Option) options {
 	// cases in a special way.
 
 	var result options
-	result.sizeLimit = 1 << 30
+	result.memoryLimit = 1 << 30
 	for _, o := range opts {
 		o(&result)
 	}
@@ -69,5 +69,5 @@ func WithMemoryLimit(n int) Option {
 	if n <= 0 {
 		panic("bad")
 	}
-	return func(opts *options) { opts.sizeLimit = n }
+	return func(opts *options) { opts.memoryLimit = n }
 }
