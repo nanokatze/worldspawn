@@ -109,9 +109,8 @@ func BenchmarkMarshalUnmarshal(b *testing.B) {
 func TestDecodeAllocationAccounting(t *testing.T) {
 	sizeLimit := 1 << 20
 
-	buf := new(bytes.Buffer)
 	for i := 1; ; i *= 2 {
-		buf.Reset()
+		buf := new(bytes.Buffer)
 
 		x := make([]byte, i)
 		var y []byte
