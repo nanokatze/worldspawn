@@ -11,6 +11,16 @@ type options struct {
 type Option func(opts *options)
 
 func collectOptions(opts ...Option) options {
+	// ughhhhhhhhh
+	if len(opts) == 0 {
+		return options{sizeLimit: 1 << 30}
+	}
+
+	// TODO: this is kinda slow with small marshals and unmarshals because
+	// result leaks and causes an allocation. We can optimize certain happy
+	// cases by replacing Option with a private interface and handling certain
+	// cases in a special way.
+
 	var result options
 	result.sizeLimit = 1 << 30
 	for _, o := range opts {
