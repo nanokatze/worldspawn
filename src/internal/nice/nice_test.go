@@ -105,3 +105,33 @@ func BenchmarkMarshalUnmarshal(b *testing.B) {
 		}
 	}
 }
+
+func TestDecodeAllocationAccounting(t *testing.T) {
+	sizeLimit := 1 << 20
+
+	buf := new(bytes.Buffer)
+	for i := 1; ; i *= 2 {
+		buf.Reset()
+
+		x := make([]byte, i)
+		var y []byte
+
+		if err := MarshalEncode(NewEncoder(buf), &x); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := UnmarshalDecode(NewDecoder(buf, WithSizeLimit(sizeLimit)), &y); err != nil {
+			if oom, ok := err.(*outOfMemoryError); ok {
+				t.Log(i, oom)
+
+				break
+			}
+
+			t.Fatal(err)
+		}
+
+		if i > sizeLimit {
+			t.Fatal("bad", i)
+		}
+	}
+}
