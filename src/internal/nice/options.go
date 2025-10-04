@@ -65,8 +65,7 @@ func WithUnmarshaler[T any](fn func(dec *Decoder, v *T) error) Option {
 	}
 }
 
-// TODO: define the semantics of the size limit more precisely
-func WithSizeLimit(n int) Option {
+func WithMemoryLimit(n int) Option {
 	if n <= 0 {
 		panic("bad")
 	}

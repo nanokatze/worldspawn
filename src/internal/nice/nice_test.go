@@ -120,7 +120,7 @@ func TestDecodeAllocationAccounting(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if err := UnmarshalDecode(NewDecoder(buf, WithSizeLimit(sizeLimit)), &y); err != nil {
+		if err := UnmarshalDecode(NewDecoder(buf, WithMemoryLimit(sizeLimit)), &y); err != nil {
 			if oom, ok := err.(*outOfMemoryError); ok {
 				t.Log(i, oom)
 
