@@ -1,23 +1,32 @@
 package nice
 
-import "io"
+import (
+	"io"
+	"reflect"
+)
 
 type Decoder struct {
 	scratch []byte
 
-	r    io.Reader
-	opts options
+	r      io.Reader
+	budget Budget
+
+	customUnmarshalers map[reflect.Type]unmarshaler
 }
 
 func NewDecoder(r io.Reader, opts ...Option) *Decoder {
-	// TODO: could we factor this out into a Reset method? It's not very clear
-	// how to go about resetting opts in an "unsurprising" manner.
 	d := new(Decoder)
-	d.r = r
-	for _, opt := range opts {
-		opt(&d.opts)
-	}
+	d.Reset(r, opts...)
 	return d
+}
+
+// Reset keeps the scratch buffer.
+func (d *Decoder) Reset(r io.Reader, opts ...Option) {
+	collectedOpts := collectOptions(opts...)
+
+	d.r = r
+	d.budget.reset(collectedOpts.sizeLimit)
+	d.customUnmarshalers = collectedOpts.customUnmarshalers
 }
 
 func (d *Decoder) Scratch(n int) []byte {
@@ -31,4 +40,8 @@ func (d *Decoder) Scratch(n int) []byte {
 
 func (d *Decoder) Reader() io.Reader {
 	return d.r
+}
+
+func (d *Decoder) Budget() *Budget {
+	return &d.budget
 }

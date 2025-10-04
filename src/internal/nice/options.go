@@ -10,6 +10,15 @@ type options struct {
 
 type Option func(opts *options)
 
+func collectOptions(opts ...Option) options {
+	var result options
+	result.sizeLimit = 1 << 30
+	for _, o := range opts {
+		o(&result)
+	}
+	return result
+}
+
 func JoinOptions(opts2 ...Option) Option {
 	return func(opts *options) {
 		for _, o := range opts2 {
@@ -52,11 +61,4 @@ func WithSizeLimit(n int) Option {
 		panic("bad")
 	}
 	return func(opts *options) { opts.sizeLimit = n }
-}
-
-func (opts *options) SizeLimit() int {
-	if opts.sizeLimit == 0 {
-		return 1 << 31
-	}
-	return opts.sizeLimit
 }

@@ -19,11 +19,11 @@ func UnmarshalDecode(dec *Decoder, out any) error {
 
 	t := v.Type()
 
-	unmarshal := loadOrElse(dec.opts.customUnmarshalers, t, func() unmarshaler { return defaultUnmarshaler(t) })
+	unmarshal := loadOrElse(dec.customUnmarshalers, t, func() unmarshaler { return defaultUnmarshaler(t) })
 	return unmarshal(dec, v)
 }
 
-var defaultUnmarshalers = new(sync.Map)
+var defaultUnmarshalers sync.Map
 
 func defaultUnmarshaler(t reflect.Type) unmarshaler {
 	if m, ok := defaultUnmarshalers.Load(t); ok {
@@ -33,10 +33,8 @@ func defaultUnmarshaler(t reflect.Type) unmarshaler {
 }
 
 func defaultUnmarshalerSlow(t reflect.Type) unmarshaler {
-	// TODO: naming
-	mCandidate := makeDefaultUnmarshaler(t)
-	m, _ := defaultUnmarshalers.LoadOrStore(t, mCandidate)
-	return m.(unmarshaler)
+	u, _ := defaultUnmarshalers.LoadOrStore(t, makeDefaultUnmarshaler(t))
+	return u.(unmarshaler)
 }
 
 func makeDefaultUnmarshaler(t reflect.Type) unmarshaler {
@@ -108,7 +106,7 @@ func makeDefaultUnmarshaler(t reflect.Type) unmarshaler {
 		defaultUnmarshal := defaultUnmarshaler(t.Elem())
 
 		return func(dec *Decoder, v reflect.Value) error {
-			unmarshal, ok := dec.opts.customUnmarshalers[t.Elem()]
+			unmarshal, ok := dec.customUnmarshalers[t.Elem()]
 			if !ok {
 				unmarshal = defaultUnmarshal
 			}
@@ -141,16 +139,18 @@ func makeDefaultUnmarshaler(t reflect.Type) unmarshaler {
 				return nil
 			}
 
-			if n > dec.opts.SizeLimit() {
-				return fmt.Errorf("size limit violation")
+			if err := accountT(dec.Budget(), t.Key(), n); err != nil {
+				return err
+			}
+			if err := accountT(dec.Budget(), t.Elem(), n); err != nil {
+				return err
 			}
 
 			m.Set(reflect.MakeMapWithSize(t, n))
 
-			unmarshalKey := loadOrDefault(dec.opts.customUnmarshalers, t.Key(), defaultUnmarshalKey)
-			unmarshalVal := loadOrDefault(dec.opts.customUnmarshalers, t.Elem(), defaultUnmarshalVal)
+			unmarshalKey := loadOrDefault(dec.customUnmarshalers, t.Key(), defaultUnmarshalKey)
+			unmarshalVal := loadOrDefault(dec.customUnmarshalers, t.Elem(), defaultUnmarshalVal)
 
-			// Could we somehow avoid allocs for these things, e.g. with sync.Pool?
 			k := reflect.New(t.Key()).Elem()
 			v := reflect.New(t.Elem()).Elem()
 			for range n {
@@ -178,9 +178,13 @@ func makeDefaultUnmarshaler(t reflect.Type) unmarshaler {
 				return nil
 			}
 
+			if err := accountT(dec.Budget(), t.Elem(), 1); err != nil {
+				return err
+			}
+
 			v.Set(reflect.New(t.Elem()))
 
-			unmarshal := loadOrDefault(dec.opts.customUnmarshalers, t.Elem(), defaultUnmarshal)
+			unmarshal := loadOrDefault(dec.customUnmarshalers, t.Elem(), defaultUnmarshal)
 			return unmarshal(dec, v.Elem())
 		}
 
@@ -197,13 +201,13 @@ func makeDefaultUnmarshaler(t reflect.Type) unmarshaler {
 				return nil
 			}
 
-			if n > dec.opts.SizeLimit() {
-				return fmt.Errorf("size limit violation")
+			if err := accountT(dec.Budget(), t.Elem(), n); err != nil {
+				return err
 			}
 
 			v.Set(reflect.MakeSlice(t, n, n))
 
-			unmarshal := loadOrDefault(dec.opts.customUnmarshalers, t.Elem(), defaultUnmarshal)
+			unmarshal := loadOrDefault(dec.customUnmarshalers, t.Elem(), defaultUnmarshal)
 			for i := range n {
 				if err := unmarshal(dec, v.Index(i)); err != nil {
 					return err
@@ -219,14 +223,12 @@ func makeDefaultUnmarshaler(t reflect.Type) unmarshaler {
 				return err
 			}
 
-			if n > dec.opts.SizeLimit() {
-				return fmt.Errorf("size limit violation")
+			if err := dec.Budget().Account(n); err != nil {
+				return err
 			}
 
-			// TODO: as a cool optimization we could do
-			// unsafe.String(unsafe.SliceData(buf), n) and reset dec.buf = nil
-			buf := dec.Scratch(n)
-			if err := readBytes(dec, buf); err != nil {
+			buf, err := readBytes2(dec, n)
+			if err != nil {
 				return err
 			}
 			// TODO: is this optimization worth it?
@@ -244,7 +246,7 @@ func makeDefaultUnmarshaler(t reflect.Type) unmarshaler {
 
 		return func(dec *Decoder, v reflect.Value) error {
 			for _, f := range fs {
-				unmarshal := loadOrDefault(dec.opts.customUnmarshalers, f.Type, f.DefaultUnmarshal)
+				unmarshal := loadOrDefault(dec.customUnmarshalers, f.Type, f.DefaultUnmarshal)
 				if err := unmarshal(dec, v.Field(f.Index)); err != nil {
 					return err
 				}
@@ -265,7 +267,7 @@ func unmarshalEmpty(dec *Decoder, v reflect.Value) error {
 // TODO: distinguish readBytes and readBytes2 better
 
 func readBytes(dec *Decoder, b []byte) error {
-	_, err := io.ReadFull(dec.r, b)
+	_, err := io.ReadFull(dec.Reader(), b)
 	return err
 }
 
@@ -276,8 +278,6 @@ func readBytes2(dec *Decoder, n int) ([]byte, error) {
 	}
 	return buf, nil
 }
-
-// TODO: make these methods on the decoder and possibly make them public as well?
 
 func readBool(dec *Decoder) (bool, error) {
 	buf, err := readBytes2(dec, 1)

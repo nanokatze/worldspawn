@@ -73,3 +73,24 @@ func BenchmarkEncodingBinaryWrite(b *testing.B) {
 		}
 	}
 }
+
+func TestDecodeAllocationBudget(t *testing.T) {
+	x := new([100000]int32)
+	y := new([100000]int32)
+
+	buf := new(bytes.Buffer)
+
+	enc := NewEncoder(buf)
+	dec := NewDecoder(buf, WithSizeLimit(1<<20))
+
+	if err := MarshalEncode(enc, &x); err != nil {
+		t.Fatal(err)
+	}
+	if err := UnmarshalDecode(dec, &y); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(x, y) {
+		// b.Log(x, y)
+		t.Fatal("oof")
+	}
+}

@@ -2,6 +2,7 @@ package nice
 
 import (
 	"io"
+	"reflect"
 )
 
 // TODO: track our position for error reporting.
@@ -9,19 +10,23 @@ import (
 type Encoder struct {
 	Scratch []byte
 
-	w    io.Writer
-	opts options
+	w io.Writer
+
+	customMarshalers map[reflect.Type]marshaler
 }
 
 func NewEncoder(w io.Writer, opts ...Option) *Encoder {
-	// TODO: could we factor this out into a Reset method? It's not very clear
-	// how to go about resetting opts in an "unsurprising" manner.
 	e := new(Encoder)
-	e.w = w
-	for _, opt := range opts {
-		opt(&e.opts)
-	}
+	e.Reset(w, opts...)
 	return e
+}
+
+// Reset keeps the scratch buffer.
+func (e *Encoder) Reset(w io.Writer, opts ...Option) {
+	collectedOpts := collectOptions(opts...)
+
+	e.w = w
+	e.customMarshalers = collectedOpts.customMarshalers
 }
 
 func (e *Encoder) Writer() io.Writer {
