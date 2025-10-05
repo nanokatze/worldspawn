@@ -43,6 +43,7 @@ public struct Roberts : LDS {
 	}
 }
 
+// Solves x^(d+1) = x + 1 for positive x
 // TODO: rename
 float _RobertsPhi(int d) {
 	assert(d > 0);

@@ -11,6 +11,89 @@ import bsdf_diffuse;
 import bsdf_microfacet;
 import attribute;
 
+// TODO: move this stuff into RotatedBlueNoise or idk.
+
+// Solves x^(d+1) - x - 1 = 0 for positive x
+float GenerailizedGoldenRatio(int d) {
+	// assert(d > 0);
+
+	int iterations = 10;
+
+	float phi_d = 2.0;
+	for (int i = 0; i < iterations; i++) {
+		phi_d = pow(1.0 + phi_d, 1.0 / (float)(d + 1));
+	}
+	return phi_d;
+}
+
+float2 R2(uint index)
+{
+  // Generalized golden ratio to 2d.
+  // Solution to x^3 = x + 1
+  // AKA plastic constant.
+  // from http://extremelearning.com.au/unreasonable-effectiveness-of-quasirandom-sequences/
+  float g = GenerailizedGoldenRatio(2);
+  // TODO: use our mulMod1 here
+  return fract(float2(float(index) / g, float(index) / (g*g)));
+}
+
+// Shamelessly stolen from rtx remix, which is
+// Copyright (c) 2023-2024, NVIDIA CORPORATION. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the "Software"),
+// to deal in the Software without restriction, including without limitation
+// the rights to use, copy, modify, merge, publish, distribute, sublicense,
+// and/or sell copies of the Software, and to permit persons to whom the
+// Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+// THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+// DEALINGS IN THE SOFTWARE.
+//
+// TODO: make various LDSes pluggable
+struct RotatedBlueNoise {
+    uint2 pixelIdx;
+    uint seed;
+    uint temporalIdx;
+
+    __init(uint2 pixelIdx, uint temporalIdx, uint sampleOffset) {
+        this.pixelIdx = pixelIdx;
+        this.seed = sampleOffset;
+        this.temporalIdx = temporalIdx;
+    }
+
+    // TODO: rename to Get1D()
+    [[mutating]]
+    float Get() {
+        // TODO: make this a member on the RotatedBlueNoise?
+        let bntex = push.camera->blueNoise;
+
+        let oldSeed = seed++;
+
+        // TODO: replace this with pulling stuff from an LDS
+        let offset = uint2(R2(oldSeed) * float2(bntex.Extent2D()));
+
+        let value = push.camera->blueNoise.At2DArr(
+            (pixelIdx + offset) & (bntex.Extent2D() - 1),
+            (temporalIdx & 7)).r;
+
+        return fract(value); // make sure we never return 1
+    }
+
+    [[mutating]]
+    float2 Get2D() {
+        return float2(Get(), Get());
+    }
+}
+
 struct Path {
     // TODO: also include raysrc so we can implement portals
     float3 rayOrigin;
@@ -34,18 +117,7 @@ struct GBuffer {
     Path path;
     Spectrum albedo;
     float3 normal;
-};
-
-// TODO: move this to sampling.slang or something idk
-static const let Bounces = 2;
-
-enum Dimension {
-    X,
-    Y,
-    Z,
-    W,
-    Num,
-};
+}
 
 struct FrameData {
     uint32_t frameNumber; // TODO: rename
@@ -62,25 +134,20 @@ struct FrameData {
     // Precomputed stuff goes at the end
 
     matrix<float, 4, 4> viewProj; // precomputed extras should always go at the end
-};
+}
 
+// TODO: make things be methods on Push and rename Push to something else. Would
+// be nice to inline FrameData in here.
 struct Push {
     Scene *scene;
     FrameData *camera;
     StorageView out;
-};
+}
 
 [[vk::push_constant]] Push push;
 
 RaytracingAccelerationStructure rtas(uint64_t bda) {
     return spirv_asm { result:$$RaytracingAccelerationStructure = OpConvertUToAccelerationStructureKHR $bda };
-}
-
-float getLDSValue(int bounce, int dimension) {
-    let lds = Roberts(Dimension::Num * Bounces);
-    let point = push.camera->frameNumber;
-
-    return lds.Get(bounce * Bounces + dimension, point);
 }
 
 [[shader("raygeneration")]]
@@ -109,7 +176,8 @@ void raygen() {
 
     // TODO: make the number of bounces configurable by host
 
-    // TODO: we should stop mid-way (after applying lights and stuff)
+    // TODO: we should stop mid-way (after applying lights and stuff.) Currently
+    // this seems to kill the lights.
     for (int bounce = 0; bounce < 2; bounce++) {
         RayDesc rayDesc;
         rayDesc.Origin = path.rayOrigin;
@@ -144,7 +212,7 @@ void raygen() {
                 // TODO: introduce Spectrum.MaxComponentValue()
                 float q = max(0, 1.0 - max(max(path.beta.x, path.beta.y), path.beta.z));
                 // TODO: use an ordinary RNG here
-                if (q <= getLDSValue(bounce, 0))
+                if (0.1 < q)
                     break;
                 path.beta /= 1.0 - q;
             }
@@ -387,7 +455,6 @@ struct composedBxDF {
 // TODO: do not pass bsdf here, make the caller deal with it instead
 Spectrum sampleLd<T : BxDF>(
     int bounce,
-    float3 bn,
     bool vampire,
     float3 hitpos,
     float3 normal,
@@ -491,10 +558,7 @@ void closesthit(
     // visibility mask.
     bool vampire = ((push->scene->accelInstances[instanceIndex].instanceIDAndMask >> 24) & 0b11) == 0b01;
 
-    let bntex = push.camera->blueNoise;
-    let bn = push.camera->blueNoise.At2D(dispatchRaysIndex.xy & (bntex.Extent2D() - 1)).xyz;
-
-    Roberts lds = Roberts(10 * Bounces, push.camera->frameNumber, 10 * bounce);
+    RotatedBlueNoise lds = RotatedBlueNoise(dispatchRaysIndex.xy, push.camera->frameNumber, 10 * bounce);
 
     let materialParams = &push.scene->materialParams.data[instanceIndex * push.scene->maxPartsPerMesh + geometryIndex];
 
@@ -536,9 +600,9 @@ void closesthit(
     // TODO: radiance cache sampling would fit into somewhere in here
 
     // Direct light sampling
-    float3 u_Ld = fmod(bn + float3(lds.Get(), lds.Get(), lds.Get()), 1);
+    float3 u_Ld = float3(lds.Get(), lds.Get2D());
     if (bsdf.Flags() & (BSDFFlags::Diffuse | BSDFFlags::Glossy)) {
-        Spectrum Ld = sampleLd(bounce, bn, vampire, hitpos, normal, wo, bsdf, u_Ld.x, u_Ld.yz);
+        Spectrum Ld = sampleLd(bounce, vampire, hitpos, normal, wo, bsdf, u_Ld.x, u_Ld.yz);
 
         if (any(Ld > float3(0)))
             path.L += path.beta * Ld;
@@ -546,7 +610,7 @@ void closesthit(
 
     // Sample the bsdf for the next ray
 
-    let bsdfSample = bsdf.Sample(wo, fmod(bn.z + lds.Get(), 1), fmod(bn.xy + float2(lds.Get(), lds.Get()), 1.0));
+    let bsdfSample = bsdf.Sample(wo, lds.Get(), lds.Get2D());
 
     // TODO: once we get diffuse cache, (optionally) terminate the path for
     // diffuse-only bsdfSamples and instead get the information from the cache.

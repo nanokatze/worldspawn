@@ -87,6 +87,12 @@ public struct SamplingView {
 	public float4 At2D(int2 P) {
 		return sampledImages[NonUniformResourceIndex(handle)].asOpaqueDescriptor<Texture2D>().Load(int3(P, 0));
 	}
+
+	// TODO: layer should come before P
+	[require(spirv, nonuniformqualifier)]
+	public float4 At2DArr(int2 P, int layer) {
+		return sampledImages[NonUniformResourceIndex(handle)].asOpaqueDescriptor<Texture2DArray>().Load(int4(P, layer, 0));
+	}
 };
 
 public struct SamplingViewWithSampler {
