@@ -27,7 +27,8 @@ type copyImageJob struct {
 	queueFamilies uint32
 }
 
-func EnqueueCopyImage(jq *JobQueue,
+func EnqueueCopyImage(
+	jq *JobQueue,
 	dst *Image, dstOffset [3]int,
 	src *Image, srcOffset [3]int,
 	extent [3]int) {
@@ -140,7 +141,8 @@ type copyMemoryToImageJob struct {
 // Only the first mip level is copied.
 //
 // TODO: better comment
-func EnqueueCopyMemoryToImage(jq *JobQueue,
+func EnqueueCopyMemoryToImage(
+	jq *JobQueue,
 	dst *Image, dstOffset [3]int,
 	src Slice[uint8], srcRowLength, srcImageHeight int,
 	extent [3]int) {
@@ -233,7 +235,8 @@ type copyImageToMemoryJob struct {
 	queueFamilies  uint32
 }
 
-func EnqueueCopyImageToMemory(jq *JobQueue,
+func EnqueueCopyImageToMemory(
+	jq *JobQueue,
 	dst Slice[uint8], dstRowLength, dstImageHeight int,
 	src *Image, srcOffset [3]int,
 	extent [3]int) {

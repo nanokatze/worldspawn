@@ -176,7 +176,7 @@ func (scene *Scene) Render(jq *gpu.JobQueue, t float32, fn uint32, camera *Camer
 			Camera: frameData,
 			Out:    dst.LoadStoreDescriptor(),
 		}
-		gpu.EnqueueTraceRays(jq, scene.pipeline, scene.sbt, res, &args)
+		gpu.EnqueueTraceRays(jq, res, scene.pipeline, scene.sbt, &args)
 	}
 }
 

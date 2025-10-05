@@ -197,27 +197,24 @@ func MakeShaderBindingTable[A, B, C, D any](raygenRecord Pointer[A], missRecords
 }
 
 type traceRaysJob struct {
+	threads  [3]uint32
 	pipeline *RayTracingPipeline
 	sbt      ShaderBindingTable
-	width    uint32
-	height   uint32
-	depth    uint32
 	args     []byte
 }
 
-// TODO: pass sbt by pointer?
-// TODO: pass width, height, depth as [3]int/Int3?
-func EnqueueTraceRays(jq *JobQueue,
+func EnqueueTraceRays(
+	jq *JobQueue,
+	threads [3]int,
 	pipeline *RayTracingPipeline,
 	sbt ShaderBindingTable,
-	width, height, depth int,
 	args any) {
+	validatedThreads := validateDispatchDimensions(threads)
+
 	jq.Enqueue(&traceRaysJob{
+		threads:  validatedThreads,
 		pipeline: pipeline,
 		sbt:      sbt,
-		width:    uint32(width),
-		height:   uint32(height),
-		depth:    uint32(depth),
 		args:     slices.Clone(asbytes(args)),
 	})
 }
@@ -272,8 +269,8 @@ func (job *traceRaysJob) Exec(q *CommandQueue) {
 				Stride:        vk.DeviceSize(job.sbt.callableRecords.stride),
 				Size:          vk.DeviceSize(job.sbt.callableRecords.size),
 			},
-			job.width,
-			job.height,
-			job.depth)
+			job.threads[0],
+			job.threads[1],
+			job.threads[2])
 	})
 }

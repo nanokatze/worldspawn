@@ -8,28 +8,16 @@ import (
 )
 
 type dispatchJob struct {
-	x      uint32
-	y      uint32
-	z      uint32
+	groups [3]uint32
 	kernel *Func
 	args   []byte
 }
 
-// TODO: replace n with a range like in tbb/sycl?
-func EnqueueParallelFor(jq *JobQueue, n int, kernel *Func, args any) {
-	if n < 0 {
-		panic("bad")
-	}
-	if n == 0 {
-		return
-	}
-
-	// TODO: validate that n fits an uint32
+func EnqueueParallelForGroups(jq *JobQueue, groups [3]int, kernel *Func, args any) {
+	validatedGroups := validateDispatchDimensions(groups)
 
 	jq.Enqueue(&dispatchJob{
-		x:      uint32(n),
-		y:      1,
-		z:      1,
+		groups: validatedGroups,
 		kernel: kernel,
 		args:   slices.Clone(asbytes(args)),
 	})
@@ -65,6 +53,13 @@ func (job *dispatchJob) Exec(q *CommandQueue) {
 			0,
 			uint32(len(args)), unsafe.Pointer(&args))
 
-		vkFns.CmdDispatch(cb, job.x, job.y, job.z)
+		vkFns.CmdDispatch(cb, job.groups[0], job.groups[1], job.groups[2])
 	})
+}
+
+func validateDispatchDimensions(x [3]int) [3]uint32 {
+	if x[0] < 0 || x[1] < 0 || x[2] < 0 {
+		panic("bad")
+	}
+	return [3]uint32{uint32(x[0]), uint32(x[1]), uint32(x[2])}
 }

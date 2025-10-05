@@ -125,8 +125,6 @@ func gpuInit() {
 			}
 		}
 
-		// TODO: list of exts that are optional and required
-
 		instanceExtensions := map[string]struct{}{
 			"VK_KHR_surface":         {},
 			"VK_KHR_wayland_surface": {},
