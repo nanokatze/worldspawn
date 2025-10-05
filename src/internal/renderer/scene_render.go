@@ -40,11 +40,15 @@ var blueNoise = sync.OnceValue(func() *gpu.Image {
 
 	var wg gpu.WaitGroup
 
+	var jq gpu.JobQueue
+
+	gpuImg.EnqueueInit(&jq)
+
 	// TODO: can we please not use png
 	for i := range 8 {
 		wg.Add(1)
 
-		var jq gpu.JobQueue
+		jq := jq.Fork()
 
 		// TODO: come up where non-game data should live. Maybe embed this?
 		f, err := os.Open(fmt.Sprintf("BlueNoise/2D/256_256/LDR_RGBA_%d.png", i))
@@ -65,9 +69,8 @@ var blueNoise = sync.OnceValue(func() *gpu.Image {
 
 		copy(staging.Value(), imgNRGBA.Pix)
 
-		gpuImg.EnqueueInit(&jq)
 		gpu.EnqueueCopyMemoryToImage(
-			&jq,
+			jq,
 			gpuImg.SubImage(
 				gpuImg.Dim(),
 				gpuImg.Format(),
@@ -76,7 +79,8 @@ var blueNoise = sync.OnceValue(func() *gpu.Image {
 			[3]int{},
 			staging, 0, 0,
 			[3]int{imgNRGBA.Rect.Max.X, imgNRGBA.Rect.Max.Y, 1})
-		wg.EnqueueDone(&jq)
+
+		wg.EnqueueDone(jq)
 	}
 
 	wg.Wait()
