@@ -11,33 +11,8 @@ import bsdf_diffuse;
 import bsdf_microfacet;
 import attribute;
 
-// TODO: move this stuff into RotatedBlueNoise or idk.
-
-// Solves x^(d+1) - x - 1 = 0 for positive x
-float GenerailizedGoldenRatio(int d) {
-	// assert(d > 0);
-
-	int iterations = 10;
-
-	float phi_d = 2.0;
-	for (int i = 0; i < iterations; i++) {
-		phi_d = pow(1.0 + phi_d, 1.0 / (float)(d + 1));
-	}
-	return phi_d;
-}
-
-float2 R2(uint index)
-{
-  // Generalized golden ratio to 2d.
-  // Solution to x^3 = x + 1
-  // AKA plastic constant.
-  // from http://extremelearning.com.au/unreasonable-effectiveness-of-quasirandom-sequences/
-  float g = GenerailizedGoldenRatio(2);
-  // TODO: use our mulMod1 here
-  return fract(float2(float(index) / g, float(index) / (g*g)));
-}
-
-// Shamelessly stolen from rtx remix, which is
+// Shifted blue noise shamelessly stolen from rtx remix, which is
+//
 // Copyright (c) 2023-2024, NVIDIA CORPORATION. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -57,53 +32,53 @@ float2 R2(uint index)
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
-//
-// TODO: make various LDSes pluggable
-struct RotatedBlueNoise {
-    uint2 pixelIdx;
-    uint seed;
-    uint temporalIdx;
+struct ShiftedBlueNoise<T_lds : LDS> {
+    int2 initialShift;
+    int index;
 
-    __init(uint2 pixelIdx, uint temporalIdx, uint sampleOffset) {
-        this.pixelIdx = pixelIdx;
-        this.seed = sampleOffset;
-        this.temporalIdx = temporalIdx;
+    T_lds lds; // TODO: move this elsewhere in the struct?
+
+    __init(T_lds lds, int2 initialShift, int sampleOffset) {
+        this.initialShift = initialShift;
+        this.index = sampleOffset;
+        this.lds = lds;
     }
 
-    // TODO: rename to Get1D()
+    // TODO: blue noise is quantized so we only get like 256-1 values with
+    // R8_UNORM (65536-1 with R16_UNORM) which might lead to bias. In practice
+    // this already becomes a problem with light sampling, as we might have many
+    // more emissive polys. We could augment the values with pure randomness.
+    // For pure randomness we'd need to pull a per-frame random seed.
+
     [[mutating]]
-    float Get() {
-        // TODO: make this a member on the RotatedBlueNoise?
-        let bntex = push.camera->blueNoise;
-
-        let oldSeed = seed++;
-
-        // TODO: replace this with pulling stuff from an LDS
-        let offset = uint2(R2(oldSeed) * float2(bntex.Extent2D()));
-
-        let value = push.camera->blueNoise.At2DArr(
-            (pixelIdx + offset) & (bntex.Extent2D() - 1),
-            (temporalIdx & 7)).r;
-
-        return fract(value); // make sure we never return 1
+    float Get1D() {
+        return Get2D().x;
     }
 
     [[mutating]]
     float2 Get2D() {
-        return float2(Get(), Get());
+        let index = this.index++;
+
+        let point = float2(lds.Get(index, 0), lds.Get(index, 1));
+
+        // TODO: make this a member on the ShiftedBlueNoise or an interface or
+        // idk.
+        let bn = push.camera->blueNoise;
+
+        let value = push.camera->blueNoise.At2D((initialShift + int2(point * float2(bn.Extent2D()))) & (bn.Extent2D() - 1)).xy;
+
+        return fract(value); // make sure we never return 1
     }
 }
 
 struct Path {
-    // TODO: also include raysrc so we can implement portals
-    float3 rayOrigin;
-    float3 rayDir;
-
     // Light transmitted along the path
     Spectrum L;
 
     // Path throughput
     Spectrum beta;
+
+    int bounce;
 
     // TODO: we also need to shove p_b here
 
@@ -111,6 +86,10 @@ struct Path {
     bool vampire;
 
     // bool specularBounce
+
+    // Vertices of the next bounce
+    float3 rayOrigin;
+    float3 rayDir;
 };
 
 struct GBuffer {
@@ -166,19 +145,20 @@ void raygen() {
     // for denoiser and motion vectors/mask out for TAA
 
     Path path = {};
+    path.L = Spectrum(0.0);
+    path.beta = Spectrum(1.0);
+    path.bounce = 0;
+    path.vampire = true;
+    // path.specularBounce = false;
     path.rayOrigin = mul(push.camera->viewInverse, float4(0, 0, 0, 1)).xyz;
     // TODO: do we actually need normalize here?
     path.rayDir = normalize(mul(push.camera->viewInverse, float4(normalize(target.xyz), 0)).xyz);
-    path.L = Spectrum(0.0);
-    path.beta = Spectrum(1.0);
-    path.vampire = true;
-    // path.specularBounce = false;
 
     // TODO: make the number of bounces configurable by host
 
-    // TODO: we should stop mid-way (after applying lights and stuff.) Currently
-    // this seems to kill the lights.
-    for (int bounce = 0; bounce < 2; bounce++) {
+    // TODO: we should stop mid-way (after applying lights and stuff) so
+    // path.bounce check should be moved into closesthit().
+    for (path.bounce = 0; path.bounce < 2; path.bounce++) {
         RayDesc rayDesc;
         rayDesc.Origin = path.rayOrigin;
         rayDesc.Direction = path.rayDir;
@@ -198,7 +178,6 @@ void raygen() {
 
             closesthit(
                 path,
-                bounce,
                 LaunchID,
                 rq.CommittedInstanceIndex(),
                 rq.CommittedGeometryIndex(),
@@ -208,7 +187,7 @@ void raygen() {
                 rq.CommittedObjectToWorld3x4(),
                 rq.CommittedTriangleBarycentrics());
 
-            if (bounce > 0) {
+            if (path.bounce > 0) {
                 // TODO: introduce Spectrum.MaxComponentValue()
                 float q = max(0, 1.0 - max(max(path.beta.x, path.beta.y), path.beta.z));
                 // TODO: use an ordinary RNG here
@@ -454,30 +433,21 @@ struct composedBxDF {
 // TODO: do not pass bounce and bn, encapsulate them into a sampler object
 // TODO: do not pass bsdf here, make the caller deal with it instead
 Spectrum sampleLd<T : BxDF>(
-    int bounce,
     bool vampire,
     float3 hitpos,
     float3 normal,
     float3 wo,
     T bsdf,
-    float u,
+    float asd,
     float2 uLight,
 ) {
     let lightSampler = &push.scene->lightSampler;
-
-    // float u = fmod(bn.z + getLDSValue(bounce, 2), 1.0);
-
-    float2 b = uLight;
-    float asd = u;
-    // float2 b = fmod(bn.yx + float2(getLDSValue(bounce, 0), getLDSValue(bounce, 1)), 1.0);
-
-    // float asd = fmod(bn.z + getLDSValue(bounce, 3), 1.0);
 
     // TODO: encapsulate this into lightSampler->SampleLight
     let emissiveInstanceIndex = (int)(asd * (float)lightSampler->emissiveInstanceCount);
     let emissiveInstance = &lightSampler->emissiveInstances.data[emissiveInstanceIndex];
 
-    float u = fmod(asd * (float)lightSampler->emissiveInstanceCount, 1.0);
+    float u = fract(asd * (float)lightSampler->emissiveInstanceCount);
 
     let instancePmf = 1.0 / (float)lightSampler->emissiveInstanceCount;
 
@@ -503,7 +473,7 @@ Spectrum sampleLd<T : BxDF>(
             lightMaterialParams,
         };
 
-        let ls = l.SampleA(hitpos, b);
+        let ls = l.SampleA(hitpos, uLight);
 
         RayDesc rd;
         rd.Origin = hitpos;
@@ -520,7 +490,7 @@ Spectrum sampleLd<T : BxDF>(
         rq.Proceed();
 
         if (rq.CommittedStatus() == COMMITTED_NOTHING) {
-            let ls2 = l.SampleLe(hitpos, b);
+            let ls2 = l.SampleLe(hitpos, uLight);
 
             let pdfLight = ls2.pdf * triPmf * instancePmf;
 
@@ -543,7 +513,6 @@ Spectrum sampleLd<T : BxDF>(
 // like that.
 void closesthit(
     __ref Path path,
-    int bounce,
     uint3 dispatchRaysIndex,
     uint instanceIndex,
     uint geometryIndex,
@@ -558,7 +527,8 @@ void closesthit(
     // visibility mask.
     bool vampire = ((push->scene->accelInstances[instanceIndex].instanceIDAndMask >> 24) & 0b11) == 0b01;
 
-    RotatedBlueNoise lds = RotatedBlueNoise(dispatchRaysIndex.xy, push.camera->frameNumber, 10 * bounce);
+    // TODO: rename to sampler or something
+    ShiftedBlueNoise<R2LDS> bn = ShiftedBlueNoise<R2LDS>(R2LDS(), dispatchRaysIndex.xy, 10 * path.bounce);
 
     let materialParams = &push.scene->materialParams.data[instanceIndex * push.scene->maxPartsPerMesh + geometryIndex];
 
@@ -600,9 +570,9 @@ void closesthit(
     // TODO: radiance cache sampling would fit into somewhere in here
 
     // Direct light sampling
-    float3 u_Ld = float3(lds.Get(), lds.Get2D());
+    let u_Ld = float3(bn.Get1D(), bn.Get2D());
     if (bsdf.Flags() & (BSDFFlags::Diffuse | BSDFFlags::Glossy)) {
-        Spectrum Ld = sampleLd(bounce, vampire, hitpos, normal, wo, bsdf, u_Ld.x, u_Ld.yz);
+        let Ld = sampleLd(vampire, hitpos, normal, wo, bsdf, u_Ld.x, u_Ld.yz);
 
         if (any(Ld > float3(0)))
             path.L += path.beta * Ld;
@@ -610,14 +580,12 @@ void closesthit(
 
     // Sample the bsdf for the next ray
 
-    let bsdfSample = bsdf.Sample(wo, lds.Get(), lds.Get2D());
+    let bsdfSample = bsdf.Sample(wo, bn.Get1D(), bn.Get2D());
 
     // TODO: once we get diffuse cache, (optionally) terminate the path for
     // diffuse-only bsdfSamples and instead get the information from the cache.
 
     path.beta *= bsdfSample.f * dot(bsdfSample.wi, normal) / bsdfSample.pdf;
-    path.rayOrigin = hitpos;
-    path.rayDir = bsdfSample.wi; // TODO: should we normalize() here?
 
     // Vampire bounces that are reflected become anti-vampire if the surface was
     // not vampire.
@@ -626,4 +594,7 @@ void closesthit(
     if ((bsdfSample.flags & BSDFFlags::Reflected) && !vampire) {
         path.vampire = false;
     }
+
+    path.rayOrigin = hitpos;
+    path.rayDir = bsdfSample.wi; // TODO: should we normalize() here?
 }

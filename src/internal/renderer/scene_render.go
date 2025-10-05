@@ -114,6 +114,15 @@ var toClipSpace = geometry.Mat4x4{
 // TODO: we need to pass other stuff like max aniso etc settings...
 // TODO: change fn to be an int?
 func (scene *Scene) Render(jq *gpu.JobQueue, t float32, fn uint32, camera *Camera, dst *gpu.Image, res [3]int) {
+	bn := blueNoise()
+
+	bnLayer := bn.SubImage(
+		bn.Dim(),
+		bn.Format(),
+		int(fn%8), int(fn%8)+1,
+		0, 1)
+	defer jq.Cleanup(bnLayer.Destroy)
+
 	frameData := gpu.NewUncached[_FrameData]()
 	defer jq.Cleanup(func() { gpu.Free(gpu.UnsafePointer(frameData)) })
 
@@ -136,7 +145,7 @@ func (scene *Scene) Render(jq *gpu.JobQueue, t float32, fn uint32, camera *Camer
 
 		*frameData.Value() = _FrameData{
 			FrameNumber: fn,
-			BlueNoise:   blueNoise().SamplingDescriptor(),
+			BlueNoise:   bnLayer.SamplingDescriptor(),
 
 			Proj:        proj,
 			ProjInverse: proj.Inverse(),
@@ -167,7 +176,7 @@ func (scene *Scene) Render(jq *gpu.JobQueue, t float32, fn uint32, camera *Camer
 			Camera: frameData,
 			Out:    dst.LoadStoreDescriptor(),
 		}
-		gpu.EnqueueTraceRays(jq, scene.pipeline, scene.sbt, res[0], res[1], 1, &args)
+		gpu.EnqueueTraceRays(jq, scene.pipeline, scene.sbt, res, &args)
 	}
 }
 
