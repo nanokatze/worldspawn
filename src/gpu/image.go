@@ -441,6 +441,8 @@ func (img *Image) Dim() ImageDim { return img.dim }
 
 func (img *Image) Format() Format { return img.format }
 
+func (img *Image) Layers() int { return int(img.layers) }
+
 func (img *Image) Extent() [3]int { return int3FromVkExtent3D(img.extent) }
 
 func (img *Image) EnqueueInit(jq *JobQueue) {
