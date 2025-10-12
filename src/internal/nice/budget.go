@@ -1,17 +1,12 @@
 package nice
 
-import (
-	"fmt"
-	"reflect"
-)
+import "reflect"
 
 type outOfBudgetError struct {
 	N, Budget int
 }
 
-func (e *outOfBudgetError) Error() string {
-	return fmt.Sprintf("out of memory: %d (remaining budget %d)", e.N, e.Budget)
-}
+func (e *outOfBudgetError) Error() string { return "out of budget" }
 
 type Budget struct {
 	n int
