@@ -27,20 +27,22 @@ interpolate3(float3x3 attrs, float2 barys)
 public enum Op {
     Stop,
 
-    Movk32,
+    Copy32,
 
-    AddF32,
-    SubF32,
-    MulF32,
-    DivF32,
-    MinF32,
-    MaxF32,
+    Const32,
 
-    FracF32,
+    FAdd32,
+    FSub32,
+    FMul32,
+    FDiv32,
+    FMin32,
+    FMax32,
 
-    EqualF32,
-    NotEqualF32,
-    LessOrEqualF32,
+    FFloor32,
+
+    FEqual32,
+    FNotEqual32,
+    FLessOrEqual32,
 
     ConditionalSelect32,
 
@@ -51,16 +53,16 @@ public enum Op {
 
 /*
 public enum TwoSrc {
-    AddF32,
-    SubF32,
-    MulF32,
-    DivF32,
-    MinF32,
-    MaxF32,
+    FAdd32,
+    FSub32,
+    FMul32,
+    FDiv32,
+    FMin32,
+    FMax32,
 
-    EqualF32,
-    NotEqualF32,
-    LessOrEqualF32,
+    FEqual32,
+    FNotEqual32,
+    FLessOrEqual32,
 };
 */
 
@@ -95,37 +97,42 @@ evalLoop:
         case Op::Stop:
             break evalLoop;
 
-        case Op::Movk32: {
+        case Op::Copy32: {
+            regs[dst] = regs[src0];
+            break;
+        }
+
+        case Op::Const32: {
             uint32_t val = fetcher.fetch();
             regs[dst] = val;
             break;
         }
 
-        case Op::AddF32: {
+        case Op::FAdd32: {
             regs[dst] = reinterpret<uint32_t>(
                 reinterpret<float>(regs[src0]) +
                 reinterpret<float>(regs[src1]));
             break;
         }
-        case Op::SubF32: {
+        case Op::FSub32: {
             regs[dst] = reinterpret<uint32_t>(
                 reinterpret<float>(regs[src0]) -
                 reinterpret<float>(regs[src1]));
             break;
         }
-        case Op::MinF32: {
+        case Op::FMin32: {
             regs[dst] = reinterpret<uint32_t>(min(
                 reinterpret<float>(regs[src0]),
                 reinterpret<float>(regs[src1])));
             break;
         }
 
-        case Op::FracF32: {
-            regs[dst] = reinterpret<uint32_t>(frac(reinterpret<float>(regs[src0])));
+        case Op::FFloor32: {
+            regs[dst] = reinterpret<uint32_t>(floor(reinterpret<float>(regs[src0])));
             break;
         }
 
-        case Op::LessOrEqualF32: {
+        case Op::FLessOrEqual32: {
             regs[dst] = reinterpret<float>(regs[src0]) <= reinterpret<float>(regs[src1]);
             break;
         }

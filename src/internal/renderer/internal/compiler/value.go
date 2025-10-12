@@ -1,12 +1,21 @@
 package compiler
 
-type Op struct {
-	Name string
-}
+// type ValueID int32
 
+// TODO: make the internals private
 type Value struct {
-	Op   *Op
+	ID   int32 // TODO: type it
+	Op   Op
 	Type Type
 	Args []*Value
-	Aux  any
+	Imm  any
 }
+
+/*
+
+type EqValues struct {
+	Values map[*Value]struct{}
+	// Uses map[*Value]struct{}
+}
+
+*/

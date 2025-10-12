@@ -28,62 +28,62 @@ type _FrameData struct {
 }
 
 var blueNoise = sync.OnceValue(func() *gpu.Image {
+	var wg gpu.WaitGroup
+	defer wg.Wait()
+
+	var jq gpu.JobQueue
+
 	gpuImg := gpu.NewImage(&gpu.ImageConfig{
 		Dim:       gpu.ImageDim2D,
 		Extent:    [3]int{256, 256, 1},
 		Layers:    8,
 		MipLevels: 1,
 		Samples:   1,
-		Format:    vk.FORMAT_R8G8B8A8_UNORM,
+		Format:    vk.FORMAT_R16G16B16A16_UNORM, // TODO: we actually only use RG at most
 		Usage:     gpu.ImageUsageSampling,
 	})
-
-	var wg gpu.WaitGroup
-
-	var jq gpu.JobQueue
-
 	gpuImg.EnqueueInit(&jq)
 
 	// TODO: can we please not use png
-	for i := range 8 {
+	for i := range gpuImg.Layers() {
 		wg.Add(1)
 
 		jq := jq.Fork()
 
-		// TODO: come up where non-game data should live. Maybe embed this?
-		f, err := os.Open(fmt.Sprintf("BlueNoise/2D/256_256/LDR_RGBA_%d.png", i))
-		if err != nil {
-			panic(err)
-		}
-		defer f.Close()
+		func() {
+			// TODO: come up where non-game data should live. Maybe embed this?
+			f, err := os.Open(fmt.Sprintf("BlueNoise/2D/256_256/HDR_RGBA_%d.png", i))
+			if err != nil {
+				panic(err)
+			}
+			defer f.Close()
 
-		img, err := png.Decode(f)
-		if err != nil {
-			panic(err)
-		}
+			img, err := png.Decode(f)
+			if err != nil {
+				panic(err)
+			}
 
-		imgNRGBA := img.(*image.NRGBA)
+			imgNRGBA := img.(*image.NRGBA64)
 
-		staging := gpu.MakeSliceUncached[byte](len(imgNRGBA.Pix))
-		defer jq.Cleanup(func() { gpu.Free(gpu.UnsafePointer(gpu.SliceData(staging))) })
+			staging := gpu.MakeSliceUncached[byte](len(imgNRGBA.Pix))
+			defer jq.Cleanup(func() { gpu.Free(gpu.UnsafePointer(gpu.SliceData(staging))) })
 
-		copy(staging.Value(), imgNRGBA.Pix)
+			copy(staging.Value(), imgNRGBA.Pix)
 
-		gpu.EnqueueCopyMemoryToImage(
-			jq,
-			gpuImg.SubImage(
-				gpuImg.Dim(),
-				gpuImg.Format(),
-				i, i+1,
-				0, 1),
-			[3]int{},
-			staging, 0, 0,
-			[3]int{imgNRGBA.Rect.Max.X, imgNRGBA.Rect.Max.Y, 1})
+			gpu.EnqueueCopyMemoryToImage(
+				jq,
+				gpuImg.SubImage(
+					gpuImg.Dim(),
+					gpuImg.Format(),
+					i, i+1,
+					0, 1),
+				[3]int{},
+				staging, 0, 0,
+				[3]int{imgNRGBA.Rect.Max.X, imgNRGBA.Rect.Max.Y, 1})
 
-		wg.EnqueueDone(jq)
+			wg.EnqueueDone(jq)
+		}()
 	}
-
-	wg.Wait()
 
 	return gpuImg
 })
@@ -117,13 +117,19 @@ var toClipSpace = geometry.Mat4x4{
 //
 // TODO: we need to pass other stuff like max aniso etc settings...
 // TODO: change fn to be an int?
-func (scene *Scene) Render(jq *gpu.JobQueue, t float32, fn uint32, camera *Camera, dst *gpu.Image, res [3]int) {
+func (scene *Scene) Render(
+	jq *gpu.JobQueue,
+	t float32,
+	fn uint32,
+	camera *Camera,
+	dst *gpu.Image,
+	res [3]int) {
 	bn := blueNoise()
 
 	bnLayer := bn.SubImage(
 		bn.Dim(),
 		bn.Format(),
-		int(fn%8), int(fn%8)+1,
+		int(fn)%bn.Layers(), int(fn)%bn.Layers()+1,
 		0, 1)
 	defer jq.Cleanup(bnLayer.Destroy)
 

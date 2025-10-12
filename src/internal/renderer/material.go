@@ -6,6 +6,7 @@ import (
 	"unsafe"
 
 	"worldspawn/gpu"
+	"worldspawn/internal/renderer/internal/compiler"
 	"worldspawn/internal/renderer/internal/material"
 )
 
@@ -13,34 +14,6 @@ type MaterialSet struct {
 	pipeline *gpu.RayTracingPipeline
 	sbt      gpu.ShaderBindingTable
 }
-
-// TODO: move this into material subpackage
-// TODO: make types be prefixes rather than suffixes? idk
-const (
-	OpStop = iota
-
-	OpMovk32
-
-	OpAddF32
-	OpSubF32
-	OpMulF32
-	OpDivF32
-	OpMinF32
-	OpMaxF32
-
-	// TODO: get rid of in favor of x - floor(x)
-	OpFracF32
-
-	OpEqualF32
-	OpNotEqualF32
-	OpLessOrEqualF32
-
-	OpConditionalSelect32
-
-	OpLoad          // TODO: rename
-	OpLoadAttribute // TODO: rename
-	OpLoadNormal
-)
 
 type Material struct {
 	// TODO: we also need a description of some sort where in the registers
@@ -54,76 +27,102 @@ type Material struct {
 	emissive gpu.Slice[uint32]
 }
 
-func packinstr(op, dst, src0, src1 int) uint32 {
-	return uint32(op) | uint32(dst)<<8 | uint32(src0)<<16 | uint32(src1)<<24
+func buildArith1(b compiler.Builder, op compiler.Op, x *compiler.Value) *compiler.Value {
+	return b.Value(op, x.Type, []*compiler.Value{x}, nil)
+}
+
+func buildArith2(b compiler.Builder, op compiler.Op, x, y *compiler.Value) *compiler.Value {
+	return b.Value(op, x.Type, []*compiler.Value{x, y}, nil)
+}
+
+func buildFract(b compiler.Builder, v *compiler.Value) *compiler.Value {
+	floorv := buildArith1(b, material.OpInterpreterFFloor32, v)
+	return buildArith2(b, material.OpInterpreterFSub32, v, floorv)
 }
 
 var TestMaterial = sync.OnceValue(func() *Material {
-	host := []uint32{
-		packinstr(OpLoadAttribute, 0, 0, 0), uint32(unsafe.Offsetof(materialParams{}.UVs)),
-		packinstr(OpFracF32, 0, 0, 0),
-		packinstr(OpFracF32, 1, 1, 0),
-		packinstr(OpMovk32, 6, 0, 0), math.Float32bits(1.0),
-		packinstr(OpSubF32, 2, 6, 0),
-		packinstr(OpSubF32, 3, 6, 1),
-		packinstr(OpMinF32, 0, 0, 2),
-		packinstr(OpMinF32, 1, 1, 3),
-		packinstr(OpMinF32, 3, 0, 1),
-		packinstr(OpMovk32, 4, 0, 0), math.Float32bits(0.01),
-		packinstr(OpLessOrEqualF32, 5, 3, 4),
-		packinstr(OpLoad, 0, 0, 0), uint32(unsafe.Offsetof(materialParams{}.BaseColor)),
-		packinstr(OpLoad, 1, 0, 0), uint32(unsafe.Offsetof(materialParams{}.BaseColor) + 4),
-		packinstr(OpLoad, 2, 0, 0), uint32(unsafe.Offsetof(materialParams{}.BaseColor) + 8),
-		packinstr(OpConditionalSelect32, 3, 6, 0), 5,
-		packinstr(OpConditionalSelect32, 4, 6, 1), 5,
-		packinstr(OpConditionalSelect32, 5, 6, 2), 5,
-		packinstr(OpLoadNormal, 0, 0, 0),
-		// packinstr(OpMovk32, 0, 0, 0), math.Float32bits(1),
-		packinstr(OpStop, 0, 0, 0),
+	sea := compiler.NewSea()
+	b := material.Builder{
+		Sea: sea,
 	}
 
-	device := gpu.MakeSliceUncached[uint32](len(host))
-	copy(device.Value(), host)
-
-	return &Material{
-		code: device,
-	}
-})
-
-var TestMaterial2 = sync.OnceValue(func() *Material {
-	b := material.Builder{}
-	_normal_x := b.Value(material.OpInterpreterMovk32, nil, nil, math.Float32bits(0.0))
-	_normal_y := b.Value(material.OpInterpreterMovk32, nil, nil, math.Float32bits(0.0))
-	_normal_z := b.Value(material.OpInterpreterMovk32, nil, nil, math.Float32bits(1.0))
-	_diffuse_r := b.Value(material.OpInterpreterMovk32, nil, nil, math.Float32bits(0.0))
-	_diffuse_g := b.Value(material.OpInterpreterMovk32, nil, nil, math.Float32bits(0.0))
-	_diffuse_b := b.Value(material.OpInterpreterMovk32, nil, nil, math.Float32bits(0.0))
-	_emission_r := b.Value(material.OpInterpreterMovk32, nil, nil, math.Float32bits(10.0))
-	_emission_g := b.Value(material.OpInterpreterMovk32, nil, nil, math.Float32bits(3.33))
-	_emission_b := b.Value(material.OpInterpreterMovk32, nil, nil, math.Float32bits(10.0))
-	_color := b.Value(
-		material.OpInterpreterPseudoMakeTuple,
+	normal := b.Value(
+		material.OpInterpreterLoadNormal,
+		compiler.MakeTupleType(compiler.Bits32, compiler.Bits32, compiler.Bits32),
 		nil,
-		[]*material.Value{
-			_normal_x,
-			_normal_y,
-			_normal_z,
-			_diffuse_r,
-			_diffuse_g,
-			_diffuse_b,
-			_emission_r,
-			_emission_g,
-			_emission_b,
+		uint32(unsafe.Offsetof(materialParams{}.UVs)))
+
+	uv := b.Value(material.OpInterpreterLoadAttribute, compiler.MakeTupleType(compiler.Bits32, compiler.Bits32), nil, uint32(unsafe.Offsetof(materialParams{}.UVs)))
+
+	u := b.Value(material.OpInterpreterPseudoTupleExtract, compiler.Bits32, []*compiler.Value{uv}, 0)
+	uFrac := buildFract(b, u)
+	v := b.Value(material.OpInterpreterPseudoTupleExtract, compiler.Bits32, []*compiler.Value{uv}, 1)
+	vFrac := buildFract(b, v)
+
+	idk := buildArith2(b, material.OpInterpreterFMin32, uFrac, vFrac)
+
+	selector := b.Value(
+		material.OpInterpreterFLessOrEqual32,
+		compiler.Bits32,
+		[]*compiler.Value{
+			idk,
+			b.Value(material.OpInterpreterConst32, compiler.Bits32, nil, math.Float32bits(0.1)),
 		},
 		nil)
 
-	tmp := NewMaterial(_color)
+	color := b.Value(
+		material.OpInterpreterConditionalSelect32,
+		compiler.Bits32,
+		[]*compiler.Value{
+			b.Value(material.OpInterpreterConst32, compiler.Bits32, nil, math.Float32bits(0)),
+			b.Value(material.OpInterpreterConst32, compiler.Bits32, nil, math.Float32bits(1)),
+			selector,
+		},
+		nil)
+
+	/*
+		colorR := b.Value(material.OpInterpreterLoad, compiler.Bits32, nil, uint32(unsafe.Offsetof(materialParams{}.BaseColor))+0)
+		colorG := b.Value(material.OpInterpreterLoad, compiler.Bits32, nil, uint32(unsafe.Offsetof(materialParams{}.BaseColor))+8)
+		colorB := b.Value(material.OpInterpreterLoad, compiler.Bits32, nil, uint32(unsafe.Offsetof(materialParams{}.BaseColor))+12)
+	*/
+
+	program := compiler.BuildTuple(
+		&b,
+		material.OpInterpreterPseudoMakeTuple,
+		normal,
+		color, color, color)
+
+	return NewMaterial(sea, program)
+})
+
+var TestMaterial2 = sync.OnceValue(func() *Material {
+	sea := compiler.NewSea()
+	b := material.Builder{
+		Sea: sea,
+	}
+
+	_normal_x := b.Value(material.OpInterpreterConst32, compiler.Bits32, nil, math.Float32bits(0.0))
+	_normal_y := b.Value(material.OpInterpreterConst32, compiler.Bits32, nil, math.Float32bits(0.0))
+	_normal_z := b.Value(material.OpInterpreterConst32, compiler.Bits32, nil, math.Float32bits(1.0))
+	_diffuse_r := b.Value(material.OpInterpreterConst32, compiler.Bits32, nil, math.Float32bits(0.0))
+	_diffuse_g := b.Value(material.OpInterpreterConst32, compiler.Bits32, nil, math.Float32bits(0.0))
+	_diffuse_b := b.Value(material.OpInterpreterConst32, compiler.Bits32, nil, math.Float32bits(0.0))
+	_emission_r := b.Value(material.OpInterpreterConst32, compiler.Bits32, nil, math.Float32bits(10.0))
+	_emission_g := b.Value(material.OpInterpreterConst32, compiler.Bits32, nil, math.Float32bits(3.33))
+	_emission_b := b.Value(material.OpInterpreterConst32, compiler.Bits32, nil, math.Float32bits(10.0))
+	_color := compiler.BuildTuple(&b,
+		material.OpInterpreterPseudoMakeTuple,
+		_normal_x, _normal_y, _normal_z,
+		_diffuse_r, _diffuse_g, _diffuse_b,
+		_emission_r, _emission_g, _emission_b)
+
+	tmp := NewMaterial(sea, _color)
 	tmp.emissive = tmp.code
 	return tmp
 })
 
-func NewMaterial(v *material.Value) *Material {
-	host := material.CompileInterpreterProgram(v)
+func NewMaterial(sea *compiler.Sea, v *material.Value) *Material {
+	host := material.CompileInterpreterProgram(sea, v)
 
 	device := gpu.MakeSliceUncached[uint32](len(host))
 	copy(device.Value(), host)

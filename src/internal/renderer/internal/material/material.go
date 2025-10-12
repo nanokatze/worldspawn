@@ -8,165 +8,191 @@ import (
 	"worldspawn/internal/renderer/internal/compiler"
 )
 
+// TODO: replace with a specialized material builder
+// TODO: new idea: hide compiler.Op, compiler.Value, and material Builder should
+// expose a set of blessed ops on its own. We can also move that builder to the
+// base package.
 type Builder = compiler.Builder
+
 type Op = compiler.Op
+
 type Value = compiler.Value
 
-// TODO: prefix these differently
-const (
-	OpStop = iota
+var (
+	OpConst = compiler.OpConst
 
-	OpMovk32
+	OpMakeTuple    = compiler.OpMakeTuple
+	OpTupleExtract = compiler.OpTupleExtract
 
-	OpLoadNormal = 15
+	OpFAdd = compiler.DefOp("FAdd")
+	OpFSub = compiler.DefOp("FSub")
+	OpFMul = compiler.DefOp("FMul")
+	OpFDiv = compiler.DefOp("FDiv")
+	OpFMin = compiler.DefOp("FMin")
+	OpFMax = compiler.DefOp("FMax")
+
+	OpFFloor = compiler.DefOp("FFloor")
 )
 
-// TODO: move some ops, types, etc into the base compiler package
-
-func packinstr(op, dst, src0, src1 int) uint32 {
-	return uint32(op) | uint32(dst)<<8 | uint32(src0)<<16 | uint32(src1)<<24
-}
-
-// TODO: probs gen these from a json or something
-// TODO: move these base ops into the compiler package
+/*
 var (
-	OpConst = &Op{Name: "Const"}
+	// OpSampleTexture = compiler.DefOp("SampleTexture")
 
-	OpMakeTuple        = &Op{Name: "MakeTuple"}
-	OpExtractFromTuple = &Op{Name: "ExtractFromTuple"}
-
-	// TODO: change F to be suffix?
-	OpFAdd = &Op{Name: "FAdd"}
-	OpFSub = &Op{Name: "FSub"}
-	OpFMul = &Op{Name: "FMul"}
-	OpFDiv = &Op{Name: "FDiv"}
-	OpFMin = &Op{Name: "FMin"}
-	OpFMax = &Op{Name: "FMax"}
-
-	OpFFloor = &Op{Name: "FFloor"}
-)
-
-var (
-	// OpSampleTexture = &Op{Name: "SampleTexture"}
-
-	OpXDFAdd   = &Op{Name: "XDFAdd"}
-	OpXDFScale = &Op{Name: "XDFScale"}
+	OpXDFAdd   = compiler.DefOp("XDFAdd")
+	OpXDFScale = compiler.DefOp("XDFScale")
 )
 
 var (
 	// TODO: make EDF/BSDF the suffix?
-	OpEDFUniform  = &Op{Name: "EDFUniform"} // DiffuseEDF?
-	OpBSDFDiffuse = &Op{Name: "BSDFDiffuse"}
+	OpEDFUniform  = compiler.DefOp("EDFUniform" // DiffuseEDF?)
+	OpBSDFDiffuse = compiler.DefOp("BSDFDiffuse")
 )
+*/
 
+// TODO: interpreter ops should probably use our custom VecN types rather than
+// standard tuples? We'll still have to deal with memes like certain ops
+// returning (mem, data) etc.
+
+type aaa struct {
+	special bool // TODO: redo this into variants (a + dst etc, nop, special)
+	nop     bool
+	a       A
+	dst     bool
+	arity   int // TODO: replace with bitmap of args
+	imm     bool
+}
+
+var amap = make(map[compiler.Op]aaa)
+
+func withA(a aaa) func(op compiler.Op) { return func(op Op) { amap[op] = a } }
+
+// TODO: actually gen these from somewhere, it's incredibly tedious to rename these
 var (
-	OpInterpreterMovk32 = &Op{Name: "InterpreterMovk32"}
+	OpInterpreterCopy32 = compiler.DefOp("InterpreterCopy32",
+		withA(aaa{a: ACopy32, dst: true, arity: 1}))
 
-	OpInterpreterLoadNormal = &Op{Name: "InterpreterLoadNormal"}
+	OpInterpreterConst32 = compiler.DefOp("InterpreterConst32",
+		withA(aaa{a: AConst32, dst: true, imm: true}))
 
-	OpInterpreterPseudoMakeTuple        = &Op{Name: "InterpreterPseudoMakeTuple"}
-	OpInterpreterPseudoExtractFromTuple = &Op{Name: "InterpreterPseudoExtractFromTuple"}
+	OpInterpreterFAdd32 = compiler.DefOp("InterpreterFAdd32",
+		withA(aaa{a: AFAdd32, dst: true, arity: 2}))
+	OpInterpreterFSub32 = compiler.DefOp("InterpreterFSub32",
+		withA(aaa{a: AFSub32, dst: true, arity: 2}))
+	OpInterpreterFMul32 = compiler.DefOp("InterpreterFMul32",
+		withA(aaa{a: AFMul32, dst: true, arity: 2}))
+	OpInterpreterFDiv32 = compiler.DefOp("InterpreterFDiv32",
+		withA(aaa{a: AFDiv32, dst: true, arity: 2}))
+	OpInterpreterFMin32 = compiler.DefOp("InterpreterFMin32",
+		withA(aaa{a: AFMin32, dst: true, arity: 2}))
+	OpInterpreterFMax32 = compiler.DefOp("InterpreterFMax32",
+		withA(aaa{a: AFMax32, dst: true, arity: 2}))
+
+	OpInterpreterFFloor32 = compiler.DefOp("InterpreterFFloor32",
+		withA(aaa{a: AFFloor32, dst: true, arity: 1}))
+
+	OpInterpreterFLessOrEqual32 = compiler.DefOp("InterpreterFLessOrEqual32",
+		withA(aaa{a: AFLessOrEqual32, dst: true, arity: 2}))
+
+	OpInterpreterConditionalSelect32 = compiler.DefOp("InterpreterConditionalSelect32",
+		withA(aaa{a: AConditionalSelect32, dst: true, arity: 3}))
+
+	OpInterpreterLoad = compiler.DefOp("InterpreterLoad",
+		withA(aaa{a: ALoad, dst: true, imm: true}))
+
+	OpInterpreterLoadAttribute = compiler.DefOp("InterpreterLoadAttribute",
+		withA(aaa{a: ALoadAttribute, dst: true, imm: true}))
+
+	OpInterpreterLoadNormal = compiler.DefOp("InterpreterLoadNormal",
+		withA(aaa{a: ALoadNormal, dst: true}))
+
+	OpInterpreterPseudoMakeTuple = compiler.DefOp("InterpreterPseudoMakeTuple",
+		withA(aaa{nop: true}))
+	OpInterpreterPseudoTupleExtract = compiler.DefOp("InterpreterPseudoTupleExtract",
+		withA(aaa{special: true}))
 )
 
-type valueR struct {
-	reg0 int
-	regs int
+type regRange struct{ i, n int }
+
+func (rr regRange) String() string {
+	// if rr.n < 1 {
+	// 	panic("wat")
+	// }
+	if rr.n == 1 {
+		return fmt.Sprintf("r%d", rr.i)
+	}
+	return fmt.Sprintf("r[%d:%d]", rr.i, rr.i+rr.n-1)
 }
 
-type regalloc struct {
-	scheduleReverse []*Value
-	// scheduled map[*Value]struct{}
-
-	busy uint64 // TODO: should be infinite
-	regm map[*Value]valueR
-}
-
-func findUnsetBit(x uint64) int {
-	for i := range 64 {
-		if x&(1<<i) == 0 {
-			return i
-		}
-	}
-	panic("oops")
-	return -1
-}
-
-func (ra *regalloc) do(v *Value) {
-	if v.Op != OpInterpreterPseudoMakeTuple {
-		ra.scheduleReverse = append(ra.scheduleReverse, v)
-	}
-
-	if v.Op == OpInterpreterPseudoMakeTuple {
-		r := ra.regm[v]
-		i := 0
-		for _, a := range v.Args {
-			regs := 1
-			ra.regm[a] = valueR{r.reg0 + i, regs}
-			i += regs
-		}
-	}
-
-	/*
-		if _, ok := ra.regm[v]; !ok {
-			r := findUnsetBit(ra.busy)
-			ra.busy |= 1 << r
-			ra.regm[v] = valueR{r, 1}
-		}
-	*/
-
-	for _, a := range v.Args {
-		ra.do(a)
-	}
-}
-
-func assemble(scheduleReverse []*Value, regm map[*Value]valueR) []uint32 {
+func assemble(schedule []*Value, regm map[*Value]regRange) []uint32 {
 	instrs := []uint32{}
 
-	for i := len(scheduleReverse) - 1; i >= 0; i-- {
-		v := scheduleReverse[i]
-		r := regm[v]
+	for _, v := range schedule {
+		if _, ok := amap[v.Op]; !ok {
+			panic("can't assemble op " + v.Op.String())
+		}
 
 		switch v.Op {
-		case OpInterpreterMovk32:
-			instrs = append(instrs, packinstr(OpMovk32, r.reg0, 0, 0), v.Aux.(uint32))
-		case OpInterpreterLoadNormal:
-			instrs = append(instrs, packinstr(OpLoadNormal, r.reg0, 0, 0))
-
 		default:
-			panic("can't assemble op")
+			if amap[v.Op].special {
+				panic("special op")
+			}
+
+			if amap[v.Op].nop {
+				// skip assembling pseudo ops
+				continue
+			}
+
+			a := amap[v.Op].a
+
+			var dst uint32
+			if amap[v.Op].dst {
+				dst = uint32(regm[v].i)
+			}
+
+			srcs := make([]uint32, max(amap[v.Op].arity, 2)) // eww
+			for i := range amap[v.Op].arity {
+				srcs[i] = uint32(regm[v.Args[i]].i)
+			}
+
+			instrs = append(instrs, packinstr(a, dst, srcs[0], srcs[1]))
+			instrs = append(instrs, srcs[2:]...)
+			if amap[v.Op].imm {
+				instrs = append(instrs, v.Imm.(uint32))
+			}
+
+		case OpInterpreterPseudoTupleExtract:
+			if !amap[v.Op].special {
+				panic("must be special")
+			}
+
+			// TODO: do certain assertions and validation here
+
+			instrs = append(instrs, packinstr(ACopy32, uint32(regm[v].i), uint32(regm[v.Args[0]].i+v.Imm.(int)), 0))
 		}
 	}
 
-	instrs = append(instrs, packinstr(OpStop, 0, 0, 0))
+	instrs = append(instrs, packinstr(AStop, 0, 0, 0))
 
 	return instrs
 }
 
-func CompileInterpreterProgram(v *Value) []uint32 {
-	ra := &regalloc{
-		regm: make(map[*Value]valueR),
-	}
-	ra.busy = 0b111
-	ra.regm[v] = valueR{0, 3}
-	ra.do(v)
+func CompileInterpreterProgram(sea *compiler.Sea, v *Value) []uint32 {
+	// This is ass.
+	sched, rm := schedule(v)
 
-	for i := len(ra.scheduleReverse) - 1; i >= 0; i-- {
-		v := ra.scheduleReverse[i]
-		r := ra.regm[v]
-
-		var s strings.Builder
-		fmt.Fprintf(&s, "r[%d:%d]", r.reg0, r.regs)
-		fmt.Fprintf(&s, " = %s", v.Op.Name)
+	for _, v := range sched {
+		var sb strings.Builder
+		fmt.Fprintf(&sb, "%v", rm[v])
+		// fmt.Fprintf(&sb, " %v", v.Type)
+		fmt.Fprintf(&sb, " = %s", v.Op)
 		for _, a := range v.Args {
-			r := ra.regm[a]
-			fmt.Fprintf(&s, " r[%d:%d]", r.reg0, r.regs)
+			fmt.Fprintf(&sb, " %v", rm[a])
 		}
-		if v.Aux != nil {
-			fmt.Fprintf(&s, " %v", v.Aux)
+		if v.Imm != nil {
+			fmt.Fprintf(&sb, " %v", v.Imm)
 		}
-
-		log.Print(s.String())
+		log.Print(sb.String())
 	}
 
-	return assemble(ra.scheduleReverse, ra.regm)
+	return assemble(sched, rm)
 }

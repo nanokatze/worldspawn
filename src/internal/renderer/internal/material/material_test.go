@@ -2,16 +2,31 @@ package material
 
 import (
 	"log"
+	"math"
 	"testing"
+
+	"worldspawn/internal/renderer/internal/compiler"
 )
 
 func TestXxx(t *testing.T) {
-	_a := &Value{Op: OpInterpreterMovk32, Aux: uint32(0)}
-	_b := &Value{Op: OpInterpreterMovk32, Aux: uint32(0)}
-	_c := &Value{Op: OpInterpreterMovk32, Aux: uint32(0)}
-	_threeZeros := &Value{Op: OpInterpreterPseudoMakeTuple, Args: []*Value{_a, _b, _c}}
+	sea := compiler.NewSea()
 
-	compiledProgram := CompileInterpreterProgram(_threeZeros)
+	b := Builder{
+		Sea: sea,
+	}
+
+	_normal := b.Value(OpInterpreterLoadNormal, compiler.MakeTupleType(compiler.Bits32, compiler.Bits32, compiler.Bits32), nil, math.Float32bits(0.0))
+	_uv := b.Value(OpInterpreterLoadAttribute, compiler.MakeTupleType(compiler.Bits32, compiler.Bits32), nil, uint32(42))
+	_v := b.Value(OpInterpreterPseudoTupleExtract, compiler.Bits32, []*compiler.Value{_uv}, 1)
+	_color := compiler.BuildTuple(&b,
+		OpInterpreterPseudoMakeTuple,
+		_normal,
+		_v,
+		_v,
+		_v,
+	)
+
+	compiledProgram := CompileInterpreterProgram(sea, _color)
 	for _, x := range compiledProgram {
 		log.Printf("0x%08x", x)
 	}
