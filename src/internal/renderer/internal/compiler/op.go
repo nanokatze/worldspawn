@@ -2,35 +2,29 @@ package compiler
 
 type Op struct{ id int32 }
 
+// TODO: introduce OpMap[T] for efficiently mapping Op->T
+var opNames = make(map[Op]string)
+
+type ValidationFunc func(typ Type, imm any, args ...*Class)
+
+var opValidation = make(map[Op]ValidationFunc)
+
 var nextId int32 = 1
 
-// TODO: can we change func(op) to something else so that we can manage the
-// storage for the user? And at the same time, allow the user to optimize the
-// storage for their own if they need to. I think json/v2 had something like
-// that in the works for custom user options.
-func DefOp(name string, stuff ...func(op Op)) Op {
+func DefOp(name string, validate ValidationFunc) Op {
 	id := nextId
 	nextId++
 
-	op := Op{id}
+	// id must never be 0
 
-	opName(name)(op)
-	for _, f := range stuff {
-		f(op)
-	}
+	op := Op{id}
+	opNames[op] = name
+	opValidation[op] = validate
 
 	return op
 }
 
-var opNames = make(map[Op]string)
-
-func opName(name string) func(op Op) { return func(op Op) { opNames[op] = name } }
-
 func (op Op) String() string { return opNames[op] }
 
-var (
-	OpMakeTuple    = DefOp("MakeTuple")
-	OpTupleExtract = DefOp("TupleExtract")
-
-	OpConst = DefOp("Const")
-)
+// TODO: for perf we could also mark ops as commutative. That would save us from
+// exploding e.g. IAdd into two instructions every time.

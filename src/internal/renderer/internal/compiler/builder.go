@@ -3,24 +3,32 @@ package compiler
 type Builder struct {
 	Sea          *Sea
 	RewriteRules []RewriteRule
-	// Listener     interface{ OnValueCreated(v *Value) }
 }
 
-// TODO: rename to something else
-func (b *Builder) Value(op Op, typ Type, args []*Value, imm any) *Value {
-	v := b.Sea.New(op, typ, args, imm)
+// TODO: rename to Build
+func (b *Builder) Value2(op Op, typ Type, imm any, args ...*Class) *Class {
+	v0 := b.Sea.Value(op, typ, imm, args...)
 
-	// TODO: apply rewrites
+	values := map[*Value]struct{}{v0: {}}
+	stack := []*Value{v0}
+	for len(stack) > 0 {
+		v := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
 
-	return v
-}
-
-// TODO: make it not take Op and make MakeTuple a standard thing
-func BuildTuple(b *Builder, op Op, args ...*Value) *Value {
-	elems := make([]Type, len(args))
-	for i, a := range args {
-		elems[i] = a.Type
+		for _, rule := range b.RewriteRules {
+			if rule.Pattern.Match(v) {
+				w := rule.Replace(b.Sea, v)
+				if w == nil {
+					continue // rewrite didn't apply
+				}
+				if _, ok := values[w]; ok {
+					continue // we already saw this value
+				}
+				values[w] = struct{}{}
+				stack = append(stack, w)
+			}
+		}
 	}
 
-	return b.Value(op, MakeTupleType(elems...), args, nil)
+	return b.Sea.EquateValues(values)
 }

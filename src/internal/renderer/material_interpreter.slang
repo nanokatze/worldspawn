@@ -28,20 +28,20 @@ public enum Op {
     Stop,
 
     Copy32,
+    Xchg32,
 
     Const32,
 
-    FAdd32,
+    FAddE8M23,
     FSub32,
     FMul32,
     FDiv32,
-    FMin32,
+    FMinE8M23,
     FMax32,
 
-    FFloor32,
+    FFloorE8M23,
 
     FEqual32,
-    FNotEqual32,
     FLessOrEqual32,
 
     ConditionalSelect32,
@@ -53,11 +53,11 @@ public enum Op {
 
 /*
 public enum TwoSrc {
-    FAdd32,
+    FAddE8M23,
     FSub32,
     FMul32,
     FDiv32,
-    FMin32,
+    FMinE8M23,
     FMax32,
 
     FEqual32,
@@ -108,7 +108,7 @@ evalLoop:
             break;
         }
 
-        case Op::FAdd32: {
+        case Op::FAddE8M23: {
             regs[dst] = reinterpret<uint32_t>(
                 reinterpret<float>(regs[src0]) +
                 reinterpret<float>(regs[src1]));
@@ -120,14 +120,14 @@ evalLoop:
                 reinterpret<float>(regs[src1]));
             break;
         }
-        case Op::FMin32: {
+        case Op::FMinE8M23: {
             regs[dst] = reinterpret<uint32_t>(min(
                 reinterpret<float>(regs[src0]),
                 reinterpret<float>(regs[src1])));
             break;
         }
 
-        case Op::FFloor32: {
+        case Op::FFloorE8M23: {
             regs[dst] = reinterpret<uint32_t>(floor(reinterpret<float>(regs[src0])));
             break;
         }

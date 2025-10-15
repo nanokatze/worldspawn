@@ -6,9 +6,7 @@ import (
 	"strings"
 )
 
-type Type interface {
-	String() string
-}
+// TODO: split this file
 
 type TupleType struct {
 	// TODO: make it private and provide a Elems() method instead?
@@ -16,6 +14,8 @@ type TupleType struct {
 }
 
 // TODO: hash cons tuple types
+// TODO: make this accept an iterator or idk because certain users have to write
+// annoying loop that would be better served by writing basically a map.
 func MakeTupleType(elems ...Type) *TupleType {
 	return &TupleType{slices.Clone(elems)}
 }
