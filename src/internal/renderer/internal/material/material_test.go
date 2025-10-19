@@ -1,7 +1,6 @@
 package material
 
 import (
-	"log"
 	"math"
 	"testing"
 
@@ -13,46 +12,45 @@ func TestXxx(t *testing.T) {
 
 	b := Builder{
 		Sea:          sea,
-		RewriteRules: LowerToInterpreter,
+		RewriteRules: LowerToMVM,
 	}
 
-	normal := b.Value2(
-		OpInterpreterLoadNormal,
-		compiler.MakeTupleType(compiler.Bits32, compiler.Bits32, compiler.Bits32),
-		uint32(42))
-	normal_x := compiler.BuildTupleExtract(&b, normal, 0)
-	normal_y := compiler.BuildTupleExtract(&b, normal, 1)
-	normal_z := compiler.BuildTupleExtract(&b, normal, 2)
+	normal := b.Value2(OpMVMLoadNormal, compiler.MakeArrayType(compiler.Bits32, 3), nil)
+	normal_x := compiler.BuildArrayExtract(&b, normal, 0)
+	normal_y := compiler.BuildArrayExtract(&b, normal, 1)
+	normal_z := compiler.BuildArrayExtract(&b, normal, 2)
 
-	uv := b.Value2(OpInterpreterLoadAttribute, compiler.MakeTupleType(compiler.Bits32, compiler.Bits32), uint32(69))
+	uv := b.Value2(
+		OpMVMLoadAttribute,
+		compiler.MakeArrayType(compiler.Bits32, 2),
+		uint32(69))
 
-	u := compiler.BuildTupleExtract(&b, uv, 0)
-	v := compiler.BuildTupleExtract(&b, uv, 1)
+	u := compiler.BuildArrayExtract(&b, uv, 0)
+	v := compiler.BuildArrayExtract(&b, uv, 1)
 
 	idk := buildArith2(&b, OpFMin, u, v)
 
 	selector := b.Value2(
-		OpInterpreterFLessOrEqualE8M23,
+		OpMVMFLessOrEqualE8M23,
 		compiler.Bits32,
 		nil,
 		idk,
 		compiler.BuildConst(&b, compiler.Bits32, int64(math.Float32bits(0.1))))
 
 	color := b.Value2(
-		OpInterpreterConditionalSelect32,
+		OpMVMConditionalSelect32,
 		compiler.Bits32,
 		nil,
 		compiler.BuildConst(&b, compiler.Bits32, int64(math.Float32bits(0))),
 		compiler.BuildConst(&b, compiler.Bits32, int64(math.Float32bits(1))),
 		selector)
 
-	program := compiler.BuildMakeTuple(
+	program := compiler.BuildMakeArray(
 		&b,
 		normal_x, normal_y, normal_z,
 		color, color, color)
 
-	compiledProgram := CompileInterpreterProgram(sea, program)
-	for _, x := range compiledProgram {
-		log.Printf("0x%08x", x)
-	}
+	_, outputs := CompileMVMProgram(sea, program)
+
+	t.Log(outputs)
 }

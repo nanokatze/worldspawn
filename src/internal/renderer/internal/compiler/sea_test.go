@@ -24,14 +24,20 @@ func TestGraphsWithCycles(t *testing.T) {
 
 	b := Builder{Sea: sea}
 
-	_0 := b.Value2(OpConst, Bits32, int64(0))
-	x_0_0 := b.Value2(opX, Bits32, nil, _0, _0)
+	zero := b.Value2(OpConst, Bits32, int64(0))
+	x_of_zeros := b.Value2(opX, Bits32, nil, zero, zero)
 
-	sea.EquateValues(map[*Value]struct{}{_0.Value(): {}, x_0_0.Value(): {}})
+	class := equateClasses(sea, zero, x_of_zeros)
 
-	hmm := _0
-	for hmm.mergedInto != nil {
-		hmm = hmm.mergedInto
+	Dump(sea, class, nil)
+}
+
+func equateClasses(sea *Sea, classes ...*Class) *Class {
+	values := make(map[*Value]struct{})
+	for _, c := range classes {
+		for v := range c.Values {
+			values[v] = struct{}{}
+		}
 	}
-	Dump(sea, hmm, nil)
+	return sea.EquateValues(values)
 }

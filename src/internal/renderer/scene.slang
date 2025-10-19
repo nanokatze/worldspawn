@@ -6,6 +6,7 @@ import lighting;
 public struct MaterialParams {
     public uint32_t *code;
     public uint32_t *emissionCode;
+    public uint32_t outputsReg;
     public void *triangles;
     public uint32_t num_triangles;
     public float3 *posBuffer;

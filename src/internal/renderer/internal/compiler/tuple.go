@@ -1,13 +1,6 @@
 package compiler
 
-import (
-	"slices"
-	"strconv"
-	"strings"
-)
-
-// TODO: split this file
-
+/*
 type TupleType struct {
 	// TODO: make it private and provide a Elems() method instead?
 	elems []Type
@@ -33,13 +26,20 @@ func (t *TupleType) Elems() []Type {
 	return t.elems
 }
 
-type BitsType struct{ N int64 }
-
-func (t BitsType) String() string { return "Bits[" + strconv.FormatInt(t.N, 10) + "]" }
-
 var (
-	Bits1  Type = BitsType{1}
-	Bits8  Type = BitsType{8}
-	Bits16 Type = BitsType{16}
-	Bits32 Type = BitsType{32}
+	OpMakeTuple    = DefOp("MakeTuple", nil)
+	OpTupleExtract = DefOp("TupleExtract", nil)
 )
+
+func BuildMakeTuple(b *Builder, elems ...*Class) *Class {
+	typ := make([]Type, len(elems))
+	for i, v := range elems {
+		typ[i] = v.Type()
+	}
+	return b.Value2(OpMakeTuple, MakeTupleType(typ...), nil, elems...)
+}
+
+func BuildTupleExtract(b *Builder, tup *Class, idx int) *Class {
+	return b.Value2(OpTupleExtract, tup.Type().(*TupleType).Elems()[idx], idx, tup)
+}
+*/

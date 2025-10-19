@@ -259,7 +259,7 @@ struct triangleLight {
             barys);
 
         return {
-            spectrumFromRegs(regs, 6),
+            spectrumFromRegs(regs, materialParams->outputsReg + 6),
             normal,
             dot(uhh, uhh) / (abs(dot(normal, wi)) * area),
         };
@@ -552,9 +552,11 @@ void closesthit(
     DiffuseEDF edf = {
         // TODO: we need a flag which specifies whether and where we have
         // emission in regs, rather than rely on emission-only program.
-        materialParams->emissionCode ? spectrumFromRegs(regs, 6) : Spectrum(0),
+        materialParams->emissionCode
+            ? spectrumFromRegs(regs, materialParams->outputsReg + 6)
+            : Spectrum(0),
     };
-    BxDFAdapter<Diffuse> bsdf = diffuseFromRegisters(regs, 0);
+    BxDFAdapter<Diffuse> bsdf = diffuseFromRegisters(regs, materialParams->outputsReg + 0);
 
     // bad, do not do this
     let normal = bsdf.shadingFrame.localToWorld(float3(0, 0, 1));

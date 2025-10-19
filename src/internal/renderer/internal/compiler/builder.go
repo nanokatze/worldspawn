@@ -5,7 +5,7 @@ type Builder struct {
 	RewriteRules []RewriteRule
 }
 
-// TODO: rename to Build
+// TODO: rename to Build?
 func (b *Builder) Value2(op Op, typ Type, imm any, args ...*Class) *Class {
 	v0 := b.Sea.Value(op, typ, imm, args...)
 

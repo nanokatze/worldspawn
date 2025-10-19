@@ -44,11 +44,11 @@ func (id ClassID) String() string { return "c" + strconv.FormatInt(int64(id), 10
 
 // Class is a set of equivalent value definitions.
 type Class struct {
-	ID         ClassID
-	typ        Type
-	Values     map[*Value]struct{} // TODO: hide and replace with a method to return iter.Seq[*Value]
-	users      map[*Value]struct{}
-	mergedInto *Class
+	ID     ClassID
+	typ    Type
+	Values map[*Value]struct{} // TODO: hide and replace with an accessor method
+	users  map[*Value]struct{}
+	merged *Class
 }
 
 /*
@@ -64,7 +64,7 @@ func (c *Class) Type() Type {
 	return c.typ
 }
 
-func (to *Class) add(v *Value) {
+func (to *Class) addValue(v *Value) {
 	if v.class != nil {
 		panic("trying to add a value that is already in a class")
 	}
@@ -197,7 +197,7 @@ func (sea *Sea) EquateValues(values map[*Value]struct{}) *Class {
 		c = sea.newClass(typ)
 	}
 
-	if c.mergedInto != nil {
+	if c.merged != nil {
 		panic("unreachable") // TODO: explain
 	}
 
@@ -222,7 +222,7 @@ func (sea *Sea) EquateValue(c *Class, v *Value) {
 	if v.class != nil {
 		sea.equateClasses(c, v.class)
 	} else {
-		c.add(v)
+		c.addValue(v)
 	}
 }
 
@@ -241,15 +241,15 @@ func (sea *Sea) equateClasses(c1, c2 *Class) {
 		panic("types differ")
 	}
 
-	if c1.mergedInto != nil {
+	if c1.merged != nil {
 		// TODO: actually just chase pointers at the start of the func instead?
 		panic("can't merge into a class that has been merged")
 	}
 
-	if c2.mergedInto != nil {
+	if c2.merged != nil {
 		return
 	}
-	c2.mergedInto = c1
+	c2.merged = c1
 
 	c1.moveValues(c2)
 
@@ -299,6 +299,8 @@ func (sea *Sea) postArgsChange(v *Value) {
 	}
 }
 
+// KillValue removes a value from the graph.
+//
 // TODO: probably delete this garbage
 func (sea *Sea) KillValue(v *Value) {
 	for _, a := range v.Args {
@@ -309,9 +311,6 @@ func (sea *Sea) KillValue(v *Value) {
 		delete(c.Values, v)
 	}
 }
-
-// TODO: add a method for removing values from a class? Would be useful when
-// trimming the Sea.
 
 func (sea *Sea) newValue(op Op, typ Type, imm any, args ...*Class) *Value {
 	sea.vid++

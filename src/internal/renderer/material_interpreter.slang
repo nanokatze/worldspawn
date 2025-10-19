@@ -1,10 +1,14 @@
 import internal.interpreter;
 import scene;
 
+// TODO: rename to mvm.slang
+
 // TODO: move interpolators into their own file!!!
 
 // TODO: review whether we want to do something more clever (numerically) in the
 // interpolators, e.g. do we need to tinker with rounding modes or whatever?
+
+// TODO: move interpolators to a different file pls...
 
 float
 interpolate1(float3x1 attrs, float2 barys)
@@ -28,16 +32,16 @@ public enum Op {
     Stop,
 
     Copy32,
-    Xchg32,
 
     Const32,
 
     FAddE8M23,
-    FSub32,
-    FMul32,
-    FDiv32,
+    FSubE8M23,
+    FMulE8M23,
+    FDivE8M23,
+
     FMinE8M23,
-    FMax32,
+    FMaxE8M23,
 
     FFloorE8M23,
 
@@ -54,11 +58,11 @@ public enum Op {
 /*
 public enum TwoSrc {
     FAddE8M23,
-    FSub32,
-    FMul32,
-    FDiv32,
+    FSubE8M23,
+    FMulE8M23,
+    FDivE8M23,
     FMinE8M23,
-    FMax32,
+    FMaxE8M23,
 
     FEqual32,
     FNotEqual32,
@@ -68,8 +72,8 @@ public enum TwoSrc {
 
 public void mateval(
     __ref Registers regs,
-    const uint32_t *program,
-    const MaterialParams *materialParams,
+    uint32_t *program,
+    MaterialParams *materialParams,
     float3x4 ObjectToWorld,
     uint3 triIdxs,
     float2 barys_yz)
@@ -114,7 +118,7 @@ evalLoop:
                 reinterpret<float>(regs[src1]));
             break;
         }
-        case Op::FSub32: {
+        case Op::FSubE8M23: {
             regs[dst] = reinterpret<uint32_t>(
                 reinterpret<float>(regs[src0]) -
                 reinterpret<float>(regs[src1]));

@@ -123,6 +123,7 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 			materialParamsHost[instanceIdx*scene.maxPartsPerMesh+partIdx] = materialParams{
 				Code:         gpu.SliceData(material.Material.code),
 				EmissionCode: gpu.SliceData(material.Material.emissive),
+				OutputsReg:   material.Material.outputs,
 				Triangles:    gpu.SliceData(part.IndexBuffer),
 				NumTriangles: uint32(gpu.SliceLen(part.IndexBuffer)),
 				PosBuffer:    gpu.SliceData(part.PosBuffer),

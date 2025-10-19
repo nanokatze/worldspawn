@@ -24,6 +24,7 @@ type materialParams struct {
 	// ABI       bxdfabi
 	Code         gpu.Pointer[uint32]
 	EmissionCode gpu.Pointer[uint32]
+	OutputsReg   uint32 // TODO: we need its own for each code
 	Triangles    gpu.Pointer[[3]uint16]
 	NumTriangles uint32
 	PosBuffer    gpu.Pointer[[3]float32]
