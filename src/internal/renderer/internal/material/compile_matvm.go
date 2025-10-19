@@ -200,7 +200,7 @@ func CompileMVMProgram(sea *compiler.Sea, c *compiler.Class) ([]uint32, int) {
 
 	sched := schedule2(sea, c)
 
-	regm := regassign2(sea, sched)
+	regm := regassign3(sea, sched)
 
 	/*
 		compiler.Dump(sea, c, func(c *compiler.Class) string {
@@ -241,6 +241,10 @@ func CompileMVMProgram(sea *compiler.Sea, c *compiler.Class) ([]uint32, int) {
 			data := assembled[i]
 			i++
 			fmt.Fprintf(os.Stderr, " 0x%08x", data)
+		case AConditionalSelect32:
+			r := assembled[i]
+			i++
+			fmt.Fprintf(os.Stderr, " r%v", r)
 		}
 		fmt.Fprintln(os.Stderr)
 	}
@@ -296,7 +300,10 @@ func assemble(sea *compiler.Sea, schedule []*compiler.Class, regm map[*compiler.
 
 			dst := regm[class].I
 			for i, a := range v.Args {
-				instrs = append(instrs, packinstr(ACopy32, uint32(dst+i), uint32(regm[a].I), 0))
+				if regm[a].I != dst+i {
+					panic("bad")
+				}
+				// instrs = append(instrs, packinstr(ACopy32, uint32(dst+i), uint32(regm[a].I), 0))
 			}
 
 		case opMVMPseudoArrayExtract:
@@ -304,12 +311,14 @@ func assemble(sea *compiler.Sea, schedule []*compiler.Class, regm map[*compiler.
 				panic("must be special")
 			}
 
-			// TODO: do certain assertions and validation here
+			if uint32(regm[class].I) != uint32(regm[v.Args[0]].I)+v.Imm().(uint32) {
+				// TODO: do certain assertions and validation here
 
-			instrs = append(instrs, packinstr(ACopy32,
-				uint32(regm[class].I),
-				uint32(regm[v.Args[0]].I)+v.Imm().(uint32),
-				0))
+				instrs = append(instrs, packinstr(ACopy32,
+					uint32(regm[class].I),
+					uint32(regm[v.Args[0]].I)+v.Imm().(uint32),
+					0))
+			}
 		}
 	}
 
@@ -406,8 +415,10 @@ func (movins *movInserter) do(c *compiler.Class) {
 
 		w := movins.sea.Value(opMVMPseudoMakeArray, v.Type(), nil, args...)
 
-		movins.sea.EquateValue(c, w)
-		movins.sea.KillValue(v)
+		if w != v {
+			movins.sea.EquateValue(c, w)
+			movins.sea.KillValue(v)
+		}
 	}
 
 	for _, a := range v.Args {
@@ -416,7 +427,7 @@ func (movins *movInserter) do(c *compiler.Class) {
 }
 
 func (movins *movInserter) useInMakeTuple(c *compiler.Class) *compiler.Class {
-	if _, ok := movins.needMov[c]; ok || true {
+	if _, ok := movins.needMov[c]; ok {
 		movins.movctr++
 		return (&Builder{Sea: movins.sea}).Value2(opMVMCopy32, c.Type(), movins.movctr, c)
 	}
@@ -463,43 +474,14 @@ func (bs bitset) UnsetMany(i, n int) {
 	}
 }
 
-func regassign2(sea *compiler.Sea, sched []*compiler.Class) map[*compiler.Class]regRange {
-	killed := make(map[*compiler.Class]int)
-	for i, c := range sched {
-		for _, a := range c.Value().Args {
-			killed[a] = i
-		}
-	}
+type regconstraint struct {
+	I       int
+	N       int
+	Classes map[*compiler.Class]int
+}
 
-	rm := make(map[*compiler.Class]regRange) // TODO: could be keyed by ID for more perf
-	bs := bitset{make([]uint64, 4)}
-	for i, c := range sched {
-		// We don't have parallel copies implemented at the moment, so avoid
-		// them for now.
-		parallelcopy := c.Value().Op() == opMVMPseudoMakeArray
-		if !parallelcopy {
-			for k, j := range killed {
-				if i == j {
-					assignment := rm[k]
-					bs.UnsetMany(assignment.I, assignment.N)
-				}
-			}
-		}
-		if _, ok := rm[c]; !ok {
-			n := regs(c.Type())
-			rm[c] = regRange{bs.FindAndSetMany(n), n}
-		}
-		if parallelcopy {
-			for k, j := range killed {
-				if i == j {
-					assignment := rm[k]
-					bs.UnsetMany(assignment.I, assignment.N)
-				}
-			}
-		}
-	}
-
-	return rm
+type regassigner struct {
+	m map[*compiler.Class]regRange
 }
 
 // TODO: this regassign should operate "backwards" and when we see an
@@ -507,6 +489,93 @@ func regassign2(sea *compiler.Sea, sched []*compiler.Class) map[*compiler.Class]
 // need to perform two passes, one will be to establish constraints, and once to
 // actually assign stuff I guess? When we assign any instruction that has
 // constraints, we'll allocate stuff for the entire constraint.
+// TODO: regassign should operate on an existing rm, as the user might want to
+// specify constraints.
 func regassign3(sea *compiler.Sea, sched []*compiler.Class) map[*compiler.Class]regRange {
-	return nil
+	constraints := make(map[*compiler.Class]*regconstraint)
+	for _, c := range sched {
+		v := c.Value()
+
+		switch v.Op() {
+		case opMVMPseudoMakeArray:
+			constraint := &regconstraint{
+				I:       -1,
+				N:       len(v.Args),
+				Classes: make(map[*compiler.Class]int),
+			}
+
+			// Constrain MakeArray itself
+			constraint.Classes[c] = 0
+			constraints[c] = constraint
+
+			// Constrain the arguments
+			for i, a := range v.Args {
+				if _, ok := constraints[a]; ok {
+					panic("conflict")
+				}
+				constraint.Classes[a] = i
+				constraints[a] = constraint
+			}
+
+			// TODO: we need to be able to merge constraints in order for
+			// PseudoArrayExtract to be no-ops.
+			/*
+				case opMVMPseudoArrayExtract:
+					arr := v.Args[0]
+
+					constraint, ok := constraints[arr]
+					if !ok {
+						constraint = &regconstraint{
+							N:       regs(arr.Type()),
+							Classes: make(map[*compiler.Class]int),
+						}
+						constraint.Classes[arr] = 0
+						constraints[arr] = constraint
+					}
+
+					constraint.Classes[c] = int(v.Imm().(uint32))
+					constraints[c] = constraint
+			*/
+		}
+	}
+
+	bs := bitset{make([]uint64, 4)}
+
+	rm := make(map[*compiler.Class]regRange) // TODO: could be keyed by ID for more perf
+
+	for _, c := range slices.Backward(sched) {
+		v := c.Value()
+
+		rr := rm[c]
+		if true || v.Op() != opMVMPseudoArrayExtract {
+			bs.UnsetMany(rr.I, rr.N)
+		}
+
+		for _, a := range v.Args {
+			c := constraints[a]
+			if c != nil { // TODO: introduce trivial constraints and constraint merging
+				if c.I != -1 {
+					continue
+				}
+				c.I = bs.FindAndSetMany(c.N)
+
+				for k, i := range c.Classes {
+					n := regs(k.Type())
+					rr := regRange{c.I + i, n}
+					if rr2, ok := rm[k]; ok && rr2 != rr {
+						panic("bad")
+					}
+					rm[k] = rr
+				}
+			} else {
+				if _, ok := rm[a]; !ok {
+					n := regs(a.Type())
+					rr := regRange{bs.FindAndSetMany(n), n}
+					rm[a] = rr
+				}
+			}
+		}
+	}
+
+	return rm
 }

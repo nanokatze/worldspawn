@@ -34,9 +34,9 @@ const (
 
 	AConditionalSelect32
 
-	ALoad          // TODO: rename
-	ALoadAttribute // TODO: rename
-	ALoadNormal
+	ALoad          // TODO: rename to LoadParam
+	ALoadAttribute // TODO: rename to LoadAttr
+	ALoadNormal    // GetGeometricNormal or whatever
 
 	// ABSDFAlbedo
 )
