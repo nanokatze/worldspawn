@@ -38,6 +38,9 @@ func (v *Value) Imm() any { return v.imm }
 // any class, or has been deleted.
 func (v *Value) Class() *Class { return v.class }
 
+// TODO: put Values in a doubly linked list (with a canonical *Value) rather
+// than have Classes?
+
 type ClassID int32
 
 func (id ClassID) String() string { return "c" + strconv.FormatInt(int64(id), 10) }
@@ -98,7 +101,8 @@ func (c *Class) Values2() iter.Seq[*Value] {
 	return maps.Keys(c.Values)
 }
 
-// TODO: make sure this is the interface we need actually
+// TODO: make sure this is the interface we need actually. It seems that we
+// probably actually need a snapshot of users? Same with values, etc.
 // TODO: do we want this to be called Uses or Users?
 func (c *Class) Users() iter.Seq[*Value] {
 	return maps.Keys(c.users)
@@ -209,16 +213,7 @@ func (sea *Sea) EquateValues(values map[*Value]struct{}) *Class {
 }
 
 // Equate v to all values in c.
-//
-// TODO: I guess we could make this public as well?
 func (sea *Sea) EquateValue(c *Class, v *Value) {
-	if _, ok := c.Values[v]; ok {
-		if v.class != c {
-			panic("inconsistent sea")
-		}
-		return // already in the class
-	}
-
 	if v.class != nil {
 		sea.equateClasses(c, v.class)
 	} else {
@@ -301,7 +296,7 @@ func (sea *Sea) postArgsChange(v *Value) {
 
 // KillValue removes a value from the graph.
 //
-// TODO: probably delete this garbage
+// TODO: rename
 func (sea *Sea) KillValue(v *Value) {
 	for _, a := range v.Args {
 		delete(a.users, v)

@@ -14,13 +14,11 @@ func MakeArrayType(elem Type, len int64) ArrayType {
 	return ArrayType{elem, len}
 }
 
-func (arr ArrayType) Elem() Type { return arr.elem }
+func (typ ArrayType) Elem() Type { return typ.elem }
 
-func (arr ArrayType) Len() int64 { return arr.len }
+func (typ ArrayType) Len() int64 { return typ.len }
 
-func (at ArrayType) String() string {
-	return fmt.Sprintf("[%d]%v", at.len, at.elem)
-}
+func (typ ArrayType) String() string { return fmt.Sprintf("[%d]%v", typ.len, typ.elem) }
 
 var OpMakeArray = DefOp("MakeArray",
 	func(typ Type, imm any, args ...*Class) {
@@ -41,8 +39,8 @@ var OpMakeArray = DefOp("MakeArray",
 	})
 
 // TODO: make this take elem type explicitly?
-func BuildMakeArray(b *Builder, args ...*Class) *Class {
-	t := MakeArrayType(args[0].Type(), int64(len(args)))
+func MakeArray(b *Builder, et Type, args ...*Class) *Class {
+	t := MakeArrayType(et, int64(len(args)))
 	return b.Value2(OpMakeArray, t, nil, args...)
 }
 
@@ -66,6 +64,6 @@ var OpArrayExtract = DefOp("ArrayExtract",
 		}
 	})
 
-func BuildArrayExtract(b *Builder, arr *Class, idx int64) *Class {
+func ArrayExtract(b *Builder, arr *Class, idx int64) *Class {
 	return b.Value2(OpArrayExtract, arr.Type().(ArrayType).Elem(), idx, arr)
 }

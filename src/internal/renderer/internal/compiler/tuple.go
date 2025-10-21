@@ -31,7 +31,7 @@ var (
 	OpTupleExtract = DefOp("TupleExtract", nil)
 )
 
-func BuildMakeTuple(b *Builder, elems ...*Class) *Class {
+func MakeTuple(b *Builder, elems ...*Class) *Class {
 	typ := make([]Type, len(elems))
 	for i, v := range elems {
 		typ[i] = v.Type()
@@ -39,7 +39,7 @@ func BuildMakeTuple(b *Builder, elems ...*Class) *Class {
 	return b.Value2(OpMakeTuple, MakeTupleType(typ...), nil, elems...)
 }
 
-func BuildTupleExtract(b *Builder, tup *Class, idx int) *Class {
+func TupleExtract(b *Builder, tup *Class, idx int) *Class {
 	return b.Value2(OpTupleExtract, tup.Type().(*TupleType).Elems()[idx], idx, tup)
 }
 */
