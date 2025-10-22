@@ -1,4 +1,4 @@
-package material
+package mc
 
 // TODO: what should this file actually contain? I guess we need a file that
 // implements the interpreter (well, we implement it in slang, but the go
@@ -32,11 +32,11 @@ const (
 	AFEqualE8M23
 	AFLessOrEqualE8M23
 
-	AConditionalSelect32
+	ACondSelect32
 
-	ALoad          // TODO: rename to LoadParam
-	ALoadAttribute // TODO: rename to LoadAttr
-	ALoadNormal    // GetGeometricNormal or whatever
+	ALoadParam
+	ALoadAttr
+	ALoadNormal // GetGeometricNormal or whatever
 
 	// ABSDFAlbedo
 )

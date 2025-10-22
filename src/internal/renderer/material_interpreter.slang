@@ -1,7 +1,7 @@
 import internal.interpreter;
 import scene;
 
-// TODO: rename to mvm.slang
+// TODO: rename to mvm.slang?
 
 // TODO: move interpolators into their own file!!!
 
@@ -48,10 +48,10 @@ public enum Op {
     FEqual32,
     FLessOrEqual32,
 
-    ConditionalSelect32,
+    CondSelect32,
 
-    Load, // TODO: rename
-    LoadAttribute, // TODO: rename
+    LoadParam,
+    LoadAttr,
     LoadNormal,
 };
 
@@ -141,18 +141,18 @@ evalLoop:
             break;
         }
 
-        case Op::ConditionalSelect32: {
+        case Op::CondSelect32: {
             uint32_t predicate = fetcher.fetch();
             regs[dst] = regs[predicate] ? regs[src0] : regs[src1];
             break;
         }
 
-        case Op::Load: {
+        case Op::LoadParam: {
             uint32_t off = fetcher.fetch();
             regs[dst] = *(uint32_t*)((uint8_t*)materialParams + off);
             break;
         }
-        case Op::LoadAttribute: {
+        case Op::LoadAttr: {
             uint32_t off = fetcher.fetch();
             float2 *attrbuf = *(float2**)((uint8_t*)materialParams + off);
             float2 attr0 = attrbuf[triIdxs[0]];
@@ -167,7 +167,7 @@ evalLoop:
             // I guess?
             break;
         }
-        // TODO: remove this in favor of LoadAttribute + DisturbNormal or smth?
+        // TODO: remove this in favor of LoadAttr + DisturbNormal or smth?
         case Op::LoadNormal: {
             let normal = mul((float3x3)ObjectToWorld,
                 interpolate3(

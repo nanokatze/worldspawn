@@ -8,7 +8,8 @@ import (
 
 	"worldspawn/gpu"
 	"worldspawn/internal/renderer/internal/compiler"
-	"worldspawn/internal/renderer/internal/material"
+	"worldspawn/internal/renderer/internal/compiler/core"
+	"worldspawn/internal/renderer/internal/mc"
 )
 
 type MaterialSet struct {
@@ -17,11 +18,6 @@ type MaterialSet struct {
 }
 
 type Material struct {
-	// TODO: we also need a description of some sort where in the registers
-	// inputs to different bxdfs lie, and the contributions of each bxdf.
-	// TODO: if this material is emissive, we need an emissive-only program for
-	// NEE.
-
 	// TODO: rename to something like interpreterProgram
 	code    gpu.Slice[uint32]
 	outputs uint32 // start of the register array containing the outputs
@@ -29,95 +25,89 @@ type Material struct {
 	emissive gpu.Slice[uint32]
 }
 
-func buildArith1(b *compiler.Builder, op compiler.Op, x *compiler.Class) *compiler.Class {
+func buildArith1(b *compiler.Rewriter, op compiler.Op, x *compiler.Class) *compiler.Class {
 	return b.Value2(op, x.Type(), nil, x)
 }
 
-func buildArith2(b *compiler.Builder, op compiler.Op, x, y *compiler.Class) *compiler.Class {
+func buildArith2(b *compiler.Rewriter, op compiler.Op, x, y *compiler.Class) *compiler.Class {
 	return b.Value2(op, x.Type(), nil, x, y)
 }
 
-func buildFract(b *compiler.Builder, v *compiler.Class) *compiler.Class {
-	floorv := buildArith1(b, material.OpFFloor, v)
-	return buildArith2(b, material.OpFSub, v, floorv)
+func buildFract(b *compiler.Rewriter, v *compiler.Class) *compiler.Class {
+	return buildArith2(b, mc.OpFSub, v, buildArith1(b, mc.OpFFloor, v))
 }
 
 var TestMaterial = sync.OnceValue(func() *Material {
 	sea := compiler.NewSea()
-	b := compiler.Builder{
-		Sea:          sea,
-		RewriteRules: material.LowerToMVM,
+	b := compiler.Rewriter{
+		Sea:   sea,
+		Rules: append(append([]compiler.RewriteRule(nil), mc.CommonRules...), mc.LowerToMVM...),
 	}
 
 	normal := b.Value2(
-		material.OpMVMLoadNormal,
-		compiler.MakeArrayType(compiler.Bits32, 3),
+		mc.OpMVMLoadNormal,
+		core.MakeArrayType(3, core.Int32),
 		nil)
-	normal_x := compiler.BuildArrayExtract(&b, normal, 0)
-	normal_y := compiler.BuildArrayExtract(&b, normal, 1)
-	normal_z := compiler.BuildArrayExtract(&b, normal, 2)
+	normal_x := core.ArrayExtract(&b, normal, 0)
+	normal_y := core.ArrayExtract(&b, normal, 1)
+	normal_z := core.ArrayExtract(&b, normal, 2)
 
 	uv := b.Value2(
-		material.OpMVMLoadAttribute,
-		compiler.MakeArrayType(compiler.Bits32, 2),
+		mc.OpMVMLoadAttr,
+		core.MakeArrayType(2, core.Int32),
 		uint32(unsafe.Offsetof(materialParams{}.UVs)))
-	u := compiler.BuildArrayExtract(&b, uv, 0)
-	v := compiler.BuildArrayExtract(&b, uv, 1)
+	u := core.ArrayExtract(&b, uv, 0)
+	v := core.ArrayExtract(&b, uv, 1)
 
-	one := compiler.BuildConst(&b, compiler.Bits32, int64(math.Float32bits(1)))
+	one := core.Const(&b, core.Int32, int64(math.Float32bits(1)))
 
 	fractU := buildFract(&b, u)
 	fractV := buildFract(&b, v)
 
-	oneMinusFractU := buildArith2(&b, material.OpFSub, one, fractU)
-	oneMinusFractV := buildArith2(&b, material.OpFSub, one, fractV)
+	oneMinusFractU := buildArith2(&b, mc.OpFSub, one, fractU)
+	oneMinusFractV := buildArith2(&b, mc.OpFSub, one, fractV)
 
-	idk1 := buildArith2(&b, material.OpFMin, fractU, fractV)
-	idk2 := buildArith2(&b, material.OpFMin, oneMinusFractU, oneMinusFractV)
-	idk3 := buildArith2(&b, material.OpFMin, idk1, idk2)
+	idk1 := buildArith2(&b, mc.OpFMin, fractU, fractV)
+	idk2 := buildArith2(&b, mc.OpFMin, oneMinusFractU, oneMinusFractV)
+	idk3 := buildArith2(&b, mc.OpFMin, idk1, idk2)
 
 	selector := b.Value2(
-		material.OpMVMFLessOrEqualE8M23,
-		compiler.Bits32,
+		mc.OpMVMFLessOrEqualE8M23,
+		core.Int32,
 		nil,
 		idk3,
-		compiler.BuildConst(&b, compiler.Bits32, int64(math.Float32bits(0.025))))
+		core.Const(&b, core.Int32, int64(math.Float32bits(0.025))))
 
-	// TODO: use standard CondSelect and introduce a rule for scalarizing it and
-	// introduce a rule to lower it to
-	color_r := b.Value2(
-		material.OpMVMConditionalSelect32,
-		compiler.Bits32,
-		nil,
+	// TODO: introduce a rule for scalarizing CondSelect. Note that right now we
+	// fall over at extraction time, so...
+	color_r := core.CondSelect(
+		&b,
 		one,
 		b.Value2(
-			material.OpMVMLoad,
-			compiler.Bits32,
+			mc.OpMVMLoadParam,
+			core.Int32,
 			uint32(unsafe.Offsetof(materialParams{}.BaseColor))+0),
 		selector)
-	color_g := b.Value2(
-		material.OpMVMConditionalSelect32,
-		compiler.Bits32,
-		nil,
+	color_g := core.CondSelect(
+		&b,
 		one,
 		b.Value2(
-			material.OpMVMLoad,
-			compiler.Bits32,
+			mc.OpMVMLoadParam,
+			core.Int32,
 			uint32(unsafe.Offsetof(materialParams{}.BaseColor))+4),
 		selector)
-	color_b := b.Value2(
-		material.OpMVMConditionalSelect32,
-		compiler.Bits32,
-		nil,
+	color_b := core.CondSelect(
+		&b,
 		one,
 		b.Value2(
-			material.OpMVMLoad,
-			compiler.Bits32,
+			mc.OpMVMLoadParam,
+			core.Int32,
 			uint32(unsafe.Offsetof(materialParams{}.BaseColor))+8),
 		selector)
 
-	program := compiler.BuildMakeArray(
+	program := core.MakeArray(
 		&b,
+		core.Int32,
 		normal_x, normal_y, normal_z,
 		color_r, color_g, color_b)
 
@@ -126,25 +116,27 @@ var TestMaterial = sync.OnceValue(func() *Material {
 
 var TestMaterial2 = sync.OnceValue(func() *Material {
 	sea := compiler.NewSea()
-	b := compiler.Builder{
-		Sea:          sea,
-		RewriteRules: material.LowerToMVM,
+	b := &compiler.Rewriter{
+		Sea:   sea,
+		Rules: append(append([]compiler.RewriteRule(nil), mc.CommonRules...), mc.LowerToMVM...),
 	}
 
 	normal := b.Value2(
-		material.OpMVMLoadNormal,
-		compiler.MakeArrayType(compiler.Bits32, 3),
+		mc.OpMVMLoadNormal,
+		core.MakeArrayType(3, core.Int32),
 		nil)
-	normal_x := compiler.BuildArrayExtract(&b, normal, 0)
-	normal_y := compiler.BuildArrayExtract(&b, normal, 1)
-	normal_z := compiler.BuildArrayExtract(&b, normal, 2)
-	_diffuse_r := compiler.BuildConst(&b, compiler.Bits32, int64(math.Float32bits(0.0)))
-	_diffuse_g := compiler.BuildConst(&b, compiler.Bits32, int64(math.Float32bits(0.0)))
-	_diffuse_b := compiler.BuildConst(&b, compiler.Bits32, int64(math.Float32bits(0.0)))
-	_emission_r := compiler.BuildConst(&b, compiler.Bits32, int64(math.Float32bits(10.0)))
-	_emission_g := compiler.BuildConst(&b, compiler.Bits32, int64(math.Float32bits(3.33)))
-	_emission_b := compiler.BuildConst(&b, compiler.Bits32, int64(math.Float32bits(10.0)))
-	_color := compiler.BuildMakeArray(&b,
+	normal_x := core.ArrayExtract(b, normal, 0)
+	normal_y := core.ArrayExtract(b, normal, 1)
+	normal_z := core.ArrayExtract(b, normal, 2)
+	_diffuse_r := core.Const(b, core.Int32, int64(math.Float32bits(0.0)))
+	_diffuse_g := core.Const(b, core.Int32, int64(math.Float32bits(0.0)))
+	_diffuse_b := core.Const(b, core.Int32, int64(math.Float32bits(0.0)))
+	_emission_r := core.Const(b, core.Int32, int64(math.Float32bits(10.0)))
+	_emission_g := core.Const(b, core.Int32, int64(math.Float32bits(3.33)))
+	_emission_b := core.Const(b, core.Int32, int64(math.Float32bits(10.0)))
+	_color := core.MakeArray(
+		b,
+		core.Int32,
 		normal_x, normal_y, normal_z,
 		_diffuse_r, _diffuse_g, _diffuse_b,
 		_emission_r, _emission_g, _emission_b)
@@ -155,7 +147,7 @@ var TestMaterial2 = sync.OnceValue(func() *Material {
 })
 
 func NewMaterial(sea *compiler.Sea, v *compiler.Class) *Material {
-	host, outputs := material.CompileMVMProgram(sea, v)
+	host, outputs := mc.CompileMVMProgram(sea, v)
 
 	device := gpu.MakeSliceUncached[uint32](len(host))
 	copy(device.Value(), host)

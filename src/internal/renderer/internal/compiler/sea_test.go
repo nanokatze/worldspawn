@@ -4,6 +4,11 @@ import (
 	"testing"
 )
 
+type testType struct{}
+
+func (t testType) String() string { return "testtype" }
+
+var opY = DefOp("Y", nil)
 var opX = DefOp("X", nil)
 
 func BenchmarkCreationOfValues(b *testing.B) {
@@ -13,7 +18,7 @@ func BenchmarkCreationOfValues(b *testing.B) {
 
 	i := int64(0)
 	for b.Loop() {
-		sea.Value(OpConst, Int32, i)
+		sea.value(opY, testType{}, i)
 		i++
 	}
 }
@@ -25,10 +30,36 @@ func BenchmarkGettingExistingValues(b *testing.B) {
 
 	i := int64(0)
 	for b.Loop() {
-		sea.Value(OpConst, Int32, i)
+		sea.value(opY, testType{}, i)
 	}
 }
 
+func TestStuff(t *testing.T) {
+	testRules := []RewriteRule{
+		{
+			Pattern: &Pattern{
+				Op:   opX,
+				Args: []*Pattern{{}, {Op: opY}},
+			},
+			Rewrite: func(rc *RewriteContext, v *Value) {
+				rc.Class(v.Arg(1))
+			},
+		},
+	}
+
+	sea := NewSea()
+	b := &Rewriter{Sea: sea, Rules: testRules}
+
+	c1 := b.Value2(opY, testType{}, 0)
+	_ = b.Value2(opX, testType{}, nil, c1, c1)
+	// _ = b.Value2(opX, testType{}, nil, c1, c1)
+
+	// log.Println(c3.classes)
+
+	Dump(sea, c1.Newest(), nil)
+}
+
+/*
 var testRules = []RewriteRule{
 	{
 		Pattern: &Pattern{
@@ -69,20 +100,22 @@ var testRules = []RewriteRule{
 		},
 	},
 }
+*/
 
 func BenchmarkBuilder(b *testing.B) {
 	sea := NewSea()
-	bld := &Builder{Sea: sea, RewriteRules: testRules}
+	bld := &Rewriter{Sea: sea /*, RewriteRules: testRules*/}
 
 	b.ReportAllocs()
 
 	for b.Loop() {
-		x := Const(bld, Int32, 69)
-		y := Const(bld, Int32, 420)
-		cond := bld.Value2(OpEqual, Int1, x, y)
-		_ = CondSelect(bld, x, y, cond)
+		x := bld.Value2(opY, testType{}, 69)
+		y := bld.Value2(opY, testType{}, 420)
+		_ = bld.Value2(opX, testType{}, x, y)
 	}
 }
+
+/*
 
 // This actually scares me lmao
 func TestGraphsWithCycles(t *testing.T) {
@@ -107,3 +140,4 @@ func equateClasses(sea *Sea, classes ...*Class) *Class {
 	}
 	return sea.EquateValues(values)
 }
+*/

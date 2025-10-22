@@ -1,4 +1,4 @@
-package compiler
+package core
 
 /*
 type TupleType struct {

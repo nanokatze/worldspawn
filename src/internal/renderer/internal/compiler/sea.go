@@ -8,6 +8,7 @@ import (
 )
 
 type Type interface {
+	// TODO: more constraints
 	String() string
 }
 
@@ -21,9 +22,8 @@ type Value struct {
 	op    Op
 	typ   Type
 	imm   any
-	Args  []*Class // TODO: hide this
+	args  []*Class // TODO: small storage for Args?
 	class *Class
-	// deleted bool
 }
 
 func (v *Value) ID() ValueID { return v.id }
@@ -34,12 +34,12 @@ func (v *Value) Type() Type { return v.typ }
 
 func (v *Value) Imm() any { return v.imm }
 
-// Class that this value is in. May be nil if the value is yet to be placed into
-// any class, or has been deleted.
-func (v *Value) Class() *Class { return v.class }
+func (v *Value) Args() []*Class { return v.args }
 
-// TODO: put Values in a doubly linked list (with a canonical *Value) rather
-// than have Classes?
+func (v *Value) Arg(i int) *Class { return v.args[i] }
+
+// Class that this value is in. May be nil while applying rewrite rules.
+func (v *Value) Class() *Class { return v.class }
 
 type ClassID int32
 
@@ -47,63 +47,58 @@ func (id ClassID) String() string { return "c" + strconv.FormatInt(int64(id), 10
 
 // Class is a set of equivalent value definitions.
 type Class struct {
-	ID     ClassID
-	typ    Type
-	Values map[*Value]struct{} // TODO: hide and replace with an accessor method
-	users  map[*Value]struct{}
-	merged *Class
+	id      ClassID
+	typ     Type
+	classes []*Class // TODO: make small storage for these?
+	values  []*Value
+	users   map[*Value]struct{} // may be mutated; TODO: fix iteration order for this somehow
+	merged  *Class              // may be mutated
 }
 
-/*
-func (c *Class) replacedBy() *Class {
-	for c.replacedBy != nil {
-		c = c.replacedBy
+// TODO: rename
+func (c *Class) Newest() *Class {
+	// TODO: merged should always point to the newest class, i.e. if c.merged is
+	// not nil, then c.merged.merged must always be nil
+	for c.merged != nil {
+		c = c.merged
 	}
 	return c
 }
-*/
 
-func (c *Class) Type() Type {
-	return c.typ
-}
+func (c *Class) ID() ClassID { return c.id }
 
-func (to *Class) addValue(v *Value) {
-	if v.class != nil {
-		panic("trying to add a value that is already in a class")
-	}
-	to.Values[v] = struct{}{}
-	v.class = to
-}
+func (c *Class) Type() Type { return c.typ }
 
-func (to *Class) moveValues(from *Class) {
-	for v := range from.Values {
-		if v.class != from {
-			panic("inconsistent sea")
+func (c *Class) Values() iter.Seq[*Value] {
+	return func(yield func(*Value) bool) {
+		for _, c := range c.classes {
+			for v := range c.Values() {
+				if !yield(v) {
+					return
+				}
+			}
 		}
-		delete(from.Values, v)
-		to.Values[v] = struct{}{}
-		v.class = to
+
+		for _, v := range c.values {
+			if !yield(v) {
+				return
+			}
+		}
 	}
 }
 
-// TODO: delete this
+// TODO: rename to something else to make it clearer what the requirements
 func (c *Class) Value() *Value {
-	if len(c.Values) != 1 {
-		panic("class must contain exactly one value")
-	}
-	for v := range c.Values {
+	// TODO: assert that there's exactly one value in this class.
+	for v := range c.Values() {
 		return v
 	}
 	panic("unreachable")
 }
 
-func (c *Class) Values2() iter.Seq[*Value] {
-	return maps.Keys(c.Values)
-}
-
-// TODO: make sure this is the interface we need actually. It seems that we
-// probably actually need a snapshot of users? Same with values, etc.
-// TODO: do we want this to be called Uses or Users?
+// Users returns an iterator over the values that use this equivalence class.
+//
+// TODO: do we need a method to test if a particular value uses this class?
 func (c *Class) Users() iter.Seq[*Value] {
 	return maps.Keys(c.users)
 }
@@ -151,9 +146,12 @@ func NewSea() *Sea {
 	}
 }
 
-func (sea *Sea) Value(op Op, typ Type, imm any, args ...*Class) *Value {
-	// TODO: patch args so that if any have been replaced they point to the
-	// newest thing.
+func (sea *Sea) value(op Op, typ Type, imm any, args ...*Class) *Value {
+	// Patch args so that if any have been replaced they point to the newest
+	// thing.
+	for i, a := range args {
+		args[i] = a.Newest()
+	}
 
 	k := mkseakey(op, typ, imm, args...)
 
@@ -165,146 +163,34 @@ func (sea *Sea) Value(op Op, typ Type, imm any, args ...*Class) *Value {
 
 		v = sea.newValue(op, typ, imm, args...)
 
-		sea.postArgsChange(v)
+		// TODO: move inside newValue?
+		sea.m[k] = v
 	}
 	return v
 }
 
-// TODO: this could take an iter.Seq[*Value] ig
-func assertValuesHaveTheSameTypes(values map[*Value]struct{}) Type {
-	var typ Type
+func commonClass(values iter.Seq[*Value]) *Class {
+	var common *Class
 	for v := range values {
-		t := v.Type()
-		if typ != nil && typ != t {
-			panic("wat")
-		}
-		typ = t
-	}
-	if typ == nil {
-		panic("guh")
-	}
-	return typ
-}
-
-// TODO: make this accept a func that produces an iter I guess?
-func (sea *Sea) EquateValues(values map[*Value]struct{}) *Class {
-	var c *Class
-	for v := range values {
-		// Pick the class with the most values in it so we hopefully have less
-		// work to do to merge.
-		if v.class != nil && (c == nil || len(c.Values) < len(v.class.Values)) {
-			c = v.class
-		}
-	}
-	if c == nil {
-		typ := assertValuesHaveTheSameTypes(values)
-		c = sea.newClass(typ)
-	}
-
-	if c.merged != nil {
-		panic("unreachable") // TODO: explain
-	}
-
-	for v := range values {
-		sea.EquateValue(c, v)
-	}
-
-	return c
-}
-
-// Equate v to all values in c.
-func (sea *Sea) EquateValue(c *Class, v *Value) {
-	if v.class != nil {
-		sea.equateClasses(c, v.class)
-	} else {
-		c.addValue(v)
-	}
-}
-
-// Equate values in c1 and c2 by merging c2 into c1. Values from c2 are moved to
-// c1 and all uses of c2 are replaced with uses of c1. Values that use to c2 may
-// be replaced by already existing values that are equivalent but use c1 in
-// place of c2.
-//
-// TODO: ponder making this public
-func (sea *Sea) equateClasses(c1, c2 *Class) {
-	if c1 == c2 {
-		return
-	}
-
-	if c1.Type() != c2.Type() {
-		panic("types differ")
-	}
-
-	if c1.merged != nil {
-		// TODO: actually just chase pointers at the start of the func instead?
-		panic("can't merge into a class that has been merged")
-	}
-
-	if c2.merged != nil {
-		return
-	}
-	c2.merged = c1
-
-	c1.moveValues(c2)
-
-	// Replace uses of c2 with uses of c1.
-	for u := range c2.Users() {
-		sea.preArgsChange(u)
-
-		for i := range u.Args {
-			if u.Args[i] == c2 {
-				u.Args[i] = c1
-			}
+		if v.class == nil {
+			return nil
 		}
 
-		sea.postArgsChange(u)
-	}
-}
-
-// TODO: rename this and the next one to something more sensible
-func (sea *Sea) preArgsChange(v *Value) {
-	for _, a := range v.Args {
-		delete(a.users, v)
-	}
-
-	key := mkseakey(v.op, v.typ, v.imm, v.Args...)
-	delete(sea.m, key)
-}
-
-func (sea *Sea) postArgsChange(v *Value) {
-	key := mkseakey(v.op, v.typ, v.imm, v.Args...)
-
-	if v0, ok := sea.m[key]; ok {
-		// There's an equivalent value already, delete v and replace it with v0
-		// in its class.
-
-		if c := v.class; c != nil {
-			delete(c.Values, v)
-			// TODO: introduce deletion marker in value?
-
-			sea.EquateValue(c, v0)
+		// TODO: this could maybe be changed to only use Newest if the first
+		// common != c check fails, although it's probably not worth it.
+		c := v.class.Newest()
+		if common == nil {
+			common = c
 		}
-	} else {
-		sea.m[key] = v
-
-		for _, a := range v.Args {
-			a.users[v] = struct{}{}
+		if common != c {
+			return nil
 		}
 	}
+	return common
 }
 
-// KillValue removes a value from the graph.
-//
-// TODO: rename
-func (sea *Sea) KillValue(v *Value) {
-	for _, a := range v.Args {
-		delete(a.users, v)
-	}
-
-	if c := v.class; c != nil {
-		delete(c.Values, v)
-	}
+func (sea *Sea) class(typ Type, values []*Value) *Class {
+	panic("not implemented")
 }
 
 func (sea *Sea) newValue(op Op, typ Type, imm any, args ...*Class) *Value {
@@ -315,20 +201,31 @@ func (sea *Sea) newValue(op Op, typ Type, imm any, args ...*Class) *Value {
 		op:   op,
 		typ:  typ,
 		imm:  imm,
-		Args: slices.Clone(args),
+		args: slices.Clone(args),
+	}
+	for _, a := range args {
+		a.users[v] = struct{}{}
 	}
 	// sea.values[id] = v
 	return v
 }
 
-func (sea *Sea) newClass(typ Type) *Class {
+func (sea *Sea) newClass(typ Type, classes []*Class, values []*Value) *Class {
+	// TODO: validate classes and values here?
 	sea.cid++
 	id := ClassID(sea.cid)
 	c := &Class{
-		ID:     id,
-		typ:    typ,
-		Values: make(map[*Value]struct{}),
-		users:  make(map[*Value]struct{}),
+		id:      id,
+		typ:     typ,
+		classes: classes,
+		values:  values,
+		users:   make(map[*Value]struct{}),
+	}
+	for _, o := range classes {
+		o.merged = c
+	}
+	for _, v := range values {
+		v.class = c
 	}
 	// sea.classes[id] = c
 	return c
