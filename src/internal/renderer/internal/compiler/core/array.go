@@ -27,21 +27,21 @@ func (typ ArrayType) String() string { return fmt.Sprintf("[%d]%v", typ.len, typ
 var OpMakeArray = compiler.DefOp("MakeArray", validateMakeArray)
 
 // TODO: make this take elem type explicitly?
-func MakeArray(b *compiler.Rewriter, et compiler.Type, args ...*compiler.Class) *compiler.Class {
+func MakeArray(b *compiler.Builder, et compiler.Type, args ...*compiler.Class) *compiler.Class {
 	t := MakeArrayType(int64(len(args)), et)
 	return b.Value2(OpMakeArray, t, nil, args...)
 }
 
 var OpArrayExtract = compiler.DefOp("ArrayExtract", validateArrayExtract)
 
-func ArrayExtract(b *compiler.Rewriter, arr *compiler.Class, idx int64) *compiler.Class {
+func ArrayExtract(b *compiler.Builder, arr *compiler.Class, idx int64) *compiler.Class {
 	return b.Value2(OpArrayExtract, arr.Type().(ArrayType).Elem(), idx, arr)
 }
 
 func init() {
 	Rules = append(Rules,
 		compiler.RewriteRule{
-			Name: "Forward an array element",
+			Name: "Forward ArrayExtract to the element's definition",
 			Pattern: &compiler.Pattern{
 				Op:   OpArrayExtract,
 				Args: []*compiler.Pattern{{Op: OpMakeArray, ArgsDDD: true}},

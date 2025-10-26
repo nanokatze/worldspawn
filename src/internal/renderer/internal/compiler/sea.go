@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"cmp"
 	"iter"
 	"maps"
 	"slices"
@@ -189,10 +190,44 @@ func commonClass(values iter.Seq[*Value]) *Class {
 	return common
 }
 
-func (sea *Sea) class(typ Type, values []*Value) *Class {
-	panic("not implemented")
+// BUG: right now we mutate values, but really shouldn't.
+// TODO: we also should probably take a func or interface to get an iterator
+// from rather than hardcode map[*Value]bool, and force filtering onto the
+// caller.
+func (sea *Sea) class(typ Type, values map[*Value]bool) *Class {
+	for v, keep := range values {
+		if !keep {
+			delete(values, v)
+		}
+	}
+
+	if c := commonClass(maps.Keys(values)); c != nil {
+		return c
+	}
+
+	// kinda gross
+	var values2 []*Value
+	var classes2 []*Class
+	seenc := make(map[*Class]struct{})
+	for v := range values {
+		if c := v.class; c != nil {
+			if _, ok := seenc[c]; !ok {
+				seenc[c] = struct{}{}
+				classes2 = append(classes2, c)
+			}
+		} else {
+			values2 = append(values2, v)
+		}
+	}
+
+	slices.SortFunc(values2, func(a, b *Value) int { return cmp.Compare(a.ID(), b.ID()) })
+	slices.SortFunc(classes2, func(a, b *Class) int { return cmp.Compare(a.ID(), b.ID()) })
+
+	return sea.newClass(typ, classes2, values2)
 }
 
+// TODO: force cloning of args onto the caller and just have newValue always
+// take the ownership?
 func (sea *Sea) newValue(op Op, typ Type, imm any, args ...*Class) *Value {
 	sea.vid++
 	id := ValueID(sea.vid)
@@ -211,7 +246,10 @@ func (sea *Sea) newValue(op Op, typ Type, imm any, args ...*Class) *Value {
 }
 
 func (sea *Sea) newClass(typ Type, classes []*Class, values []*Value) *Class {
-	// TODO: validate classes and values here?
+	if len(classes) < 2 && len(values) == 0 {
+		panic("useless")
+	}
+
 	sea.cid++
 	id := ClassID(sea.cid)
 	c := &Class{

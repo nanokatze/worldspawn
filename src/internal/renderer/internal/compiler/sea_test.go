@@ -48,7 +48,7 @@ func TestStuff(t *testing.T) {
 	}
 
 	sea := NewSea()
-	b := &Rewriter{Sea: sea, Rules: testRules}
+	b := &Builder{Sea: sea, Rules: testRules}
 
 	c1 := b.Value2(opY, testType{}, 0)
 	_ = b.Value2(opX, testType{}, nil, c1, c1)
@@ -104,7 +104,7 @@ var testRules = []RewriteRule{
 
 func BenchmarkBuilder(b *testing.B) {
 	sea := NewSea()
-	bld := &Rewriter{Sea: sea /*, RewriteRules: testRules*/}
+	bld := &Builder{Sea: sea /*, RewriteRules: testRules*/}
 
 	b.ReportAllocs()
 

@@ -26,6 +26,3 @@ func DefOp(name string, validate ValidationFunc) Op {
 }
 
 func (op Op) String() string { return opNames[op] }
-
-// TODO: for perf we could also mark ops as commutative. That would save us from
-// exploding e.g. IAdd into two instructions every time.

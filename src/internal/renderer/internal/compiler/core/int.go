@@ -28,7 +28,7 @@ var OpConst = compiler.DefOp("Const",
 		_ = imm.(int64)
 	})
 
-func Const(b *compiler.Rewriter, typ compiler.Type, imm int64) *compiler.Class {
+func Const(b *compiler.Builder, typ compiler.Type, imm int64) *compiler.Class {
 	return b.Value2(OpConst, typ, imm)
 }
 

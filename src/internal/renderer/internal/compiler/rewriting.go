@@ -1,20 +1,19 @@
 package compiler
 
 import (
-	"cmp"
 	"fmt"
-	"maps"
-	"slices"
 )
 
 // TODO: rename?
+// TODO: split this out into two objects, one that keeps the state for
+// rewriting, and one that gets passed to Rewrite function
 type RewriteContext struct {
-	b     *Rewriter
+	b     *Builder
 	seen  map[*Value]bool
 	stack []*Value
 }
 
-func (r *RewriteContext) B() *Rewriter { return r.b }
+func (r *RewriteContext) B() *Builder { return r.b }
 
 // TODO: methods for killing the matched value? I guess actually we could make
 // seen a map[*Value]bool and set it to false for killed values.
@@ -39,6 +38,20 @@ func (r *RewriteContext) add(v *Value) {
 	r.stack = append(r.stack, v)
 }
 
+// TODO: rename?
+func (rc *RewriteContext) applyRules() {
+	for len(rc.stack) > 0 {
+		v := rc.stack[len(rc.stack)-1]
+		rc.stack = rc.stack[:len(rc.stack)-1]
+
+		for _, rule := range rc.b.Rules {
+			if rule.Pattern.Match(v) {
+				rule.Rewrite(rc, v)
+			}
+		}
+	}
+}
+
 type RewriteRule struct {
 	Name    string
 	Pattern *Pattern
@@ -52,11 +65,8 @@ func Commutativity(op Op) RewriteRule {
 	return RewriteRule{
 		Name: fmt.Sprintf("%v commutativity", op),
 		Pattern: &Pattern{
-			Op: op,
-			Args: []*Pattern{
-				{},
-				{},
-			},
+			Op:   op,
+			Args: []*Pattern{{}, {}},
 		},
 		Rewrite: func(rc *RewriteContext, v *Value) {
 			rc.Add2(v.Op(), v.Type(), v.Imm(), v.Arg(1), v.Arg(0))
@@ -81,13 +91,13 @@ func Associativity(op Op) RewriteRule {
 }
 */
 
-type Rewriter struct {
+type Builder struct {
 	Sea   *Sea
 	Rules []RewriteRule
 }
 
 // TODO: rename to Build? just Value?
-func (b *Rewriter) Value2(op Op, typ Type, imm any, args ...*Class) *Class {
+func (b *Builder) Value2(op Op, typ Type, imm any, args ...*Class) *Class {
 	// TODO: reuse this with a sync.Pool
 	rc := &RewriteContext{
 		b:    b,
@@ -96,54 +106,45 @@ func (b *Rewriter) Value2(op Op, typ Type, imm any, args ...*Class) *Class {
 
 	rc.Add2(op, typ, imm, args...)
 
-	for len(rc.stack) > 0 {
-		v := rc.stack[len(rc.stack)-1]
-		rc.stack = rc.stack[:len(rc.stack)-1]
+	rc.applyRules()
 
-		for _, rule := range b.Rules {
-			if rule.Pattern.Match(v) {
-				rule.Rewrite(rc, v)
+	return rc.b.Sea.class(typ, rc.seen)
+}
+
+func Rewrite(b *Builder, c *Class) *Class {
+	// TODO: see if we can rewrite this non-recursively
+
+	visited := make(map[*Class]*Class)
+
+	var f func(c *Class) *Class
+	f = func(c *Class) *Class {
+		if x, ok := visited[c]; ok {
+			return x
+		}
+
+		rc := &RewriteContext{
+			b:    b,
+			seen: make(map[*Value]bool),
+		}
+		for v := range c.Values() {
+			// TODO: factor out remapping the args. This also would come in
+			// useful in Sea.value.
+			args := make([]*Class, len(v.Args()))
+			for i := range args {
+				args[i] = f(v.Arg(i))
 			}
+			// Go through value creation path, as we don't know whether it's
+			// from the same sea or not.
+			rc.Add2(v.Op(), v.Type(), v.Imm(), args...)
 		}
+		rc.applyRules()
+
+		// TODO: factor this out into a method on RewriteContext, possibly fold
+		// into applyRules
+		x := rc.b.Sea.class(c.Type(), rc.seen)
+
+		visited[c] = x
+		return x
 	}
-
-	// TODO: move all of the following code into Sea.class method
-	// TODO: if it turns out having the rules kill the current rewritten value
-	// doesn't work that well, we can go back to using the seen set and just
-	// sort the values.
-
-	for v, keep := range rc.seen {
-		if !keep {
-			delete(rc.seen, v)
-		}
-	}
-
-	if c := commonClass(maps.Keys(rc.seen)); c != nil {
-		return c
-	}
-
-	// kinda gross?
-	var values2 []*Value
-	var classes2 []*Class
-	seenc := make(map[*Class]struct{})
-	for v := range rc.seen {
-		if c := v.class; c != nil {
-			if _, ok := seenc[c]; !ok {
-				seenc[c] = struct{}{}
-				classes2 = append(classes2, c)
-			}
-		} else {
-			values2 = append(values2, v)
-		}
-	}
-
-	slices.SortFunc(values2, func(a, b *Value) int { return cmp.Compare(a.ID(), b.ID()) })
-	slices.SortFunc(classes2, func(a, b *Class) int { return cmp.Compare(a.ID(), b.ID()) })
-
-	// TODO: move this assertion inside newClass?
-	if len(values2) == 0 && len(classes2) < 2 {
-		panic("useless")
-	}
-
-	return rc.b.Sea.newClass(typ, classes2, values2)
+	return f(c)
 }
