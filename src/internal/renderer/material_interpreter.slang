@@ -91,10 +91,6 @@ evalLoop:
         let src0 = (instrw >> 16) & 0xff;
         let src1 = (instrw >> 24) & 0xff;
 
-        // TODO: reorganize instr encoding to be hierarchical, with the first
-        // step being basically "instruction template" and ops following. So
-        // e.g. we'd have a enum Opc and we'd have the following Opcs: Stop,
-        // DstImm32, DstOneSrc, DstTwoSrc, PredTwoSrc, ...
         switch (op) {
         default:
             // abort();
