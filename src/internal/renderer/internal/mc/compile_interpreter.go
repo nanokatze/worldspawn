@@ -6,12 +6,37 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"time"
 
 	"worldspawn/internal/renderer/internal/compiler"
 	"worldspawn/internal/renderer/internal/compiler/core"
 )
 
-// TODO: I guess rename to MVM to MatVM? Or MATVM
+// TODO: move these definitions to interpreter package really tbh
+// TODO: rename these enums to make it clear that it's some kind of "id" table
+// used by interpreter
+type BSDF int8
+
+const (
+	_ BSDF = iota
+	BSDFDiffuse
+)
+
+type EDF int8
+
+const (
+	_ EDF = iota
+	EDFUniform
+)
+
+// TODO: rename to InterpretedMaterialOutputLayout or something
+// TODO: make it a string so it's hashable?
+type InterpretedMaterialOutputLayout struct {
+	BSDFOff int // the slot containing the first
+	BSDFs   []BSDF
+	EDFOff  int
+	EDFs    []EDF
+}
 
 type assembler struct {
 	code []uint32
@@ -38,67 +63,77 @@ var amap = make(map[compiler.Op]aaa)
 // TODO: make aaa an interface so we don't need to cram everything into the same
 // function. We wanna make it an interface so that we can also implement
 // validation this way
-func defMVMOp(name string, a aaa) compiler.Op {
+func defInterpreterOp(name string, a aaa) compiler.Op {
 	op := compiler.DefOp(name, nil)
 	amap[op] = a
 	return op
 }
 
+// Adding a new instruction
+//
+// No instruction should ever take an array-typed operand. Instructions instead
+// should take scalar values and register assignment needs to be aware of how to
+// assign registers for operands that must be in adjacent registers and
+// assembler needs to be able to insert copies before an instruction to get
+// things in a suitable location.
 var (
-	opMVMConst32 = defMVMOp("MVMConst32",
+	opMVMConst32 = defInterpreterOp("MVMConst32",
 		aaa{a: AConst32, dst: true, imm: true})
 
-	opMVMFAddE8M23 = defMVMOp("MVMFAddE8M23",
+	opMVMFAddE8M23 = defInterpreterOp("MVMFAddE8M23",
 		aaa{a: AFAddE8M23, dst: true, arity: 2})
-	opMVMFSubE8M23 = defMVMOp("MVMFSubE8M23",
+	opMVMFSubE8M23 = defInterpreterOp("MVMFSubE8M23",
 		aaa{a: AFSubE8M23, dst: true, arity: 2})
-	opMVMFMulE8M23 = defMVMOp("MVMFMulE8M23",
+	opMVMFMulE8M23 = defInterpreterOp("MVMFMulE8M23",
 		aaa{a: AFMulE8M23, dst: true, arity: 2})
-	opMVMFDivE8M23 = defMVMOp("MVMFDivE8M23",
+	opMVMFDivE8M23 = defInterpreterOp("MVMFDivE8M23",
 		aaa{a: AFDivE8M23, dst: true, arity: 2})
-	opMVMFMinE8M23 = defMVMOp("MVMFMinE8M23",
+	opMVMFMinE8M23 = defInterpreterOp("MVMFMinE8M23",
 		aaa{a: AFMinE8M23, dst: true, arity: 2})
-	opMVMFMaxE8M23 = defMVMOp("MVMFMaxE8M23",
+	opMVMFMaxE8M23 = defInterpreterOp("MVMFMaxE8M23",
 		aaa{a: AFMaxE8M23, dst: true, arity: 2})
 
-	opMVMFFloorE8M23 = defMVMOp("MVMFFloorE8M23",
+	opMVMFFloorE8M23 = defInterpreterOp("MVMFFloorE8M23",
 		aaa{a: AFFloorE8M23, dst: true, arity: 1})
 
 	// blender materials actually don't have LessOrEqual, they only have less.
-	OpMVMFLessOrEqualE8M23 = defMVMOp("MVMFLessOrEqualE8M23",
+	OpMVMFLessOrEqualE8M23 = defInterpreterOp("MVMFLessOrEqualE8M23",
 		aaa{a: AFLessOrEqualE8M23, dst: true, arity: 2})
 
-	opMVMCondSelect32 = defMVMOp("MVMCondSelect32",
+	opMVMCondSelect32 = defInterpreterOp("MVMCondSelect32",
 		aaa{a: ACondSelect32, dst: true, arity: 3})
 
 	// TODO: rename these s/Load/Get/? We usually only use Load for stuff that
 	// takes rmem.
 
-	OpMVMLoadParam = defMVMOp("MVMLoadParam",
+	OpMVMLoadParam = defInterpreterOp("MVMLoadParam",
 		aaa{a: ALoadParam, dst: true, imm: true})
 
-	OpMVMLoadAttr = defMVMOp("MVMLoadAttr",
+	OpMVMLoadAttr = defInterpreterOp("MVMLoadAttr",
 		aaa{a: ALoadAttr, dst: true, imm: true})
 
-	OpMVMLoadNormal = defMVMOp("MVMLoadNormal",
+	OpMVMLoadNormal = defInterpreterOp("MVMLoadNormal",
 		aaa{a: ALoadNormal, dst: true})
 
 	// TODO: we'll want an instruction per BSDF probably...
-	// OpMVMBSDFAlbedo
+	// OpMVMBSDFDiffuseAlbedo
 
-	// TODO: rename to MakeVec?
-	opMVMPseudoMakeArray = defMVMOp("MVMPseudoMakeArray",
+	// TODO: rename to something better like OutputValues or idk
+	//
+	// BSDF tints
+	// BSDF parameters
+	// EDF tints
+	// EDF parameters
+	OpMVMPseudoOutput = defInterpreterOp("MVMPseudoOutput",
 		aaa{special: true})
-	opMVMPseudoArrayExtract = defMVMOp("MVMPseudoArrayExtract",
+
+	opMVMPseudoArrayExtract = defInterpreterOp("MVMPseudoArrayExtract",
 		aaa{special: true})
 )
 
-func lower(arity int, match compiler.Op, _32 compiler.Op) compiler.RewriteRule {
+func lowerFloatArith(match compiler.Op, _32 compiler.Op) compiler.RewriteRule {
 	return compiler.RewriteRule{
-		Pattern: &compiler.Pattern{
-			Op:   match,
-			Args: slices.Repeat([]*compiler.Pattern{{}}, arity),
-		},
+		Pattern: &compiler.Pattern{Op: match, ArgsDDD: true},
 		Rewrite: func(rc *compiler.RewriteContext, v *compiler.Value) {
 			bits := v.Type().(core.IntType).N
 			switch bits {
@@ -112,12 +147,9 @@ func lower(arity int, match compiler.Op, _32 compiler.Op) compiler.RewriteRule {
 	}
 }
 
-func lowerCmp(match compiler.Op, _32 compiler.Op) compiler.RewriteRule {
+func lowerFloatCmp(match compiler.Op, _32 compiler.Op) compiler.RewriteRule {
 	return compiler.RewriteRule{
-		Pattern: &compiler.Pattern{
-			Op:   match,
-			Args: slices.Repeat([]*compiler.Pattern{{}}, 2),
-		},
+		Pattern: &compiler.Pattern{Op: match, ArgsDDD: true},
 		Rewrite: func(rc *compiler.RewriteContext, v *compiler.Value) {
 			bits := v.Type().(core.IntType).N
 			switch bits {
@@ -133,36 +165,13 @@ func lowerCmp(match compiler.Op, _32 compiler.Op) compiler.RewriteRule {
 	}
 }
 
-// TODO: kill
-var CommonRules = core.Rules
-
-// TODO: make private
-var LowerToMVM = []compiler.RewriteRule{
+var LowerToInterpreter = []compiler.RewriteRule{
 	{
-		Pattern: &compiler.Pattern{
-			Op:      OpMakeArray,
-			ArgsDDD: true,
-		},
-		Rewrite: func(rc *compiler.RewriteContext, v *compiler.Value) {
-			rc.Add2(opMVMPseudoMakeArray, v.Type(), nil, v.Args()...)
-		},
-	},
-	{
-		Pattern: &compiler.Pattern{
-			Op:   OpArrayExtract,
-			Args: []*compiler.Pattern{{}},
-		},
-		Rewrite: func(rc *compiler.RewriteContext, v *compiler.Value) {
-			rc.Add2(opMVMPseudoArrayExtract, v.Type(), uint32(v.Imm().(int64)), v.Args()...)
-		},
-	},
-	{
-		Pattern: &compiler.Pattern{
-			Op: OpConst,
-		},
+		Name:    "Lower Const",
+		Pattern: &compiler.Pattern{Op: OpIConst},
 		Rewrite: func(rc *compiler.RewriteContext, v *compiler.Value) {
 			bits := v.Type().(core.IntType).N
-			imm := v.Imm().(int64) // TODO: switch const to immutable bigint
+			imm := v.Imm().(int64)
 			switch bits {
 			case 32:
 				rc.Add2(opMVMConst32, v.Type(), uint32(imm))
@@ -172,19 +181,23 @@ var LowerToMVM = []compiler.RewriteRule{
 			}
 		},
 	},
-	lower(2, OpFSub, opMVMFSubE8M23),
-	lower(2, OpFMin, opMVMFMinE8M23),
-	lower(1, OpFFloor, opMVMFFloorE8M23),
-	lowerCmp(OpFLessOrEqual, OpMVMFLessOrEqualE8M23),
+
+	{
+		Pattern: &compiler.Pattern{Op: OpArrayExtract, Args: []*compiler.Pattern{{}}},
+		Rewrite: func(rc *compiler.RewriteContext, v *compiler.Value) {
+			rc.Add2(opMVMPseudoArrayExtract, v.Type(), uint32(v.Imm().(int64)), v.Args()...)
+		},
+	},
+	lowerFloatArith(OpFSub, opMVMFSubE8M23),
+	lowerFloatArith(OpFMin, opMVMFMinE8M23),
+	lowerFloatArith(OpFFloor, opMVMFFloorE8M23),
+	lowerFloatCmp(OpFLessOrEqual, OpMVMFLessOrEqualE8M23),
 
 	// TODO: we'll make OpCondSelect's cond 1-bit, while MVMCondSelect32's is
 	// 32-bit, so we'll need to consider that when lowering
 	{
-		Name: "Lower CondSelect",
-		Pattern: &compiler.Pattern{
-			Op:   OpCondSelect,
-			Args: []*compiler.Pattern{{}, {}, {}},
-		},
+		Name:    "Lower CondSelect",
+		Pattern: &compiler.Pattern{Op: OpCondSelect, Args: []*compiler.Pattern{{}, {}, {}}},
 		Rewrite: func(rc *compiler.RewriteContext, v *compiler.Value) {
 			bits, ok := v.Type().(core.IntType)
 			if !ok {
@@ -199,6 +212,48 @@ var LowerToMVM = []compiler.RewriteRule{
 			}
 		},
 	},
+
+	/*
+		{
+			Name:    "Lower DFComposition",
+			Pattern: &compiler.Pattern{Op: OpDFComposition, ArgsDDD: true},
+			Rewrite: func(rc *compiler.RewriteContext, v *compiler.Value) {
+				b := rc.B()
+
+				var args []*compiler.Class
+
+				for i := range len(v.Args()) / 2 {
+					tint := v.Arg(2*i + 0)
+
+					tint_r := core.ArrayExtract(b, tint, 0)
+					tint_g := core.ArrayExtract(b, tint, 1)
+					tint_b := core.ArrayExtract(b, tint, 2)
+
+					args = append(args, tint_r, tint_g, tint_b)
+				}
+
+				for i := range len(v.Args()) / 2 {
+					df := v.Arg(2*i + 1).Value()
+
+					switch df.Op() {
+					case OpDiffuseBSDF:
+						n := df.Arg(0)
+						n_x := core.ArrayExtract(b, n, 0)
+						n_y := core.ArrayExtract(b, n, 1)
+						n_z := core.ArrayExtract(b, n, 2)
+						args = append(args, n_x, n_y, n_z)
+
+					case OpUniformEDF:
+
+					default:
+						panic("oh no")
+					}
+				}
+
+				rc.Add2(OpMVMPseudoOutput, core.MakeArrayType(int64(len(args)), core.Int32), nil, args...)
+			},
+		},
+	*/
 }
 
 func cost(v *compiler.Value) int {
@@ -211,7 +266,9 @@ func cost(v *compiler.Value) int {
 	return 1
 }
 
-func extract2(b *compiler.Rewriter, c *compiler.Class, extracted map[*compiler.Class]*compiler.Class) *compiler.Class {
+func extract2(b *compiler.Builder, c *compiler.Class, extracted map[*compiler.Class]*compiler.Class) *compiler.Class {
+	// TODO: this can lead to infinite loops if not done carefully, explain why
+	// it's ok here and possibly rewrite extractor to not use Newest().
 	c = c.Newest()
 
 	if x, ok := extracted[c]; ok {
@@ -243,32 +300,36 @@ func extract2(b *compiler.Rewriter, c *compiler.Class, extracted map[*compiler.C
 	return x
 }
 
-// TODO: rename to CompileToMatVM? Or have a single compile entry point, with
-// different targets being specified by an enum or string or whatever.
-func CompileMVMProgram(sea *compiler.Sea, c *compiler.Class) ([]uint32, int) {
-	// TODO: lower v with LowerToMVM. We'd probably want to make a copy
-	// of v? Or push doing the copy onto the user.
+type InterpretedMaterial struct {
+	Code                []uint32
+	InterpretationTable InterpretedMaterialOutputLayout
+	Outputs             int
+}
+
+const (
+	TargetInterpreter = 1
+	// TargetVulkanSpv
+)
+
+// TODO: add a way to identify the target
+// TODO: return a container object
+func Compile(sea *compiler.Sea, c *compiler.Class, target int) *InterpretedMaterial {
+	t0 := time.Now()
+	defer func() { log.Println("Compile", time.Since(t0)) }()
 
 	log.Println("input")
 	compiler.Dump(sea, c, nil)
 
 	sea2 := compiler.NewSea()
 
-	x := extract2(&compiler.Rewriter{Sea: sea2}, c, make(map[*compiler.Class]*compiler.Class))
+	x := extract2(&compiler.Builder{Sea: sea2}, c, make(map[*compiler.Class]*compiler.Class))
 
-	log.Println("extraction")
-	compiler.Dump(sea2, x, nil)
+	// log.Println("extraction")
+	// compiler.Dump(sea2, x, nil)
 
 	sched := schedule2(x)
 
 	regm := regassign3(sched)
-
-	/*
-		compiler.Dump(sea, c, func(c *compiler.Class) string {
-			return regm[c].String()
-			// return fmt.Sprintf("%v@%v", c.ID, regm[c])
-		})
-	*/
 
 	for _, c := range sched {
 		v := c.Value()
@@ -310,7 +371,16 @@ func CompileMVMProgram(sea *compiler.Sea, c *compiler.Class) ([]uint32, int) {
 		fmt.Fprintln(os.Stderr)
 	}
 
-	return assembled, regm[x].I
+	itable := x.Value().Imm().(*InterpretedMaterialOutputLayout)
+
+	// itable.BSDFOff
+
+	// return assembled, regm[x].I
+	return &InterpretedMaterial{
+		Code:                assembled,
+		InterpretationTable: *itable,
+		Outputs:             regm[x].I,
+	}
 }
 
 func assemble(schedule []*compiler.Class, regm map[*compiler.Class]regRange) []uint32 {
@@ -347,7 +417,7 @@ func assemble(schedule []*compiler.Class, regm map[*compiler.Class]regRange) []u
 				instrs = append(instrs, v.Imm().(uint32))
 			}
 
-		case opMVMPseudoMakeArray:
+		case OpMVMPseudoOutput:
 			// TODO: implement this as parallel copy. Right now, regassign
 			// assigns registers in a way that there are no conflicts.
 

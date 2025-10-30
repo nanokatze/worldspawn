@@ -120,10 +120,29 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 		for partIdx, part := range mesh.parts {
 			material := dirty.Materials[instanceIdx][partIdx]
 
+			var bsdfs [4]uint8
+			for i, num := range material.Material.interpretationTable.BSDFs {
+				bsdfs[i] = uint8(num)
+			}
+
+			var edfs [1]uint8
+			for i, num := range material.Material.interpretationTable.EDFs {
+				edfs[i] = uint8(num)
+			}
+
 			materialParamsHost[instanceIdx*scene.maxPartsPerMesh+partIdx] = materialParams{
-				Code:         gpu.SliceData(material.Material.code),
-				EmissionCode: gpu.SliceData(material.Material.emissive),
-				OutputsReg:   material.Material.outputs,
+				Code: gpu.SliceData(material.Material.code),
+
+				BSDFs:     bsdfs,
+				BSDFCount: uint8(len(material.Material.interpretationTable.BSDFs)),
+				BSDFsOff:  uint8(material.Material.interpretationTable.BSDFOff),
+
+				EDFs:     edfs,
+				EDFCount: uint8(len(material.Material.interpretationTable.EDFs)),
+				EDFsOff:  uint8(material.Material.interpretationTable.EDFOff),
+
+				OutputsReg: uint32(material.Material.outputsReg),
+
 				Triangles:    gpu.SliceData(part.IndexBuffer),
 				NumTriangles: uint32(gpu.SliceLen(part.IndexBuffer)),
 				PosBuffer:    gpu.SliceData(part.PosBuffer),
@@ -136,7 +155,7 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 			// TODO: we should build an emissive blas and when instancing it
 			// we'll enable/disable geometries (by specifying emission power for
 			// those geometries)
-			if material.Material.emissive != (gpu.Slice[uint32]{}) {
+			if material.Material.emissive() {
 				materialParamsHost[instanceIdx*scene.maxPartsPerMesh+partIdx].Emission = material.Emission
 
 				emissiveInstancesHost[emissiveInstanceCount] = emissiveInstance{

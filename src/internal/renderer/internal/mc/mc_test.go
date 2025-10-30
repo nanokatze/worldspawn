@@ -1,22 +1,29 @@
 package mc
 
 import (
+	"log"
 	"math"
 	"testing"
+	"time"
 
 	"worldspawn/internal/renderer/internal/compiler"
 	"worldspawn/internal/renderer/internal/compiler/core"
 )
 
+var allRules = append(append([]compiler.RewriteRule(nil), core.Rules...), LowerToInterpreter...)
+
 func TestXxx(t *testing.T) {
+	t0 := time.Now()
+	defer func() { log.Println("Create IR and Compile", time.Since(t0)) }()
+
 	sea := compiler.NewSea()
 
 	b := &Builder{
 		Sea:   sea,
-		Rules: append(append([]compiler.RewriteRule(nil), CommonRules...), LowerToMVM...),
+		Rules: allRules,
 	}
 
-	normal := b.Value2(OpMVMLoadNormal, core.MakeArrayType(3, core.Int32), nil)
+	normal := b.Value(OpMVMLoadNormal, core.MakeArrayType(3, core.Int32))
 	normal_x := core.ArrayExtract(b, normal, 0)
 	normal_y := core.ArrayExtract(b, normal, 1)
 	normal_z := core.ArrayExtract(b, normal, 2)
@@ -63,18 +70,26 @@ func TestXxx(t *testing.T) {
 	white := core.MakeArray(b, core.Int32, one, one, one)
 
 	final := core.CondSelect(b, white, color, selector)
+	final_x := core.ArrayExtract(b, final, 0)
+	final_y := core.ArrayExtract(b, final, 1)
+	final_z := core.ArrayExtract(b, final, 2)
 
-	final_r := core.ArrayExtract(b, final, 0)
-	final_g := core.ArrayExtract(b, final, 1)
-	final_b := core.ArrayExtract(b, final, 2)
+	/*
+		program := b.Value2(OpDFComposition, BSDFType{}, nil,
+			final, b.Value2(OpDiffuseBSDF, BSDFType{}, nil, normal))
+	*/
 
-	program := core.MakeArray(
-		b,
-		core.Int32,
-		normal_x, normal_y, normal_z,
-		final_r, final_g, final_b)
+	program := b.Value2(OpMVMPseudoOutput,
+		core.MakeArrayType(6, core.Int32),
+		&InterpretedMaterialOutputLayout{
+			BSDFs:   []BSDF{BSDFDiffuse},
+			BSDFOff: 0,
+		},
+		final_x, final_y, final_z,
+		normal_x, normal_y, normal_z)
 
-	_, outputs := CompileMVMProgram(sea, program)
+	compiled := Compile(sea, program, TargetInterpreter)
 
-	t.Log(outputs)
+	t.Log(compiled.Outputs)
+	t.Log(compiled.InterpretationTable)
 }

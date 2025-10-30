@@ -109,11 +109,11 @@ type seaKey struct {
 	op   Op
 	typ  Type
 	imm  any
-	args [10]*Class // aaaaaaaaa
+	args [20]*Class // aaaaaaaaa
 }
 
 func mkseakey(op Op, typ Type, imm any, args ...*Class) seaKey {
-	var args_ [10]*Class
+	var args_ [20]*Class
 	for i, a := range args {
 		args_[i] = a
 	}
@@ -247,7 +247,7 @@ func (sea *Sea) newValue(op Op, typ Type, imm any, args ...*Class) *Value {
 
 func (sea *Sea) newClass(typ Type, classes []*Class, values []*Value) *Class {
 	if len(classes) < 2 && len(values) == 0 {
-		panic("useless")
+		panic("useless class")
 	}
 
 	sea.cid++

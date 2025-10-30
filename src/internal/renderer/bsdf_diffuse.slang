@@ -1,4 +1,4 @@
-import bxdf;
+import bsdf;
 import spectrum;
 import sampling;
 
@@ -7,7 +7,7 @@ static const float M_PI = 3.141592653589793;
 // TODO: implement roughness
 
 // TODO: rename to DiffuseBSDF?
-public struct Diffuse : BxDF {
+public struct Diffuse : BSDF {
     public Spectrum R;
     // public float roughness;
 

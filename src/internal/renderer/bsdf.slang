@@ -1,8 +1,9 @@
 import spectrum;
 
-// TODO: rename this file into something something distribution function
+// TODO: rename this file to bsdf.slang
 
 // TODO: rename to smth like surface interaction or idk
+// TODO: move out of this file
 public enum BSDFFlags {
     // Absorbed = 0,
     Emitted = 1 << 0,
@@ -13,7 +14,7 @@ public enum BSDFFlags {
     Specular = 1 << 5,
 };
 
-// TODO: split this into two methods on BxDF
+// TODO: shorter name, e.g. BSDFEval?
 public struct BSDFEvaluatedResult {
     public Spectrum f;
     public float pdf;
@@ -41,10 +42,11 @@ public struct BSDFSample {
     // float eta;
 };
 
-public interface BxDF {
+// rename to BSDF
+public interface BSDF {
     BSDFFlags Flags();
     // TODO: albedo estimation
-    // TODO: decouple spectrum evaluation from PDF evaluation
+    // TODO: decouple spectrum evaluation from PDF evaluation?
     BSDFEvaluatedResult Eval(float3 wo, float3 wi);
     BSDFSample Sample(float3 wo, float uc, float2 u);
 };
@@ -83,7 +85,8 @@ public struct Frame {
 // TODO: rename
 // This is basically the same as
 // https://github.com/mmp/pbrt-v4/blob/f140d7cba5dc7b941f9346d6b7d1476a05c28c37/src/pbrt/bsdf.h
-public struct BxDFAdapter<T : BxDF> : BxDF {
+public struct BSDFAdapter<T : BSDF> : BSDF {
+    // TODO: also include color scale here
     public Frame shadingFrame;
     public T bsdf;
 
@@ -109,8 +112,8 @@ public struct BxDFAdapter<T : BxDF> : BxDF {
     }
 }
 
-// TODO: it doesn't seem like it really fits the BxDF interface...
-public struct DiffuseEDF {
+// TODO: move out of this file
+public struct UniformEDF {
     public Spectrum f;
 
     public Spectrum Eval(float3 wo) {

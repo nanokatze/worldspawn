@@ -6,6 +6,8 @@ import (
 	"worldspawn/internal/renderer/internal/compiler"
 )
 
+// TODO: rename Array to Vector?
+
 // TODO: bring ArrayType into a usable state
 
 type ArrayType struct {
@@ -29,7 +31,7 @@ var OpMakeArray = compiler.DefOp("MakeArray", validateMakeArray)
 // TODO: make this take elem type explicitly?
 func MakeArray(b *compiler.Builder, et compiler.Type, args ...*compiler.Class) *compiler.Class {
 	t := MakeArrayType(int64(len(args)), et)
-	return b.Value2(OpMakeArray, t, nil, args...)
+	return b.Value(OpMakeArray, t, args...)
 }
 
 var OpArrayExtract = compiler.DefOp("ArrayExtract", validateArrayExtract)
@@ -41,11 +43,8 @@ func ArrayExtract(b *compiler.Builder, arr *compiler.Class, idx int64) *compiler
 func init() {
 	Rules = append(Rules,
 		compiler.RewriteRule{
-			Name: "Forward ArrayExtract to the element's definition",
-			Pattern: &compiler.Pattern{
-				Op:   OpArrayExtract,
-				Args: []*compiler.Pattern{{Op: OpMakeArray, ArgsDDD: true}},
-			},
+			Name:    "Forward ArrayExtract to the element's definition",
+			Pattern: &compiler.Pattern{Op: OpArrayExtract, Args: []*compiler.Pattern{{Op: OpMakeArray, ArgsDDD: true}}},
 			Rewrite: func(rc *compiler.RewriteContext, v *compiler.Value) {
 				idx := v.Imm().(int64)
 				for arr := range v.Arg(0).Values() {
@@ -56,11 +55,8 @@ func init() {
 			},
 		},
 		compiler.RewriteRule{
-			Name: "Split CondSelect of arrays into per element CondSelect", // TODO: better name?
-			Pattern: &compiler.Pattern{
-				Op:   OpCondSelect,
-				Args: []*compiler.Pattern{{}, {}, {}},
-			},
+			Name:    "Split CondSelect of arrays into per element CondSelect", // TODO: better name?
+			Pattern: &compiler.Pattern{Op: OpCondSelect, Args: []*compiler.Pattern{{}, {}, {}}},
 			Rewrite: func(rc *compiler.RewriteContext, v *compiler.Value) {
 				arr, ok := v.Type().(ArrayType)
 				if !ok {

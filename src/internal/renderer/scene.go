@@ -19,12 +19,26 @@ type Camera struct {
 	NearClipPlane float32
 }
 
+type interpretedMaterial struct {
+	code gpu.Pointer[uint32]
+	// TODO: layout here
+}
+
 type materialParams struct {
 	_ structs.HostLayout
-	// ABI       bxdfabi
-	Code         gpu.Pointer[uint32]
-	EmissionCode gpu.Pointer[uint32]
-	OutputsReg   uint32 // TODO: we need its own for each code
+
+	Code gpu.Pointer[uint32]
+
+	BSDFs     [4]uint8
+	BSDFCount uint8
+	BSDFsOff  uint8
+
+	EDFs     [1]uint8
+	EDFCount uint8
+	EDFsOff  uint8
+
+	OutputsReg uint32
+
 	Triangles    gpu.Pointer[[3]uint16]
 	NumTriangles uint32
 	PosBuffer    gpu.Pointer[[3]float32]

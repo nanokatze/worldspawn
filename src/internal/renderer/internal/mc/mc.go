@@ -7,34 +7,31 @@ import (
 	"worldspawn/internal/renderer/internal/compiler/core"
 )
 
-// type BSDFType struct{}
+// TODO: ideally we should should follow how MaterialX arranges material
+// definition, and MDL to some degree. MDL has a pretty clean way to defining
+// materials so we should get inspired by that thing. Actually, MtlX can be
+// compiled down to MDL, so maybe we can just model things after MDL?
+
+type BSDFType struct{}
+
+func (BSDFType) String() string { return "BSDF" }
 
 /*
-type FloatType struct{ E, M int8 }
+type EDFType struct{}
 
-func (t FloatType) String() string { return fmt.Sprintf("Float[%d, %d]", t.E, t.M) }
+func (EDFType) String() string { return "EDF" }
 
-func (t FloatType) BitsType() BitsType {
-	return MakeBitsType(1 + t.E + t.M)
-}
+type SurfaceType struct{}
 
-type FloatControls struct {
-	Finite bool
-	// stuff
-}
+func (SurfaceType) String() string { return "Surface" }
 */
-
-// TODO: replace with a specialized material builder
-// TODO: new idea: hide compiler.Op, compiler.Value, and material Builder should
-// expose a set of blessed ops on its own. We can also move that builder to the
-// base package.
 
 // TODO: actually just kill aliases?
 
-type Builder = compiler.Rewriter
+type Builder = compiler.Builder
 
 var (
-	OpConst = core.OpConst
+	OpIConst = core.OpIConst
 
 	OpMakeArray    = core.OpMakeArray
 	OpArrayExtract = core.OpArrayExtract
@@ -51,20 +48,33 @@ var (
 	OpFMax = core.OpFMax
 
 	OpFFloor = core.OpFFloor
+	OpFCeil  = core.OpFCeil
 
 	OpFEqual       = core.OpFEqual
 	OpFLess        = core.OpFLess
 	OpFLessOrEqual = core.OpFLessOrEqual
 
-	OpBSDFAdd = compiler.DefOp("BSDFAdd", nil)
-	// OpBSDFScale = compiler.DefOp("BSDFScale", nil)
+	OpDiffuseBSDF = compiler.DefOp("DiffuseBSDF", nil)
+	// TODO: if we keep one huge MicrofacetBSDF we'll also want to introduce
+	// Fresnel type that we'll pass values of to this op.
+	OpMicrofacetBSDF = compiler.DefOp("MicrofacetBSDF", nil)
 
-	OpBSDFAlbedo = compiler.DefOp("BSDFAlbedo", nil)
+	// TODO: decide whether to call this uniform (mtlx, osl) or diffuse (mdl)
+	OpUniformEDF = compiler.DefOp("UniformEDF", nil)
+
+	OpBSDFReflectance = compiler.DefOp("BSDFReflectance", nil) // BSDF -> color
+
+	OpDFAdd = compiler.DefOp("DFAdd", nil) // T : DF, (T, T) -> DF
+
+	// TODO: rename to e.g. DFTint?
+	OpDFScale = compiler.DefOp("DFScale", nil) // T : DF, (T, float32) -> T
+
+	// Even args are weights, odd args are DF values (TODO: swap?)
+	// TODO: rename to something else
+	OpDFComposition = compiler.DefOp("DFComposition", nil)
+
+	// OpSurface // (BSDF, EDF) -> Surface
 )
 
-// TODO: I guess we could also make a universal OpBSDF, but that is kinda sucky
-var (
-// TODO: make EDF/BSDF the suffix?
-// OpEDFUniform  = compiler.DefOp("EDFUniform")
-// OpBSDFDiffuse = compiler.DefOp("BSDFDiffuse")
-)
+// Rules for flattening BSDF composition and stuff
+// var legalizationRules =

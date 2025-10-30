@@ -23,13 +23,13 @@ var (
 
 // TODO: prefix all ops here with I?
 
-var OpConst = compiler.DefOp("Const",
+var OpIConst = compiler.DefOp("IConst",
 	func(typ compiler.Type, imm any, args ...*compiler.Class) {
 		_ = imm.(int64)
 	})
 
 func Const(b *compiler.Builder, typ compiler.Type, imm int64) *compiler.Class {
-	return b.Value2(OpConst, typ, imm)
+	return b.Value2(OpIConst, typ, imm)
 }
 
 var (

@@ -102,15 +102,13 @@ func gatherConstraints(sched []*compiler.Class) map[*compiler.Class]*constraint 
 		}
 
 		switch v.Op() {
-		case opMVMPseudoMakeArray:
+		case OpMVMPseudoOutput:
 			for i, a := range v.Args() {
 				constrain(constraints, c, a, i)
 			}
 
 		case opMVMPseudoArrayExtract:
-			arr := v.Arg(0)
-
-			constrain(constraints, arr, c, int(v.Imm().(uint32)))
+			constrain(constraints, v.Arg(0), c, int(v.Imm().(uint32)))
 		}
 	}
 
@@ -131,9 +129,9 @@ func regassign3(sched []*compiler.Class) map[*compiler.Class]regRange {
 	for _, c := range slices.Backward(sched) {
 		v := c.Value()
 
-		// TODO: our MakeArray special case is busted, we should handle it like
+		// TODO: our PseudoOutput special case is busted, we should handle it like
 		// everything else and just properly emit parallel copy when assembling.
-		pcopy := v.Op() == opMVMPseudoMakeArray
+		pcopy := v.Op() == OpMVMPseudoOutput
 
 		if !pcopy {
 			ra.free(ra.m[c])
@@ -145,6 +143,10 @@ func regassign3(sched []*compiler.Class) map[*compiler.Class]regRange {
 
 		if pcopy {
 			ra.free(ra.m[c])
+
+			for _, a := range v.Args() {
+				ra.assign(a)
+			}
 		}
 	}
 

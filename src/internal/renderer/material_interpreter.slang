@@ -1,7 +1,8 @@
 import internal.interpreter;
 import scene;
-
-// TODO: rename to mvm.slang?
+import spectrum;
+import bsdf;
+import bsdf_diffuse;
 
 // TODO: move interpolators into their own file!!!
 
@@ -54,21 +55,6 @@ public enum Op {
     LoadAttr,
     LoadNormal,
 };
-
-/*
-public enum TwoSrc {
-    FAddE8M23,
-    FSubE8M23,
-    FMulE8M23,
-    FDivE8M23,
-    FMinE8M23,
-    FMaxE8M23,
-
-    FEqual32,
-    FNotEqual32,
-    FLessOrEqual32,
-};
-*/
 
 public void mateval(
     __ref Registers regs,
@@ -163,7 +149,7 @@ evalLoop:
             // I guess?
             break;
         }
-        // TODO: remove this in favor of LoadAttr + DisturbNormal or smth?
+        // TODO: remove this in favor of LoadAttr + DisturbNormal or smth
         case Op::LoadNormal: {
             let normal = mul((float3x3)ObjectToWorld,
                 interpolate3(
@@ -178,5 +164,189 @@ evalLoop:
             break;
         }
         }
+    }
+}
+
+
+// TODO: rename
+struct RegisterReader {
+    Registers regs;
+    int i;
+
+    // TODO: rename to readUint32?
+    [[mutating]]
+    uint32_t read() {
+        return regs[i++];
+    }
+};
+
+Spectrum readSpectrum(__ref RegisterReader rd) {
+    return Spectrum(reinterpret<float>(rd.read()),
+                    reinterpret<float>(rd.read()),
+                    reinterpret<float>(rd.read()));
+}
+
+Frame readShadingFrameN(__ref RegisterReader rd) {
+    let normal = float3(reinterpret<float>(rd.read()),
+                        reinterpret<float>(rd.read()),
+                        reinterpret<float>(rd.read()));
+    return Frame::fromNormal(normal);
+}
+
+BSDFAdapter<Diffuse> readDiffuseBSDF(__ref RegisterReader tints, __ref RegisterReader bsdfparams) {
+    return {
+        readShadingFrameN(bsdfparams),
+        readSpectrum(tints),
+    };
+}
+
+float spectrumAsWeight(Spectrum s) {
+    return abs((s.x + s.y + s.z) / 3);
+}
+
+// BUG: we currently have extremely broken spectrum and pdf and everything.
+// Review and fix.
+public struct InterpretedMaterial /* : BSDF */ {
+    // TODO: make this not a pointer when we factor things out properly
+    public MaterialParams *params;
+
+    public Registers regs;
+
+    // TODO: implement flags
+
+    public BSDFSample Sample(float3 wo, float uc, float2 u) {
+        if (params->bsdfCount == 0)
+            return {};
+
+#if 0
+        float total = 0.0;
+        for (uint32_t i = 0; i < params->bsdfCount; i++) {
+            let weight = spectrumAsWeight(spectrumFromRegs(regs, params->outputsReg + params->bsdfsOff + i * 3));
+            total += weight;
+        }
+
+        uint32_t bsdfReg = params->outputsReg + params->bsdfsOff + params->bsdfCount * 3;
+
+        float accumulated = 0.0;
+        float pdf = 0;
+        uint32_t bsdfIndex;
+        for (bsdfIndex = 0;; bsdfIndex++) {
+            let weight = spectrumAsWeight(spectrumFromRegs(regs, params->outputsReg + params->bsdfsOff + bsdfIndex * 3));
+
+            pdf = weight / total;
+
+            if (bsdfIndex >= params->bsdfCount)
+                break;
+            if (accumulated + pdf > uc)
+                break;
+
+            switch ((BSDFNum)params->bsdfs[bsdfIndex]) {
+            case BSDFNum::Diffuse: {
+                bsdfReg += 3 /* normal */;
+                break;
+            }
+            default:
+                // abort();
+                break;
+            }
+
+            accumulated += pdf;
+        }
+#endif
+
+        // TODO: be a lil smarter about assigning probabilities
+        let pmf = 1.0 / params->bsdfCount;
+        let bsdfIndex = (int)fract(uc * params->bsdfCount);
+
+        // TODO: adjust uc here so that it's in 0..1 again and useful for
+        // downstream.
+
+        RegisterReader tints = {regs, params->outputsReg + params->bsdfsOff};
+        RegisterReader bsdfparams = {regs, params->outputsReg + params->bsdfsOff + params->bsdfCount * 3};
+
+        for (int i = 0; i+1 < bsdfIndex; i++) {
+            switch ((BSDFNum)params->bsdfs[i]) {
+            case BSDFNum::Diffuse: {
+                readDiffuseBSDF(tints, bsdfparams);
+                break;
+            }
+
+            default:
+                // abort();
+                break;
+            }
+        }
+
+        switch ((BSDFNum)params->bsdfs[bsdfIndex]) {
+        case BSDFNum::Diffuse: {
+            let diffuse = readDiffuseBSDF(tints, bsdfparams);
+            var sample = diffuse.Sample(wo, uc, u);
+            sample.pdf *= pmf;
+            return sample;
+        }
+        default:
+            // abort();
+            return {};
+        }
+    }
+
+    public BSDFEvaluatedResult Eval(float3 wo, float3 wi) {
+        BSDFEvaluatedResult result = {};
+
+        if (params->bsdfCount == 0)
+            return result;
+
+        RegisterReader tints = {regs, params->outputsReg + params->bsdfsOff};
+        RegisterReader bsdfparams = {regs, params->outputsReg + params->bsdfsOff + params->bsdfCount * 3};
+
+        for (uint32_t i = 0; i < params->bsdfCount; i++) {
+            float pmf = 1.0 / params->bsdfCount;
+
+            switch ((BSDFNum)params->bsdfs[i]) {
+            case BSDFNum::Diffuse: {
+                let diffuse = readDiffuseBSDF(tints, bsdfparams);
+                var e = diffuse.Eval(wo, wi);
+                e.pdf *= pmf;
+                result = result.Add(e);
+                break;
+            }
+
+            default:
+                // abort();
+                break;
+            }
+        }
+
+        return result;
+    }
+
+    // TODO: fold into Eval? Blender doesn't, so I guess we shouldn't either.
+    // TODO: rename to EmissionEval? And rename BSDF eval and sample to
+    // EvalScattering and SampleScattering? Or EDFEval, BSDFEval, BSDFSample?
+    public Spectrum EDFEval(float3 wo) {
+        Spectrum result = (Spectrum)0;
+
+        if (params->edfCount == 0)
+            return result;
+
+        RegisterReader tints = {regs, params->outputsReg + params->edfsOff};
+
+        for (uint32_t i = 0; i < params->edfCount; i++) {
+            switch ((EDFNum)params->edfs[i]) {
+            case EDFNum::Uniform: {
+                UniformEDF uniform_ = {
+                    readSpectrum(tints),
+                };
+                result += uniform_.Eval(wo);
+                break;
+            }
+
+            default:
+                // abort();
+                break;
+            }
+        }
+
+        return result;
     }
 }

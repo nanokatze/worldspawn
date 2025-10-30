@@ -1,4 +1,4 @@
-import bxdf;
+import bsdf;
 import spectrum;
 import sampling;
 
@@ -10,7 +10,7 @@ public interface Fresnel {
     // void F()
 }
 
-public struct MicrofacetBSDF<F : Fresnel> : BxDF {
+public struct MicrofacetBSDF<F : Fresnel> : BSDF {
     // public F fresnel;
 
     public BSDFFlags Flags() {

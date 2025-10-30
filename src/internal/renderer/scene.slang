@@ -3,10 +3,31 @@ import spectrum;
 import sampling;
 import lighting;
 
+public enum BSDFNum {
+    _,
+    Diffuse,
+};
+
+public enum EDFNum {
+    _,
+    Uniform,
+};
+
 public struct MaterialParams {
     public uint32_t *code;
-    public uint32_t *emissionCode;
+
+    // TODO: outline stuff into a "surface" struct or something
+
+    public uint8_t bsdfs[4];
+    public uint8_t bsdfCount;
+    public uint8_t bsdfsOff;
+
+    public uint8_t edfs[1];
+    public uint8_t edfCount;
+    public uint8_t edfsOff; // TODO: move it before the array or something?
+
     public uint32_t outputsReg;
+
     public void *triangles;
     public uint32_t num_triangles;
     public float3 *posBuffer;

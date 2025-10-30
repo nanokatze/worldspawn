@@ -4,9 +4,73 @@ import (
 	"fmt"
 )
 
+// TODO: make the internals private and provide a constructor?
+type Builder struct {
+	Sea   *Sea
+	Rules []RewriteRule
+}
+
+func (b *Builder) Value(op Op, typ Type, args ...*Class) *Class {
+	return b.Value2(op, typ, nil, args...)
+}
+
+// TODO: rename to Build? just Value?
+// TODO: add a variant with no immediate
+func (b *Builder) Value2(op Op, typ Type, imm any, args ...*Class) *Class {
+	// TODO: reuse this with a sync.Pool
+	rc := &RewriteContext{
+		b:    b,
+		seen: make(map[*Value]bool),
+	}
+
+	rc.Add2(op, typ, imm, args...)
+
+	rc.applyRules()
+
+	return rc.b.Sea.class(typ, rc.seen)
+}
+
+// TODO: this doesn't really use Builder other than container for sea + rules. I
+// guess we could equally make it a method on the Builder.
+func Rewrite(b *Builder, c *Class) *Class {
+	// TODO: see if we can rewrite this non-recursively
+
+	visited := make(map[*Class]*Class)
+
+	var f func(c *Class) *Class
+	f = func(c *Class) *Class {
+		if x, ok := visited[c]; ok {
+			return x
+		}
+
+		rc := &RewriteContext{
+			b:    b,
+			seen: make(map[*Value]bool),
+		}
+		for v := range c.Values() {
+			// TODO: factor out remapping the args. This also would come in
+			// useful in Sea.value.
+			args := make([]*Class, len(v.Args()))
+			for i := range args {
+				args[i] = f(v.Arg(i))
+			}
+			// Go through value creation path, as we don't know whether it's
+			// from the same sea or not.
+			rc.Add2(v.Op(), v.Type(), v.Imm(), args...)
+		}
+		rc.applyRules()
+
+		// TODO: factor this out into a method on RewriteContext, possibly fold
+		// into applyRules
+		x := rc.b.Sea.class(c.Type(), rc.seen)
+
+		visited[c] = x
+		return x
+	}
+	return f(c)
+}
+
 // TODO: rename?
-// TODO: split this out into two objects, one that keeps the state for
-// rewriting, and one that gets passed to Rewrite function
 type RewriteContext struct {
 	b     *Builder
 	seen  map[*Value]bool
@@ -24,6 +88,8 @@ func (r *RewriteContext) Add2(op Op, typ Type, imm any, args ...*Class) {
 }
 
 // TODO: rename?
+// TODO: rewrite this to be "safe" (always go through Add2)? Or document the
+// requirements that Class must be from the same Sea.
 func (r *RewriteContext) Class(c *Class) {
 	for _, v := range c.values {
 		r.add(v)
@@ -38,6 +104,7 @@ func (r *RewriteContext) add(v *Value) {
 	r.stack = append(r.stack, v)
 }
 
+// TODO: make this public, along with a method to get a *Class out of it?
 // TODO: rename?
 func (rc *RewriteContext) applyRules() {
 	for len(rc.stack) > 0 {
@@ -90,61 +157,3 @@ func Associativity(op Op) RewriteRule {
 	}
 }
 */
-
-type Builder struct {
-	Sea   *Sea
-	Rules []RewriteRule
-}
-
-// TODO: rename to Build? just Value?
-func (b *Builder) Value2(op Op, typ Type, imm any, args ...*Class) *Class {
-	// TODO: reuse this with a sync.Pool
-	rc := &RewriteContext{
-		b:    b,
-		seen: make(map[*Value]bool),
-	}
-
-	rc.Add2(op, typ, imm, args...)
-
-	rc.applyRules()
-
-	return rc.b.Sea.class(typ, rc.seen)
-}
-
-func Rewrite(b *Builder, c *Class) *Class {
-	// TODO: see if we can rewrite this non-recursively
-
-	visited := make(map[*Class]*Class)
-
-	var f func(c *Class) *Class
-	f = func(c *Class) *Class {
-		if x, ok := visited[c]; ok {
-			return x
-		}
-
-		rc := &RewriteContext{
-			b:    b,
-			seen: make(map[*Value]bool),
-		}
-		for v := range c.Values() {
-			// TODO: factor out remapping the args. This also would come in
-			// useful in Sea.value.
-			args := make([]*Class, len(v.Args()))
-			for i := range args {
-				args[i] = f(v.Arg(i))
-			}
-			// Go through value creation path, as we don't know whether it's
-			// from the same sea or not.
-			rc.Add2(v.Op(), v.Type(), v.Imm(), args...)
-		}
-		rc.applyRules()
-
-		// TODO: factor this out into a method on RewriteContext, possibly fold
-		// into applyRules
-		x := rc.b.Sea.class(c.Type(), rc.seen)
-
-		visited[c] = x
-		return x
-	}
-	return f(c)
-}

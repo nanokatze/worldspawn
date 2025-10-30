@@ -6,9 +6,7 @@ import internal.lds;
 import internal.interpreter;
 import sampling;
 import spectrum;
-import bxdf;
-import bsdf_diffuse;
-import bsdf_microfacet;
+import bsdf;
 import attribute;
 
 // Shifted blue noise shamelessly stolen from rtx remix, which is
@@ -252,14 +250,16 @@ struct triangleLight {
 
         mateval(
             regs,
-            materialParams->emissionCode,
+            materialParams->code,
             materialParams,
             ObjectToWorld,
             uint3(0),
             barys);
 
+        InterpretedMaterial m = {materialParams, regs};
+
         return {
-            spectrumFromRegs(regs, materialParams->outputsReg + 6),
+            m.EDFEval(float3(0)), // TODO: provide an actual wo
             normal,
             dot(uhh, uhh) / (abs(dot(normal, wi)) * area),
         };
@@ -310,134 +310,15 @@ struct ShaderRecordData {
 
 [[vk::shader_record]] ConstantBuffer<ShaderRecordData> srd;
 
-/*
-struct RegisterReader {
-    Registers regs;
-    int i;
-
-    [[mutating]]
-    uint32_t read() {
-        return regs[i++];
-    }
-};
-*/
-
-// TODO: these should be using RegisterReader
-
-Spectrum spectrumFromRegs(Registers regs, int i) {
-    return Spectrum(reinterpret<float>(regs[i+0]),
-                    reinterpret<float>(regs[i+1]),
-                    reinterpret<float>(regs[i+2]));
-}
-
-Frame loadShadingFrameN(Registers regs, int i) {
-    let normal = float3(reinterpret<float>(regs[i+0]),
-                        reinterpret<float>(regs[i+1]),
-                        reinterpret<float>(regs[i+2]));
-    return Frame::fromNormal(normal);
-}
-
-BxDFAdapter<Diffuse> diffuseFromRegisters(Registers regs, int i) {
-    return {
-        loadShadingFrameN(regs, i+0),
-        spectrumFromRegs(regs, i+3),
-    };
-}
-
-enum bxdfid {
-    diffuseBsdf,
-}
-
-// TODO: have a table of where each bxdf registers start?
-
-struct bxdfspec {
-    uint8_t id;
-    uint8_t regoff;
-};
-
-struct composedbxdf {
-    Registers regs;
-
-    uint8_t contribregs;
-};
-
-/*
-struct composedBxDF {
-    // TODO: would be nice if we could put it behind a pointer tbh
-    Registers regs;
-
-    // should point to array of vec3s
-    uint8_t contribregs;
-    bxdfspec bxdfspecs[5]; // TODO: should be a global ptr
-    uint8_t n;
-
-    BSDFFlags Flags() {
-        uint32_t result = 0;
-        for (uint8_t i = 0; i < n; i++) {
-            int regoff = bxdfspecs[i].regoff;
-
-            switch ((bxdfid)bxdfspecs[i].id) {
-            case bxdfid::diffuseBsdf:
-                result |= (uint32_t)diffuseFromRegisters(regs, regoff).Flags();
-                break;
-
-            default:
-                // abort();
-                break;
-            }
-        }
-        return (BSDFFlags)result;
-    }
-
-    BSDFEvaluatedResult Eval(float3 wo, float3 wi) {
-        BSDFEvaluatedResult result = {};
-        for (uint8_t i = 0; i < n; i++) {
-            int regoff = bxdfspecs[i].regoff;
-            float contrib = reinterpret<float>(regs[contribregs+i]);
-
-            BSDFEvaluatedResult tmp = {};
-            switch ((bxdfid)bxdfspecs[i].id) {
-            case bxdfid::diffuseBsdf:
-                tmp = diffuseFromRegisters(regs, regoff).Eval(wo, wi);
-                break;
-
-            default:
-                // abort();
-                break;
-            }
-
-            result = result.Add(tmp.Scale(contrib));
-        }
-        return result;
-    }
-
-    BSDFSample Sample(float3 wo, float uc, float2 u) {
-        // TODO: we need to go over contribs until we encounter one that would
-        // be > uc.
-        uint8_t i = min(uc * (float)n, n-1); // TODO: this is horrid, actually
-
-        int regoff = bxdfspecs[i].regoff;
-
-        switch ((bxdfid)bxdfspecs[i].id) {
-        case bxdfid::diffuseBsdf:
-            return diffuseFromRegisters(regs, regoff).Sample(wo, uc, u);
-
-        default:
-            // abort();
-            return {};
-        }
-    }
-}
-*/
-
-// TODO: do not pass bounce and bn, encapsulate them into a sampler object
 // TODO: do not pass bsdf here, make the caller deal with it instead
-Spectrum sampleLd<T : BxDF>(
+// TODO: if we still want to pass bsdf, make this generic over BSDFs and make
+// InterpretedMaterial implement it.
+Spectrum sampleLd(
     bool vampire,
     float3 hitpos,
     float3 normal,
     float3 wo,
-    T bsdf,
+    __ref InterpretedMaterial bsdf,
     float asd,
     float2 uLight,
 ) {
@@ -528,7 +409,7 @@ void closesthit(
     bool vampire = ((push->scene->accelInstances[instanceIndex].instanceIDAndMask >> 24) & 0b11) == 0b01;
 
     // TODO: rename to sampler or something
-    ShiftedBlueNoise<R2LDS> bn = ShiftedBlueNoise<R2LDS>(R2LDS(), dispatchRaysIndex.xy, 10 * path.bounce);
+    var bn = ShiftedBlueNoise<R2LDS>(R2LDS(), dispatchRaysIndex.xy, 10 * path.bounce);
 
     let materialParams = &push.scene->materialParams.data[instanceIndex * push.scene->maxPartsPerMesh + geometryIndex];
 
@@ -547,22 +428,25 @@ void closesthit(
         triIdxs,
         barys_yz);
 
+    // TODO: should not be called bsdf
+    // TODO: instead of calling mateval, make material evaluation happen as part
+    // of instantinating InterpretedMaterial.
+    InterpretedMaterial bsdf = {materialParams, regs};
+
     let wo = -WorldRayDirection;
 
-    DiffuseEDF edf = {
-        // TODO: we need a flag which specifies whether and where we have
-        // emission in regs, rather than rely on emission-only program.
-        materialParams->emissionCode
-            ? spectrumFromRegs(regs, materialParams->outputsReg + 6)
-            : Spectrum(0),
-    };
-    BxDFAdapter<Diffuse> bsdf = diffuseFromRegisters(regs, materialParams->outputsReg + 0);
-
     // bad, do not do this
-    let normal = bsdf.shadingFrame.localToWorld(float3(0, 0, 1));
+    // TODO: what's the correct thing to do here?
+    let normal = mul((float3x3)ObjectToWorld,
+        interpolate3(
+            float3x3(
+                materialParams->normals[triIdxs[0]],
+                materialParams->normals[triIdxs[1]],
+                materialParams->normals[triIdxs[2]]),
+            barys_yz));
 
     // Account for emission
-    let Le = edf.Eval(wo);
+    let Le = bsdf.EDFEval(wo);
     if (any(Le > float3(0))) {
         // TODO: this is wrong, we need to apply MIS weight, which we'll need to
         // consult lightSampler for, to figure out the pdf.
@@ -572,12 +456,15 @@ void closesthit(
     // TODO: radiance cache sampling would fit into somewhere in here
 
     // Direct light sampling
-    let u_Ld = float3(bn.Get1D(), bn.Get2D());
-    if (bsdf.Flags() & (BSDFFlags::Diffuse | BSDFFlags::Glossy)) {
-        let Ld = sampleLd(vampire, hitpos, normal, wo, bsdf, u_Ld.x, u_Ld.yz);
+    {
+        let u = bn.Get1D();
+        let b = bn.Get2D();
+        if (true) { // bsdf.Flags() & (BSDFFlags::Diffuse | BSDFFlags::Glossy)) {
+            let Ld = sampleLd(vampire, hitpos, normal, wo, bsdf, u, b);
 
-        if (any(Ld > float3(0)))
-            path.L += path.beta * Ld;
+            if (any(Ld > float3(0)))
+                path.L += path.beta * Ld;
+        }
     }
 
     // Sample the bsdf for the next ray
@@ -587,6 +474,8 @@ void closesthit(
     // TODO: once we get diffuse cache, (optionally) terminate the path for
     // diffuse-only bsdfSamples and instead get the information from the cache.
 
+    // TODO: uhhhhh??????????? do something better about it pls
+    if (bsdfSample.pdf > 0)
     path.beta *= bsdfSample.f * dot(bsdfSample.wi, normal) / bsdfSample.pdf;
 
     // Vampire bounces that are reflected become anti-vampire if the surface was
