@@ -10,48 +10,25 @@ import (
 
 	"worldspawn/internal/renderer/internal/compiler"
 	"worldspawn/internal/renderer/internal/compiler/core"
+	"worldspawn/internal/renderer/internal/material"
 )
 
-// TODO: move these definitions to interpreter package really tbh
-// TODO: rename these enums to make it clear that it's some kind of "id" table
-// used by interpreter
-type BSDF int8
-
-const (
-	_ BSDF = iota
-	BSDFDiffuse
-)
-
-type EDF int8
-
-const (
-	_ EDF = iota
-	EDFUniform
-)
-
-// TODO: rename to InterpretedMaterialOutputLayout or something
-// TODO: make it a string so it's hashable?
-type InterpretedMaterialOutputLayout struct {
-	BSDFOff int // the slot containing the first
-	BSDFs   []BSDF
-	EDFOff  int
-	EDFs    []EDF
-}
-
+// TODO: should assembler live here or in material? I feel like here is pretty
+// nice, but then we should move packinstr back here.
 type assembler struct {
 	code []uint32
 }
-
-// TODO: separate stuff that lowers IR for interpreter and spits out interpreter
-// instruction, and definitions of those instructions assembling
 
 // TODO: interpreter ops should probably use our custom VecN types rather than
 // standard tuples? We'll still have to deal with memes like certain ops
 // returning (mem, data) etc.
 
+// TODO: make aaa an interface so we don't need to cram everything into the same
+// function. We wanna make it an interface so that we can also implement
+// validation this way
 type aaa struct {
-	special bool // TODO: redo this into variants (a + dst etc, nop, special)
-	a       A
+	special bool
+	a       material.A
 	dst     bool
 	arity   int // TODO: replace with bitmap of args
 	imm     bool
@@ -60,9 +37,6 @@ type aaa struct {
 var amap = make(map[compiler.Op]aaa)
 
 // TODO: validation
-// TODO: make aaa an interface so we don't need to cram everything into the same
-// function. We wanna make it an interface so that we can also implement
-// validation this way
 func defInterpreterOp(name string, a aaa) compiler.Op {
 	op := compiler.DefOp(name, nil)
 	amap[op] = a
@@ -78,42 +52,42 @@ func defInterpreterOp(name string, a aaa) compiler.Op {
 // things in a suitable location.
 var (
 	opMVMConst32 = defInterpreterOp("MVMConst32",
-		aaa{a: AConst32, dst: true, imm: true})
+		aaa{a: material.AConst32, dst: true, imm: true})
 
 	opMVMFAddE8M23 = defInterpreterOp("MVMFAddE8M23",
-		aaa{a: AFAddE8M23, dst: true, arity: 2})
+		aaa{a: material.AFAddE8M23, dst: true, arity: 2})
 	opMVMFSubE8M23 = defInterpreterOp("MVMFSubE8M23",
-		aaa{a: AFSubE8M23, dst: true, arity: 2})
+		aaa{a: material.AFSubE8M23, dst: true, arity: 2})
 	opMVMFMulE8M23 = defInterpreterOp("MVMFMulE8M23",
-		aaa{a: AFMulE8M23, dst: true, arity: 2})
+		aaa{a: material.AFMulE8M23, dst: true, arity: 2})
 	opMVMFDivE8M23 = defInterpreterOp("MVMFDivE8M23",
-		aaa{a: AFDivE8M23, dst: true, arity: 2})
+		aaa{a: material.AFDivE8M23, dst: true, arity: 2})
 	opMVMFMinE8M23 = defInterpreterOp("MVMFMinE8M23",
-		aaa{a: AFMinE8M23, dst: true, arity: 2})
+		aaa{a: material.AFMinE8M23, dst: true, arity: 2})
 	opMVMFMaxE8M23 = defInterpreterOp("MVMFMaxE8M23",
-		aaa{a: AFMaxE8M23, dst: true, arity: 2})
+		aaa{a: material.AFMaxE8M23, dst: true, arity: 2})
 
 	opMVMFFloorE8M23 = defInterpreterOp("MVMFFloorE8M23",
-		aaa{a: AFFloorE8M23, dst: true, arity: 1})
+		aaa{a: material.AFFloorE8M23, dst: true, arity: 1})
 
 	// blender materials actually don't have LessOrEqual, they only have less.
 	OpMVMFLessOrEqualE8M23 = defInterpreterOp("MVMFLessOrEqualE8M23",
-		aaa{a: AFLessOrEqualE8M23, dst: true, arity: 2})
+		aaa{a: material.AFLessOrEqualE8M23, dst: true, arity: 2})
 
 	opMVMCondSelect32 = defInterpreterOp("MVMCondSelect32",
-		aaa{a: ACondSelect32, dst: true, arity: 3})
+		aaa{a: material.ACondSelect32, dst: true, arity: 3})
 
 	// TODO: rename these s/Load/Get/? We usually only use Load for stuff that
 	// takes rmem.
 
 	OpMVMLoadParam = defInterpreterOp("MVMLoadParam",
-		aaa{a: ALoadParam, dst: true, imm: true})
+		aaa{a: material.ALoadParam, dst: true, imm: true})
 
 	OpMVMLoadAttr = defInterpreterOp("MVMLoadAttr",
-		aaa{a: ALoadAttr, dst: true, imm: true})
+		aaa{a: material.ALoadAttr, dst: true, imm: true})
 
 	OpMVMLoadNormal = defInterpreterOp("MVMLoadNormal",
-		aaa{a: ALoadNormal, dst: true})
+		aaa{a: material.ALoadNormal, dst: true})
 
 	// TODO: we'll want an instruction per BSDF probably...
 	// OpMVMBSDFDiffuseAlbedo
@@ -301,9 +275,9 @@ func extract2(b *compiler.Builder, c *compiler.Class, extracted map[*compiler.Cl
 }
 
 type InterpretedMaterial struct {
-	Code                []uint32
-	InterpretationTable InterpretedMaterialOutputLayout
-	Outputs             int
+	Code         []uint32
+	OutputLayout material.InterpretedMaterialOutputLayout
+	Outputs      int
 }
 
 const (
@@ -357,13 +331,13 @@ func Compile(sea *compiler.Sea, c *compiler.Class, target int) *InterpretedMater
 		src0 := (w >> 16) & 0xff
 		src1 := (w >> 24) & 0xff
 
-		fmt.Fprintf(os.Stderr, "%v r%v r%v r%v", A(op), dst, src0, src1)
-		switch A(op) {
-		case AConst32, ALoadParam, ALoadAttr:
+		fmt.Fprintf(os.Stderr, "%v r%v r%v r%v", material.A(op), dst, src0, src1)
+		switch material.A(op) {
+		case material.AConst32, material.ALoadParam, material.ALoadAttr:
 			data := assembled[i]
 			i++
 			fmt.Fprintf(os.Stderr, " 0x%08x", data)
-		case ACondSelect32:
+		case material.ACondSelect32:
 			r := assembled[i]
 			i++
 			fmt.Fprintf(os.Stderr, " r%v", r)
@@ -371,15 +345,14 @@ func Compile(sea *compiler.Sea, c *compiler.Class, target int) *InterpretedMater
 		fmt.Fprintln(os.Stderr)
 	}
 
-	itable := x.Value().Imm().(*InterpretedMaterialOutputLayout)
+	itable := x.Value().Imm().(*material.InterpretedMaterialOutputLayout)
 
 	// itable.BSDFOff
 
-	// return assembled, regm[x].I
 	return &InterpretedMaterial{
-		Code:                assembled,
-		InterpretationTable: *itable,
-		Outputs:             regm[x].I,
+		Code:         assembled,
+		OutputLayout: *itable,
+		Outputs:      regm[x].I,
 	}
 }
 
@@ -411,7 +384,7 @@ func assemble(schedule []*compiler.Class, regm map[*compiler.Class]regRange) []u
 				srcs[i] = uint32(regm[v.Arg(i)].I)
 			}
 
-			instrs = append(instrs, packinstr(a, dst, srcs[0], srcs[1]))
+			instrs = append(instrs, material.Packinstr(a, dst, srcs[0], srcs[1]))
 			instrs = append(instrs, srcs[2:]...)
 			if amap[v.Op()].imm {
 				instrs = append(instrs, v.Imm().(uint32))
@@ -425,7 +398,7 @@ func assemble(schedule []*compiler.Class, regm map[*compiler.Class]regRange) []u
 			for i, a := range v.Args() {
 				// TODO: just check that we don't need to do a parallel copy instead.
 				if regm[a].I != dst+i {
-					instrs = append(instrs, packinstr(ACopy32, uint32(dst+i), uint32(regm[a].I), 0))
+					instrs = append(instrs, material.Packinstr(material.ACopy32, uint32(dst+i), uint32(regm[a].I), 0))
 				}
 			}
 
@@ -437,7 +410,7 @@ func assemble(schedule []*compiler.Class, regm map[*compiler.Class]regRange) []u
 			if uint32(regm[class].I) != uint32(regm[v.Arg(0)].I)+v.Imm().(uint32) {
 				// TODO: do certain assertions and validation here
 
-				instrs = append(instrs, packinstr(ACopy32,
+				instrs = append(instrs, material.Packinstr(material.ACopy32,
 					uint32(regm[class].I),
 					uint32(regm[v.Arg(0)].I)+v.Imm().(uint32),
 					0))
@@ -445,7 +418,7 @@ func assemble(schedule []*compiler.Class, regm map[*compiler.Class]regRange) []u
 		}
 	}
 
-	instrs = append(instrs, packinstr(AStop, 0, 0, 0))
+	instrs = append(instrs, material.Packinstr(material.AStop, 0, 0, 0))
 
 	return instrs
 }

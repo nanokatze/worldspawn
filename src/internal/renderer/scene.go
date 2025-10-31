@@ -27,6 +27,7 @@ type interpretedMaterial struct {
 type materialParams struct {
 	_ structs.HostLayout
 
+	// TODO: move code + output layout behind a pointer here as well
 	Code gpu.Pointer[uint32]
 
 	BSDFs     [4]uint8

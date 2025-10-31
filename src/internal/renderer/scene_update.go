@@ -121,12 +121,12 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 			material := dirty.Materials[instanceIdx][partIdx]
 
 			var bsdfs [4]uint8
-			for i, num := range material.Material.interpretationTable.BSDFs {
+			for i, num := range material.Material.outputLayout.BSDFs {
 				bsdfs[i] = uint8(num)
 			}
 
 			var edfs [1]uint8
-			for i, num := range material.Material.interpretationTable.EDFs {
+			for i, num := range material.Material.outputLayout.EDFs {
 				edfs[i] = uint8(num)
 			}
 
@@ -134,12 +134,12 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 				Code: gpu.SliceData(material.Material.code),
 
 				BSDFs:     bsdfs,
-				BSDFCount: uint8(len(material.Material.interpretationTable.BSDFs)),
-				BSDFsOff:  uint8(material.Material.interpretationTable.BSDFOff),
+				BSDFCount: uint8(len(material.Material.outputLayout.BSDFs)),
+				BSDFsOff:  uint8(material.Material.outputLayout.BSDFOff),
 
 				EDFs:     edfs,
-				EDFCount: uint8(len(material.Material.interpretationTable.EDFs)),
-				EDFsOff:  uint8(material.Material.interpretationTable.EDFOff),
+				EDFCount: uint8(len(material.Material.outputLayout.EDFs)),
+				EDFsOff:  uint8(material.Material.outputLayout.EDFOff),
 
 				OutputsReg: uint32(material.Material.outputsReg),
 

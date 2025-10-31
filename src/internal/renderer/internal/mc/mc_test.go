@@ -8,6 +8,7 @@ import (
 
 	"worldspawn/internal/renderer/internal/compiler"
 	"worldspawn/internal/renderer/internal/compiler/core"
+	"worldspawn/internal/renderer/internal/material"
 )
 
 var allRules = append(append([]compiler.RewriteRule(nil), core.Rules...), LowerToInterpreter...)
@@ -81,8 +82,8 @@ func TestXxx(t *testing.T) {
 
 	program := b.Value2(OpMVMPseudoOutput,
 		core.MakeArrayType(6, core.Int32),
-		&InterpretedMaterialOutputLayout{
-			BSDFs:   []BSDF{BSDFDiffuse},
+		&material.InterpretedMaterialOutputLayout{
+			BSDFs:   []material.BSDF{material.BSDFDiffuse},
 			BSDFOff: 0,
 		},
 		final_x, final_y, final_z,
@@ -91,5 +92,5 @@ func TestXxx(t *testing.T) {
 	compiled := Compile(sea, program, TargetInterpreter)
 
 	t.Log(compiled.Outputs)
-	t.Log(compiled.InterpretationTable)
+	t.Log(compiled.OutputLayout)
 }

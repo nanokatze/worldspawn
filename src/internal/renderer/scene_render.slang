@@ -1,12 +1,12 @@
 import gpu;
 import transfer_functions;
 import scene;
-import material_interpreter;
+import internal.material.interpreter;
 import internal.lds;
 import internal.interpreter;
 import sampling;
 import spectrum;
-import bsdf;
+import internal.material.bsdf;
 import attribute;
 
 // Shifted blue noise shamelessly stolen from rtx remix, which is

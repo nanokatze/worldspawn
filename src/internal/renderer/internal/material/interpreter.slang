@@ -1,4 +1,4 @@
-import internal.interpreter;
+import "../interpreter";
 import scene;
 import spectrum;
 import bsdf;

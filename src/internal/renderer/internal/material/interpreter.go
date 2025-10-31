@@ -1,4 +1,4 @@
-package mc
+package material
 
 // TODO: what should this file actually contain? I guess we need a file that
 // implements the interpreter (well, we implement it in slang, but the go
@@ -41,6 +41,34 @@ const (
 	// ABSDFAlbedo
 )
 
-func packinstr(op A, dst, src0, src1 uint32) uint32 {
+// TODO: move to a different file? perhaps back to mc?
+func Packinstr(op A, dst, src0, src1 uint32) uint32 {
 	return uint32(op) | uint32(dst)<<8 | uint32(src0)<<16 | uint32(src1)<<24
+}
+
+// TODO: rename these enums to make it clear that it's some kind of "id" used by
+// interpreter
+type BSDF int8
+
+const (
+	_ BSDF = iota
+	BSDFDiffuse
+)
+
+type EDF int8
+
+const (
+	_ EDF = iota
+	EDFUniform
+)
+
+// TODO: this ideally would be hashable for mc. We can either make this hashable
+// somehow, or define functions to de/serialize this into a string.
+type InterpretedMaterialOutputLayout struct {
+	// TODO: BSDF and EDF are per-surface (and there can be two: front face and
+	// back face). Beside that we also need VDFs and also AOVs.
+	BSDFOff int
+	BSDFs   []BSDF
+	EDFOff  int
+	EDFs    []EDF
 }

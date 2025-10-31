@@ -9,6 +9,7 @@ import (
 	"worldspawn/gpu"
 	"worldspawn/internal/renderer/internal/compiler"
 	"worldspawn/internal/renderer/internal/compiler/core"
+	"worldspawn/internal/renderer/internal/material"
 	"worldspawn/internal/renderer/internal/mc"
 )
 
@@ -22,15 +23,15 @@ type MaterialSet struct {
 // InterpretedMaterial which will be basically mc.InterpreterProgram but with
 // code being gpu.Slice[uint32].
 type Material struct {
-	code                gpu.Slice[uint32]
-	outputsReg          int
-	interpretationTable mc.InterpretedMaterialOutputLayout
+	code         gpu.Slice[uint32]
+	outputsReg   int
+	outputLayout material.InterpretedMaterialOutputLayout
 	// TODO: other things like mapping string to offsets in the params bytes,
 	// etc.
 }
 
 func (m *Material) emissive() bool {
-	return len(m.interpretationTable.EDFs) > 0
+	return len(m.outputLayout.EDFs) > 0
 }
 
 func buildArith1(b *compiler.Builder, op compiler.Op, x *compiler.Class) *compiler.Class {
@@ -103,8 +104,8 @@ var TestMaterial = sync.OnceValue(func() *Material {
 	program := b.Value2(
 		mc.OpMVMPseudoOutput,
 		core.MakeArrayType(6, core.Int32),
-		&mc.InterpretedMaterialOutputLayout{
-			BSDFs:   []mc.BSDF{mc.BSDFDiffuse},
+		&material.InterpretedMaterialOutputLayout{
+			BSDFs:   []material.BSDF{material.BSDFDiffuse},
 			BSDFOff: 0,
 		},
 		color_r, color_g, color_b,
@@ -131,14 +132,13 @@ var TestMaterial2 = sync.OnceValue(func() *Material {
 	_color := b.Value2(
 		mc.OpMVMPseudoOutput,
 		core.MakeArrayType(3, core.Int32),
-		&mc.InterpretedMaterialOutputLayout{
-			EDFs:   []mc.EDF{mc.EDFUniform},
+		&material.InterpretedMaterialOutputLayout{
+			EDFs:   []material.EDF{material.EDFUniform},
 			EDFOff: 0,
 		},
 		_emission_r, _emission_g, _emission_b)
 
-	tmp := NewMaterial(sea, _color)
-	return tmp
+	return NewMaterial(sea, _color)
 })
 
 func NewMaterial(sea *compiler.Sea, v *compiler.Class) *Material {
@@ -150,8 +150,8 @@ func NewMaterial(sea *compiler.Sea, v *compiler.Class) *Material {
 	log.Println("outputs register", uint32(interpreterProgram.Outputs))
 
 	return &Material{
-		code:                device,
-		outputsReg:          interpreterProgram.Outputs,
-		interpretationTable: interpreterProgram.InterpretationTable,
+		code:         device,
+		outputsReg:   interpreterProgram.Outputs,
+		outputLayout: interpreterProgram.OutputLayout,
 	}
 }
