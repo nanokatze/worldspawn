@@ -41,11 +41,6 @@ const (
 	// ABSDFAlbedo
 )
 
-// TODO: move to a different file? perhaps back to mc?
-func Packinstr(op A, dst, src0, src1 uint32) uint32 {
-	return uint32(op) | uint32(dst)<<8 | uint32(src0)<<16 | uint32(src1)<<24
-}
-
 // TODO: rename these enums to make it clear that it's some kind of "id" used by
 // interpreter
 type BSDF int8

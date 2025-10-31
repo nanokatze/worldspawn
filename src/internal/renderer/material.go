@@ -35,15 +35,15 @@ func (m *Material) emissive() bool {
 }
 
 func buildArith1(b *compiler.Builder, op compiler.Op, x *compiler.Class) *compiler.Class {
-	return b.Value(op, x.Type(), x)
+	return b.Value2(op, x.Type(), nil, x)
 }
 
 func buildArith2(b *compiler.Builder, op compiler.Op, x, y *compiler.Class) *compiler.Class {
-	return b.Value(op, x.Type(), x, y)
+	return b.Value2(op, x.Type(), nil, x, y)
 }
 
 func buildFract(b *compiler.Builder, v *compiler.Class) *compiler.Class {
-	return buildArith2(b, mc.OpFSub, v, buildArith1(b, mc.OpFFloor, v))
+	return buildArith2(b, core.OpFSub, v, buildArith1(b, core.OpFFloor, v))
 }
 
 var TestMaterial = sync.OnceValue(func() *Material {
@@ -53,13 +53,13 @@ var TestMaterial = sync.OnceValue(func() *Material {
 		Rules: append(append([]compiler.RewriteRule(nil), core.Rules...), mc.LowerToInterpreter...),
 	}
 
-	normal := b.Value(mc.OpMVMLoadNormal, core.MakeArrayType(3, core.Int32))
+	normal := b.Value2(mc.OpInterpreterLoadNormal, core.MakeArrayType(3, core.Int32), nil)
 	normal_x := core.ArrayExtract(&b, normal, 0)
 	normal_y := core.ArrayExtract(&b, normal, 1)
 	normal_z := core.ArrayExtract(&b, normal, 2)
 
 	uv := b.Value2(
-		mc.OpMVMLoadAttr,
+		mc.OpInterpreterLoadAttr,
 		core.MakeArrayType(2, core.Int32),
 		uint32(unsafe.Offsetof(materialParams{}.UVs)))
 	u := core.ArrayExtract(&b, uv, 0)
@@ -70,16 +70,17 @@ var TestMaterial = sync.OnceValue(func() *Material {
 	fractU := buildFract(&b, u)
 	fractV := buildFract(&b, v)
 
-	oneMinusFractU := buildArith2(&b, mc.OpFSub, one, fractU)
-	oneMinusFractV := buildArith2(&b, mc.OpFSub, one, fractV)
+	oneMinusFractU := buildArith2(&b, core.OpFSub, one, fractU)
+	oneMinusFractV := buildArith2(&b, core.OpFSub, one, fractV)
 
-	idk1 := buildArith2(&b, mc.OpFMin, fractU, fractV)
-	idk2 := buildArith2(&b, mc.OpFMin, oneMinusFractU, oneMinusFractV)
-	idk3 := buildArith2(&b, mc.OpFMin, idk1, idk2)
+	idk1 := buildArith2(&b, core.OpFMin, fractU, fractV)
+	idk2 := buildArith2(&b, core.OpFMin, oneMinusFractU, oneMinusFractV)
+	idk3 := buildArith2(&b, core.OpFMin, idk1, idk2)
 
-	selector := b.Value(
-		mc.OpMVMFLessOrEqualE8M23,
+	selector := b.Value2(
+		mc.OpInterpreterFLessOrEqualE8M23,
 		core.Int32,
+		nil,
 		idk3,
 		core.Const(&b, core.Int32, int64(math.Float32bits(0.025))))
 
@@ -88,21 +89,21 @@ var TestMaterial = sync.OnceValue(func() *Material {
 	color_r := core.CondSelect(
 		&b,
 		one,
-		b.Value2(mc.OpMVMLoadParam, core.Int32, uint32(unsafe.Offsetof(materialParams{}.BaseColor))+0),
+		b.Value2(mc.OpInterpreterLoadParam, core.Int32, uint32(unsafe.Offsetof(materialParams{}.BaseColor))+0),
 		selector)
 	color_g := core.CondSelect(
 		&b,
 		one,
-		b.Value2(mc.OpMVMLoadParam, core.Int32, uint32(unsafe.Offsetof(materialParams{}.BaseColor))+4),
+		b.Value2(mc.OpInterpreterLoadParam, core.Int32, uint32(unsafe.Offsetof(materialParams{}.BaseColor))+4),
 		selector)
 	color_b := core.CondSelect(
 		&b,
 		one,
-		b.Value2(mc.OpMVMLoadParam, core.Int32, uint32(unsafe.Offsetof(materialParams{}.BaseColor))+8),
+		b.Value2(mc.OpInterpreterLoadParam, core.Int32, uint32(unsafe.Offsetof(materialParams{}.BaseColor))+8),
 		selector)
 
 	program := b.Value2(
-		mc.OpMVMPseudoOutput,
+		mc.OpInterpreterPseudoOutput,
 		core.MakeArrayType(6, core.Int32),
 		&material.InterpretedMaterialOutputLayout{
 			BSDFs:   []material.BSDF{material.BSDFDiffuse},
@@ -121,7 +122,7 @@ var TestMaterial2 = sync.OnceValue(func() *Material {
 		Rules: append(append([]compiler.RewriteRule(nil), core.Rules...), mc.LowerToInterpreter...),
 	}
 
-	normal := b.Value(mc.OpMVMLoadNormal, core.MakeArrayType(3, core.Int32))
+	normal := b.Value2(mc.OpInterpreterLoadNormal, core.MakeArrayType(3, core.Int32), nil)
 	_ = normal
 	// normal_x := core.ArrayExtract(b, normal, 0)
 	// normal_y := core.ArrayExtract(b, normal, 1)
@@ -130,7 +131,7 @@ var TestMaterial2 = sync.OnceValue(func() *Material {
 	_emission_g := core.Const(b, core.Int32, int64(math.Float32bits(1.0)))
 	_emission_b := core.Const(b, core.Int32, int64(math.Float32bits(10.0)))
 	_color := b.Value2(
-		mc.OpMVMPseudoOutput,
+		mc.OpInterpreterPseudoOutput,
 		core.MakeArrayType(3, core.Int32),
 		&material.InterpretedMaterialOutputLayout{
 			EDFs:   []material.EDF{material.EDFUniform},
@@ -142,7 +143,7 @@ var TestMaterial2 = sync.OnceValue(func() *Material {
 })
 
 func NewMaterial(sea *compiler.Sea, v *compiler.Class) *Material {
-	interpreterProgram := mc.Compile(sea, v, mc.TargetInterpreter)
+	interpreterProgram := mc.CompileForInterpreter(sea, v)
 
 	device := gpu.MakeSliceUncached[uint32](len(interpreterProgram.Code))
 	copy(device.Value(), interpreterProgram.Code)

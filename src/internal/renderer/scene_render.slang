@@ -474,9 +474,11 @@ void closesthit(
     // TODO: once we get diffuse cache, (optionally) terminate the path for
     // diffuse-only bsdfSamples and instead get the information from the cache.
 
-    // TODO: uhhhhh??????????? do something better about it pls
-    if (bsdfSample.pdf > 0)
-    path.beta *= bsdfSample.f * dot(bsdfSample.wi, normal) / bsdfSample.pdf;
+    // TODO: transmission
+    if (bsdfSample.flags & BSDFFlags::Reflected)
+        path.beta *= bsdfSample.f * dot(bsdfSample.wi, normal) / bsdfSample.pdf;
+    else
+        path.beta = (float3)0;
 
     // Vampire bounces that are reflected become anti-vampire if the surface was
     // not vampire.

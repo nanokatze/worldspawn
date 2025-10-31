@@ -31,7 +31,7 @@ var OpMakeArray = compiler.DefOp("MakeArray", validateMakeArray)
 // TODO: make this take elem type explicitly?
 func MakeArray(b *compiler.Builder, et compiler.Type, args ...*compiler.Class) *compiler.Class {
 	t := MakeArrayType(int64(len(args)), et)
-	return b.Value(OpMakeArray, t, args...)
+	return b.Value2(OpMakeArray, t, nil, args...)
 }
 
 var OpArrayExtract = compiler.DefOp("ArrayExtract", validateArrayExtract)
@@ -45,7 +45,7 @@ func init() {
 		compiler.RewriteRule{
 			Name:    "Forward ArrayExtract to the element's definition",
 			Pattern: &compiler.Pattern{Op: OpArrayExtract, Args: []*compiler.Pattern{{Op: OpMakeArray, ArgsDDD: true}}},
-			Rewrite: func(rc *compiler.RewriteContext, v *compiler.Value) {
+			Rewrite: func(b *compiler.Builder, rc *compiler.RewriteContext, v *compiler.Value) {
 				idx := v.Imm().(int64)
 				for arr := range v.Arg(0).Values() {
 					if arr.Op() == OpMakeArray {
@@ -57,7 +57,7 @@ func init() {
 		compiler.RewriteRule{
 			Name:    "Split CondSelect of arrays into per element CondSelect", // TODO: better name?
 			Pattern: &compiler.Pattern{Op: OpCondSelect, Args: []*compiler.Pattern{{}, {}, {}}},
-			Rewrite: func(rc *compiler.RewriteContext, v *compiler.Value) {
+			Rewrite: func(b *compiler.Builder, rc *compiler.RewriteContext, v *compiler.Value) {
 				arr, ok := v.Type().(ArrayType)
 				if !ok {
 					return
@@ -69,9 +69,9 @@ func init() {
 
 				elems := make([]*compiler.Class, arr.Len())
 				for i := range arr.Len() {
-					x_i := ArrayExtract(rc.B(), x, i)
-					y_i := ArrayExtract(rc.B(), y, i)
-					elems[i] = CondSelect(rc.B(), x_i, y_i, cond)
+					x_i := ArrayExtract(b, x, i)
+					y_i := ArrayExtract(b, y, i)
+					elems[i] = CondSelect(b, x_i, y_i, cond)
 				}
 				rc.Add2(OpMakeArray, arr, nil, elems...)
 			},

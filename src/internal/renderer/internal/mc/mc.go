@@ -4,7 +4,6 @@ package mc
 
 import (
 	"worldspawn/internal/renderer/internal/compiler"
-	"worldspawn/internal/renderer/internal/compiler/core"
 )
 
 // TODO: ideally we should should follow how MaterialX arranges material
@@ -16,44 +15,17 @@ type BSDFType struct{}
 
 func (BSDFType) String() string { return "BSDF" }
 
-/*
 type EDFType struct{}
 
 func (EDFType) String() string { return "EDF" }
 
+/*
 type SurfaceType struct{}
 
 func (SurfaceType) String() string { return "Surface" }
 */
 
-// TODO: actually just kill aliases?
-
-type Builder = compiler.Builder
-
 var (
-	OpIConst = core.OpIConst
-
-	OpMakeArray    = core.OpMakeArray
-	OpArrayExtract = core.OpArrayExtract
-
-	OpCondSelect = core.OpCondSelect
-
-	// TODO: move these to float subpackage of compiler base package
-	OpFAdd = core.OpFAdd
-	OpFSub = core.OpFSub
-	OpFMul = core.OpFMul
-	OpFDiv = core.OpFDiv
-
-	OpFMin = core.OpFMin
-	OpFMax = core.OpFMax
-
-	OpFFloor = core.OpFFloor
-	OpFCeil  = core.OpFCeil
-
-	OpFEqual       = core.OpFEqual
-	OpFLess        = core.OpFLess
-	OpFLessOrEqual = core.OpFLessOrEqual
-
 	OpDiffuseBSDF = compiler.DefOp("DiffuseBSDF", nil)
 	// TODO: if we keep one huge MicrofacetBSDF we'll also want to introduce
 	// Fresnel type that we'll pass values of to this op.
