@@ -4,13 +4,18 @@ import sampling;
 
 static const float M_PI_F = 3.141592653589793;
 
-// TODO: different fresnels
-
+// TODO: provide at least a single impl
 public interface Fresnel {
     // void F()
 }
 
-public struct MicrofacetBSDF<F : Fresnel> : BSDF {
+// TODO: we could start with perfectly smooth surfaces
+public interface NDF {
+    // TODO: we need a family of sample functions basically
+    float3 Sample();
+}
+
+public struct MicrofacetBSDF<F : Fresnel, D : NDF> : BSDF {
     // public F fresnel;
 
     public BSDFFlags Flags() {

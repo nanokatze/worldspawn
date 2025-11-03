@@ -45,11 +45,14 @@ func init() {
 		compiler.RewriteRule{
 			Name:    "Forward ArrayExtract to the element's definition",
 			Pattern: &compiler.Pattern{Op: OpArrayExtract, Args: []*compiler.Pattern{{Op: OpMakeArray, ArgsDDD: true}}},
-			Rewrite: func(b *compiler.Builder, rc *compiler.RewriteContext, v *compiler.Value) {
+			Rewrite: func(b *compiler.Builder, r *compiler.Rewriter, v *compiler.Value) {
+				// TODO: explain why
+				r.Kill(v)
+
 				idx := v.Imm().(int64)
 				for arr := range v.Arg(0).Values() {
 					if arr.Op() == OpMakeArray {
-						rc.Class(arr.Arg(int(idx)))
+						r.Class(arr.Arg(int(idx)))
 					}
 				}
 			},
@@ -57,7 +60,7 @@ func init() {
 		compiler.RewriteRule{
 			Name:    "Split CondSelect of arrays into per element CondSelect", // TODO: better name?
 			Pattern: &compiler.Pattern{Op: OpCondSelect, Args: []*compiler.Pattern{{}, {}, {}}},
-			Rewrite: func(b *compiler.Builder, rc *compiler.RewriteContext, v *compiler.Value) {
+			Rewrite: func(b *compiler.Builder, r *compiler.Rewriter, v *compiler.Value) {
 				arr, ok := v.Type().(ArrayType)
 				if !ok {
 					return
@@ -67,13 +70,16 @@ func init() {
 				y := v.Arg(1)
 				cond := v.Arg(2)
 
+				// TODO: explain why
+				r.Kill(v)
+
 				elems := make([]*compiler.Class, arr.Len())
 				for i := range arr.Len() {
 					x_i := ArrayExtract(b, x, i)
 					y_i := ArrayExtract(b, y, i)
 					elems[i] = CondSelect(b, x_i, y_i, cond)
 				}
-				rc.Add2(OpMakeArray, arr, nil, elems...)
+				r.Add2(OpMakeArray, arr, nil, elems...)
 			},
 		})
 }

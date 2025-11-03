@@ -5,7 +5,7 @@ import (
 	"worldspawn/internal/renderer/internal/material"
 )
 
-// TODO: reg and regN types
+// type regType struct{ N int }
 
 // Adding a new instruction
 //
@@ -28,7 +28,7 @@ type interpreterOp interface {
 var amap = make(map[compiler.Op]func(as *assembler, class *compiler.Class, v *compiler.Value, regm map[*compiler.Class]regRange))
 
 func defInterpreterOp(name string, a interpreterOp) compiler.Op {
-	op := compiler.DefOp(name, a.Validate)
+	op := compiler.DefOp("Interpreter"+name, a.Validate)
 	amap[op] = a.Assemble
 	return op
 }
@@ -43,43 +43,30 @@ type aaa struct {
 }
 
 var (
-	opInterpreterConst32 = defInterpreterOp("InterpreterConst32",
-		aaa{op: material.AConst32, dst: true, imm: true})
+	opInterpreterConst32 = defInterpreterOp("Const32", aaa{op: material.AConst32, dst: true, imm: true})
 
-	opInterpreterFAddE8M23 = defInterpreterOp("InterpreterFAddE8M23",
-		aaa{op: material.AFAddE8M23, dst: true, arity: 2})
-	opInterpreterFSubE8M23 = defInterpreterOp("InterpreterFSubE8M23",
-		aaa{op: material.AFSubE8M23, dst: true, arity: 2})
-	opInterpreterFMulE8M23 = defInterpreterOp("InterpreterFMulE8M23",
-		aaa{op: material.AFMulE8M23, dst: true, arity: 2})
-	opInterpreterFDivE8M23 = defInterpreterOp("InterpreterFDivE8M23",
-		aaa{op: material.AFDivE8M23, dst: true, arity: 2})
-	opInterpreterFMinE8M23 = defInterpreterOp("InterpreterFMinE8M23",
-		aaa{op: material.AFMinE8M23, dst: true, arity: 2})
-	opInterpreterFMaxE8M23 = defInterpreterOp("InterpreterFMaxE8M23",
-		aaa{op: material.AFMaxE8M23, dst: true, arity: 2})
+	opInterpreterFAddE8M23 = defInterpreterOp("FAddE8M23", aaa{op: material.AFAddE8M23, dst: true, arity: 2})
+	opInterpreterFSubE8M23 = defInterpreterOp("FSubE8M23", aaa{op: material.AFSubE8M23, dst: true, arity: 2})
+	opInterpreterFMulE8M23 = defInterpreterOp("FMulE8M23", aaa{op: material.AFMulE8M23, dst: true, arity: 2})
+	opInterpreterFDivE8M23 = defInterpreterOp("FDivE8M23", aaa{op: material.AFDivE8M23, dst: true, arity: 2})
+	opInterpreterFMinE8M23 = defInterpreterOp("FMinE8M23", aaa{op: material.AFMinE8M23, dst: true, arity: 2})
+	opInterpreterFMaxE8M23 = defInterpreterOp("FMaxE8M23", aaa{op: material.AFMaxE8M23, dst: true, arity: 2})
 
-	opInterpreterFFloorE8M23 = defInterpreterOp("InterpreterFFloorE8M23",
-		aaa{op: material.AFFloorE8M23, dst: true, arity: 1})
+	opInterpreterFFloorE8M23 = defInterpreterOp("FFloorE8M23", aaa{op: material.AFFloorE8M23, dst: true, arity: 1})
 
 	// blender materials actually don't have LessOrEqual, they only have less.
-	OpInterpreterFLessOrEqualE8M23 = defInterpreterOp("InterpreterFLessOrEqualE8M23",
-		aaa{op: material.AFLessOrEqualE8M23, dst: true, arity: 2})
+	OpInterpreterFLessOrEqualE8M23 = defInterpreterOp("FLessOrEqualE8M23", aaa{op: material.AFLessOrEqualE8M23, dst: true, arity: 2})
 
-	opInterpreterCondSelect32 = defInterpreterOp("InterpreterCondSelect32",
-		aaa{op: material.ACondSelect32, dst: true, arity: 3})
+	opInterpreterCondSelect32 = defInterpreterOp("CondSelect32", aaa{op: material.ACondSelect32, dst: true, arity: 3})
 
 	// TODO: rename these s/Load/Get/? We usually only use Load for stuff that
 	// takes rmem.
 
-	OpInterpreterLoadParam = defInterpreterOp("InterpreterLoadParam",
-		aaa{op: material.ALoadParam, dst: true, imm: true})
+	OpInterpreterLoadParam = defInterpreterOp("LoadParam", aaa{op: material.ALoadParam, dst: true, imm: true})
 
-	OpInterpreterLoadAttr = defInterpreterOp("InterpreterLoadAttr",
-		aaa{op: material.ALoadAttr, dst: true, imm: true})
+	OpInterpreterLoadAttr = defInterpreterOp("LoadAttr", aaa{op: material.ALoadAttr, dst: true, imm: true})
 
-	OpInterpreterLoadNormal = defInterpreterOp("InterpreterLoadNormal",
-		aaa{op: material.ALoadNormal, dst: true})
+	OpInterpreterLoadNormal = defInterpreterOp("LoadNormal", aaa{op: material.ALoadNormal, dst: true})
 
 	// TODO: we'll want an instruction per BSDF probably...
 	// OpMVMBSDFDiffuseAlbedo
@@ -93,11 +80,9 @@ var (
 	// BSDF parameters
 	// EDF tints
 	// EDF parameters
-	OpInterpreterPseudoOutput = defInterpreterOp("InterpreterPseudoOutput",
-		aaa{special: true})
+	OpInterpreterPseudoOutput = defInterpreterOp("PseudoOutput", aaa{special: true})
 
-	opInterpreterPseudoArrayExtract = defInterpreterOp("InterpreterPseudoArrayExtract",
-		aaa{special: true})
+	opInterpreterPseudoArrayExtract = defInterpreterOp("PseudoArrayExtract", aaa{special: true})
 )
 
 func (d aaa) Validate(typ compiler.Type, imm any, args ...*compiler.Class) {

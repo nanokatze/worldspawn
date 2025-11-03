@@ -13,12 +13,12 @@ var LowerToInterpreter = []compiler.RewriteRule{
 	{
 		Name:    "Lower IConst",
 		Pattern: &compiler.Pattern{Op: core.OpIConst},
-		Rewrite: func(b *compiler.Builder, rc *compiler.RewriteContext, v *compiler.Value) {
+		Rewrite: func(b *compiler.Builder, r *compiler.Rewriter, v *compiler.Value) {
 			bits := v.Type().(core.IntType).N
 			imm := v.Imm().(int64)
 			switch bits {
 			case 32:
-				rc.Add2(opInterpreterConst32, v.Type(), uint32(imm))
+				r.Add2(opInterpreterConst32, v.Type(), uint32(imm))
 			default:
 				// TODO: panic with an error object instead
 				panic(fmt.Sprintf("cannot lower %d-bit %s", bits, v.Op()))
@@ -26,24 +26,29 @@ var LowerToInterpreter = []compiler.RewriteRule{
 		},
 	},
 
+	lowerFloatArith(core.OpFAdd, opInterpreterFAddE8M23),
 	lowerFloatArith(core.OpFSub, opInterpreterFSubE8M23),
+	lowerFloatArith(core.OpFMul, opInterpreterFMulE8M23),
+	lowerFloatArith(core.OpFDiv, opInterpreterFDivE8M23),
 	lowerFloatArith(core.OpFMin, opInterpreterFMinE8M23),
+	lowerFloatArith(core.OpFMax, opInterpreterFMaxE8M23),
 	lowerFloatArith(core.OpFFloor, opInterpreterFFloorE8M23),
 	lowerFloatCmp(core.OpFLessOrEqual, OpInterpreterFLessOrEqualE8M23),
 
-	// TODO: we'll make OpCondSelect's cond 1-bit, while MVMCondSelect32's is
-	// 32-bit, so we'll need to consider that when lowering
+	// TODO: we'll make OpCondSelect's cond 1-bit, while
+	// InterpreterCondSelect32's is 32-bit, so we'll need to consider that when
+	// lowering
 	{
 		Name:    "Lower CondSelect",
 		Pattern: &compiler.Pattern{Op: core.OpCondSelect, Args: []*compiler.Pattern{{}, {}, {}}},
-		Rewrite: func(b *compiler.Builder, rc *compiler.RewriteContext, v *compiler.Value) {
+		Rewrite: func(b *compiler.Builder, r *compiler.Rewriter, v *compiler.Value) {
 			bits, ok := v.Type().(core.IntType)
 			if !ok {
 				return
 			}
 			switch bits.N {
 			case 32:
-				rc.Add2(opInterpreterCondSelect32, v.Type(), nil, v.Args()...)
+				r.Add2(opInterpreterCondSelect32, v.Type(), nil, v.Args()...)
 			default:
 				// TODO: panic with an error object instead
 				panic(fmt.Sprintf("cannot lower %d-bit %s", bits, v.Op()))
@@ -53,8 +58,8 @@ var LowerToInterpreter = []compiler.RewriteRule{
 
 	{
 		Pattern: &compiler.Pattern{Op: core.OpArrayExtract, Args: []*compiler.Pattern{{}}},
-		Rewrite: func(b *compiler.Builder, rc *compiler.RewriteContext, v *compiler.Value) {
-			rc.Add2(opInterpreterPseudoArrayExtract, v.Type(), uint32(v.Imm().(int64)), v.Args()...)
+		Rewrite: func(b *compiler.Builder, r *compiler.Rewriter, v *compiler.Value) {
+			r.Add2(opInterpreterPseudoArrayExtract, v.Type(), uint32(v.Imm().(int64)), v.Args()...)
 		},
 	},
 
@@ -104,11 +109,11 @@ var LowerToInterpreter = []compiler.RewriteRule{
 func lowerFloatArith(match compiler.Op, _32 compiler.Op) compiler.RewriteRule {
 	return compiler.RewriteRule{
 		Pattern: &compiler.Pattern{Op: match, ArgsDDD: true},
-		Rewrite: func(b *compiler.Builder, rc *compiler.RewriteContext, v *compiler.Value) {
+		Rewrite: func(b *compiler.Builder, r *compiler.Rewriter, v *compiler.Value) {
 			bits := v.Type().(core.IntType).N
 			switch bits {
 			case 32:
-				rc.Add2(_32, v.Type(), nil, v.Args()...)
+				r.Add2(_32, v.Type(), nil, v.Args()...)
 			default:
 				// TODO: panic with an error object instead
 				panic(fmt.Sprintf("cannot lower %d-bit %s", bits, v.Op()))
@@ -120,13 +125,13 @@ func lowerFloatArith(match compiler.Op, _32 compiler.Op) compiler.RewriteRule {
 func lowerFloatCmp(match compiler.Op, _32 compiler.Op) compiler.RewriteRule {
 	return compiler.RewriteRule{
 		Pattern: &compiler.Pattern{Op: match, ArgsDDD: true},
-		Rewrite: func(b *compiler.Builder, rc *compiler.RewriteContext, v *compiler.Value) {
+		Rewrite: func(b *compiler.Builder, r *compiler.Rewriter, v *compiler.Value) {
 			bits := v.Type().(core.IntType).N
 			switch bits {
 			case 32:
 				// TODO: std comparisons return 1-bit values, while we return
 				// Bits32. So we need a helper op to bridge this gap.
-				rc.Add2(_32, core.Int32, nil, v.Args()...)
+				r.Add2(_32, core.Int32, nil, v.Args()...)
 			default:
 				// TODO: panic with an error object instead
 				panic(fmt.Sprintf("cannot lower %d-bit %s", bits, v.Op()))

@@ -7,7 +7,7 @@ import (
 type RewriteRule struct {
 	Name    string
 	Pattern *Pattern
-	Rewrite func(*Builder, *RewriteContext, *Value)
+	Rewrite func(*Builder, *Rewriter, *Value)
 }
 
 // This handles only 2-ary ops, TODO: teach it to handle n-ary by only swapping
@@ -20,7 +20,7 @@ func Commutativity(op Op) RewriteRule {
 			Op:   op,
 			Args: []*Pattern{{}, {}},
 		},
-		Rewrite: func(b *Builder, rc *RewriteContext, v *Value) {
+		Rewrite: func(b *Builder, rc *Rewriter, v *Value) {
 			rc.Add2(v.Op(), v.Type(), v.Imm(), v.Arg(1), v.Arg(0))
 		},
 	}
@@ -44,7 +44,7 @@ func Associativity(op Op) RewriteRule {
 */
 
 // TODO: make this public?
-func applyRewriteRules(b *Builder, rc *RewriteContext) {
+func applyRewriteRules(b *Builder, rc *Rewriter) {
 	for {
 		v := rc.pop()
 		if v == nil {

@@ -4,6 +4,7 @@ import spectrum;
 
 // TODO: rename to smth like surface interaction or idk
 // TODO: move out of this file
+// TODO: combine flags so that we have ReflectionDiffuse, ReflectionGlossy, etc?
 public enum BSDFFlags {
     // Absorbed = 0,
     Emitted = 1 << 0,

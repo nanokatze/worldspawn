@@ -41,7 +41,7 @@ func TestStuff(t *testing.T) {
 				Op:   opX,
 				Args: []*Pattern{{}, {Op: opY}},
 			},
-			Rewrite: func(b *Builder, rc *RewriteContext, v *Value) {
+			Rewrite: func(b *Builder, rc *Rewriter, v *Value) {
 				rc.Class(v.Arg(1))
 			},
 		},

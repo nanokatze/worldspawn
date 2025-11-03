@@ -8,7 +8,7 @@ type Builder struct {
 
 func (b *Builder) Value2(op Op, typ Type, imm any, args ...*Class) *Class {
 	// TODO: reuse this with a sync.Pool
-	rc := &RewriteContext{
+	rc := &Rewriter{
 		sea:    b.Sea,
 		values: make(map[*Value]bool),
 	}
@@ -34,7 +34,7 @@ func Rewrite(b *Builder, c *Class) *Class {
 			return x
 		}
 
-		rc := &RewriteContext{
+		rc := &Rewriter{
 			sea:    b.Sea,
 			values: make(map[*Value]bool),
 		}

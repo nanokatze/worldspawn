@@ -1,21 +1,23 @@
-// TODO: rename this package to material_compiler or matcomp or matc, and move
-// interpreter into matvm?
 package mc
 
-import (
-	"worldspawn/internal/renderer/internal/compiler"
-)
+import "worldspawn/internal/renderer/internal/compiler"
 
 // TODO: ideally we should should follow how MaterialX arranges material
 // definition, and MDL to some degree. MDL has a pretty clean way to defining
 // materials so we should get inspired by that thing. Actually, MtlX can be
 // compiled down to MDL, so maybe we can just model things after MDL?
 
+// TODO: make a kind that we'll instantinate into BSDF, EDF, etc?
+
 type BSDFType struct{}
+
+var BSDF = BSDFType{}
 
 func (BSDFType) String() string { return "BSDF" }
 
 type EDFType struct{}
+
+var EDF = EDFType{}
 
 func (EDFType) String() string { return "EDF" }
 
@@ -26,7 +28,16 @@ func (SurfaceType) String() string { return "Surface" }
 */
 
 var (
+	// OpLoadParam = compiler.DefOp("LoadParam", nil)
+
+	// OpLoadAttr = compiler.DefOp("LoadAttr", nil)
+
+	// OpGGX = compiler.DefOp("GGX", nil)
+
+	// OpGeneralizedSchlick = compiler.DefOp("GeneralizedSchlick", nil)
+
 	OpDiffuseBSDF = compiler.DefOp("DiffuseBSDF", nil)
+
 	// TODO: if we keep one huge MicrofacetBSDF we'll also want to introduce
 	// Fresnel type that we'll pass values of to this op.
 	OpMicrofacetBSDF = compiler.DefOp("MicrofacetBSDF", nil)
