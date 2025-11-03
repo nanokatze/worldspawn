@@ -1,7 +1,6 @@
 package gpu
 
 import (
-	"log"
 	"testing"
 	"time"
 	"worldspawn/gpu/vk"
@@ -23,10 +22,11 @@ func BenchmarkRoundTrip(b *testing.B) {
 	}
 }
 
+// Not a real test yet but we're working on it
+//
+// TODO: make this a benchmark
 func TestFramesInFlight(t *testing.T) {
-	type fif struct {
-		wg WaitGroup
-	}
+	t.SkipNow()
 
 	A := NewImage(&ImageConfig{
 		Dim:       ImageDim2D,
@@ -45,20 +45,30 @@ func TestFramesInFlight(t *testing.T) {
 		Format:    vk.FORMAT_R32_UINT,
 	})
 
+	type fif struct {
+		wg WaitGroup
+	}
+
 	var fifs [2]fif
 
 	last := time.Now()
-
-	for i := range 100 {
-		var jq JobQueue
-
+	for i := range 10 {
+		// Wait for the previous commands associated with this frame-in-flight
+		// to complete
 		current := &fifs[i%len(fifs)]
 		current.wg.Wait()
 
-		time.Sleep(100 * time.Millisecond)
+		var jq JobQueue
 
+		// Make sure the new commands happen-after the previous frame's commands
 		prev := &fifs[(len(fifs)+i-1)%len(fifs)]
 		prev.wg.EnqueueWait(&jq)
+
+		// Very intensive host workload. This should be roughly equal to
+		// the time it takes for the device workload to run.
+		//
+		// TODO: measure this automatically
+		time.Sleep(100 * time.Millisecond)
 
 		switch i % 2 {
 		case 0:
@@ -67,13 +77,13 @@ func TestFramesInFlight(t *testing.T) {
 			EnqueueCopyImage(&jq, B, [3]int{}, A, [3]int{}, A.Extent())
 		}
 
-		// record stuff into jq here
-
 		current.wg.Add(1)
 		current.wg.EnqueueDone(&jq)
 
+		// With len(fifs) > 1, this should be about max(host frame time, device frame time)
+		// With len(fifs) == 1, this should be host frametime + device frame time
 		now := time.Now()
-		log.Println(now.Sub(last))
+		t.Log(now.Sub(last))
 		last = now
 	}
 
