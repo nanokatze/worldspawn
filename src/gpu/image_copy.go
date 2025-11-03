@@ -317,11 +317,11 @@ func (job *copyImageToMemoryJob) Exec(q *CommandQueue) {
 // TODO: provide a mechanism for feedback to the user?
 // TODO: pass granularities array, queueFamilies explicitly?
 func chooseQueueFamiliesForImageCopy(
-	imageFormat Format, imageExtent [3]int,
+	format Format, imageExtent [3]int,
 	aspects vk.ImageAspectFlags, level int,
 	offsetBlocks, extentBlocks [3]int) uint32 {
 	levelExtent := int3Minify(imageExtent, level)
-	levelExtentBlocks := divByBlockExtentRoundUp(levelExtent, imageFormat)
+	levelExtentBlocks := divByBlockExtentRoundUp(levelExtent, format)
 
 	families := queueFamilies.Mask(0b100)
 
@@ -349,10 +349,10 @@ func chooseQueueFamiliesForImageCopy(
 }
 
 func copyRectInTexels(
-	imageFormat Format, imageExtent [3]int,
+	format Format, imageExtent [3]int,
 	level int,
 	offsetBlocks, extentBlocks [3]int) ([3]int, [3]int) {
-	blockExtent := int3FromVkExtent3D(formatutil.Describe(imageFormat).BlockExtent)
+	blockExtent := int3FromVkExtent3D(formatutil.Describe(format).BlockExtent)
 
 	offset := int3(offsetBlocks).Mul(blockExtent)
 	extent := int3Min(
