@@ -1,6 +1,7 @@
 import spectrum;
 
-// TODO: rename this file to bsdf.slang
+// TODO: move bsdfs and edfs into a separate directory so that they don't have
+// to touch anything material? We'll also need to cover them with tests.
 
 // TODO: rename to smth like surface interaction or idk
 // TODO: move out of this file
@@ -88,7 +89,8 @@ public struct Frame {
 // https://github.com/mmp/pbrt-v4/blob/f140d7cba5dc7b941f9346d6b7d1476a05c28c37/src/pbrt/bsdf.h
 public struct BSDFAdapter<T : BSDF> : BSDF {
     // TODO: also include color scale here
-    public Frame shadingFrame;
+    public Spectrum tint;
+    public Frame shadingFrame; // TODO: shorter name for the members or whatever
     public T bsdf;
 
     BSDFFlags Flags() {
@@ -98,14 +100,16 @@ public struct BSDFAdapter<T : BSDF> : BSDF {
     BSDFEvaluatedResult Eval(float3 wo, float3 wi) {
         let wo2 = shadingFrame.worldToLocal(wo);
         let wi2 = shadingFrame.worldToLocal(wi);
-        return bsdf.Eval(wo2, wi2);
+        var e = bsdf.Eval(wo2, wi2);
+        e.f *= tint;
+        return e;
     }
 
     BSDFSample Sample(float3 wo, float uc, float2 u) {
         let wo2 = shadingFrame.worldToLocal(wo);
-        BSDFSample sample = bsdf.Sample(wo2, uc, u);
+        var sample = bsdf.Sample(wo2, uc, u);
         return {
-            sample.f,
+            tint * sample.f,
             shadingFrame.localToWorld(sample.wi),
             sample.pdf,
             sample.flags,

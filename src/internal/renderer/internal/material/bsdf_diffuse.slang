@@ -8,7 +8,6 @@ static const float M_PI = 3.141592653589793;
 
 // TODO: rename to DiffuseBSDF?
 public struct Diffuse : BSDF {
-    public Spectrum R;
     // public float roughness;
 
     public BSDFFlags Flags() {
@@ -21,14 +20,14 @@ public struct Diffuse : BSDF {
         if (wo.z < 1.5e-3f || wi.z < 1.5e-3f)
             return {};
 
-        return {R / M_PI, CosineHemispherePDF(absCosTheta(wi))};
+        return {Spectrum(1) / M_PI, CosineHemispherePDF(absCosTheta(wi))};
     }
 
     public BSDFSample Sample(float3 wo, float uc, float2 u) {
         float3 wi = SampleCosineHemisphere(u);
 
         return {
-            R / M_PI,
+            Spectrum(1) / M_PI,
             wi,
             CosineHemispherePDF(absCosTheta(wi)),
             Flags(),

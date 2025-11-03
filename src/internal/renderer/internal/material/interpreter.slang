@@ -195,8 +195,8 @@ Frame readShadingFrameN(__ref RegisterReader rd) {
 
 BSDFAdapter<Diffuse> readDiffuseBSDF(__ref RegisterReader tints, __ref RegisterReader bsdfparams) {
     return {
-        readShadingFrameN(bsdfparams),
         readSpectrum(tints),
+        readShadingFrameN(bsdfparams),
     };
 }
 
