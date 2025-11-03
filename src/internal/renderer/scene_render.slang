@@ -76,7 +76,7 @@ struct Path {
     // Path throughput
     Spectrum beta;
 
-    int bounce;
+    int depth;
 
     // TODO: we also need to shove p_b here
 
@@ -90,14 +90,8 @@ struct Path {
     float3 rayDir;
 };
 
-struct GBuffer {
-    Path path;
-    Spectrum albedo;
-    float3 normal;
-}
-
 struct FrameData {
-    uint32_t frameNumber; // TODO: rename
+    uint32_t frameNumber; // TODO: delete
 
     SamplingView blueNoise;
 
@@ -118,13 +112,22 @@ struct FrameData {
 struct Push {
     Scene *scene;
     FrameData *camera;
-    StorageView out;
+    // TODO: factor these into the framebuffer + clear op + clear colors
+    StorageView out; // irradiance
+    // StorageView *gbuffer;
 }
 
 [[vk::push_constant]] Push push;
 
 RaytracingAccelerationStructure rtas(uint64_t bda) {
     return spirv_asm { result:$$RaytracingAccelerationStructure = OpConvertUToAccelerationStructureKHR $bda };
+}
+
+void exportIrradiance(Spectrum L) {
+    uint3 LaunchID = DispatchRaysIndex();
+
+    // TODO: pack if we're storing into e5rgb9
+    push.out.Store2D((int2)LaunchID.xy, float4(oetf(0, L), 1));
 }
 
 [[shader("raygeneration")]]
@@ -145,18 +148,14 @@ void raygen() {
     Path path = {};
     path.L = Spectrum(0.0);
     path.beta = Spectrum(1.0);
-    path.bounce = 0;
+    path.depth = 0;
     path.vampire = true;
     // path.specularBounce = false;
     path.rayOrigin = mul(push.camera->viewInverse, float4(0, 0, 0, 1)).xyz;
     // TODO: do we actually need normalize here?
     path.rayDir = normalize(mul(push.camera->viewInverse, float4(normalize(target.xyz), 0)).xyz);
 
-    // TODO: make the number of bounces configurable by host
-
-    // TODO: we should stop mid-way (after applying lights and stuff) so
-    // path.bounce check should be moved into closesthit().
-    for (path.bounce = 0; path.bounce < 2; path.bounce++) {
+    while (true) {
         RayDesc rayDesc;
         rayDesc.Origin = path.rayOrigin;
         rayDesc.Direction = path.rayDir;
@@ -174,7 +173,7 @@ void raygen() {
         if (rq.CommittedStatus() == COMMITTED_TRIANGLE_HIT) {
             let hitpos = rq.WorldRayOrigin() + rq.WorldRayDirection() * max(rq.CommittedRayT() - 0.001, 0);
 
-            closesthit(
+            let stop = !closesthit(
                 path,
                 LaunchID,
                 rq.CommittedInstanceIndex(),
@@ -184,15 +183,8 @@ void raygen() {
                 rq.WorldRayDirection(),
                 rq.CommittedObjectToWorld3x4(),
                 rq.CommittedTriangleBarycentrics());
-
-            if (path.bounce > 0) {
-                // TODO: introduce Spectrum.MaxComponentValue()
-                float q = max(0, 1.0 - max(max(path.beta.x, path.beta.y), path.beta.z));
-                // TODO: use an ordinary RNG here
-                if (0.1 < q)
-                    break;
-                path.beta /= 1.0 - q;
-            }
+            if (stop)
+                break;
         } else if (rq.CommittedStatus() == COMMITTED_NOTHING) {
             // TODO: this is miss code, it should live in its own func
 
@@ -210,13 +202,12 @@ void raygen() {
 
             break;
         } else {
-            /* unreachable */
+            /* abort(); */
             break;
         }
     }
 
-    // TODO: pack if we're storing into e5rgb9
-    push.out.Store2D((int2)LaunchID.xy, float4(oetf(0, path.L), 1));
+    exportIrradiance(path.L);
 }
 
 // TODO: verts should be local. We also need to remember the original triIdxs
@@ -392,7 +383,7 @@ Spectrum sampleLd(
 
 // TODO: encapsulate this garbage into a nice Interaction struct or something
 // like that.
-void closesthit(
+bool closesthit(
     __ref Path path,
     uint3 dispatchRaysIndex,
     uint instanceIndex,
@@ -406,10 +397,11 @@ void closesthit(
     // For an optimization we could check path.antiVampire. If it's set, we
     // couldn't have hit a vampire instance, so we don't need to check the
     // visibility mask.
+    // TODO: rename to something like "vampireInstance" or whatever
     bool vampire = ((push->scene->accelInstances[instanceIndex].instanceIDAndMask >> 24) & 0b11) == 0b01;
 
     // TODO: rename to sampler or something
-    var bn = ShiftedBlueNoise<R2LDS>(R2LDS(), dispatchRaysIndex.xy, 10 * path.bounce);
+    var bn = ShiftedBlueNoise<R2LDS>(R2LDS(), dispatchRaysIndex.xy, 10 * path.depth);
 
     let materialParams = &push.scene->materialParams.data[instanceIndex * push.scene->maxPartsPerMesh + geometryIndex];
 
@@ -453,7 +445,18 @@ void closesthit(
         path.L += path.beta * Le;
     }
 
-    // TODO: radiance cache sampling would fit into somewhere in here
+    // TODO: we might want to sometimes write out the properties for a surface
+    // that we intersect at a later bounce (e.g. reflection off a perfect
+    // mirror, or transmission through a perfectly transmissive medium with
+    // different IOR.) We'll want to think how to express that.
+    if (path.depth == 0) {
+        // TODO: export GBuffer + AOVs
+    }
+
+    path.depth++;
+
+    if (path.depth >= 2) // TODO: load from host-specified param
+        return false;
 
     // Direct light sampling
     {
@@ -478,16 +481,29 @@ void closesthit(
     if (bsdfSample.flags & BSDFFlags::Reflected)
         path.beta *= bsdfSample.f * dot(bsdfSample.wi, normal) / bsdfSample.pdf;
     else
-        path.beta = (float3)0;
+        return false;
+
+    if (path.depth > 1) {
+        // TODO: introduce Spectrum.MaxComponentValue()
+        float q = max(0, 1.0 - max(max(path.beta.x, path.beta.y), path.beta.z));
+        // TODO: I guess we could also use an ordinary RNG here. Should we?
+        if (bn.Get1D() < q)
+            return false;
+        path.beta /= 1.0 - q;
+    }
 
     // Vampire bounces that are reflected become anti-vampire if the surface was
     // not vampire.
     //
     // Vampire bounces that are transmitted stay vampire.
-    if ((bsdfSample.flags & BSDFFlags::Reflected) && !vampire) {
-        path.vampire = false;
+    // TODO: rewrite this to be more clearer?
+    if (bsdfSample.flags & BSDFFlags::Reflected) {
+        if (!vampire)
+            path.vampire = false;
     }
 
-    path.rayOrigin = hitpos;
+    path.rayOrigin = hitpos; // TODO: this might come from bsdf as well
     path.rayDir = bsdfSample.wi; // TODO: should we normalize() here?
+
+    return true;
 }
