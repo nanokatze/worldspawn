@@ -1,35 +1,43 @@
 package gpu
 
 import (
+	"errors"
 	"slices"
 	"unsafe"
 
 	"worldspawn/gpu/vk"
 )
 
-type dispatchJob struct {
+type dispatchWorkgroupsJob struct {
 	groups [3]uint32
 	kernel *Func
 	args   []byte
 }
 
-func EnqueueParallelForGroups(jq *JobQueue, groups [3]int, kernel *Func, args any) {
-	validatedGroups := validateDispatchDimensions(groups)
+// TODO: shorter name?
+func EnqueueParallelForWorkgroups(jq *JobQueue, groups [3]int, kernel *Func, args any) {
+	var validatedGroups [3]uint32
+	if err := validateDispatchGrid(groups[:], validatedGroups[:]); err != nil {
+		panic(err)
+	}
+	if slices.Contains(validatedGroups[:], 0) {
+		return
+	}
 
-	jq.Enqueue(&dispatchJob{
+	jq.Enqueue(&dispatchWorkgroupsJob{
 		groups: validatedGroups,
 		kernel: kernel,
 		args:   slices.Clone(asbytes(args)),
 	})
 }
 
-func (*dispatchJob) Info() JobInfo {
+func (*dispatchWorkgroupsJob) Info() JobInfo {
 	return JobInfo{
 		QueueFamilies: queueFamilies.Mask(0b010),
 	}
 }
 
-func (job *dispatchJob) Exec(q *CommandQueue) {
+func (job *dispatchWorkgroupsJob) Exec(q *CommandQueue) {
 	q.Commands(func(cb vk.CommandBuffer) {
 		vkFns.CmdBindShadersEXT(
 			cb,
@@ -57,9 +65,16 @@ func (job *dispatchJob) Exec(q *CommandQueue) {
 	})
 }
 
-func validateDispatchDimensions(x [3]int) [3]uint32 {
-	if x[0] < 0 || x[1] < 0 || x[2] < 0 {
-		panic("bad")
+// TODO: swap grid and validated?
+func validateDispatchGrid(grid []int, validated []uint32) error {
+	if len(grid) != len(validated) {
+		return errors.New("horrible")
 	}
-	return [3]uint32{uint32(x[0]), uint32(x[1]), uint32(x[2])}
+	for i, d := range grid {
+		if d < 0 {
+			return errors.New("bad")
+		}
+		validated[i] = uint32(d)
+	}
+	return nil
 }

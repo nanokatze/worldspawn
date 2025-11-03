@@ -209,7 +209,13 @@ func EnqueueTraceRays(
 	pipeline *RayTracingPipeline,
 	sbt ShaderBindingTable,
 	args any) {
-	validatedThreads := validateDispatchDimensions(threads)
+	var validatedThreads [3]uint32
+	if err := validateDispatchGrid(threads[:], validatedThreads[:]); err != nil {
+		panic(err)
+	}
+	if slices.Contains(validatedThreads[:], 0) {
+		return
+	}
 
 	jq.Enqueue(&traceRaysJob{
 		threads:  validatedThreads,
