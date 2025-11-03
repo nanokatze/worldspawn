@@ -1,8 +1,10 @@
 package gpu
 
 import (
+	"log"
 	"testing"
 	"time"
+	"worldspawn/gpu/vk"
 )
 
 type nopJob struct{}
@@ -26,20 +28,57 @@ func TestFramesInFlight(t *testing.T) {
 		wg WaitGroup
 	}
 
+	A := NewImage(&ImageConfig{
+		Dim:       ImageDim2D,
+		Extent:    [3]int{4096, 4096, 1},
+		Layers:    40,
+		MipLevels: 1,
+		Samples:   1,
+		Format:    vk.FORMAT_R32_UINT,
+	})
+	B := NewImage(&ImageConfig{
+		Dim:       ImageDim2D,
+		Extent:    [3]int{4096, 4096, 1},
+		Layers:    40,
+		MipLevels: 1,
+		Samples:   1,
+		Format:    vk.FORMAT_R32_UINT,
+	})
+
 	var fifs [2]fif
+
+	last := time.Now()
 
 	for i := range 100 {
 		var jq JobQueue
 
-		current := &fifs[i%2]
+		current := &fifs[i%len(fifs)]
 		current.wg.Wait()
 
-		prev := &fifs[(i+1)%2]
+		time.Sleep(100 * time.Millisecond)
 
+		prev := &fifs[(len(fifs)+i-1)%len(fifs)]
 		prev.wg.EnqueueWait(&jq)
 
-		// current := &fifs[i%2]
+		switch i % 2 {
+		case 0:
+			EnqueueCopyImage(&jq, A, [3]int{}, B, [3]int{}, A.Extent())
+		case 1:
+			EnqueueCopyImage(&jq, B, [3]int{}, A, [3]int{}, A.Extent())
+		}
 
+		// record stuff into jq here
+
+		current.wg.Add(1)
+		current.wg.EnqueueDone(&jq)
+
+		now := time.Now()
+		log.Println(now.Sub(last))
+		last = now
+	}
+
+	for i := range fifs {
+		fifs[i].wg.Wait()
 	}
 }
 
