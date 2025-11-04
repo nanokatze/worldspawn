@@ -483,13 +483,16 @@ bool closesthit(
     else
         return false;
 
-    if (path.depth > 1) {
+    float kill = bn.Get1D();
+    if (path.depth >= 1) {
         // TODO: introduce Spectrum.MaxComponentValue()
-        float q = max(0, 1.0 - max(max(path.beta.x, path.beta.y), path.beta.z));
-        // TODO: I guess we could also use an ordinary RNG here. Should we?
-        if (bn.Get1D() < q)
-            return false;
-        path.beta /= 1.0 - q;
+        float q = max(max(path.beta.x, path.beta.y), path.beta.z);
+        if (q < 1) {
+            // TODO: I guess we could also use an ordinary RNG here. Should we?
+            if (q < kill)
+                return false;
+            path.beta /= q;
+        }
     }
 
     // Vampire bounces that are reflected become anti-vampire if the surface was
