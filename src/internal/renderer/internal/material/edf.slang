@@ -15,8 +15,6 @@ public struct EDFAdapter<T : EDF> : EDF {
     }
 }
 
-// TODO: a thing like BSDFAdapter but for EDFs
-
 // TODO: move out of this file
 // TODO: the shading frame should always be geometric normal, hmm
 public struct UniformEDF : EDF {
