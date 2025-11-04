@@ -22,7 +22,7 @@ public struct MicrofacetBSDF<F : Fresnel, D : NDF> : BSDF {
         return BSDFFlags::Reflected;
     }
 
-    public BSDFEvaluatedResult Eval(float3 wo, float3 wi) {
+    public BSDFEval Eval(float3 wo, float3 wi) {
         // TODO: rethink when we return zero
         if (wo.z < 1.5e-3f || wi.z < 1.5e-3f)
             return {};

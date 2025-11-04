@@ -6,16 +6,14 @@ static const float M_PI = 3.141592653589793;
 
 // TODO: implement roughness
 
-// TODO: rename to DiffuseBSDF?
-public struct Diffuse : BSDF {
+public struct DiffuseBSDF : BSDF {
     // public float roughness;
 
     public BSDFFlags Flags() {
-        // TODO: as an "opt" we should return 0 when R is 0
         return BSDFFlags::Diffuse | BSDFFlags::Reflected;
     }
 
-    public BSDFEvaluatedResult Eval(float3 wo, float3 wi) {
+    public BSDFEval Eval(float3 wo, float3 wi) {
         // TODO: rethink when we return zero
         if (wo.z < 1.5e-3f || wi.z < 1.5e-3f)
             return {};

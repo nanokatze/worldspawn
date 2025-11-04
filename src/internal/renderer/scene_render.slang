@@ -462,11 +462,10 @@ bool closesthit(
     {
         let u = bn.Get1D();
         let b = bn.Get2D();
-        if (true) { // bsdf.Flags() & (BSDFFlags::Diffuse | BSDFFlags::Glossy)) {
+        if (bsdf.Flags() & (BSDFFlags::Diffuse | BSDFFlags::Glossy)) {
             let Ld = sampleLd(vampire, hitpos, normal, wo, bsdf, u, b);
 
-            if (any(Ld > float3(0)))
-                path.L += path.beta * Ld;
+            path.L += path.beta * Ld;
         }
     }
 

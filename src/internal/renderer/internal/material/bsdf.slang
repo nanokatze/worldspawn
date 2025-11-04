@@ -1,10 +1,10 @@
 import spectrum;
+import shading_frame;
 
 // TODO: move bsdfs and edfs into a separate directory so that they don't have
-// to touch anything material? We'll also need to cover them with tests.
+// to touch anything material. That way we can rename this package to material_interpreter
 
-// TODO: rename to smth like surface interaction or idk
-// TODO: move out of this file
+// TODO: rename to smth like summary idk
 // TODO: combine flags so that we have ReflectionDiffuse, ReflectionGlossy, etc?
 public enum BSDFFlags {
     // Absorbed = 0,
@@ -16,19 +16,18 @@ public enum BSDFFlags {
     Specular = 1 << 5,
 };
 
-// TODO: shorter name, e.g. BSDFEval?
-public struct BSDFEvaluatedResult {
+public struct BSDFEval {
     public Spectrum f;
     public float pdf;
 
-    public BSDFEvaluatedResult Add(BSDFEvaluatedResult other) {
+    public BSDFEval Add(BSDFEval other) {
         return {
             f + other.f,
             pdf + other.pdf,
         };
     }
 
-    // public BSDFEvaluatedResult Scale(float scale) {
+    // public BSDFEval Scale(float scale) {
     //     return {
     //         f * scale,
     //         pdf * scale,
@@ -49,55 +48,23 @@ public interface BSDF {
     BSDFFlags Flags();
     // TODO: albedo estimation
     // TODO: decouple spectrum evaluation from PDF evaluation?
-    BSDFEvaluatedResult Eval(float3 wo, float3 wi);
+    BSDFEval Eval(float3 wo, float3 wi);
     BSDFSample Sample(float3 wo, float uc, float2 u);
-};
-
-// TODO: replace this with just a float3x3/Mat3x3
-public struct Frame {
-    public float3 x, y, z;
-
-    public static Frame fromNormal(float3 n) {
-        float3 a = abs(n.x) > 0.5 ? float3(0, 0, 1) : float3(1, 0, 0);
-
-        float3 b = normalize(cross(n, a));
-        float3 t = cross(n, b);
-
-        return {t, b, n};
-    }
-
-    public static Frame fromNT(float3 n, float3 t, float sign = 1.0) {
-        if (abs(dot(n, t)) > 0.9) return fromNormal(n);
-
-        float3 b = normalize(cross(n, t)) * sign;
-        t = cross(b, n);
-
-        return {t, b, n};
-    }
-
-    public float3 worldToLocal(float3 w) {
-        return float3(dot(w, x), dot(w, y), dot(w, z));
-    }
-
-    public float3 localToWorld(float3 l) {
-        return x * l.x + y * l.y + z * l.z;
-    }
 };
 
 // TODO: rename
 // This is basically the same as
 // https://github.com/mmp/pbrt-v4/blob/f140d7cba5dc7b941f9346d6b7d1476a05c28c37/src/pbrt/bsdf.h
 public struct BSDFAdapter<T : BSDF> : BSDF {
-    // TODO: also include color scale here
     public Spectrum tint;
-    public Frame shadingFrame; // TODO: shorter name for the members or whatever
-    public T bsdf;
+    public Frame shadingFrame; // TODO: shorter name?
+    public T bsdf; // TODO: rename to something like "underlying"
 
     BSDFFlags Flags() {
         return bsdf.Flags();
     }
 
-    BSDFEvaluatedResult Eval(float3 wo, float3 wi) {
+    BSDFEval Eval(float3 wo, float3 wi) {
         let wo2 = shadingFrame.worldToLocal(wo);
         let wi2 = shadingFrame.worldToLocal(wi);
         var e = bsdf.Eval(wo2, wi2);
@@ -114,14 +81,5 @@ public struct BSDFAdapter<T : BSDF> : BSDF {
             sample.pdf,
             sample.flags,
         };
-    }
-}
-
-// TODO: move out of this file
-public struct UniformEDF {
-    public Spectrum f;
-
-    public Spectrum Eval(float3 wo) {
-        return f;
     }
 }

@@ -1,8 +1,10 @@
 import "../interpreter";
 import scene;
 import spectrum;
+import shading_frame;
 import bsdf;
 import bsdf_diffuse;
+import edf;
 
 // TODO: move interpolators into their own file!!!
 
@@ -64,8 +66,7 @@ public void mateval(
     uint3 triIdxs,
     float2 barys_yz)
 {
-    Fetcher fetcher;
-    fetcher.pc = program;
+    Fetcher fetcher = {program};
 
     // TODO: factor decoding out
 evalLoop:
@@ -193,7 +194,7 @@ Frame readShadingFrameN(__ref RegisterReader rd) {
     return Frame::fromNormal(normal);
 }
 
-BSDFAdapter<Diffuse> readDiffuseBSDF(__ref RegisterReader tints, __ref RegisterReader bsdfparams) {
+BSDFAdapter<DiffuseBSDF> readDiffuseBSDF(__ref RegisterReader tints, __ref RegisterReader bsdfparams) {
     return {
         readSpectrum(tints),
         readShadingFrameN(bsdfparams),
@@ -204,15 +205,72 @@ float spectrumAsWeight(Spectrum s) {
     return abs((s.x + s.y + s.z) / 3);
 }
 
-// BUG: we currently have extremely broken spectrum and pdf and everything.
-// Review and fix.
-public struct InterpretedMaterial /* : BSDF */ {
+// BUG: composition of BSDFs is very broken, we should review and fix it.
+public struct InterpretedMaterial : BSDF {
     // TODO: make this not a pointer when we factor things out properly
     public MaterialParams *params;
 
     public Registers regs;
 
-    // TODO: implement flags
+    // TODO: would be really nice to implement an iterator over bsdfs so we get
+    // dynamic bsdf at each iteration and don't need to open code the chungus
+    // switch every time.
+
+    public BSDFFlags Flags() {
+        if (params->bsdfCount == 0)
+            return (BSDFFlags)0;
+
+        RegisterReader tints = {regs, params->outputsReg + params->bsdfsOff};
+        RegisterReader bsdfparams = {regs, params->outputsReg + params->bsdfsOff + params->bsdfCount * 3};
+
+        uint32_t flags = 0;
+        for (uint32_t i = 0; i < params->bsdfCount; i++) {
+            switch ((BSDFNum)params->bsdfs[i]) {
+            case BSDFNum::Diffuse: {
+                let bsdf = readDiffuseBSDF(tints, bsdfparams);
+                flags |= (uint32_t)bsdf.Flags();
+                break;
+            }
+
+            default:
+                // abort();
+                break;
+            }
+        }
+
+        // TODO: should we also include EDFs here?
+
+        return (BSDFFlags)flags;
+    }
+
+    public BSDFEval Eval(float3 wo, float3 wi) {
+        if (params->bsdfCount == 0)
+            return {};
+
+        RegisterReader tints = {regs, params->outputsReg + params->bsdfsOff};
+        RegisterReader bsdfparams = {regs, params->outputsReg + params->bsdfsOff + params->bsdfCount * 3};
+
+        BSDFEval result = {};
+        for (uint32_t i = 0; i < params->bsdfCount; i++) {
+            float pmf = 1.0 / params->bsdfCount;
+
+            switch ((BSDFNum)params->bsdfs[i]) {
+            case BSDFNum::Diffuse: {
+                let bsdf = readDiffuseBSDF(tints, bsdfparams);
+                var e = bsdf.Eval(wo, wi);
+                e.pdf *= pmf;
+                result = result.Add(e);
+                break;
+            }
+
+            default:
+                // abort();
+                break;
+            }
+        }
+
+        return result;
+    }
 
     public BSDFSample Sample(float3 wo, float uc, float2 u) {
         if (params->bsdfCount == 0)
@@ -259,7 +317,7 @@ public struct InterpretedMaterial /* : BSDF */ {
         let bsdfIndex = (int)fract(uc * params->bsdfCount);
 
         // TODO: adjust uc here so that it's in 0..1 again and useful for
-        // downstream.
+        // downstream bsdf sample
 
         RegisterReader tints = {regs, params->outputsReg + params->bsdfsOff};
         RegisterReader bsdfparams = {regs, params->outputsReg + params->bsdfsOff + params->bsdfCount * 3};
@@ -279,8 +337,8 @@ public struct InterpretedMaterial /* : BSDF */ {
 
         switch ((BSDFNum)params->bsdfs[bsdfIndex]) {
         case BSDFNum::Diffuse: {
-            let diffuse = readDiffuseBSDF(tints, bsdfparams);
-            var sample = diffuse.Sample(wo, uc, u);
+            let bsdf = readDiffuseBSDF(tints, bsdfparams);
+            var sample = bsdf.Sample(wo, uc, u);
             sample.pdf *= pmf;
             return sample;
         }
@@ -290,54 +348,26 @@ public struct InterpretedMaterial /* : BSDF */ {
         }
     }
 
-    public BSDFEvaluatedResult Eval(float3 wo, float3 wi) {
-        BSDFEvaluatedResult result = {};
-
-        if (params->bsdfCount == 0)
-            return result;
-
-        RegisterReader tints = {regs, params->outputsReg + params->bsdfsOff};
-        RegisterReader bsdfparams = {regs, params->outputsReg + params->bsdfsOff + params->bsdfCount * 3};
-
-        for (uint32_t i = 0; i < params->bsdfCount; i++) {
-            float pmf = 1.0 / params->bsdfCount;
-
-            switch ((BSDFNum)params->bsdfs[i]) {
-            case BSDFNum::Diffuse: {
-                let diffuse = readDiffuseBSDF(tints, bsdfparams);
-                var e = diffuse.Eval(wo, wi);
-                e.pdf *= pmf;
-                result = result.Add(e);
-                break;
-            }
-
-            default:
-                // abort();
-                break;
-            }
-        }
-
-        return result;
-    }
-
     // TODO: fold into Eval? Blender doesn't, so I guess we shouldn't either.
     // TODO: rename to EmissionEval? And rename BSDF eval and sample to
     // EvalScattering and SampleScattering? Or EDFEval, BSDFEval, BSDFSample?
     public Spectrum EDFEval(float3 wo) {
-        Spectrum result = (Spectrum)0;
-
         if (params->edfCount == 0)
-            return result;
+            return (Spectrum)0;
 
         RegisterReader tints = {regs, params->outputsReg + params->edfsOff};
 
+        // TODO: edfparams
+
+        Spectrum result = (Spectrum)0;
         for (uint32_t i = 0; i < params->edfCount; i++) {
             switch ((EDFNum)params->edfs[i]) {
             case EDFNum::Uniform: {
-                UniformEDF uniform_ = {
+                EDFAdapter<UniformEDF> edf = {
                     readSpectrum(tints),
+                    Frame::fromNormal(float3(0.0, 0.0, 1.0)), // should be geometric normal
                 };
-                result += uniform_.Eval(wo);
+                result += edf.Eval(wo);
                 break;
             }
 
