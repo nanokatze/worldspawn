@@ -14,11 +14,3 @@ public struct EDFAdapter<T : EDF> : EDF {
         return tint * edf.Eval(shadingFrame.worldToLocal(wi));
     }
 }
-
-// TODO: move out of this file
-// TODO: the shading frame should always be geometric normal, hmm
-public struct UniformEDF : EDF {
-    public Spectrum Eval(float3 wi) {
-        return Spectrum(1); // wi.z != 0 ? f : (Spectrum)0;
-    }
-}

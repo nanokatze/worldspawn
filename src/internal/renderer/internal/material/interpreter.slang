@@ -5,6 +5,7 @@ import shading_frame;
 import bsdf;
 import bsdf_diffuse;
 import edf;
+import edf_uniform;
 
 // TODO: move interpolators into their own file!!!
 

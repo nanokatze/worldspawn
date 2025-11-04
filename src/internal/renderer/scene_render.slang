@@ -3,7 +3,6 @@ import transfer_functions;
 import scene;
 import internal.material.interpreter;
 import internal.lds;
-import internal.interpreter;
 import sampling;
 import spectrum;
 import internal.material.bsdf;
@@ -367,8 +366,7 @@ Spectrum sampleLd(
             let fLight = ls2.Le;
             let bsdfEvaluation = bsdf.Eval(wo, ls.wi);
 
-            // TODO: normal should be something per-bsdf rather than normal
-            // because we don't know which normal it is.
+            // TODO: normal should be geometric
             let Ld = fLight * bsdfEvaluation.f * (abs(dot(ls.wi, normal)) /
                 (pdfLight + bsdfEvaluation.pdf));
 
