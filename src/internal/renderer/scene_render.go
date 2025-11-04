@@ -13,7 +13,9 @@ import (
 )
 
 type _FrameData struct {
-	FrameNumber uint32
+	MaxBounces int32 // int8?
+
+	RussianRouletteThreshold int32
 
 	BlueNoise gpu.SamplingView
 
@@ -154,8 +156,11 @@ func (scene *Scene) Render(
 		view := viewInverse.Inverse()
 
 		*frameData.Value() = _FrameData{
-			FrameNumber: fn,
-			BlueNoise:   bnLayer.SamplingDescriptor(),
+			MaxBounces: 2,
+
+			RussianRouletteThreshold: 1,
+
+			BlueNoise: bnLayer.SamplingDescriptor(),
 
 			Proj:        proj,
 			ProjInverse: proj.Inverse(),

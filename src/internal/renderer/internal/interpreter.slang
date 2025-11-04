@@ -7,7 +7,7 @@ public struct Fetcher {
     }
 }
 
-// TODO: rename to InterpreterState and fold fetcher into this
+// TODO: rename to InterpreterState
 public struct Registers {
     // TODO: place the first few regs in actual hw regs and the rest into
     // scratch.

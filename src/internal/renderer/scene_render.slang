@@ -91,11 +91,11 @@ struct Path {
 };
 
 struct FrameData {
-    uint32_t frameNumber; // TODO: delete
+    int maxBounces;
+
+    int russianRouletteThreshold;
 
     SamplingView blueNoise;
-
-    // int bounces;
 
     matrix<float, 4, 4> proj;
     matrix<float, 4, 4> projInverse;
@@ -155,7 +155,7 @@ void raygen() {
     // TODO: do we actually need normalize here?
     path.rayDir = normalize(mul(push.camera->viewInverse, float4(normalize(target.xyz), 0)).xyz);
 
-    while (true) {
+    for (;;) {
         RayDesc rayDesc;
         rayDesc.Origin = path.rayOrigin;
         rayDesc.Direction = path.rayDir;
@@ -237,20 +237,18 @@ struct triangleLight {
 
         let wi = normalize(uhh);
 
-        Registers regs;
-
+        InterpretedMaterial m;
+        m.params = materialParams;
         mateval(
-            regs,
+            m.regs,
             materialParams->code,
             materialParams,
             ObjectToWorld,
             uint3(0),
             barys);
 
-        InterpretedMaterial m = {materialParams, regs};
-
         return {
-            m.EDFEval(float3(0)), // TODO: provide an actual wo
+            m.EDFEval(wi),
             normal,
             dot(uhh, uhh) / (abs(dot(normal, wi)) * area),
         };
@@ -410,25 +408,21 @@ bool closesthit(
 
     let triIdxs = idxBuffer.Load3(primitiveIndex);
 
-    Registers regs;
-
+    // TODO: should not be called bsdf
+    InterpretedMaterial bsdf;
+    bsdf.params = materialParams;
     mateval(
-        regs,
+        bsdf.regs,
         materialParams->code,
         materialParams,
         ObjectToWorld,
         triIdxs,
         barys_yz);
 
-    // TODO: should not be called bsdf
-    // TODO: instead of calling mateval, make material evaluation happen as part
-    // of instantinating InterpretedMaterial.
-    InterpretedMaterial bsdf = {materialParams, regs};
-
     let wo = -WorldRayDirection;
 
-    // bad, do not do this
-    // TODO: what's the correct thing to do here?
+    // TODO: this should be the eometric normal actually, i.e. perpendicular to
+    // the triangle
     let normal = mul((float3x3)ObjectToWorld,
         interpolate3(
             float3x3(
@@ -455,7 +449,7 @@ bool closesthit(
 
     path.depth++;
 
-    if (path.depth >= 2) // TODO: load from host-specified param
+    if (path.depth >= push.camera->maxBounces)
         return false;
 
     // Direct light sampling
@@ -482,13 +476,13 @@ bool closesthit(
     else
         return false;
 
-    float kill = bn.Get1D();
-    if (path.depth >= 1) {
+    float rr = bn.Get1D();
+    if (path.depth >= push.camera->russianRouletteThreshold) {
         // TODO: introduce Spectrum.MaxComponentValue()
         float q = max(max(path.beta.x, path.beta.y), path.beta.z);
         if (q < 1) {
             // TODO: I guess we could also use an ordinary RNG here. Should we?
-            if (q < kill)
+            if (q < rr)
                 return false;
             path.beta /= q;
         }
