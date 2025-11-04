@@ -477,13 +477,11 @@ bool closesthit(
     float rr = bn.Get1D();
     if (path.depth >= push.camera->russianRouletteThreshold) {
         // TODO: introduce Spectrum.MaxComponentValue()
-        float q = max(max(path.beta.x, path.beta.y), path.beta.z);
-        if (q < 1) {
-            // TODO: I guess we could also use an ordinary RNG here. Should we?
-            if (q < rr)
-                return false;
-            path.beta /= q;
-        }
+        float p = max(0, 1 - max(max(path.beta.x, path.beta.y), path.beta.z));
+        // TODO: I guess we could also use an ordinary RNG here. Should we?
+        if (rr < p)
+            return false;
+        path.beta /= 1 - p;
     }
 
     // Vampire bounces that are reflected become anti-vampire if the surface was
