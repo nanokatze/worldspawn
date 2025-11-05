@@ -1,9 +1,6 @@
 import spectrum;
 import shading_frame;
 
-// TODO: move bsdfs and edfs into a separate directory so that they don't have
-// to touch anything material. That way we can rename this package to material_interpreter
-
 // TODO: rename to smth like summary idk
 // TODO: combine flags so that we have ReflectionDiffuse, ReflectionGlossy, etc?
 public enum BSDFFlags {
@@ -36,14 +33,13 @@ public struct BSDFEval {
 };
 
 public struct BSDFSample {
-    public Spectrum f;
-    public float3 wi;
-    public float pdf;
     public BSDFFlags flags;
+    public Spectrum f;
+    public float pdf;
+    public float3 wi;
     // float eta;
 };
 
-// rename to BSDF
 public interface BSDF {
     BSDFFlags Flags();
     // TODO: albedo estimation
@@ -61,25 +57,23 @@ public struct BSDFAdapter<T : BSDF> : BSDF {
     public T bsdf; // TODO: rename to something like "underlying"
 
     BSDFFlags Flags() {
+        // TODO: if tint is 0 or otherwise really tiny, we should just return 0
         return bsdf.Flags();
     }
 
     BSDFEval Eval(float3 wo, float3 wi) {
-        let wo2 = shadingFrame.worldToLocal(wo);
-        let wi2 = shadingFrame.worldToLocal(wi);
-        var e = bsdf.Eval(wo2, wi2);
+        let woLocal = shadingFrame.worldToLocal(wo);
+        let wiLocal = shadingFrame.worldToLocal(wi);
+        var e = bsdf.Eval(woLocal, wiLocal);
         e.f *= tint;
         return e;
     }
 
     BSDFSample Sample(float3 wo, float uc, float2 u) {
-        let wo2 = shadingFrame.worldToLocal(wo);
-        var sample = bsdf.Sample(wo2, uc, u);
-        return {
-            tint * sample.f,
-            shadingFrame.localToWorld(sample.wi),
-            sample.pdf,
-            sample.flags,
-        };
+        let woLocal = shadingFrame.worldToLocal(wo);
+        var sample = bsdf.Sample(woLocal, uc, u);
+        sample.f *= tint;
+        sample.wi = shadingFrame.localToWorld(sample.wi);
+        return sample;
     }
 }

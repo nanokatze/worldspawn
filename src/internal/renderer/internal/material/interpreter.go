@@ -48,6 +48,7 @@ type BSDF int8
 const (
 	_ BSDF = iota
 	BSDFDiffuse
+	BSDFMicrofacetGGXTest
 )
 
 type EDF int8

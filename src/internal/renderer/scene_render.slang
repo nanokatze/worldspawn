@@ -30,15 +30,14 @@ import attribute;
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 struct ShiftedBlueNoise<T_lds : LDS> {
-    int2 initialShift;
-    int index;
-
     T_lds lds; // TODO: move this elsewhere in the struct?
+    int2 pixel;
+    int sampleIndex;
 
-    __init(T_lds lds, int2 initialShift, int sampleOffset) {
-        this.initialShift = initialShift;
-        this.index = sampleOffset;
+    __init(T_lds lds, int2 pixel, int sampleOffset) {
         this.lds = lds;
+        this.pixel = pixel;
+        this.sampleIndex = sampleOffset;
     }
 
     // TODO: blue noise is quantized so we only get like 256-1 values with
@@ -54,15 +53,18 @@ struct ShiftedBlueNoise<T_lds : LDS> {
 
     [[mutating]]
     float2 Get2D() {
-        let index = this.index++;
+        let sampleIndex = this.sampleIndex++;
 
-        let point = float2(lds.Get(index, 0), lds.Get(index, 1));
+        let point = float2(lds.Get(sampleIndex, 0), lds.Get(sampleIndex, 1));
 
         // TODO: make this a member on the ShiftedBlueNoise or an interface or
         // idk.
-        let bn = push.camera->blueNoise;
+        let blueNoise = push.camera->blueNoise;
+        let extent = blueNoise.Extent2D();
 
-        let value = push.camera->blueNoise.At2D((initialShift + int2(point * float2(bn.Extent2D()))) & (bn.Extent2D() - 1)).xy;
+        let p = (pixel + int2(point * float2(extent))) & (extent - 1);
+
+        let value = blueNoise.At2D(p).xy;
 
         return fract(value); // make sure we never return 1
     }
@@ -80,6 +82,7 @@ struct Path {
     // TODO: we also need to shove p_b here
 
     // Whether this path ...
+    // TODO: rename to something else
     bool vampire;
 
     // bool specularBounce
@@ -111,9 +114,8 @@ struct FrameData {
 struct Push {
     Scene *scene;
     FrameData *camera;
-    // TODO: factor these into the framebuffer + clear op + clear colors
+    // TODO: buffers for normal, AOVs, etc
     StorageView out; // irradiance
-    // StorageView *gbuffer;
 }
 
 [[vk::push_constant]] Push push;
@@ -442,7 +444,11 @@ bool closesthit(
     // mirror, or transmission through a perfectly transmissive medium with
     // different IOR.) We'll want to think how to express that.
     if (path.depth == 0) {
-        // TODO: export GBuffer + AOVs
+        // TODO: export normal, depth, AOVs, etc, here
+
+        // uint3 LaunchID = int3(DispatchRaysDimensions().x, 0, 0) + DispatchRaysIndex();
+
+        // push.out.Store2D((int2)LaunchID.xy, float4(normal, 1));
     }
 
     path.depth++;
@@ -474,6 +480,20 @@ bool closesthit(
     else
         return false;
 
+    // Vampire bounces that are reflected become anti-vampire if the surface was
+    // not vampire.
+    //
+    // Vampire bounces that are transmitted stay vampire.
+    if (bsdfSample.flags & BSDFFlags::Reflected) {
+        if (!vampire)
+            path.vampire = false;
+    }
+
+    path.rayOrigin = hitpos; // TODO: this might come from bsdf as well
+    path.rayDir = bsdfSample.wi; // TODO: should we normalize() here?
+
+    // Russian roulette
+
     float rr = bn.Get1D();
     if (path.depth >= push.camera->russianRouletteThreshold) {
         // TODO: introduce Spectrum.MaxComponentValue()
@@ -483,19 +503,6 @@ bool closesthit(
             return false;
         path.beta /= 1 - p;
     }
-
-    // Vampire bounces that are reflected become anti-vampire if the surface was
-    // not vampire.
-    //
-    // Vampire bounces that are transmitted stay vampire.
-    // TODO: rewrite this to be more clearer?
-    if (bsdfSample.flags & BSDFFlags::Reflected) {
-        if (!vampire)
-            path.vampire = false;
-    }
-
-    path.rayOrigin = hitpos; // TODO: this might come from bsdf as well
-    path.rayDir = bsdfSample.wi; // TODO: should we normalize() here?
 
     return true;
 }

@@ -4,6 +4,7 @@ import spectrum;
 import shading_frame;
 import bsdf;
 import bsdf_diffuse;
+import bsdf_microfacet;
 import edf;
 import edf_uniform;
 
@@ -202,6 +203,13 @@ BSDFAdapter<DiffuseBSDF> readDiffuseBSDF(__ref RegisterReader tints, __ref Regis
     };
 }
 
+BSDFAdapter<MicrofacetBSDF<GGX, TestFresnel>> readMicrofacetGGXTestBSDF(__ref RegisterReader tints, __ref RegisterReader bsdfparams) {
+    return {
+        readSpectrum(tints),
+        readShadingFrameN(bsdfparams),
+    };
+}
+
 float spectrumAsWeight(Spectrum s) {
     return abs((s.x + s.y + s.z) / 3);
 }
@@ -229,6 +237,12 @@ public struct InterpretedMaterial : BSDF {
             switch ((BSDFNum)params->bsdfs[i]) {
             case BSDFNum::Diffuse: {
                 let bsdf = readDiffuseBSDF(tints, bsdfparams);
+                flags |= (uint32_t)bsdf.Flags();
+                break;
+            }
+
+            case BSDFNum::MicrofacetGGXTest: {
+                let bsdf = readMicrofacetGGXTestBSDF(tints, bsdfparams);
                 flags |= (uint32_t)bsdf.Flags();
                 break;
             }
@@ -263,7 +277,13 @@ public struct InterpretedMaterial : BSDF {
                 result = result.Add(e);
                 break;
             }
-
+            case BSDFNum::MicrofacetGGXTest: {
+                let bsdf = readMicrofacetGGXTestBSDF(tints, bsdfparams);
+                var e = bsdf.Eval(wo, wi);
+                e.pdf *= pmf;
+                result = result.Add(e);
+                break;
+            }
             default:
                 // abort();
                 break;
@@ -323,10 +343,15 @@ public struct InterpretedMaterial : BSDF {
         RegisterReader tints = {regs, params->outputsReg + params->bsdfsOff};
         RegisterReader bsdfparams = {regs, params->outputsReg + params->bsdfsOff + params->bsdfCount * 3};
 
-        for (int i = 0; i+1 < bsdfIndex; i++) {
+        for (int i = 0; i < bsdfIndex; i++) {
             switch ((BSDFNum)params->bsdfs[i]) {
             case BSDFNum::Diffuse: {
                 readDiffuseBSDF(tints, bsdfparams);
+                break;
+            }
+
+            case BSDFNum::MicrofacetGGXTest: {
+                readMicrofacetGGXTestBSDF(tints, bsdfparams);
                 break;
             }
 
@@ -339,6 +364,12 @@ public struct InterpretedMaterial : BSDF {
         switch ((BSDFNum)params->bsdfs[bsdfIndex]) {
         case BSDFNum::Diffuse: {
             let bsdf = readDiffuseBSDF(tints, bsdfparams);
+            var sample = bsdf.Sample(wo, uc, u);
+            sample.pdf *= pmf;
+            return sample;
+        }
+        case BSDFNum::MicrofacetGGXTest: {
+            let bsdf = readMicrofacetGGXTestBSDF(tints, bsdfparams);
             var sample = bsdf.Sample(wo, uc, u);
             sample.pdf *= pmf;
             return sample;

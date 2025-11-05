@@ -25,10 +25,10 @@ public struct DiffuseBSDF : BSDF {
         float3 wi = SampleCosineHemisphere(u);
 
         return {
-            Spectrum(1) / M_PI,
-            wi,
-            CosineHemispherePDF(absCosTheta(wi)),
             Flags(),
+            Spectrum(1) / M_PI,
+            CosineHemispherePDF(absCosTheta(wi)),
+            wi,
         };
     }
 };

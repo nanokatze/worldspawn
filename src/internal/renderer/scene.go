@@ -10,6 +10,7 @@ import (
 
 // TODO: DVec3 baseOffset
 
+// TODO: this needs to be more abstract
 type Camera struct {
 	_ structs.HostLayout
 

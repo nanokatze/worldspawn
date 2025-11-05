@@ -128,7 +128,7 @@ var TestMaterial2 = sync.OnceValue(func() *Material {
 	// normal_y := core.ArrayExtract(b, normal, 1)
 	// normal_z := core.ArrayExtract(b, normal, 2)
 	_emission_r := core.Const(b, core.Int32, int64(math.Float32bits(10.0)))
-	_emission_g := core.Const(b, core.Int32, int64(math.Float32bits(1.0)))
+	_emission_g := core.Const(b, core.Int32, int64(math.Float32bits(10.0)))
 	_emission_b := core.Const(b, core.Int32, int64(math.Float32bits(10.0)))
 	_color := b.Value2(
 		mc.OpInterpreterPseudoOutput,
