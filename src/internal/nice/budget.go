@@ -3,7 +3,7 @@ package nice
 import "reflect"
 
 type outOfBudgetError struct {
-	N, Budget int
+	n, budget int
 }
 
 func (e *outOfBudgetError) Error() string { return "out of budget" }
@@ -27,6 +27,6 @@ func (budget *Budget) Account(n int) error {
 	return nil
 }
 
-func accountT(budget *Budget, t reflect.Type, n int) error {
+func accountForType(budget *Budget, t reflect.Type, n int) error {
 	return budget.Account(n * int(t.Size()))
 }

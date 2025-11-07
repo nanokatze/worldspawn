@@ -157,7 +157,7 @@ func TestUnmarshalAllocationAccounting(t *testing.T) {
 
 				if err := UnmarshalDecode(NewDecoder(buf, WithBudget(budget)), q.Addr().Interface()); err != nil {
 					if oob, ok := err.(*outOfBudgetError); ok {
-						t.Logf("%d causes out of budget error (%d needed %d left)", n, oob.N, oob.Budget)
+						t.Logf("%d causes out of budget error (%d needed %d left)", n, oob.n, oob.budget)
 
 						break
 					}

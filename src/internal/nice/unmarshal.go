@@ -139,10 +139,10 @@ func makeDefaultUnmarshaler(t reflect.Type) unmarshaler {
 				return nil
 			}
 
-			if err := accountT(dec.Budget(), t.Key(), n); err != nil {
+			if err := accountForType(dec.Budget(), t.Key(), n); err != nil {
 				return err
 			}
-			if err := accountT(dec.Budget(), t.Elem(), n); err != nil {
+			if err := accountForType(dec.Budget(), t.Elem(), n); err != nil {
 				return err
 			}
 
@@ -178,7 +178,7 @@ func makeDefaultUnmarshaler(t reflect.Type) unmarshaler {
 				return nil
 			}
 
-			if err := accountT(dec.Budget(), t.Elem(), 1); err != nil {
+			if err := accountForType(dec.Budget(), t.Elem(), 1); err != nil {
 				return err
 			}
 
@@ -201,7 +201,7 @@ func makeDefaultUnmarshaler(t reflect.Type) unmarshaler {
 				return nil
 			}
 
-			if err := accountT(dec.Budget(), t.Elem(), n); err != nil {
+			if err := accountForType(dec.Budget(), t.Elem(), n); err != nil {
 				return err
 			}
 
