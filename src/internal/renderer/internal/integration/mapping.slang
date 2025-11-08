@@ -1,7 +1,5 @@
 static const float M_PI_F = 3.141592653589793;
 
-// TODO: rename to mapping
-
 public float3 SampleCosineHemisphere(float2 u) {
     let phi = u.x * 2.0f * M_PI_F;
     let sinTheta = sqrt(u.y);

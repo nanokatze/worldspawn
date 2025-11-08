@@ -1,3 +1,4 @@
+// TODO: rename to something else, like e.g. InstructionFetcher?
 public struct Fetcher {
     public uint32_t *pc;
 
@@ -7,10 +8,7 @@ public struct Fetcher {
     }
 }
 
-// TODO: rename to InterpreterState
-public struct Registers {
-    // TODO: place the first few regs in actual hw regs and the rest into
-    // scratch.
+public struct InterpreterState {
     // TODO: make this a pointer when we get pointers to private/function
     public uint32_t scratch[32];
 

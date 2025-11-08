@@ -1,4 +1,4 @@
-import spectrum;
+import "../../spectrum";
 import shading_frame;
 
 public interface EDF {

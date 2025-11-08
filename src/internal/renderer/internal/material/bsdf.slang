@@ -1,4 +1,4 @@
-import spectrum;
+import "../../spectrum";
 import shading_frame;
 
 // TODO: rename to smth like summary idk

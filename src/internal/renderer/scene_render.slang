@@ -1,12 +1,12 @@
-import gpu;
-import transfer_functions;
-import scene;
-import internal.material.interpreter;
-import internal.lds;
-import sampling;
-import spectrum;
-import internal.material.bsdf;
 import attribute;
+import gpu;
+import internal.integration.lds;
+import internal.integration.mapping;
+import internal.material.bsdf;
+import internal.material.interpreter;
+import scene;
+import spectrum;
+import transfer_functions;
 
 // Shifted blue noise shamelessly stolen from rtx remix, which is
 //
@@ -29,6 +29,8 @@ import attribute;
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
+//
+// TODO: can we somehow move this into internal/integration?
 struct ShiftedBlueNoise<T_lds : LDS> {
     T_lds lds; // TODO: move this elsewhere in the struct?
     int2 pixel;
@@ -493,15 +495,15 @@ bool closesthit(
     path.rayDir = bsdfSample.wi; // TODO: should we normalize() here?
 
     // Russian roulette
-
+    //
+    // TODO: I guess we could also use an ordinary RNG here. Should we?
     float rr = bn.Get1D();
     if (path.depth >= push.camera->russianRouletteThreshold) {
         // TODO: introduce Spectrum.MaxComponentValue()
-        float p = max(0, 1 - max(max(path.beta.x, path.beta.y), path.beta.z));
-        // TODO: I guess we could also use an ordinary RNG here. Should we?
-        if (rr < p)
+        float p = saturate(max(max(path.beta.x, path.beta.y), path.beta.z));
+        if (!(rr < p))
             return false;
-        path.beta /= 1 - p;
+        path.beta /= p;
     }
 
     return true;

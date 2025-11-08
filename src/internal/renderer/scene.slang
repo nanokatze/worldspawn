@@ -1,19 +1,6 @@
 import gpu;
 import spectrum;
-import sampling;
 import lighting;
-
-// TODO: move these to material/interpreter lmaoo
-public enum BSDFNum {
-    _,
-    Diffuse,
-    MicrofacetGGXTest,
-};
-
-public enum EDFNum {
-    _,
-    Uniform,
-};
 
 public struct MaterialParams {
     public uint32_t *code;

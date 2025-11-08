@@ -1,6 +1,6 @@
 import bsdf;
-import spectrum;
-import sampling;
+import "../../spectrum";
+import "../integration/mapping";
 
 static const float M_PI = 3.141592653589793;
 

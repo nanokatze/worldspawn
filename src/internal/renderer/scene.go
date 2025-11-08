@@ -6,6 +6,7 @@ import (
 	"worldspawn/geometry-go"
 	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
+	"worldspawn/internal/renderer/internal/matc"
 )
 
 // TODO: DVec3 baseOffset
@@ -25,30 +26,7 @@ type interpretedMaterial struct {
 	// TODO: layout here
 }
 
-type materialParams struct {
-	_ structs.HostLayout
-
-	// TODO: move code + output layout behind a pointer here as well
-	Code gpu.Pointer[uint32]
-
-	BSDFs     [4]uint8
-	BSDFCount uint8
-	BSDFsOff  uint8
-
-	EDFs     [1]uint8
-	EDFCount uint8
-	EDFsOff  uint8
-
-	OutputsReg uint32
-
-	Triangles    gpu.Pointer[[3]uint16]
-	NumTriangles uint32
-	PosBuffer    gpu.Pointer[[3]float32]
-	Normals      gpu.Pointer[[3]float32]
-	UVs          gpu.Pointer[[2]float32]
-	BaseColor    [3]float32
-	Emission     [3]float32
-}
+type materialParams = matc.MaterialParams
 
 // TODO: I guess we'll need to do some involved memory management in Scene.
 

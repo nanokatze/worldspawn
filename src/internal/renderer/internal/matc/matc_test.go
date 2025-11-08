@@ -1,4 +1,4 @@
-package mc
+package matc
 
 import (
 	"math"
@@ -19,12 +19,12 @@ func TestXxx(t *testing.T) {
 		Rules: allRules,
 	}
 
-	normal := b.Value2(OpInterpreterLoadNormal, core.MakeArrayType(3, core.Int32), nil)
+	normal := b.Value2(OpInterpreterGetShadingNormal, core.MakeArrayType(3, core.Int32), nil)
 	normal_x := core.ArrayExtract(b, normal, 0)
 	normal_y := core.ArrayExtract(b, normal, 1)
 	normal_z := core.ArrayExtract(b, normal, 2)
 
-	uv := b.Value2(OpInterpreterLoadAttr, core.MakeArrayType(2, core.Int32), uint32(0x69))
+	uv := b.Value2(OpInterpreterLoadAttrGeometry, core.MakeArrayType(2, core.Int32), "UVs")
 	u := core.ArrayExtract(b, uv, 0)
 	v := core.ArrayExtract(b, uv, 1)
 
@@ -50,18 +50,9 @@ func TestXxx(t *testing.T) {
 	color := core.MakeArray(
 		b,
 		core.Int32,
-		b.Value2(
-			OpInterpreterLoadParam,
-			core.Int32,
-			uint32(0x42)+0),
-		b.Value2(
-			OpInterpreterLoadParam,
-			core.Int32,
-			uint32(0x42)+4),
-		b.Value2(
-			OpInterpreterLoadParam,
-			core.Int32,
-			uint32(0x42)+8))
+		b.Value2(OpInterpreterLoadAttrGeometry, core.Int32, "BaseColorR"),
+		b.Value2(OpInterpreterLoadAttrGeometry, core.Int32, "BaseColorG"),
+		b.Value2(OpInterpreterLoadAttrGeometry, core.Int32, "BaseColorB"))
 
 	white := core.MakeArray(b, core.Int32, one, one, one)
 

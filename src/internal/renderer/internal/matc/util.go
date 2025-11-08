@@ -1,4 +1,4 @@
-package mc
+package matc
 
 import "worldspawn/internal/renderer/internal/compiler"
 

@@ -1,4 +1,4 @@
-package mc
+package matc
 
 import "worldspawn/internal/renderer/internal/compiler"
 
@@ -28,9 +28,7 @@ func (SurfaceType) String() string { return "Surface" }
 */
 
 var (
-	// OpLoadParam = compiler.DefOp("LoadParam", nil)
-
-	// OpLoadAttr = compiler.DefOp("LoadAttr", nil)
+	// TODO: OpLoadAttr{Scene,Object,Geometry}
 
 	// OpGGX = compiler.DefOp("GGX", nil)
 

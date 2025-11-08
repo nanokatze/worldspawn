@@ -1,12 +1,23 @@
 import "../interpreter";
-import scene;
-import spectrum;
+import "../../spectrum";
+import "../../scene";
 import shading_frame;
 import bsdf;
 import bsdf_diffuse;
 import bsdf_microfacet;
 import edf;
 import edf_uniform;
+
+public enum BSDFNum {
+    _,
+    Diffuse,
+    MicrofacetGGXTest,
+};
+
+public enum EDFNum {
+    _,
+    Uniform,
+};
 
 // TODO: move interpolators into their own file!!!
 
@@ -61,7 +72,7 @@ public enum Op {
 };
 
 public void mateval(
-    __ref Registers regs,
+    __ref InterpreterState regs,
     uint32_t *program,
     MaterialParams *materialParams,
     float3x4 ObjectToWorld,
@@ -173,7 +184,7 @@ evalLoop:
 
 // TODO: rename
 struct RegisterReader {
-    Registers regs;
+    InterpreterState regs;
     int i;
 
     // TODO: rename to readUint32?
@@ -215,11 +226,13 @@ float spectrumAsWeight(Spectrum s) {
 }
 
 // BUG: composition of BSDFs is very broken, we should review and fix it.
+//
+// See https://github.com/mmp/pbrt-v4/blob/f140d7cba5dc7b941f9346d6b7d1476a05c28c37/src/pbrt/util/sampling.h#L79
 public struct InterpretedMaterial : BSDF {
     // TODO: make this not a pointer when we factor things out properly
     public MaterialParams *params;
 
-    public Registers regs;
+    public InterpreterState regs;
 
     // TODO: would be really nice to implement an iterator over bsdfs so we get
     // dynamic bsdf at each iteration and don't need to open code the chungus
@@ -383,7 +396,7 @@ public struct InterpretedMaterial : BSDF {
     // TODO: fold into Eval? Blender doesn't, so I guess we shouldn't either.
     // TODO: rename to EmissionEval? And rename BSDF eval and sample to
     // EvalScattering and SampleScattering? Or EDFEval, BSDFEval, BSDFSample?
-    public Spectrum EDFEval(float3 wo) {
+    public Spectrum EDFEval(float3 wi) {
         if (params->edfCount == 0)
             return (Spectrum)0;
 
@@ -399,7 +412,7 @@ public struct InterpretedMaterial : BSDF {
                     readSpectrum(tints),
                     Frame::fromNormal(float3(0.0, 0.0, 1.0)), // should be geometric normal
                 };
-                result += edf.Eval(wo);
+                result += edf.Eval(wi);
                 break;
             }
 

@@ -1,4 +1,4 @@
-package mc
+package matc
 
 // TODO: make the bitset lazily allocated?
 

@@ -1,4 +1,4 @@
-package mc
+package matc
 
 import (
 	"worldspawn/internal/renderer/internal/compiler"
@@ -21,7 +21,7 @@ import (
 
 type interpreterOp interface {
 	Validate(typ compiler.Type, imm any, args ...*compiler.Class)
-	Assemble(a *assembler, c *compiler.Class, v *compiler.Value, regm map[*compiler.Class]regRange)
+	Assemble(as *assembler, c *compiler.Class, v *compiler.Value, regm map[*compiler.Class]regRange)
 }
 
 // TODO: rename to make it clear that it's asm map for interpreter ops
@@ -59,18 +59,37 @@ var (
 
 	opInterpreterCondSelect32 = defInterpreterOp("CondSelect32", aaa{op: material.ACondSelect32, dst: true, arity: 3})
 
-	// TODO: rename these s/Load/Get/? We usually only use Load for stuff that
-	// takes rmem.
+	// TODO: add corresponding common ops, lowering and hide the interpreter
+	// variants.
 
-	OpInterpreterLoadParam = defInterpreterOp("LoadParam", aaa{op: material.ALoadParam, dst: true, imm: true})
+	// TODO: add LoadAttrScene/LoadAttrFrame
 
-	OpInterpreterLoadAttr = defInterpreterOp("LoadAttr", aaa{op: material.ALoadAttr, dst: true, imm: true})
+	// TODO: MaterialX geomprop ops can be either integer or float -typed so
+	// we'll want to be capable of pulling integer attrs probably. But then I
+	// guess we also need all the integer ops as well...
 
-	OpInterpreterLoadNormal = defInterpreterOp("LoadNormal", aaa{op: material.ALoadNormal, dst: true})
+	OpInterpreterLoadAttrObject   = defInterpreterOp("LoadAttrObject", aparam(material.ALoadParam))
+	OpInterpreterLoadAttrGeometry = defInterpreterOp("LoadAttrGeometry", aparam(material.ALoadAttr))
+
+	// TODO: kill in favor of LoadAttrGeometry
+	OpInterpreterGetShadingNormal = defInterpreterOp("GetShadingNormal", aaa{op: material.ALoadNormal, dst: true})
 
 	// TODO: we'll want an instruction per BSDF probably...
 	// OpMVMBSDFDiffuseAlbedo
 )
+
+type aparam material.A
+
+func (d aparam) Validate(typ compiler.Type, imm any, args ...*compiler.Class) {
+	_ = imm.(string)
+}
+
+func (d aparam) Assemble(as *assembler, c *compiler.Class, v *compiler.Value, regm map[*compiler.Class]regRange) {
+	dst := uint32(regm[c].I)
+	off := as.params[v.Imm().(string)]
+
+	as.code = append(as.code, packinstr(material.A(d), dst, 0, 0), off)
+}
 
 // TODO: these should use their own interpreterOp implementations
 var (

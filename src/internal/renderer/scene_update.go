@@ -148,7 +148,9 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 				PosBuffer:    gpu.SliceData(part.PosBuffer),
 				Normals:      gpu.SliceData(part.NormalBuffer),
 				UVs:          gpu.SliceData(part.AttribBuffers[0].(gpu.Slice[[2]float32])),
-				BaseColor:    material.BaseColor,
+				BaseColorR:   material.BaseColor[0],
+				BaseColorG:   material.BaseColor[1],
+				BaseColorB:   material.BaseColor[2],
 				Emission:     material.Emission,
 			}
 

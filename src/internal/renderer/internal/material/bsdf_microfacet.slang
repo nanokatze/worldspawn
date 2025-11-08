@@ -1,6 +1,6 @@
 import bsdf;
-import spectrum;
-import sampling;
+import "../../spectrum";
+import "../integration/mapping";
 
 static const float M_PI_F = 3.141592653589793;
 
@@ -64,11 +64,11 @@ public struct MicrofacetBSDF<D : VNDF, F : Fresnel> : BSDF {
     }
 
     public BSDFSample Sample(float3 wo, float uc, float2 u) {
-        // let fresnel_ss = schlick((float3)1, wo.z);
+        let fresnel_ss = schlick((float3)1, wo.z);
 
         return {
             BSDFFlags::Reflected | BSDFFlags::Specular,
-            Spectrum(1) / abs(wo.z),
+            fresnel_ss / abs(wo.z),
             1,
             float3(-wo.xy, wo.z),
         };

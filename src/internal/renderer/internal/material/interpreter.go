@@ -1,11 +1,6 @@
 package material
 
-// TODO: what should this file actually contain? I guess we need a file that
-// implements the interpreter (well, we implement it in slang, but the go
-// counterpart needs to define instructions). Then, we also need e.g. assembler
-// and disassembler, teach the compiler how to compile to interpreter, etc.
-
-// TODO: make an interpreter generator instead of an extensible interpreter
+// TODO: make an interpreter generator
 
 //go:generate stringer -type A -trimprefix A
 

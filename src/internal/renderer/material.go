@@ -4,19 +4,20 @@ import (
 	"log"
 	"math"
 	"sync"
-	"unsafe"
 
 	"worldspawn/gpu"
 	"worldspawn/internal/renderer/internal/compiler"
 	"worldspawn/internal/renderer/internal/compiler/core"
+	"worldspawn/internal/renderer/internal/matc"
 	"worldspawn/internal/renderer/internal/material"
-	"worldspawn/internal/renderer/internal/mc"
 )
 
+/*
 type MaterialSet struct {
 	pipeline *gpu.RayTracingPipeline
 	sbt      gpu.ShaderBindingTable
 }
+*/
 
 // This is almost like mc.InterpreterProgram. I guess we should just make
 // Material be an interface with two implementations. We'll have to cook up
@@ -50,18 +51,15 @@ var TestMaterial = sync.OnceValue(func() *Material {
 	sea := compiler.NewSea()
 	b := compiler.Builder{
 		Sea:   sea,
-		Rules: append(append([]compiler.RewriteRule(nil), core.Rules...), mc.LowerToInterpreter...),
+		Rules: append(append([]compiler.RewriteRule(nil), core.Rules...), matc.LowerToInterpreter...),
 	}
 
-	normal := b.Value2(mc.OpInterpreterLoadNormal, core.MakeArrayType(3, core.Int32), nil)
+	normal := b.Value2(matc.OpInterpreterGetShadingNormal, core.MakeArrayType(3, core.Int32), nil)
 	normal_x := core.ArrayExtract(&b, normal, 0)
 	normal_y := core.ArrayExtract(&b, normal, 1)
 	normal_z := core.ArrayExtract(&b, normal, 2)
 
-	uv := b.Value2(
-		mc.OpInterpreterLoadAttr,
-		core.MakeArrayType(2, core.Int32),
-		uint32(unsafe.Offsetof(materialParams{}.UVs)))
+	uv := b.Value2(matc.OpInterpreterLoadAttrGeometry, core.MakeArrayType(2, core.Int32), "UVs")
 	u := core.ArrayExtract(&b, uv, 0)
 	v := core.ArrayExtract(&b, uv, 1)
 
@@ -78,7 +76,7 @@ var TestMaterial = sync.OnceValue(func() *Material {
 	idk3 := buildArith2(&b, core.OpFMin, idk1, idk2)
 
 	selector := b.Value2(
-		mc.OpInterpreterFLessOrEqualE8M23,
+		matc.OpInterpreterFLessOrEqualE8M23,
 		core.Int32,
 		nil,
 		idk3,
@@ -89,21 +87,21 @@ var TestMaterial = sync.OnceValue(func() *Material {
 	color_r := core.CondSelect(
 		&b,
 		one,
-		b.Value2(mc.OpInterpreterLoadParam, core.Int32, uint32(unsafe.Offsetof(materialParams{}.BaseColor))+0),
+		b.Value2(matc.OpInterpreterLoadAttrObject, core.Int32, "BaseColorR"),
 		selector)
 	color_g := core.CondSelect(
 		&b,
 		one,
-		b.Value2(mc.OpInterpreterLoadParam, core.Int32, uint32(unsafe.Offsetof(materialParams{}.BaseColor))+4),
+		b.Value2(matc.OpInterpreterLoadAttrObject, core.Int32, "BaseColorG"),
 		selector)
 	color_b := core.CondSelect(
 		&b,
 		one,
-		b.Value2(mc.OpInterpreterLoadParam, core.Int32, uint32(unsafe.Offsetof(materialParams{}.BaseColor))+8),
+		b.Value2(matc.OpInterpreterLoadAttrObject, core.Int32, "BaseColorB"),
 		selector)
 
 	program := b.Value2(
-		mc.OpInterpreterPseudoOutput,
+		matc.OpInterpreterPseudoOutput,
 		core.MakeArrayType(6, core.Int32),
 		&material.InterpretedMaterialOutputLayout{
 			BSDFs:   []material.BSDF{material.BSDFDiffuse},
@@ -112,38 +110,38 @@ var TestMaterial = sync.OnceValue(func() *Material {
 		color_r, color_g, color_b,
 		normal_x, normal_y, normal_z)
 
-	return NewMaterial(sea, program)
+	return newMaterial(sea, program)
 })
 
 var TestMaterial2 = sync.OnceValue(func() *Material {
 	sea := compiler.NewSea()
 	b := &compiler.Builder{
 		Sea:   sea,
-		Rules: append(append([]compiler.RewriteRule(nil), core.Rules...), mc.LowerToInterpreter...),
+		Rules: append(append([]compiler.RewriteRule(nil), core.Rules...), matc.LowerToInterpreter...),
 	}
 
-	normal := b.Value2(mc.OpInterpreterLoadNormal, core.MakeArrayType(3, core.Int32), nil)
-	_ = normal
-	// normal_x := core.ArrayExtract(b, normal, 0)
-	// normal_y := core.ArrayExtract(b, normal, 1)
-	// normal_z := core.ArrayExtract(b, normal, 2)
-	_emission_r := core.Const(b, core.Int32, int64(math.Float32bits(10.0)))
-	_emission_g := core.Const(b, core.Int32, int64(math.Float32bits(10.0)))
-	_emission_b := core.Const(b, core.Int32, int64(math.Float32bits(10.0)))
-	_color := b.Value2(
-		mc.OpInterpreterPseudoOutput,
+	normal := b.Value2(matc.OpInterpreterGetShadingNormal, core.MakeArrayType(3, core.Int32), nil)
+	normal_x := core.ArrayExtract(b, normal, 0)
+	normal_y := core.ArrayExtract(b, normal, 1)
+	normal_z := core.ArrayExtract(b, normal, 2)
+	emission_r := core.Const(b, core.Int32, int64(math.Float32bits(10.0)))
+	emission_g := core.Const(b, core.Int32, int64(math.Float32bits(10.0)))
+	emission_b := core.Const(b, core.Int32, int64(math.Float32bits(10.0)))
+	color := b.Value2(
+		matc.OpInterpreterPseudoOutput,
 		core.MakeArrayType(3, core.Int32),
 		&material.InterpretedMaterialOutputLayout{
 			EDFs:   []material.EDF{material.EDFUniform},
 			EDFOff: 0,
 		},
-		_emission_r, _emission_g, _emission_b)
+		emission_r, emission_g, emission_b,
+		normal_x, normal_y, normal_z)
 
-	return NewMaterial(sea, _color)
+	return newMaterial(sea, color)
 })
 
-func NewMaterial(sea *compiler.Sea, v *compiler.Class) *Material {
-	interpreterProgram := mc.CompileForInterpreter(sea, v)
+func newMaterial(sea *compiler.Sea, v *compiler.Class) *Material {
+	interpreterProgram := matc.CompileForInterpreter(sea, v)
 
 	device := gpu.MakeSliceUncached[uint32](len(interpreterProgram.Code))
 	copy(device.Value(), interpreterProgram.Code)
