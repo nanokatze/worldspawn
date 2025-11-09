@@ -1,7 +1,7 @@
 package matc
 
 import (
-	"worldspawn/internal/renderer/internal/compiler"
+	"worldspawn/internal/compiler"
 	"worldspawn/internal/renderer/internal/material"
 )
 

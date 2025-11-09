@@ -1,6 +1,6 @@
 package core
 
-import "worldspawn/internal/renderer/internal/compiler"
+import "worldspawn/internal/compiler"
 
 var OpCondSelect = compiler.DefOp("CondSelect", nil)
 

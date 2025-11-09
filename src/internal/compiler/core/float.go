@@ -3,7 +3,7 @@ package core
 import (
 	"fmt"
 
-	"worldspawn/internal/renderer/internal/compiler"
+	"worldspawn/internal/compiler"
 )
 
 // TODO: introduce an op to convert between FloatType and Int

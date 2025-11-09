@@ -1,8 +1,8 @@
 package matc
 
 import (
-	"worldspawn/internal/renderer/internal/compiler"
-	"worldspawn/internal/renderer/internal/compiler/core"
+	"worldspawn/internal/compiler"
+	"worldspawn/internal/compiler/core"
 )
 
 // TODO: ideally we should should follow how MaterialX arranges material

@@ -1,6 +1,6 @@
 package matc
 
-import "worldspawn/internal/renderer/internal/compiler"
+import "worldspawn/internal/compiler"
 
 func buildArith1(b *compiler.Builder, op compiler.Op, x *compiler.Class) *compiler.Class {
 	return b.Value2(op, x.Type(), nil, x)

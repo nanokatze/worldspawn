@@ -3,7 +3,7 @@ package matc
 import (
 	"reflect"
 
-	"worldspawn/internal/renderer/internal/compiler"
+	"worldspawn/internal/compiler"
 	"worldspawn/internal/renderer/internal/material"
 )
 

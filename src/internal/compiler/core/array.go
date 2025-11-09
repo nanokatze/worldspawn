@@ -3,7 +3,7 @@ package core
 import (
 	"fmt"
 
-	"worldspawn/internal/renderer/internal/compiler"
+	"worldspawn/internal/compiler"
 )
 
 // TODO: rename Array to Vector?

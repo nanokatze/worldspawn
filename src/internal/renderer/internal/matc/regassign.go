@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"slices"
 
-	"worldspawn/internal/renderer/internal/compiler"
+	"worldspawn/internal/compiler"
 )
 
 // TODO: clean this up

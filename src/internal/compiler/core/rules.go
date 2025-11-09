@@ -1,7 +1,7 @@
 package core
 
 import (
-	"worldspawn/internal/renderer/internal/compiler"
+	"worldspawn/internal/compiler"
 )
 
 var Rules []compiler.RewriteRule

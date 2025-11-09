@@ -3,8 +3,8 @@ package matc
 import (
 	"fmt"
 
-	"worldspawn/internal/renderer/internal/compiler"
-	"worldspawn/internal/renderer/internal/compiler/core"
+	"worldspawn/internal/compiler"
+	"worldspawn/internal/compiler/core"
 )
 
 // TODO: plop interpreter optimization rules into a separate rule set?

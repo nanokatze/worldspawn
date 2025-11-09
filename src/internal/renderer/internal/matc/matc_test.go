@@ -4,8 +4,8 @@ import (
 	"math"
 	"testing"
 
-	"worldspawn/internal/renderer/internal/compiler"
-	"worldspawn/internal/renderer/internal/compiler/core"
+	"worldspawn/internal/compiler"
+	"worldspawn/internal/compiler/core"
 	"worldspawn/internal/renderer/internal/material"
 )
 

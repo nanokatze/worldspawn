@@ -6,7 +6,7 @@ package core
 import (
 	"strconv"
 
-	"worldspawn/internal/renderer/internal/compiler"
+	"worldspawn/internal/compiler"
 )
 
 type IntType struct{ N int64 }
