@@ -6,7 +6,7 @@ import (
 	"worldspawn/geometry-go"
 	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
-	"worldspawn/internal/renderer/internal/matc"
+	"worldspawn/internal/renderer/internal/material"
 )
 
 // TODO: DVec3 baseOffset
@@ -21,12 +21,7 @@ type Camera struct {
 	NearClipPlane float32
 }
 
-type interpretedMaterial struct {
-	code gpu.Pointer[uint32]
-	// TODO: layout here
-}
-
-type materialParams = matc.MaterialParams
+type materialParams = material.MaterialParams
 
 // TODO: I guess we'll need to do some involved memory management in Scene.
 

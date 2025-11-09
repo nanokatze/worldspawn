@@ -1,5 +1,67 @@
 package material
 
+import (
+	"structs"
+
+	"worldspawn/gpu"
+)
+
+// TODO: rename these enums to make it clear that it's some kind of "id" used by
+// interpreter
+type BSDF int8
+
+const (
+	_ BSDF = iota
+	BSDFDiffuse
+	BSDFMicrofacetGGXTest
+)
+
+type EDF int8
+
+const (
+	_ EDF = iota
+	EDFUniform
+)
+
+type InterpreterProgramOutputLayout struct {
+	BSDFs     [4]uint8
+	BSDFCount uint8
+	BSDFsOff  uint8
+
+	EDFs     [1]uint8
+	EDFCount uint8
+	EDFsOff  uint8
+
+	OutputsReg uint32
+}
+
+type InterpreterProgramHeader struct {
+	_ structs.HostLayout
+
+	// plop this behind a pointer too?
+	OutputLayout InterpreterProgramOutputLayout
+
+	Code gpu.Pointer[uint32]
+}
+
+// TODO: kill!!!!!!!
+type MaterialParams struct {
+	_ structs.HostLayout
+
+	// Doesn't even belong here
+	ProgramHeader InterpreterProgramHeader
+
+	Triangles    gpu.Pointer[[3]uint16]
+	NumTriangles uint32
+	PosBuffer    gpu.Pointer[[3]float32]
+	Normals      gpu.Pointer[[3]float32]
+	UVs          gpu.Pointer[[2]float32]
+	BaseColorR   float32
+	BaseColorG   float32
+	BaseColorB   float32
+	Emission     [3]float32
+}
+
 // TODO: make an interpreter generator
 
 //go:generate stringer -type A -trimprefix A
@@ -35,31 +97,3 @@ const (
 
 	// ABSDFAlbedo
 )
-
-// TODO: rename these enums to make it clear that it's some kind of "id" used by
-// interpreter
-type BSDF int8
-
-const (
-	_ BSDF = iota
-	BSDFDiffuse
-	BSDFMicrofacetGGXTest
-)
-
-type EDF int8
-
-const (
-	_ EDF = iota
-	EDFUniform
-)
-
-// TODO: this ideally would be hashable for mc. We can either make this hashable
-// somehow, or define functions to de/serialize this into a string.
-type InterpretedMaterialOutputLayout struct {
-	// TODO: BSDF and EDF are per-surface (and there can be two: front face and
-	// back face). Beside that we also need VDFs and also AOVs.
-	BSDFOff int
-	BSDFs   []BSDF
-	EDFOff  int
-	EDFs    []EDF
-}

@@ -241,10 +241,10 @@ struct triangleLight {
         let wi = normalize(uhh);
 
         InterpretedMaterial m;
-        m.params = materialParams;
+        m.outputLayout = &materialParams->programHeader.outputLayout;
         mateval(
             m.regs,
-            materialParams->code,
+            materialParams->programHeader.code,
             materialParams,
             ObjectToWorld,
             uint3(0),
@@ -412,10 +412,10 @@ bool closesthit(
 
     // TODO: should not be called bsdf
     InterpretedMaterial bsdf;
-    bsdf.params = materialParams;
+    bsdf.outputLayout = &materialParams->programHeader.outputLayout;
     mateval(
         bsdf.regs,
-        materialParams->code,
+        materialParams->programHeader.code,
         materialParams,
         ObjectToWorld,
         triIdxs,

@@ -64,7 +64,7 @@ func extract2(b *compiler.Builder, c *compiler.Class, extracted map[*compiler.Cl
 
 type InterpretedMaterial struct {
 	Code         []uint32
-	OutputLayout material.InterpretedMaterialOutputLayout
+	OutputLayout InterpretedMaterialOutputLayout
 	Outputs      int
 }
 
@@ -126,7 +126,7 @@ func CompileForInterpreter(sea *compiler.Sea, c *compiler.Class) *InterpretedMat
 		fmt.Fprintln(os.Stderr)
 	}
 
-	itable := x.Value().Imm().(*material.InterpretedMaterialOutputLayout)
+	itable := x.Value().Imm().(*InterpretedMaterialOutputLayout)
 
 	// itable.BSDFOff
 

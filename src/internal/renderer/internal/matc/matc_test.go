@@ -24,7 +24,7 @@ func TestXxx(t *testing.T) {
 	normal_y := core.ArrayExtract(b, normal, 1)
 	normal_z := core.ArrayExtract(b, normal, 2)
 
-	uv := b.Value2(OpInterpreterLoadAttrGeometry, core.MakeArrayType(2, core.Int32), "UVs")
+	uv := LoadAttrGeometry(b, "UVs")
 	u := core.ArrayExtract(b, uv, 0)
 	v := core.ArrayExtract(b, uv, 1)
 
@@ -50,9 +50,9 @@ func TestXxx(t *testing.T) {
 	color := core.MakeArray(
 		b,
 		core.Int32,
-		b.Value2(OpInterpreterLoadAttrGeometry, core.Int32, "BaseColorR"),
-		b.Value2(OpInterpreterLoadAttrGeometry, core.Int32, "BaseColorG"),
-		b.Value2(OpInterpreterLoadAttrGeometry, core.Int32, "BaseColorB"))
+		LoadAttrGeometry(b, "BaseColorR"),
+		LoadAttrGeometry(b, "BaseColorG"),
+		LoadAttrGeometry(b, "BaseColorB"))
 
 	white := core.MakeArray(b, core.Int32, one, one, one)
 
@@ -68,7 +68,7 @@ func TestXxx(t *testing.T) {
 
 	program := b.Value2(OpInterpreterPseudoOutput,
 		core.MakeArrayType(6, core.Int32),
-		&material.InterpretedMaterialOutputLayout{
+		&InterpretedMaterialOutputLayout{
 			BSDFs:   []material.BSDF{material.BSDFDiffuse},
 			BSDFOff: 0,
 		},

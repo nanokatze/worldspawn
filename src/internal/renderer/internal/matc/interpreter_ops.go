@@ -64,10 +64,6 @@ var (
 
 	// TODO: add LoadAttrScene/LoadAttrFrame
 
-	// TODO: MaterialX geomprop ops can be either integer or float -typed so
-	// we'll want to be capable of pulling integer attrs probably. But then I
-	// guess we also need all the integer ops as well...
-
 	OpInterpreterLoadAttrObject   = defInterpreterOp("LoadAttrObject", aparam(material.ALoadParam))
 	OpInterpreterLoadAttrGeometry = defInterpreterOp("LoadAttrGeometry", aparam(material.ALoadAttr))
 
@@ -89,6 +85,16 @@ func (d aparam) Assemble(as *assembler, c *compiler.Class, v *compiler.Value, re
 	off := as.params[v.Imm().(string)]
 
 	as.code = append(as.code, packinstr(material.A(d), dst, 0, 0), off)
+}
+
+// TODO: should be hashable. Doesn't need to be public.
+type InterpretedMaterialOutputLayout struct {
+	// TODO: BSDF and EDF are per-surface (and there can be two: front face and
+	// back face). Beside that we also need VDFs and also AOVs.
+	BSDFOff int
+	BSDFs   []material.BSDF
+	EDFOff  int
+	EDFs    []material.EDF
 }
 
 // TODO: these should use their own interpreterOp implementations

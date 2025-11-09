@@ -19,20 +19,18 @@ type MaterialSet struct {
 }
 */
 
-// This is almost like mc.InterpreterProgram. I guess we should just make
+// This is almost like matc.InterpreterProgram. I guess we should just make
 // Material be an interface with two implementations. We'll have to cook up
-// InterpretedMaterial which will be basically mc.InterpreterProgram but with
+// InterpretedMaterial which will be basically matc.InterpreterProgram but with
 // code being gpu.Slice[uint32].
 type Material struct {
-	code         gpu.Slice[uint32]
-	outputsReg   int
-	outputLayout material.InterpretedMaterialOutputLayout
+	programHeader material.InterpreterProgramHeader
 	// TODO: other things like mapping string to offsets in the params bytes,
 	// etc.
 }
 
 func (m *Material) emissive() bool {
-	return len(m.outputLayout.EDFs) > 0
+	return m.programHeader.OutputLayout.EDFCount > 0
 }
 
 func buildArith1(b *compiler.Builder, op compiler.Op, x *compiler.Class) *compiler.Class {
@@ -49,61 +47,61 @@ func buildFract(b *compiler.Builder, v *compiler.Class) *compiler.Class {
 
 var TestMaterial = sync.OnceValue(func() *Material {
 	sea := compiler.NewSea()
-	b := compiler.Builder{
+	b := &compiler.Builder{
 		Sea:   sea,
 		Rules: append(append([]compiler.RewriteRule(nil), core.Rules...), matc.LowerToInterpreter...),
 	}
 
 	normal := b.Value2(matc.OpInterpreterGetShadingNormal, core.MakeArrayType(3, core.Int32), nil)
-	normal_x := core.ArrayExtract(&b, normal, 0)
-	normal_y := core.ArrayExtract(&b, normal, 1)
-	normal_z := core.ArrayExtract(&b, normal, 2)
+	normal_x := core.ArrayExtract(b, normal, 0)
+	normal_y := core.ArrayExtract(b, normal, 1)
+	normal_z := core.ArrayExtract(b, normal, 2)
 
-	uv := b.Value2(matc.OpInterpreterLoadAttrGeometry, core.MakeArrayType(2, core.Int32), "UVs")
-	u := core.ArrayExtract(&b, uv, 0)
-	v := core.ArrayExtract(&b, uv, 1)
+	uv := matc.LoadAttrGeometry(b, "UVs")
+	u := core.ArrayExtract(b, uv, 0)
+	v := core.ArrayExtract(b, uv, 1)
 
-	one := core.Const(&b, core.Int32, int64(math.Float32bits(1)))
+	one := core.Const(b, core.Int32, int64(math.Float32bits(1)))
 
-	fractU := buildFract(&b, u)
-	fractV := buildFract(&b, v)
+	fractU := buildFract(b, u)
+	fractV := buildFract(b, v)
 
-	oneMinusFractU := buildArith2(&b, core.OpFSub, one, fractU)
-	oneMinusFractV := buildArith2(&b, core.OpFSub, one, fractV)
+	oneMinusFractU := buildArith2(b, core.OpFSub, one, fractU)
+	oneMinusFractV := buildArith2(b, core.OpFSub, one, fractV)
 
-	idk1 := buildArith2(&b, core.OpFMin, fractU, fractV)
-	idk2 := buildArith2(&b, core.OpFMin, oneMinusFractU, oneMinusFractV)
-	idk3 := buildArith2(&b, core.OpFMin, idk1, idk2)
+	idk1 := buildArith2(b, core.OpFMin, fractU, fractV)
+	idk2 := buildArith2(b, core.OpFMin, oneMinusFractU, oneMinusFractV)
+	idk3 := buildArith2(b, core.OpFMin, idk1, idk2)
 
 	selector := b.Value2(
 		matc.OpInterpreterFLessOrEqualE8M23,
 		core.Int32,
 		nil,
 		idk3,
-		core.Const(&b, core.Int32, int64(math.Float32bits(0.025))))
+		core.Const(b, core.Int32, int64(math.Float32bits(0.025))))
 
 	// TODO: introduce a rule for scalarizing CondSelect. Note that right now we
 	// fall over at extraction time, so...
 	color_r := core.CondSelect(
-		&b,
+		b,
 		one,
-		b.Value2(matc.OpInterpreterLoadAttrObject, core.Int32, "BaseColorR"),
+		matc.LoadAttrObject(b, "BaseColorR"),
 		selector)
 	color_g := core.CondSelect(
-		&b,
+		b,
 		one,
-		b.Value2(matc.OpInterpreterLoadAttrObject, core.Int32, "BaseColorG"),
+		matc.LoadAttrObject(b, "BaseColorG"),
 		selector)
 	color_b := core.CondSelect(
-		&b,
+		b,
 		one,
-		b.Value2(matc.OpInterpreterLoadAttrObject, core.Int32, "BaseColorB"),
+		matc.LoadAttrObject(b, "BaseColorB"),
 		selector)
 
 	program := b.Value2(
 		matc.OpInterpreterPseudoOutput,
 		core.MakeArrayType(6, core.Int32),
-		&material.InterpretedMaterialOutputLayout{
+		&matc.InterpretedMaterialOutputLayout{
 			BSDFs:   []material.BSDF{material.BSDFDiffuse},
 			BSDFOff: 0,
 		},
@@ -130,7 +128,7 @@ var TestMaterial2 = sync.OnceValue(func() *Material {
 	color := b.Value2(
 		matc.OpInterpreterPseudoOutput,
 		core.MakeArrayType(3, core.Int32),
-		&material.InterpretedMaterialOutputLayout{
+		&matc.InterpretedMaterialOutputLayout{
 			EDFs:   []material.EDF{material.EDFUniform},
 			EDFOff: 0,
 		},
@@ -143,14 +141,35 @@ var TestMaterial2 = sync.OnceValue(func() *Material {
 func newMaterial(sea *compiler.Sea, v *compiler.Class) *Material {
 	interpreterProgram := matc.CompileForInterpreter(sea, v)
 
+	log.Println("outputs register", uint32(interpreterProgram.Outputs))
+
 	device := gpu.MakeSliceUncached[uint32](len(interpreterProgram.Code))
 	copy(device.Value(), interpreterProgram.Code)
 
-	log.Println("outputs register", uint32(interpreterProgram.Outputs))
+	var bsdfs [4]uint8
+	for i, num := range interpreterProgram.OutputLayout.BSDFs {
+		bsdfs[i] = uint8(num)
+	}
+
+	var edfs [1]uint8
+	for i, num := range interpreterProgram.OutputLayout.EDFs {
+		edfs[i] = uint8(num)
+	}
 
 	return &Material{
-		code:         device,
-		outputsReg:   interpreterProgram.Outputs,
-		outputLayout: interpreterProgram.OutputLayout,
+		programHeader: material.InterpreterProgramHeader{
+			OutputLayout: material.InterpreterProgramOutputLayout{
+				BSDFs:     bsdfs,
+				BSDFCount: uint8(len(interpreterProgram.OutputLayout.BSDFs)),
+				BSDFsOff:  uint8(interpreterProgram.OutputLayout.BSDFOff),
+
+				EDFs:     edfs,
+				EDFCount: uint8(len(interpreterProgram.OutputLayout.EDFs)),
+				EDFsOff:  uint8(interpreterProgram.OutputLayout.EDFOff),
+
+				OutputsReg: uint32(interpreterProgram.Outputs),
+			},
+			Code: gpu.SliceData(device),
+		},
 	}
 }

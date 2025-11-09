@@ -1,30 +1,7 @@
 import gpu;
 import spectrum;
 import lighting;
-
-public struct MaterialParams {
-    public uint32_t *code;
-
-    // TODO: outline stuff into a "surface" struct or something
-
-    public uint8_t bsdfs[4];
-    public uint8_t bsdfCount;
-    public uint8_t bsdfsOff;
-
-    public uint8_t edfs[1];
-    public uint8_t edfCount;
-    public uint8_t edfsOff; // TODO: move it before the array or something?
-
-    public uint32_t outputsReg;
-
-    public void *triangles;
-    public uint32_t num_triangles;
-    public float3 *posBuffer;
-    public float3 *normals;
-    public float2 *uvs;
-    public float baseColor[3];
-    public float emission[3];
-};
+import internal.material.interpreter;
 
 // TODO: naming
 public struct leSample {

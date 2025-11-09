@@ -1,6 +1,9 @@
 package matc
 
-import "worldspawn/internal/renderer/internal/compiler"
+import (
+	"worldspawn/internal/renderer/internal/compiler"
+	"worldspawn/internal/renderer/internal/compiler/core"
+)
 
 // TODO: ideally we should should follow how MaterialX arranges material
 // definition, and MDL to some degree. MDL has a pretty clean way to defining
@@ -59,3 +62,17 @@ var (
 
 // Rules for flattening BSDF composition and stuff
 // var legalizationRules =
+
+// TODO: MaterialX geomprop ops can be either integer or float -typed so we'll
+// want to be capable of pulling integer attrs probably. But then I guess we
+// also need all the integer ops as well...
+
+// TODO: this should return vec4
+func LoadAttrObject(b *compiler.Builder, attr string) *compiler.Class {
+	return b.Value2(OpInterpreterLoadAttrObject, core.Int32, attr)
+}
+
+// TODO: this should return vec4
+func LoadAttrGeometry(b *compiler.Builder, attr string) *compiler.Class {
+	return b.Value2(OpInterpreterLoadAttrGeometry, core.MakeArrayType(2, core.Int32), attr)
+}
