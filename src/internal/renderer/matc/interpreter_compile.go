@@ -62,13 +62,14 @@ func extract2(b *compiler.Builder, c *compiler.Class, extracted map[*compiler.Cl
 	return x
 }
 
+// TODO: make it the same as interpreterProgramHeader
 type InterpretedMaterial struct {
 	Code         []uint32
 	OutputLayout InterpretedMaterialOutputLayout
 	Outputs      int
 }
 
-func CompileForInterpreter(sea *compiler.Sea, c *compiler.Class) *InterpretedMaterial {
+func CompileInterpretedMaterial(sea *compiler.Sea, c *compiler.Class) *InterpretedMaterial {
 	t0 := time.Now()
 	defer func() { log.Println("Compile", time.Since(t0)) }()
 

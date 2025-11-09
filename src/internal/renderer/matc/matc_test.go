@@ -75,7 +75,7 @@ func TestXxx(t *testing.T) {
 		final_x, final_y, final_z,
 		normal_x, normal_y, normal_z)
 
-	compiled := CompileForInterpreter(sea, program)
+	compiled := CompileInterpretedMaterial(sea, program)
 
 	t.Log(compiled.Outputs)
 	t.Log(compiled.OutputLayout)

@@ -8,8 +8,8 @@ import (
 	"worldspawn/gpu"
 	"worldspawn/internal/compiler"
 	"worldspawn/internal/compiler/core"
-	"worldspawn/internal/renderer/internal/matc"
 	"worldspawn/internal/renderer/internal/material"
+	"worldspawn/internal/renderer/matc"
 )
 
 /*
@@ -139,7 +139,7 @@ var TestMaterial2 = sync.OnceValue(func() *Material {
 })
 
 func newMaterial(sea *compiler.Sea, v *compiler.Class) *Material {
-	interpreterProgram := matc.CompileForInterpreter(sea, v)
+	interpreterProgram := matc.CompileInterpretedMaterial(sea, v)
 
 	log.Println("outputs register", uint32(interpreterProgram.Outputs))
 
