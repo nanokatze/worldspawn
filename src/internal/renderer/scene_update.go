@@ -15,7 +15,7 @@ type Instance struct {
 // TODO: we'll also want to specify the parameters
 // TODO: move Material into its own column (array)?
 type MaterialInstance struct {
-	Material *Material
+	Material *InterpretedMaterial
 	// TODO: these should be expressed somehow generically
 	BaseColor [3]float32
 	Emission  [3]float32
@@ -121,7 +121,7 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 			material := dirty.Materials[instanceIdx][partIdx]
 
 			materialParamsHost[instanceIdx*scene.maxPartsPerMesh+partIdx] = materialParams{
-				ProgramHeader: material.Material.programHeader,
+				Program: material.Material.program,
 
 				Triangles:    gpu.SliceData(part.IndexBuffer),
 				NumTriangles: uint32(gpu.SliceLen(part.IndexBuffer)),

@@ -68,7 +68,7 @@ func TestXxx(t *testing.T) {
 
 	program := b.Value2(OpInterpreterPseudoOutput,
 		core.MakeArrayType(6, core.Int32),
-		&InterpretedMaterialOutputLayout{
+		&InterpreterABI{
 			BSDFs:   []material.BSDF{material.BSDFDiffuse},
 			BSDFOff: 0,
 		},
@@ -78,5 +78,5 @@ func TestXxx(t *testing.T) {
 	compiled := CompileInterpretedMaterial(sea, program)
 
 	t.Log(compiled.Outputs)
-	t.Log(compiled.OutputLayout)
+	t.Log(compiled.ABI)
 }

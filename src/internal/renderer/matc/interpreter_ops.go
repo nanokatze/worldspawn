@@ -88,7 +88,7 @@ func (d aparam) Assemble(as *assembler, c *compiler.Class, v *compiler.Value, re
 }
 
 // TODO: should be hashable. Doesn't need to be public.
-type InterpretedMaterialOutputLayout struct {
+type InterpreterABI struct {
 	// TODO: BSDF and EDF are per-surface (and there can be two: front face and
 	// back face). Beside that we also need VDFs and also AOVs.
 	BSDFOff int

@@ -240,11 +240,11 @@ struct triangleLight {
 
         let wi = normalize(uhh);
 
-        InterpretedMaterial m;
-        m.outputLayout = &materialParams->programHeader.outputLayout;
+        EvaluatedInterpretedMaterial m;
+        m.abi = &materialParams->program.abi;
         mateval(
             m.regs,
-            materialParams->programHeader.code,
+            materialParams->program.code,
             materialParams,
             ObjectToWorld,
             uint3(0),
@@ -304,13 +304,13 @@ struct ShaderRecordData {
 
 // TODO: do not pass bsdf here, make the caller deal with it instead
 // TODO: if we still want to pass bsdf, make this generic over BSDFs and make
-// InterpretedMaterial implement it.
+// EvaluatedInterpretedMaterial implement it.
 Spectrum sampleLd(
     bool vampire,
     float3 hitpos,
     float3 normal,
     float3 wo,
-    __ref InterpretedMaterial bsdf,
+    __ref EvaluatedInterpretedMaterial bsdf,
     float asd,
     float2 uLight,
 ) {
@@ -411,11 +411,11 @@ bool closesthit(
     let triIdxs = idxBuffer.Load3(primitiveIndex);
 
     // TODO: should not be called bsdf
-    InterpretedMaterial bsdf;
-    bsdf.outputLayout = &materialParams->programHeader.outputLayout;
+    EvaluatedInterpretedMaterial bsdf;
+    bsdf.abi = &materialParams->program.abi;
     mateval(
         bsdf.regs,
-        materialParams->programHeader.code,
+        materialParams->program.code,
         materialParams,
         ObjectToWorld,
         triIdxs,

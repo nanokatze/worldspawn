@@ -23,7 +23,7 @@ const (
 	EDFUniform
 )
 
-type InterpreterProgramOutputLayout struct {
+type InterpreterABI struct {
 	BSDFs     [4]uint8
 	BSDFCount uint8
 	BSDFsOff  uint8
@@ -35,12 +35,14 @@ type InterpreterProgramOutputLayout struct {
 	OutputsReg uint32
 }
 
-type InterpreterProgramHeader struct {
+type InterpreterProgram struct {
 	_ structs.HostLayout
 
-	// plop this behind a pointer too?
-	OutputLayout InterpreterProgramOutputLayout
+	// TODO: plop this behind a pointer
+	ABI InterpreterABI
 
+	// TODO: could be a slice
+	// TODO: rename to describe what this actually computes?
 	Code gpu.Pointer[uint32]
 }
 
@@ -49,7 +51,7 @@ type MaterialParams struct {
 	_ structs.HostLayout
 
 	// Doesn't even belong here
-	ProgramHeader InterpreterProgramHeader
+	Program InterpreterProgram
 
 	Triangles    gpu.Pointer[[3]uint16]
 	NumTriangles uint32

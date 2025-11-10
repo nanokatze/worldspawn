@@ -33,6 +33,9 @@ func (SurfaceType) String() string { return "Surface" }
 var (
 	// TODO: OpLoadAttr{Scene,Object,Geometry}
 
+	// TODO: rename LoadAttrObject to LoadObjectProperty and LoadAttrGeometry to
+	// just LoadAttribute?
+
 	// OpGGX = compiler.DefOp("GGX", nil)
 
 	// OpGeneralizedSchlick = compiler.DefOp("GeneralizedSchlick", nil)

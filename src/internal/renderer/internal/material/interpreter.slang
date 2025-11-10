@@ -18,7 +18,7 @@ public enum EDFNum {
     Uniform,
 };
 
-public struct interpreterProgramOutputLayout {
+public struct interpreterABI {
     // TODO: outline this into surface, we can have two surfaces: frontface and
     // backface.
 
@@ -34,15 +34,14 @@ public struct interpreterProgramOutputLayout {
     public uint32_t outputsReg;
 }
 
-// TODO: shorter names? E.g. this could probably be interpreterProgramHeader
-public struct interpreterProgramHeader {
-    public interpreterProgramOutputLayout outputLayout;
+public struct interpreterProgram {
+    public interpreterABI abi;
     public uint32_t *code;
 }
 
 // TODO: kill kill kill
 public struct MaterialParams {
-    public interpreterProgramHeader programHeader; // doesn't belong here but into e.g. SBT header or just out of band.
+    public interpreterProgram program;
 
     public void *triangles;
     public uint32_t num_triangles;
@@ -105,13 +104,13 @@ public enum Op {
 
 public void mateval(
     __ref InterpreterState regs,
-    uint32_t *program,
+    uint32_t *code,
     MaterialParams *materialParams,
     float3x4 ObjectToWorld,
     uint3 triIdxs,
     float2 barys_yz)
 {
-    Fetcher fetcher = {program};
+    Fetcher fetcher = {code};
 
     // TODO: factor decoding out
 evalLoop:
@@ -260,10 +259,10 @@ float spectrumAsWeight(Spectrum s) {
 // BUG: composition of BSDFs is very broken, we should review and fix it.
 //
 // See https://github.com/mmp/pbrt-v4/blob/f140d7cba5dc7b941f9346d6b7d1476a05c28c37/src/pbrt/util/sampling.h#L79
-public struct InterpretedMaterial : BSDF {
+public struct EvaluatedInterpretedMaterial : BSDF {
     // TODO: we'd like to make this a non-pointer but slang generates broken
     // code when we do
-    public interpreterProgramOutputLayout *outputLayout;
+    public interpreterABI *abi;
 
     public InterpreterState regs;
 
@@ -272,15 +271,15 @@ public struct InterpretedMaterial : BSDF {
     // switch every time.
 
     public BSDFFlags Flags() {
-        if (outputLayout.bsdfCount == 0)
+        if (abi.bsdfCount == 0)
             return (BSDFFlags)0;
 
-        RegisterReader tints = {regs, outputLayout.outputsReg + outputLayout.bsdfsOff};
-        RegisterReader bsdfparams = {regs, outputLayout.outputsReg + outputLayout.bsdfsOff + outputLayout.bsdfCount * 3};
+        RegisterReader tints = {regs, abi.outputsReg + abi.bsdfsOff};
+        RegisterReader bsdfparams = {regs, abi.outputsReg + abi.bsdfsOff + abi.bsdfCount * 3};
 
         uint32_t flags = 0;
-        for (uint32_t i = 0; i < outputLayout.bsdfCount; i++) {
-            switch ((BSDFNum)outputLayout.bsdfs[i]) {
+        for (uint32_t i = 0; i < abi.bsdfCount; i++) {
+            switch ((BSDFNum)abi.bsdfs[i]) {
             case BSDFNum::Diffuse: {
                 let bsdf = readDiffuseBSDF(tints, bsdfparams);
                 flags |= (uint32_t)bsdf.Flags();
@@ -305,17 +304,17 @@ public struct InterpretedMaterial : BSDF {
     }
 
     public BSDFEval Eval(float3 wo, float3 wi) {
-        if (outputLayout.bsdfCount == 0)
+        if (abi.bsdfCount == 0)
             return {};
 
-        RegisterReader tints = {regs, outputLayout.outputsReg + outputLayout.bsdfsOff};
-        RegisterReader bsdfparams = {regs, outputLayout.outputsReg + outputLayout.bsdfsOff + outputLayout.bsdfCount * 3};
+        RegisterReader tints = {regs, abi.outputsReg + abi.bsdfsOff};
+        RegisterReader bsdfparams = {regs, abi.outputsReg + abi.bsdfsOff + abi.bsdfCount * 3};
 
         BSDFEval result = {};
-        for (uint32_t i = 0; i < outputLayout.bsdfCount; i++) {
-            float pmf = 1.0 / outputLayout.bsdfCount;
+        for (uint32_t i = 0; i < abi.bsdfCount; i++) {
+            float pmf = 1.0 / abi.bsdfCount;
 
-            switch ((BSDFNum)outputLayout.bsdfs[i]) {
+            switch ((BSDFNum)abi.bsdfs[i]) {
             case BSDFNum::Diffuse: {
                 let bsdf = readDiffuseBSDF(tints, bsdfparams);
                 var e = bsdf.Eval(wo, wi);
@@ -340,32 +339,32 @@ public struct InterpretedMaterial : BSDF {
     }
 
     public BSDFSample Sample(float3 wo, float uc, float2 u) {
-        if (outputLayout.bsdfCount == 0)
+        if (abi.bsdfCount == 0)
             return {};
 
 #if 0
         float total = 0.0;
-        for (uint32_t i = 0; i < outputLayout.bsdfCount; i++) {
-            let weight = spectrumAsWeight(spectrumFromRegs(regs, outputLayout.outputsReg + outputLayout.bsdfsOff + i * 3));
+        for (uint32_t i = 0; i < abi.bsdfCount; i++) {
+            let weight = spectrumAsWeight(spectrumFromRegs(regs, abi.outputsReg + abi.bsdfsOff + i * 3));
             total += weight;
         }
 
-        uint32_t bsdfReg = outputLayout.outputsReg + outputLayout.bsdfsOff + outputLayout.bsdfCount * 3;
+        uint32_t bsdfReg = abi.outputsReg + abi.bsdfsOff + abi.bsdfCount * 3;
 
         float accumulated = 0.0;
         float pdf = 0;
         uint32_t bsdfIndex;
         for (bsdfIndex = 0;; bsdfIndex++) {
-            let weight = spectrumAsWeight(spectrumFromRegs(regs, outputLayout.outputsReg + outputLayout.bsdfsOff + bsdfIndex * 3));
+            let weight = spectrumAsWeight(spectrumFromRegs(regs, abi.outputsReg + abi.bsdfsOff + bsdfIndex * 3));
 
             pdf = weight / total;
 
-            if (bsdfIndex >= outputLayout.bsdfCount)
+            if (bsdfIndex >= abi.bsdfCount)
                 break;
             if (accumulated + pdf > uc)
                 break;
 
-            switch ((BSDFNum)outputLayout.bsdfs[bsdfIndex]) {
+            switch ((BSDFNum)abi.bsdfs[bsdfIndex]) {
             case BSDFNum::Diffuse: {
                 bsdfReg += 3 /* normal */;
                 break;
@@ -380,17 +379,17 @@ public struct InterpretedMaterial : BSDF {
 #endif
 
         // TODO: be a lil smarter about assigning probabilities
-        let pmf = 1.0 / outputLayout.bsdfCount;
-        let bsdfIndex = (int)fract(uc * outputLayout.bsdfCount);
+        let pmf = 1.0 / abi.bsdfCount;
+        let bsdfIndex = (int)fract(uc * abi.bsdfCount);
 
         // TODO: adjust uc here so that it's in 0..1 again and useful for
         // downstream bsdf sample
 
-        RegisterReader tints = {regs, outputLayout.outputsReg + outputLayout.bsdfsOff};
-        RegisterReader bsdfparams = {regs, outputLayout.outputsReg + outputLayout.bsdfsOff + outputLayout.bsdfCount * 3};
+        RegisterReader tints = {regs, abi.outputsReg + abi.bsdfsOff};
+        RegisterReader bsdfparams = {regs, abi.outputsReg + abi.bsdfsOff + abi.bsdfCount * 3};
 
         for (int i = 0; i < bsdfIndex; i++) {
-            switch ((BSDFNum)outputLayout.bsdfs[i]) {
+            switch ((BSDFNum)abi.bsdfs[i]) {
             case BSDFNum::Diffuse: {
                 readDiffuseBSDF(tints, bsdfparams);
                 break;
@@ -407,7 +406,7 @@ public struct InterpretedMaterial : BSDF {
             }
         }
 
-        switch ((BSDFNum)outputLayout.bsdfs[bsdfIndex]) {
+        switch ((BSDFNum)abi.bsdfs[bsdfIndex]) {
         case BSDFNum::Diffuse: {
             let bsdf = readDiffuseBSDF(tints, bsdfparams);
             var sample = bsdf.Sample(wo, uc, u);
@@ -430,16 +429,16 @@ public struct InterpretedMaterial : BSDF {
     // TODO: rename to EmissionEval? And rename BSDF eval and sample to
     // EvalScattering and SampleScattering? Or EDFEval, BSDFEval, BSDFSample?
     public Spectrum EDFEval(float3 wi) {
-        if (outputLayout.edfCount == 0)
+        if (abi.edfCount == 0)
             return (Spectrum)0;
 
-        RegisterReader tints = {regs, outputLayout.outputsReg + outputLayout.edfsOff};
+        RegisterReader tints = {regs, abi.outputsReg + abi.edfsOff};
 
         // TODO: edfparams
 
         Spectrum result = (Spectrum)0;
-        for (uint32_t i = 0; i < outputLayout.edfCount; i++) {
-            switch ((EDFNum)outputLayout.edfs[i]) {
+        for (uint32_t i = 0; i < abi.edfCount; i++) {
+            switch ((EDFNum)abi.edfs[i]) {
             case EDFNum::Uniform: {
                 EDFAdapter<UniformEDF> edf = {
                     readSpectrum(tints),

@@ -19,18 +19,20 @@ type MaterialSet struct {
 }
 */
 
-// This is almost like matc.InterpreterProgram. I guess we should just make
-// Material be an interface with two implementations. We'll have to cook up
-// InterpretedMaterial which will be basically matc.InterpreterProgram but with
-// code being gpu.Slice[uint32].
-type Material struct {
-	programHeader material.InterpreterProgramHeader
+// NOTE: This is almost like matc.InterpretedMaterial. I guess we should just
+// make InterpretedMaterial be an interface with two implementations. We'll have
+// to cook up InterpretedMaterial which will be basically
+// matc.InterpretedMaterial but with code being gpu.Slice[uint32].
+//
+// TODO: make this an implementation of Material interface, and return the interface, and make this private I guess.
+type InterpretedMaterial struct {
+	program material.InterpreterProgram
 	// TODO: other things like mapping string to offsets in the params bytes,
 	// etc.
 }
 
-func (m *Material) emissive() bool {
-	return m.programHeader.OutputLayout.EDFCount > 0
+func (m *InterpretedMaterial) emissive() bool {
+	return m.program.ABI.EDFCount > 0
 }
 
 func buildArith1(b *compiler.Builder, op compiler.Op, x *compiler.Class) *compiler.Class {
@@ -45,7 +47,12 @@ func buildFract(b *compiler.Builder, v *compiler.Class) *compiler.Class {
 	return buildArith2(b, core.OpFSub, v, buildArith1(b, core.OpFFloor, v))
 }
 
-var TestMaterial = sync.OnceValue(func() *Material {
+func TestMaterial3(src []byte) *InterpretedMaterial {
+	// TODO: do some json thing for now or parse some kind of subset of MtlX?
+	return nil
+}
+
+var TestMaterial = sync.OnceValue(func() *InterpretedMaterial {
 	sea := compiler.NewSea()
 	b := &compiler.Builder{
 		Sea:   sea,
@@ -80,8 +87,6 @@ var TestMaterial = sync.OnceValue(func() *Material {
 		idk3,
 		core.Const(b, core.Int32, int64(math.Float32bits(0.025))))
 
-	// TODO: introduce a rule for scalarizing CondSelect. Note that right now we
-	// fall over at extraction time, so...
 	color_r := core.CondSelect(
 		b,
 		one,
@@ -101,73 +106,72 @@ var TestMaterial = sync.OnceValue(func() *Material {
 	program := b.Value2(
 		matc.OpInterpreterPseudoOutput,
 		core.MakeArrayType(6, core.Int32),
-		&matc.InterpretedMaterialOutputLayout{
+		&matc.InterpreterABI{
 			BSDFs:   []material.BSDF{material.BSDFDiffuse},
 			BSDFOff: 0,
 		},
 		color_r, color_g, color_b,
 		normal_x, normal_y, normal_z)
 
-	return newMaterial(sea, program)
+	return NewMaterial(sea, program)
 })
 
-var TestMaterial2 = sync.OnceValue(func() *Material {
+var TestMaterial2 = sync.OnceValue(func() *InterpretedMaterial {
 	sea := compiler.NewSea()
 	b := &compiler.Builder{
 		Sea:   sea,
 		Rules: append(append([]compiler.RewriteRule(nil), core.Rules...), matc.LowerToInterpreter...),
 	}
 
-	normal := b.Value2(matc.OpInterpreterGetShadingNormal, core.MakeArrayType(3, core.Int32), nil)
-	normal_x := core.ArrayExtract(b, normal, 0)
-	normal_y := core.ArrayExtract(b, normal, 1)
-	normal_z := core.ArrayExtract(b, normal, 2)
 	emission_r := core.Const(b, core.Int32, int64(math.Float32bits(10.0)))
 	emission_g := core.Const(b, core.Int32, int64(math.Float32bits(10.0)))
 	emission_b := core.Const(b, core.Int32, int64(math.Float32bits(10.0)))
 	color := b.Value2(
 		matc.OpInterpreterPseudoOutput,
 		core.MakeArrayType(3, core.Int32),
-		&matc.InterpretedMaterialOutputLayout{
+		&matc.InterpreterABI{
 			EDFs:   []material.EDF{material.EDFUniform},
 			EDFOff: 0,
 		},
-		emission_r, emission_g, emission_b,
-		normal_x, normal_y, normal_z)
+		emission_r, emission_g, emission_b)
 
-	return newMaterial(sea, color)
+	return NewMaterial(sea, color)
 })
 
-func newMaterial(sea *compiler.Sea, v *compiler.Class) *Material {
-	interpreterProgram := matc.CompileInterpretedMaterial(sea, v)
+// TODO: error material, which would be a pink/black emissive checkerboard
 
-	log.Println("outputs register", uint32(interpreterProgram.Outputs))
+// TODO: we need a knob to specify whether to compile an interpreted material or
+// an API shader material
+func NewMaterial(sea *compiler.Sea, v *compiler.Class) *InterpretedMaterial {
+	interpretedMaterial := matc.CompileInterpretedMaterial(sea, v)
 
-	device := gpu.MakeSliceUncached[uint32](len(interpreterProgram.Code))
-	copy(device.Value(), interpreterProgram.Code)
+	log.Println("outputs register", uint32(interpretedMaterial.Outputs))
+
+	device := gpu.MakeSliceUncached[uint32](len(interpretedMaterial.Code))
+	copy(device.Value(), interpretedMaterial.Code)
 
 	var bsdfs [4]uint8
-	for i, num := range interpreterProgram.OutputLayout.BSDFs {
+	for i, num := range interpretedMaterial.ABI.BSDFs {
 		bsdfs[i] = uint8(num)
 	}
 
 	var edfs [1]uint8
-	for i, num := range interpreterProgram.OutputLayout.EDFs {
+	for i, num := range interpretedMaterial.ABI.EDFs {
 		edfs[i] = uint8(num)
 	}
 
-	return &Material{
-		programHeader: material.InterpreterProgramHeader{
-			OutputLayout: material.InterpreterProgramOutputLayout{
+	return &InterpretedMaterial{
+		program: material.InterpreterProgram{
+			ABI: material.InterpreterABI{
 				BSDFs:     bsdfs,
-				BSDFCount: uint8(len(interpreterProgram.OutputLayout.BSDFs)),
-				BSDFsOff:  uint8(interpreterProgram.OutputLayout.BSDFOff),
+				BSDFCount: uint8(len(interpretedMaterial.ABI.BSDFs)),
+				BSDFsOff:  uint8(interpretedMaterial.ABI.BSDFOff),
 
 				EDFs:     edfs,
-				EDFCount: uint8(len(interpreterProgram.OutputLayout.EDFs)),
-				EDFsOff:  uint8(interpreterProgram.OutputLayout.EDFOff),
+				EDFCount: uint8(len(interpretedMaterial.ABI.EDFs)),
+				EDFsOff:  uint8(interpretedMaterial.ABI.EDFOff),
 
-				OutputsReg: uint32(interpreterProgram.Outputs),
+				OutputsReg: uint32(interpretedMaterial.Outputs),
 			},
 			Code: gpu.SliceData(device),
 		},

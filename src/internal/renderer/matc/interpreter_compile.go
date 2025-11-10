@@ -62,13 +62,20 @@ func extract2(b *compiler.Builder, c *compiler.Class, extracted map[*compiler.Cl
 	return x
 }
 
-// TODO: make it the same as interpreterProgramHeader
+// This is basically the same as renderer.InterpretedMaterial
 type InterpretedMaterial struct {
-	Code         []uint32
-	OutputLayout InterpretedMaterialOutputLayout
-	Outputs      int
+	// TODO: outline these fields into a struct similar to
+	// material.InterpreterProgram, but with host slice for code
+	Code    []uint32
+	ABI     InterpreterABI // TODO: use material.InterpreterABI
+	Outputs int            // TODO: kill this and make it live in the InterpreterABI
+	// TODO: other stuff, e.g. packing the parameters, etc.
 }
 
+// TODO: the user should provide a function for mapping frame property names to
+// offsets
+// TODO: AOVs. Either the user can specify aov name -> offset mapping at compile
+// time, we can do the remapping later somehow
 func CompileInterpretedMaterial(sea *compiler.Sea, c *compiler.Class) *InterpretedMaterial {
 	t0 := time.Now()
 	defer func() { log.Println("Compile", time.Since(t0)) }()
@@ -127,14 +134,12 @@ func CompileInterpretedMaterial(sea *compiler.Sea, c *compiler.Class) *Interpret
 		fmt.Fprintln(os.Stderr)
 	}
 
-	itable := x.Value().Imm().(*InterpretedMaterialOutputLayout)
-
-	// itable.BSDFOff
+	abi := x.Value().Imm().(*InterpreterABI)
 
 	return &InterpretedMaterial{
-		Code:         assembled,
-		OutputLayout: *itable,
-		Outputs:      regm[x].I,
+		Code:    assembled,
+		ABI:     *abi,
+		Outputs: regm[x].I,
 	}
 }
 
