@@ -50,9 +50,9 @@ func TestXxx(t *testing.T) {
 	color := core.MakeArray(
 		b,
 		core.Int32,
-		LoadAttrGeometry(b, "BaseColorR"),
-		LoadAttrGeometry(b, "BaseColorG"),
-		LoadAttrGeometry(b, "BaseColorB"))
+		LoadAttrObject(b, "BaseColorR"),
+		LoadAttrObject(b, "BaseColorG"),
+		LoadAttrObject(b, "BaseColorB"))
 
 	white := core.MakeArray(b, core.Int32, one, one, one)
 

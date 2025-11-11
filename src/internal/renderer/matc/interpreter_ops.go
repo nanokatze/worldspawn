@@ -5,6 +5,10 @@ import (
 	"worldspawn/internal/renderer/internal/material"
 )
 
+// TODO: use a shorter prefix instead of "interpreter"? Wasmtime uses interp for
+// pulley in a few places but I also hate that interp is used to mean
+// interpolation. Most things indeed seem to be using interp...
+
 // type regType struct{ N int }
 
 // Adding a new instruction
@@ -28,7 +32,7 @@ type interpreterOp interface {
 var amap = make(map[compiler.Op]func(as *assembler, class *compiler.Class, v *compiler.Value, regm map[*compiler.Class]regRange))
 
 func defInterpreterOp(name string, a interpreterOp) compiler.Op {
-	op := compiler.DefOp("Interpreter"+name, a.Validate)
+	op := defOp("Interpreter"+name, a.Validate)
 	amap[op] = a.Assemble
 	return op
 }

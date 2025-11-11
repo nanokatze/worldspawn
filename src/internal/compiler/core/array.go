@@ -26,7 +26,7 @@ func (typ ArrayType) Elem() compiler.Type { return typ.elem }
 
 func (typ ArrayType) String() string { return fmt.Sprintf("[%d]%v", typ.len, typ.elem) }
 
-var OpMakeArray = compiler.DefOp("MakeArray", validateMakeArray)
+var OpMakeArray = defOp("MakeArray", validateMakeArray)
 
 // TODO: make this take elem type explicitly?
 func MakeArray(b *compiler.Builder, et compiler.Type, args ...*compiler.Class) *compiler.Class {
@@ -34,7 +34,7 @@ func MakeArray(b *compiler.Builder, et compiler.Type, args ...*compiler.Class) *
 	return b.Value2(OpMakeArray, t, nil, args...)
 }
 
-var OpArrayExtract = compiler.DefOp("ArrayExtract", validateArrayExtract)
+var OpArrayExtract = defOp("ArrayExtract", validateArrayExtract)
 
 func ArrayExtract(b *compiler.Builder, arr *compiler.Class, idx int64) *compiler.Class {
 	return b.Value2(OpArrayExtract, arr.Type().(ArrayType).Elem(), idx, arr)

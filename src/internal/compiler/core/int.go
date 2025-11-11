@@ -23,7 +23,7 @@ var (
 
 // TODO: prefix all ops here with I?
 
-var OpIConst = compiler.DefOp("IConst",
+var OpIConst = defOp("IConst",
 	func(typ compiler.Type, imm any, args ...*compiler.Class) {
 		_ = imm.(int64)
 	})
@@ -33,18 +33,18 @@ func Const(b *compiler.Builder, typ compiler.Type, imm int64) *compiler.Class {
 }
 
 var (
-	OpAnd = compiler.DefOp("And", nil)
-	OpOr  = compiler.DefOp("Or", nil)
-	OpXor = compiler.DefOp("Xor", nil)
+	OpAnd = defOp("And", nil)
+	OpOr  = defOp("Or", nil)
+	OpXor = defOp("Xor", nil)
 )
 
-var OpNot = compiler.DefOp("Not", nil)
+var OpNot = defOp("Not", nil)
 
 var (
-	OpEqual    = compiler.DefOp("Equal", nil)
-	OpNotEqual = compiler.DefOp("NotEqual", nil)
+	OpEqual    = defOp("Equal", nil)
+	OpNotEqual = defOp("NotEqual", nil)
 )
 
-// OpIAdd = compiler.DefOp("IAdd")
-// OpISub = compiler.DefOp("ISub")
-// OpIMul = compiler.DefOp("IMul")
+// OpIAdd = defOp("IAdd")
+// OpISub = defOp("ISub")
+// OpIMul = defOp("IMul")

@@ -10,6 +10,23 @@ import (
 // materials so we should get inspired by that thing. Actually, MtlX can be
 // compiled down to MDL, so maybe we can just model things after MDL?
 
+var (
+	// TODO: OpLoadAttr{Scene,Object,Geometry}
+
+	// TODO: rename LoadAttrObject to LoadObjectProperty and LoadAttrGeometry to
+	// just LoadAttribute?
+
+	// What should the imm of this be? String filename or a param struct field?
+	//
+	// String imm has a negative in that we would have to run the full
+	// compilation process before we can discover that we already have this
+	// material program. On the other hand I guess this is hardly different from
+	// materials having various immediates. So I guess let's go with filename
+	// string and everything being stuffed into imm? The lowered SampleImage2D
+	// would then load up the descriptor or whatever.
+	OpSampleImage2D = defOp("SampleImage2D", nil)
+)
+
 // TODO: make a kind that we'll instantinate into BSDF, EDF, etc?
 
 type BSDFType struct{}
@@ -31,34 +48,29 @@ func (SurfaceType) String() string { return "Surface" }
 */
 
 var (
-	// TODO: OpLoadAttr{Scene,Object,Geometry}
+	// OpGGX = defOp("GGX", nil)
 
-	// TODO: rename LoadAttrObject to LoadObjectProperty and LoadAttrGeometry to
-	// just LoadAttribute?
+	// OpGeneralizedSchlick = defOp("GeneralizedSchlick", nil)
 
-	// OpGGX = compiler.DefOp("GGX", nil)
-
-	// OpGeneralizedSchlick = compiler.DefOp("GeneralizedSchlick", nil)
-
-	OpDiffuseBSDF = compiler.DefOp("DiffuseBSDF", nil)
+	OpDiffuseBSDF = defOp("DiffuseBSDF", nil)
 
 	// TODO: if we keep one huge MicrofacetBSDF we'll also want to introduce
 	// Fresnel type that we'll pass values of to this op.
-	OpMicrofacetBSDF = compiler.DefOp("MicrofacetBSDF", nil)
+	OpMicrofacetBSDF = defOp("MicrofacetBSDF", nil)
 
 	// TODO: decide whether to call this uniform (mtlx, osl) or diffuse (mdl)
-	OpUniformEDF = compiler.DefOp("UniformEDF", nil)
+	OpUniformEDF = defOp("UniformEDF", nil)
 
-	OpBSDFReflectance = compiler.DefOp("BSDFReflectance", nil) // BSDF -> color
+	OpBSDFReflectance = defOp("BSDFReflectance", nil) // BSDF -> color
 
-	OpDFAdd = compiler.DefOp("DFAdd", nil) // T : DF, (T, T) -> DF
+	OpDFAdd = defOp("DFAdd", nil) // T : DF, (T, T) -> DF
 
 	// TODO: rename to e.g. DFTint?
-	OpDFScale = compiler.DefOp("DFScale", nil) // T : DF, (T, float32) -> T
+	OpDFScale = defOp("DFScale", nil) // T : DF, (T, float32) -> T
 
 	// Even args are weights, odd args are DF values (TODO: swap?)
 	// TODO: rename to something else
-	OpDFComposition = compiler.DefOp("DFComposition", nil)
+	OpDFComposition = defOp("DFComposition", nil)
 
 	// OpSurface // (BSDF, EDF) -> Surface
 )
@@ -78,4 +90,8 @@ func LoadAttrObject(b *compiler.Builder, attr string) *compiler.Class {
 // TODO: this should return vec4
 func LoadAttrGeometry(b *compiler.Builder, attr string) *compiler.Class {
 	return b.Value2(OpInterpreterLoadAttrGeometry, core.MakeArrayType(2, core.Int32), attr)
+}
+
+func defOp(name string, validate compiler.ValidationFunc) compiler.Op {
+	return compiler.DefOp("matc."+name, validate)
 }

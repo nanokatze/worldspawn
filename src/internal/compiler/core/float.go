@@ -17,20 +17,20 @@ func (t FloatType) String() string { return fmt.Sprintf("Float[%d,%d]", t.E, t.M
 var FloatE8M23 = FloatType{8, 23}
 
 var (
-	OpFAdd = compiler.DefOp("FAdd", nil)
-	OpFSub = compiler.DefOp("FSub", nil)
-	OpFMul = compiler.DefOp("FMul", nil)
-	OpFDiv = compiler.DefOp("FDiv", nil)
+	OpFAdd = defOp("FAdd", nil)
+	OpFSub = defOp("FSub", nil)
+	OpFMul = defOp("FMul", nil)
+	OpFDiv = defOp("FDiv", nil)
 
-	OpFMin = compiler.DefOp("FMin", nil)
-	OpFMax = compiler.DefOp("FMax", nil)
+	OpFMin = defOp("FMin", nil)
+	OpFMax = defOp("FMax", nil)
 
-	OpFFloor = compiler.DefOp("FFloor", nil)
-	OpFCeil  = compiler.DefOp("FCeil", nil)
+	OpFFloor = defOp("FFloor", nil)
+	OpFCeil  = defOp("FCeil", nil)
 
-	OpFEqual       = compiler.DefOp("FEqual", nil)
-	OpFLess        = compiler.DefOp("FLess", nil)
-	OpFLessOrEqual = compiler.DefOp("FLessOrEqual", nil)
+	OpFEqual       = defOp("FEqual", nil)
+	OpFLess        = defOp("FLess", nil)
+	OpFLessOrEqual = defOp("FLessOrEqual", nil)
 )
 
 func init() {
