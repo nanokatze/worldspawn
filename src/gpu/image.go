@@ -172,7 +172,7 @@ func (config *ImageConfig) vkImageCreateInfo(queueFamilies []uint32, createInfo 
 
 	flags |= vk.ImageCreateFlags(vk.IMAGE_CREATE_MUTABLE_FORMAT_BIT)
 
-	if config.Dim == ImageDim2D &&
+	if config.Dim.vkImageType() == vk.IMAGE_TYPE_2D &&
 		config.Extent[0] == config.Extent[1] &&
 		config.Layers >= 6 &&
 		config.Samples == 1 {
