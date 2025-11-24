@@ -80,12 +80,19 @@ func CompileInterpretedMaterial(sea *compiler.Sea, c *compiler.Class) *Interpret
 	t0 := time.Now()
 	defer func() { log.Println("Compile", time.Since(t0)) }()
 
-	log.Println("input")
-	compiler.Dump(sea, c, nil)
+	if false {
+		log.Println("input")
+		compiler.Dump(sea, c, nil)
+	}
 
 	sea2 := compiler.NewSea()
 
 	x := extract2(&compiler.Builder{Sea: sea2}, c, make(map[*compiler.Class]*compiler.Class))
+
+	// TODO: assert that x is opInterpreterPseudoMakeMaterial
+	// x = x.Value().Arg(0)
+
+	// x.Value().Op()
 
 	// log.Println("extraction")
 	// compiler.Dump(sea2, x, nil)
@@ -94,44 +101,48 @@ func CompileInterpretedMaterial(sea *compiler.Sea, c *compiler.Class) *Interpret
 
 	regm := regassign3(sched)
 
-	for _, c := range sched {
-		v := c.Value()
-		var sb strings.Builder
-		fmt.Fprintf(&sb, "%v", regm[c])
-		// fmt.Fprintf(&sb, " %v", v.Type)
-		fmt.Fprintf(&sb, " = %s", v.Op())
-		if imm := v.Imm(); imm != nil {
-			fmt.Fprintf(&sb, " %v", imm)
+	if false {
+		for _, c := range sched {
+			v := c.Value()
+			var sb strings.Builder
+			fmt.Fprintf(&sb, "%v", regm[c])
+			// fmt.Fprintf(&sb, " %v", v.Type)
+			fmt.Fprintf(&sb, " = %s", v.Op())
+			if imm := v.Imm(); imm != nil {
+				fmt.Fprintf(&sb, " %v", imm)
+			}
+			for _, a := range v.Args() {
+				fmt.Fprintf(&sb, " %v", regm[a])
+			}
+			log.Print(sb.String())
 		}
-		for _, a := range v.Args() {
-			fmt.Fprintf(&sb, " %v", regm[a])
-		}
-		log.Print(sb.String())
 	}
 
 	assembled := assemble(sched, regm)
-	log.Println("disassembly")
-	for i := 0; i < len(assembled); {
-		w := assembled[i]
-		i++
-
-		op := w & 0xff
-		dst := (w >> 8) & 0xff
-		src0 := (w >> 16) & 0xff
-		src1 := (w >> 24) & 0xff
-
-		fmt.Fprintf(os.Stderr, "%v r%v r%v r%v", material.A(op), dst, src0, src1)
-		switch material.A(op) {
-		case material.AConst32, material.ALoadParam, material.ALoadAttr:
-			data := assembled[i]
+	if false {
+		log.Println("disassembly")
+		for i := 0; i < len(assembled); {
+			w := assembled[i]
 			i++
-			fmt.Fprintf(os.Stderr, " 0x%08x", data)
-		case material.ACondSelect32:
-			r := assembled[i]
-			i++
-			fmt.Fprintf(os.Stderr, " r%v", r)
+
+			op := w & 0xff
+			dst := (w >> 8) & 0xff
+			src0 := (w >> 16) & 0xff
+			src1 := (w >> 24) & 0xff
+
+			fmt.Fprintf(os.Stderr, "%v r%v r%v r%v", material.A(op), dst, src0, src1)
+			switch material.A(op) {
+			case material.AConst32, material.ALoadParam, material.ALoadAttr:
+				data := assembled[i]
+				i++
+				fmt.Fprintf(os.Stderr, " 0x%08x", data)
+			case material.ACondSelect32:
+				r := assembled[i]
+				i++
+				fmt.Fprintf(os.Stderr, " r%v", r)
+			}
+			fmt.Fprintln(os.Stderr)
 		}
-		fmt.Fprintln(os.Stderr)
 	}
 
 	abi := x.Value().Imm().(*InterpreterABI)
@@ -144,8 +155,12 @@ func CompileInterpretedMaterial(sea *compiler.Sea, c *compiler.Class) *Interpret
 }
 
 func regs(t compiler.Type) int {
+	if _, ok := t.(core.EmptyType); ok {
+		return 0
+	}
+
 	if arr, ok := t.(core.ArrayType); ok {
-		return regs(arr.Elem()) * int(arr.Len())
+		return regs(arr.T) * int(arr.N)
 	}
 
 	bits := t.(core.IntType)
@@ -158,12 +173,16 @@ func regs(t compiler.Type) int {
 // TODO: come up with a nicer way to represent schedule. Needs to be a linked
 // list.
 type scheduler struct {
+	// TODO: when we start representing the extracted program as a map from
+	// class to a value in that class, we can kill this again
+	uses map[*compiler.Class]map[*compiler.Value]struct{}
+
 	schedule  []*compiler.Class
 	scheduled map[*compiler.Class]struct{}
 }
 
 func (s *scheduler) allUsersScheduled(c *compiler.Class) bool {
-	for u := range c.Users() {
+	for u := range s.uses[c] {
 		if _, ok := s.scheduled[u.Class()]; !ok {
 			return false
 		}
@@ -191,9 +210,33 @@ func (s *scheduler) do(c *compiler.Class) {
 
 func schedule2(v *compiler.Class) []*compiler.Class {
 	sched := &scheduler{
+		uses: make(map[*compiler.Class]map[*compiler.Value]struct{}),
+
 		schedule:  []*compiler.Class{},
 		scheduled: make(map[*compiler.Class]struct{}),
 	}
+
+	tmp := make(map[*compiler.Class]struct{})
+	var f func(c *compiler.Class)
+	f = func(c *compiler.Class) {
+		if _, ok := tmp[c]; ok {
+			return
+		}
+		tmp[c] = struct{}{}
+
+		for v := range c.Values() {
+			for _, a := range v.Args() {
+				if sched.uses[a] == nil {
+					sched.uses[a] = make(map[*compiler.Value]struct{})
+				}
+				sched.uses[a][v] = struct{}{}
+
+				f(a)
+			}
+		}
+	}
+	f(v)
+
 	sched.do(v)
 
 	slices.Reverse(sched.schedule)

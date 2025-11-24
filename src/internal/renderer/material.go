@@ -1,7 +1,6 @@
 package renderer
 
 import (
-	"log"
 	"math"
 	"sync"
 
@@ -35,6 +34,7 @@ func (m *InterpretedMaterial) emissive() bool {
 	return m.program.ABI.EDFCount > 0
 }
 
+/*
 func buildArith1(b *compiler.Builder, op compiler.Op, x *compiler.Class) *compiler.Class {
 	return b.Value2(op, x.Type(), nil, x)
 }
@@ -47,11 +47,6 @@ func buildFract(b *compiler.Builder, v *compiler.Class) *compiler.Class {
 	return buildArith2(b, core.OpFSub, v, buildArith1(b, core.OpFFloor, v))
 }
 
-func TestMaterial3(src []byte) *InterpretedMaterial {
-	// TODO: do some json thing for now or parse some kind of subset of MtlX?
-	return nil
-}
-
 var TestMaterial = sync.OnceValue(func() *InterpretedMaterial {
 	sea := compiler.NewSea()
 	b := &compiler.Builder{
@@ -59,16 +54,13 @@ var TestMaterial = sync.OnceValue(func() *InterpretedMaterial {
 		Rules: append(append([]compiler.RewriteRule(nil), core.Rules...), matc.LowerToInterpreter...),
 	}
 
-	normal := b.Value2(matc.OpInterpreterGetShadingNormal, core.MakeArrayType(3, core.Int32), nil)
-	normal_x := core.ArrayExtract(b, normal, 0)
-	normal_y := core.ArrayExtract(b, normal, 1)
-	normal_z := core.ArrayExtract(b, normal, 2)
+	normal := b.Value2(matc.OpInterpreterGetShadingNormal, core.ArrayType{3, core.Int32}, nil)
 
-	uv := matc.LoadAttrGeometry(b, "UVs")
+	uv := matc.LoadAttribute(b, "UVs")
 	u := core.ArrayExtract(b, uv, 0)
 	v := core.ArrayExtract(b, uv, 1)
 
-	one := core.Const(b, core.Int32, int64(math.Float32bits(1)))
+	one := core.IConst(b, core.Int32, int64(math.Float32bits(1)))
 
 	fractU := buildFract(b, u)
 	fractV := buildFract(b, v)
@@ -85,36 +77,32 @@ var TestMaterial = sync.OnceValue(func() *InterpretedMaterial {
 		core.Int32,
 		nil,
 		idk3,
-		core.Const(b, core.Int32, int64(math.Float32bits(0.025))))
+		core.IConst(b, core.Int32, int64(math.Float32bits(0.025))))
 
-	color_r := core.CondSelect(
-		b,
-		one,
-		matc.LoadAttrObject(b, "BaseColorR"),
-		selector)
-	color_g := core.CondSelect(
-		b,
-		one,
-		matc.LoadAttrObject(b, "BaseColorG"),
-		selector)
-	color_b := core.CondSelect(
-		b,
-		one,
-		matc.LoadAttrObject(b, "BaseColorB"),
-		selector)
+	white := core.MakeArray(b, core.Int32, one, one, one)
+
+	baseColor := core.MakeArray(b, core.Int32,
+		matc.LoadObjectProperty(b, "BaseColorR"),
+		matc.LoadObjectProperty(b, "BaseColorG"),
+		matc.LoadObjectProperty(b, "BaseColorB"),
+	)
+
+	color := core.CondSelect(b, white, baseColor, selector)
 
 	program := b.Value2(
-		matc.OpInterpreterPseudoOutput,
-		core.MakeArrayType(6, core.Int32),
-		&matc.InterpreterABI{
-			BSDFs:   []material.BSDF{material.BSDFDiffuse},
-			BSDFOff: 0,
-		},
-		color_r, color_g, color_b,
-		normal_x, normal_y, normal_z)
+		matc.OpMakeSurface,
+		core.EmptyType{},
+		nil,
+		// bsdf,
+		b.Value2(matc.OpDFComposition, matc.BSDFType{}, nil,
+			color, b.Value2(matc.OpDiffuseBSDF, matc.BSDFType{}, nil, normal)),
+		// edf
+		b.Value2(matc.OpDFComposition, matc.EDFType{}, nil),
+	)
 
 	return NewMaterial(sea, program)
 })
+*/
 
 var TestMaterial2 = sync.OnceValue(func() *InterpretedMaterial {
 	sea := compiler.NewSea()
@@ -123,19 +111,25 @@ var TestMaterial2 = sync.OnceValue(func() *InterpretedMaterial {
 		Rules: append(append([]compiler.RewriteRule(nil), core.Rules...), matc.LowerToInterpreter...),
 	}
 
-	emission_r := core.Const(b, core.Int32, int64(math.Float32bits(10.0)))
-	emission_g := core.Const(b, core.Int32, int64(math.Float32bits(10.0)))
-	emission_b := core.Const(b, core.Int32, int64(math.Float32bits(10.0)))
-	color := b.Value2(
-		matc.OpInterpreterPseudoOutput,
-		core.MakeArrayType(3, core.Int32),
-		&matc.InterpreterABI{
-			EDFs:   []material.EDF{material.EDFUniform},
-			EDFOff: 0,
-		},
-		emission_r, emission_g, emission_b)
+	emission_r := core.IConst(b, core.Int32, int64(math.Float32bits(1.0)))
+	emission_g := core.IConst(b, core.Int32, int64(math.Float32bits(0)))
+	emission_b := core.IConst(b, core.Int32, int64(math.Float32bits(1.0)))
+	emissionSpectrum := core.MakeArray(b, core.Int32, emission_r, emission_g, emission_b)
+	_ = emissionSpectrum
+	program := b.Value2(
+		matc.OpMakeSurface,
+		core.EmptyType{},
+		nil,
+		// bsdf,
+		b.Value2(matc.OpDFComposition, matc.BSDFType{}, nil),
+		// edf
+		b.Value2(matc.OpDFComposition, matc.EDFType{}, nil),
 
-	return NewMaterial(sea, color)
+		// b.Value2(matc.OpDFComposition, matc.EDFType{}, nil,
+		// 	emissionSpectrum, b.Value2(matc.OpUniformEDF, matc.EDFType{}, nil)),
+	)
+
+	return NewMaterial(sea, program)
 })
 
 // TODO: error material, which would be a pink/black emissive checkerboard
@@ -144,8 +138,6 @@ var TestMaterial2 = sync.OnceValue(func() *InterpretedMaterial {
 // an API shader material
 func NewMaterial(sea *compiler.Sea, v *compiler.Class) *InterpretedMaterial {
 	interpretedMaterial := matc.CompileInterpretedMaterial(sea, v)
-
-	log.Println("outputs register", uint32(interpretedMaterial.Outputs))
 
 	device := gpu.MakeSliceUncached[uint32](len(interpretedMaterial.Code))
 	copy(device.Value(), interpretedMaterial.Code)

@@ -6,7 +6,6 @@ import (
 
 	"worldspawn/internal/compiler"
 	"worldspawn/internal/compiler/core"
-	"worldspawn/internal/renderer/internal/material"
 )
 
 var allRules = append(append([]compiler.RewriteRule(nil), core.Rules...), LowerToInterpreter...)
@@ -19,16 +18,16 @@ func TestXxx(t *testing.T) {
 		Rules: allRules,
 	}
 
-	normal := b.Value2(OpInterpreterGetShadingNormal, core.MakeArrayType(3, core.Int32), nil)
-	normal_x := core.ArrayExtract(b, normal, 0)
-	normal_y := core.ArrayExtract(b, normal, 1)
-	normal_z := core.ArrayExtract(b, normal, 2)
+	normal := b.Value2(OpInterpreterGetShadingNormal, core.ArrayType{3, core.Int32}, nil)
+	// normal_x := core.ArrayExtract(b, normal, 0)
+	// normal_y := core.ArrayExtract(b, normal, 1)
+	// normal_z := core.ArrayExtract(b, normal, 2)
 
-	uv := LoadAttrGeometry(b, "UVs")
+	uv := LoadAttribute(b, "UVs")
 	u := core.ArrayExtract(b, uv, 0)
 	v := core.ArrayExtract(b, uv, 1)
 
-	one := core.Const(b, core.Int32, int64(math.Float32bits(1)))
+	one := core.IConst(b, core.Int32, int64(math.Float32bits(1)))
 
 	fractU := u
 	fractV := v
@@ -45,38 +44,63 @@ func TestXxx(t *testing.T) {
 		core.Int32,
 		nil,
 		idk3,
-		core.Const(b, core.Int32, int64(math.Float32bits(0.025))))
+		core.IConst(b, core.Int32, int64(math.Float32bits(0.025))))
 
 	color := core.MakeArray(
 		b,
 		core.Int32,
-		LoadAttrObject(b, "BaseColorR"),
-		LoadAttrObject(b, "BaseColorG"),
-		LoadAttrObject(b, "BaseColorB"))
+		LoadObjectProperty(b, "BaseColorR"),
+		LoadObjectProperty(b, "BaseColorG"),
+		LoadObjectProperty(b, "BaseColorB"))
 
 	white := core.MakeArray(b, core.Int32, one, one, one)
 
 	final := core.CondSelect(b, white, color, selector)
-	final_x := core.ArrayExtract(b, final, 0)
-	final_y := core.ArrayExtract(b, final, 1)
-	final_z := core.ArrayExtract(b, final, 2)
+	// final_x := core.ArrayExtract(b, final, 0)
+	// final_y := core.ArrayExtract(b, final, 1)
+	// final_z := core.ArrayExtract(b, final, 2)
 
-	/*
-		program := b.Value2(OpDFComposition, BSDFType{}, nil,
-			final, b.Value2(OpDiffuseBSDF, BSDFType{}, nil, normal))
-	*/
-
-	program := b.Value2(OpInterpreterPseudoOutput,
-		core.MakeArrayType(6, core.Int32),
-		&InterpreterABI{
-			BSDFs:   []material.BSDF{material.BSDFDiffuse},
-			BSDFOff: 0,
-		},
-		final_x, final_y, final_z,
-		normal_x, normal_y, normal_z)
+	program := b.Value2(
+		OpMakeSurface,
+		core.EmptyType{},
+		nil,
+		// bsdf
+		b.Value2(OpDFComposition, BSDFType{}, nil,
+			final, b.Value2(OpDiffuseBSDF, BSDFType{}, nil, normal)),
+		// edf
+		b.Value2(OpDFComposition, EDFType{}, nil),
+	)
 
 	compiled := CompileInterpretedMaterial(sea, program)
 
 	t.Log(compiled.Outputs)
 	t.Log(compiled.ABI)
+}
+
+func TestXxx2(t *testing.T) {
+	sea := compiler.NewSea()
+
+	b := &compiler.Builder{
+		Sea:   sea,
+		Rules: allRules,
+	}
+
+	emission_r := core.IConst(b, core.Int32, int64(math.Float32bits(10.0)))
+	emission_g := core.IConst(b, core.Int32, int64(math.Float32bits(10.0)))
+	emission_b := core.IConst(b, core.Int32, int64(math.Float32bits(10.0)))
+	emissionSpectrum := core.MakeArray(b, core.Int32, emission_r, emission_g, emission_b)
+	program := b.Value2(
+		OpMakeSurface,
+		core.EmptyType{},
+		nil,
+		// bsdf,
+		b.Value2(OpDFComposition, BSDFType{}, nil),
+		// edf
+		b.Value2(OpDFComposition, EDFType{}, nil,
+			emissionSpectrum, b.Value2(OpUniformEDF, EDFType{}, nil)),
+	)
+
+	compiler.Dump(sea, program, nil)
+
+	// _ = surface
 }

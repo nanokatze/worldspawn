@@ -14,7 +14,7 @@ type FloatType struct {
 
 func (t FloatType) String() string { return fmt.Sprintf("Float[%d,%d]", t.E, t.M) }
 
-var FloatE8M23 = FloatType{8, 23}
+var FloatE8M23 compiler.Type = FloatType{8, 23}
 
 var (
 	OpFAdd = defOp("FAdd", nil)

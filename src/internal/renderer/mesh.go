@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"io"
 	"math"
-	"math/rand/v2"
 	"sync"
 	"unsafe"
 
@@ -55,6 +54,8 @@ type Mesh struct {
 	// VertexGroups []string
 
 	// Belongs to the user's wrapper around Mesh.
+	// TODO: should just be a bunch of strings and it's up to the user to map
+	// strings to actual MaterialInstances
 	DefaultMaterials []MaterialInstance
 
 	Accel gpu.Accel
@@ -146,7 +147,7 @@ func (m *Mesh) buildAccel(jq *gpu.JobQueue) {
 	m.Accel.EnqueueBuild(jq, m.accelBuildConfig)
 }
 
-func (m *Mesh) InitFromFile(r io.ReaderAt, filename string) error {
+func (m *Mesh) InitFromFile(r io.ReaderAt, filename string, getmaterial func(filename string) MaterialInstance) error {
 	type Section struct {
 		Off, Size int64
 	}
@@ -228,17 +229,7 @@ func (m *Mesh) InitFromFile(r io.ReaderAt, filename string) error {
 			panic("bug")
 		}
 
-		mat := MaterialInstance{
-			Material:  TestMaterial(),
-			BaseColor: [3]float32{rand.Float32(), rand.Float32(), rand.Float32()},
-		}
-
-		if header2.Materials[serializedPart.MaterialIndex] == "maps/lockdown/materials/Material_003" {
-			mat.Material = TestMaterial2()
-			mat.Emission = [3]float32{10, 10, 10}
-		}
-
-		m.DefaultMaterials[i] = mat
+		m.DefaultMaterials[i] = getmaterial(header2.Materials[serializedPart.MaterialIndex])
 
 		accelBuildInputs[i] = &gpu.AccelBuildInputTriangles{
 			VertexFormat:  vk.FORMAT_R32G32B32_SFLOAT,

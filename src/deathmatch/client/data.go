@@ -2,17 +2,29 @@ package main
 
 import (
 	"io"
+	"io/fs"
+	"log"
+	"path"
 
 	"worldspawn/deathmatch/internal/game"
 	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
 	"worldspawn/image/ktx2"
+	"worldspawn/internal/compiler"
+	"worldspawn/internal/compiler/core"
+	mtlx "worldspawn/internal/irtext"
 	"worldspawn/internal/renderer"
+	"worldspawn/internal/renderer/matc"
+
+	"github.com/go-json-experiment/json"
+	"github.com/go-json-experiment/json/jsontext"
 )
 
 // TODO: rename this file to something else
+// TODO: outline this into its own package
 
 var texturecache = make(map[string]*renderer.Texture)
+var materialcache = make(map[string]renderer.MaterialInstance)
 var modelcache = make(map[game.GeometryPacked]*renderer.Mesh)
 
 // TODO: should support streaming etc.
@@ -87,6 +99,50 @@ func texture(filename string) *renderer.Texture {
 	return t
 }
 
+func getmaterial(identifier string) renderer.MaterialInstance {
+	m, ok := materialcache[identifier]
+	if !ok {
+		log.Println("loading material", path.Clean(identifier))
+
+		src, err := fs.ReadFile(game.Data, path.Clean(identifier))
+		if err != nil {
+			log.Printf("getmaterial: %v", err)
+			goto bail
+		}
+
+		var mat struct {
+			Header  any
+			Program jsontext.Value
+		}
+		if err := json.Unmarshal(src, &mat); err != nil {
+			log.Printf("getmaterial: %v", err)
+			goto bail
+		}
+
+		sea := compiler.NewSea()
+		b := &compiler.Builder{
+			Sea:   sea,
+			Rules: append(append([]compiler.RewriteRule(nil), core.Rules...), matc.LowerToInterpreter...),
+		}
+		ir, err := mtlx.Parse(b, mat.Program)
+		if err != nil {
+			log.Printf("getmaterial: %v", err)
+			goto bail
+		}
+
+		m.Material = renderer.NewMaterial(sea, ir)
+	}
+	materialcache[identifier] = m
+	return m
+
+bail:
+	// TODO: stop using gotos lmao aaa
+	m.Material = renderer.TestMaterial2()
+	m.Emission = [3]float32{1, 0, 1}
+	materialcache[identifier] = m
+	return m
+}
+
 func model(geo game.GeometryPacked) *renderer.Mesh {
 	m, ok := modelcache[geo]
 	if !ok {
@@ -97,7 +153,7 @@ func model(geo game.GeometryPacked) *renderer.Mesh {
 		}
 		defer f.Close()
 		m = new(renderer.Mesh)
-		if err := m.InitFromFile(f.(io.ReaderAt), unpacked.Filename); err != nil {
+		if err := m.InitFromFile(f.(io.ReaderAt), unpacked.Filename, getmaterial); err != nil {
 			panic(err)
 		}
 		modelcache[geo] = m

@@ -8,14 +8,13 @@ type Builder struct {
 
 func (b *Builder) Value2(op Op, typ Type, imm any, args ...*Class) *Class {
 	// TODO: reuse this with a sync.Pool
-	rc := &Rewriter{
-		sea:    b.Sea,
+	rc := &ruleBasedRewriter{
 		values: make(map[*Value]bool),
 	}
 
-	rc.Add2(op, typ, imm, args...)
+	rc.add(b.Sea.value(op, typ, imm, args...))
 
-	applyRewriteRules(b, rc)
+	rc.applyRules(b)
 
 	// TODO: factor into a method on rc
 	return b.Sea.class(typ, rc.values)
@@ -34,8 +33,7 @@ func Rewrite(b *Builder, c *Class) *Class {
 			return x
 		}
 
-		rc := &Rewriter{
-			sea:    b.Sea,
+		rc := &ruleBasedRewriter{
 			values: make(map[*Value]bool),
 		}
 		for v := range c.Values() {
@@ -47,9 +45,9 @@ func Rewrite(b *Builder, c *Class) *Class {
 			}
 			// Go through value creation path, as we don't know whether it's
 			// from the same sea or not.
-			rc.Add2(v.Op(), v.Type(), v.Imm(), args...)
+			rc.add(b.Sea.value(v.Op(), v.Type(), v.Imm(), args...))
 		}
-		applyRewriteRules(b, rc)
+		rc.applyRules(b)
 
 		x := b.Sea.class(c.Type(), rc.values)
 

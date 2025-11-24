@@ -46,6 +46,19 @@ type aaa struct {
 	imm     bool
 }
 
+/*
+func init() {
+	f := func(as *assembler, class *compiler.Class, v *compiler.Value, regm map[*compiler.Class]regRange) {
+		panic("do not assemble ")
+	}
+	amap[OpDiffuseBSDF] = f
+	amap[OpUniformEDF] = f
+	amap[OpDFComposition] = f
+	amap[OpMakeSurface] = f
+	amap[OpDFComposition] = f
+}
+*/
+
 var (
 	opInterpreterConst32 = defInterpreterOp("Const32", aaa{op: material.AConst32, dst: true, imm: true})
 
@@ -68,8 +81,8 @@ var (
 
 	// TODO: add LoadAttrScene/LoadAttrFrame
 
-	OpInterpreterLoadAttrObject   = defInterpreterOp("LoadAttrObject", aparam(material.ALoadParam))
-	OpInterpreterLoadAttrGeometry = defInterpreterOp("LoadAttrGeometry", aparam(material.ALoadAttr))
+	opInterpreterLoadObjectProperty = defInterpreterOp("LoadAttrObject", aparam(material.ALoadParam))
+	opInterpreterLoadAttribute      = defInterpreterOp("LoadAttrGeometry", aparam(material.ALoadAttr))
 
 	// TODO: kill in favor of LoadAttrGeometry
 	OpInterpreterGetShadingNormal = defInterpreterOp("GetShadingNormal", aaa{op: material.ALoadNormal, dst: true})
@@ -103,15 +116,11 @@ type InterpreterABI struct {
 
 // TODO: these should use their own interpreterOp implementations
 var (
-	// TODO: rename to something better like OutputValues or idk
-	//
-	// BSDF tints
-	// BSDF parameters
-	// EDF tints
-	// EDF parameters
-	OpInterpreterPseudoOutput = defInterpreterOp("PseudoOutput", aaa{special: true})
-
 	opInterpreterPseudoArrayExtract = defInterpreterOp("PseudoArrayExtract", aaa{special: true})
+
+	// TODO: rename this to PseudoMakeMaterial? Or PseudoOutputMaterial. Idk.
+	// Must be noreturn.
+	OpInterpreterPseudoOutput = defInterpreterOp("PseudoOutput", aaa{special: true})
 )
 
 func (d aaa) Validate(typ compiler.Type, imm any, args ...*compiler.Class) {

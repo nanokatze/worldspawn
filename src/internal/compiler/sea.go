@@ -90,11 +90,17 @@ func (c *Class) Values() iter.Seq[*Value] {
 
 // TODO: rename to something else to make it clearer what the requirements
 func (c *Class) Value() *Value {
-	// TODO: assert that there's exactly one value in this class.
-	for v := range c.Values() {
-		return v
+	var v *Value
+	for tmp := range c.Values() {
+		if v != nil {
+			panic("more than one value in class")
+		}
+		v = tmp
 	}
-	panic("unreachable")
+	if v == nil {
+		panic("unreachable")
+	}
+	return v
 }
 
 // Users returns an iterator over the values that use this equivalence class.
@@ -158,7 +164,7 @@ func (sea *Sea) value(op Op, typ Type, imm any, args ...*Class) *Value {
 
 	v, ok := sea.m[k]
 	if !ok {
-		if validate := opValidation[op]; validate != nil {
+		if validate := validators[op]; validate != nil {
 			validate(typ, imm, args...)
 		}
 
@@ -248,6 +254,17 @@ func (sea *Sea) newValue(op Op, typ Type, imm any, args ...*Class) *Value {
 func (sea *Sea) newClass(typ Type, classes []*Class, values []*Value) *Class {
 	if len(classes) < 2 && len(values) == 0 {
 		panic("useless class")
+	}
+
+	for _, c := range classes {
+		if c.Type() != typ {
+			panic("type mismatch")
+		}
+	}
+	for _, v := range values {
+		if v.Type() != typ {
+			panic("type mismatch")
+		}
 	}
 
 	sea.cid++
