@@ -21,8 +21,8 @@ func Rewrite(b *Builder, c *Class) *Class {
 
 	var f func(c *Class) *Class
 	f = func(c *Class) *Class {
-		if x, ok := visited[c]; ok {
-			return x
+		if cRewritten, ok := visited[c]; ok {
+			return cRewritten
 		}
 
 		r := &ruleBasedRewriter{
@@ -39,10 +39,10 @@ func Rewrite(b *Builder, c *Class) *Class {
 			// from the same sea or not.
 			r.Add(b.Sea.value(v.Op(), v.Type(), v.Imm(), args...))
 		}
-		x := r.Class(b)
+		cRewritten := r.Class(b)
 
-		visited[c] = x
-		return x
+		visited[c] = cRewritten
+		return cRewritten
 	}
 	return f(c)
 }
