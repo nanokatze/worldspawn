@@ -25,6 +25,7 @@ func BenchmarkRoundTrip(b *testing.B) {
 // Not a real test yet but we're working on it
 //
 // TODO: make this a benchmark
+// TODO: make a variant written in a goroutine per fif way
 func TestFramesInFlight(t *testing.T) {
 	t.SkipNow()
 
@@ -90,6 +91,9 @@ func TestFramesInFlight(t *testing.T) {
 	for i := range fifs {
 		fifs[i].wg.Wait()
 	}
+}
+
+func TestFramesInFlight2(t *testing.T) {
 }
 
 func TestJobQueueWaitOnSatisfiedWaitGroup(t *testing.T) {
