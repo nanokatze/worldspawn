@@ -34,21 +34,21 @@ func init() {
 		compiler.RewriteRule{
 			Name:    "Forward ArrayExtract to the element's definition",
 			Pattern: &compiler.Pattern{Op: OpArrayExtract, Args: []*compiler.Pattern{{Op: OpMakeArray, ArgsDDD: true}}},
-			Rewrite: func(b *compiler.Builder, r *compiler.RewriteResult, v *compiler.Value) {
+			Rewrite: func(rr *compiler.RewriteResult, b *compiler.Builder, v *compiler.Value) {
 				idx := v.Imm().(int64)
 				for arr := range v.Arg(0).Values() {
 					if arr.Op() == OpMakeArray {
-						r.Class(arr.Arg(int(idx)))
+						rr.Class(arr.Arg(int(idx)))
 					}
 				}
 				// TODO: explain why
-				r.Kill(v)
+				rr.Kill(v)
 			},
 		},
 		compiler.RewriteRule{
 			Name:    "Split CondSelect of arrays into per element CondSelect",
 			Pattern: &compiler.Pattern{Op: OpCondSelect, Args: []*compiler.Pattern{{}, {}, {}}},
-			Rewrite: func(b *compiler.Builder, r *compiler.RewriteResult, v *compiler.Value) {
+			Rewrite: func(rr *compiler.RewriteResult, b *compiler.Builder, v *compiler.Value) {
 				arr, ok := v.Type().(ArrayType)
 				if !ok {
 					return
@@ -64,9 +64,9 @@ func init() {
 					y_i := ArrayExtract(b, y, i)
 					elems[i] = CondSelect(b, x_i, y_i, cond)
 				}
-				r.Add2(OpMakeArray, arr, nil, elems...)
+				rr.Add2(OpMakeArray, arr, nil, elems...)
 				// TODO: explain why
-				r.Kill(v)
+				rr.Kill(v)
 			},
 		})
 }

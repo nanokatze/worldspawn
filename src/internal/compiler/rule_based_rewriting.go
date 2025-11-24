@@ -9,9 +9,8 @@ type RewriteRule struct {
 	Pattern *Pattern
 	// TODO: instead of a single *Value, it should be the "binds" that we got
 	// from pattern matching
-	// TODO: swap *RewriteResult and *Builder places?
 	// TODO: preemptively change match to be a slice?
-	Rewrite func(b *Builder, r *RewriteResult, match *Value)
+	Rewrite func(rr *RewriteResult, b *Builder, match *Value)
 }
 
 // This handles only 2-ary ops, TODO: teach it to handle n-ary by only swapping
@@ -22,8 +21,8 @@ func Commutativity(op Op) RewriteRule {
 	return RewriteRule{
 		Name:    fmt.Sprintf("%v commutativity", op),
 		Pattern: &Pattern{Op: op, Args: []*Pattern{{}, {}}},
-		Rewrite: func(b *Builder, r *RewriteResult, v *Value) {
-			r.Add2(v.Op(), v.Type(), v.Imm(), v.Arg(1), v.Arg(0))
+		Rewrite: func(rr *RewriteResult, b *Builder, v *Value) {
+			rr.Add2(v.Op(), v.Type(), v.Imm(), v.Arg(1), v.Arg(0))
 		},
 	}
 }
@@ -39,7 +38,7 @@ func Associativity(op Op) RewriteRule {
 				{},
 			},
 		},
-		Replace: func(b *Builder, rc *RewriteContext, v *Value) {
+		Replace: func(rr *RewriteResult, b *Builder, v *Value) {
 		},
 	}
 }
@@ -53,23 +52,21 @@ type RewriteResult struct {
 }
 
 // TODO: rename
-func (r *RewriteResult) Add2(op Op, typ Type, imm any, args ...*Class) {
-	r.rewriter.add(r.sea.value(op, typ, imm, args...))
+func (rr *RewriteResult) Add2(op Op, typ Type, imm any, args ...*Class) {
+	rr.rewriter.Add(rr.sea.value(op, typ, imm, args...))
 }
 
-func (r *RewriteResult) Class(c *Class) {
+// TODO: rename
+func (rr *RewriteResult) Class(c *Class) {
 	for v := range c.Values() {
-		r.rewriter.add(v)
+		rr.rewriter.Add(v)
 	}
 }
 
-// TODO: fold into Add2 and Class functions so as to avoid killing all values
-// and ending up with an empty class.
-func (r *RewriteResult) Kill(_ *Value) {
-	if _, ok := r.rewriter.values[r.rewriting]; !ok {
-		panic("we haven't seen this value, hello?")
-	}
-	r.rewriter.values[r.rewriting] = false
+// TODO: fold into Add2 and Class functions
+func (rr *RewriteResult) Kill(_ *Value) {
+	// TODO: just set rr.kill so that we don't hammer the map as much
+	rr.rewriter.Kill(rr.rewriting)
 }
 
 type ruleBasedRewriter struct {
@@ -77,7 +74,7 @@ type ruleBasedRewriter struct {
 	stack  []*Value
 }
 
-func (r *ruleBasedRewriter) add(v *Value) {
+func (r *ruleBasedRewriter) Add(v *Value) {
 	if _, ok := r.values[v]; ok {
 		// We saw this value already
 		return
@@ -86,31 +83,42 @@ func (r *ruleBasedRewriter) add(v *Value) {
 	r.stack = append(r.stack, v)
 }
 
-// pop a value that has not yet been rewritten
-// TODO: rename to e.g. popValueToRewrite?
-func (rr *ruleBasedRewriter) pop() *Value {
-	if len(rr.stack) == 0 {
-		return nil
+func (r *ruleBasedRewriter) Kill(v *Value) {
+	if _, ok := r.values[v]; !ok {
+		panic("haven't seen this value")
 	}
-	v := rr.stack[len(rr.stack)-1]
-	rr.stack = rr.stack[:len(rr.stack)-1]
-	return v
+	if v.Class() != nil {
+		// We don't gain anything by killing this value
+		return
+	}
+	r.values[v] = false
 }
 
-// TODO: make this a method and also immediately make this spit out *Class)
-func (rc *ruleBasedRewriter) applyRules(b *Builder) {
-	var r RewriteResult
-	r.sea = b.Sea
-	r.rewriter = rc
-	for {
-		v := rc.pop()
-		if v == nil {
-			break
-		}
-		r.rewriting = v
+func (r *ruleBasedRewriter) Class(b *Builder) *Class {
+	r.applyRules(b)
+
+	var typ Type
+	for v := range r.values {
+		typ = v.Type()
+		break
+	}
+	return b.Sea.class(typ, r.values)
+}
+
+func (r *ruleBasedRewriter) applyRules(b *Builder) {
+	var rr RewriteResult
+	rr.sea = b.Sea
+	rr.rewriter = r
+
+	for len(r.stack) > 0 {
+		v := r.stack[len(r.stack)-1]
+		r.stack = r.stack[:len(r.stack)-1]
+
+		rr.rewriting = v
+
 		for _, rule := range b.Rules {
 			if rule.Pattern.Match(v) {
-				rule.Rewrite(b, &r, v)
+				rule.Rewrite(&rr, b, v)
 			}
 		}
 	}

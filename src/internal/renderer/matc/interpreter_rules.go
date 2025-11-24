@@ -17,14 +17,14 @@ var LowerToInterpreter = []compiler.RewriteRule{
 	{
 		Name:    "Lower CondSelect",
 		Pattern: &compiler.Pattern{Op: core.OpCondSelect, Args: []*compiler.Pattern{{}, {}, {}}},
-		Rewrite: func(b *compiler.Builder, r *compiler.RewriteResult, v *compiler.Value) {
+		Rewrite: func(rr *compiler.RewriteResult, b *compiler.Builder, v *compiler.Value) {
 			bits, ok := v.Type().(core.IntType)
 			if !ok {
 				return
 			}
 			switch bits.N {
 			case 32:
-				r.Add2(opInterpreterCondSelect32, v.Type(), nil, v.Args()...)
+				rr.Add2(opInterpreterCondSelect32, v.Type(), nil, v.Args()...)
 			default:
 				// TODO: panic with an error object instead
 				panic(fmt.Sprintf("cannot lower %d-bit %s", bits, v.Op()))
@@ -35,20 +35,20 @@ var LowerToInterpreter = []compiler.RewriteRule{
 	{
 		Name:    "Lower ArrayExtract",
 		Pattern: &compiler.Pattern{Op: core.OpArrayExtract, Args: []*compiler.Pattern{{}}},
-		Rewrite: func(b *compiler.Builder, r *compiler.RewriteResult, v *compiler.Value) {
-			r.Add2(opInterpreterPseudoArrayExtract, v.Type(), uint32(v.Imm().(int64)), v.Args()...)
+		Rewrite: func(rr *compiler.RewriteResult, b *compiler.Builder, v *compiler.Value) {
+			rr.Add2(opInterpreterPseudoArrayExtract, v.Type(), uint32(v.Imm().(int64)), v.Args()...)
 		},
 	},
 
 	{
 		Name:    "Lower IConst",
 		Pattern: &compiler.Pattern{Op: core.OpIConst},
-		Rewrite: func(b *compiler.Builder, r *compiler.RewriteResult, v *compiler.Value) {
+		Rewrite: func(rr *compiler.RewriteResult, b *compiler.Builder, v *compiler.Value) {
 			bits := v.Type().(core.IntType).N
 			imm := v.Imm().(int64)
 			switch bits {
 			case 32:
-				r.Add2(opInterpreterConst32, v.Type(), uint32(imm))
+				rr.Add2(opInterpreterConst32, v.Type(), uint32(imm))
 			default:
 				// TODO: panic with an error object instead
 				panic(fmt.Sprintf("cannot lower %d-bit %s", bits, v.Op()))
@@ -68,15 +68,15 @@ var LowerToInterpreter = []compiler.RewriteRule{
 	{
 		Name:    fmt.Sprintf("Lower %s (interpreter)", OpLoadParameter),
 		Pattern: &compiler.Pattern{Op: OpLoadParameter},
-		Rewrite: func(b *compiler.Builder, r *compiler.RewriteResult, v *compiler.Value) {
-			r.Add2(opInterpreterLoadAttribute, v.Type(), v.Imm(), v.Args()...)
+		Rewrite: func(rr *compiler.RewriteResult, b *compiler.Builder, v *compiler.Value) {
+			rr.Add2(opInterpreterLoadAttribute, v.Type(), v.Imm(), v.Args()...)
 		},
 	},
 
 	{
 		Name:    "Lower MakeSurface",
 		Pattern: &compiler.Pattern{Op: OpMakeSurface, Args: []*compiler.Pattern{{}, {}}},
-		Rewrite: func(b *compiler.Builder, r *compiler.RewriteResult, v *compiler.Value) {
+		Rewrite: func(rr *compiler.RewriteResult, b *compiler.Builder, v *compiler.Value) {
 			// TODO: don't assume that there's just a single instruction
 			bsdf := v.Arg(0).Value()
 			edf := v.Arg(1).Value()
@@ -137,7 +137,7 @@ var LowerToInterpreter = []compiler.RewriteRule{
 			args = append(args, args2...)
 			args2 = args[:0]
 
-			r.Add2(OpInterpreterPseudoOutput, core.EmptyType{}, &abi, args...)
+			rr.Add2(OpInterpreterPseudoOutput, core.EmptyType{}, &abi, args...)
 		},
 	},
 }
@@ -145,11 +145,11 @@ var LowerToInterpreter = []compiler.RewriteRule{
 func lowerFloatArith(match compiler.Op, _32 compiler.Op) compiler.RewriteRule {
 	return compiler.RewriteRule{
 		Pattern: &compiler.Pattern{Op: match, ArgsDDD: true},
-		Rewrite: func(b *compiler.Builder, r *compiler.RewriteResult, v *compiler.Value) {
+		Rewrite: func(rr *compiler.RewriteResult, b *compiler.Builder, v *compiler.Value) {
 			bits := v.Type().(core.IntType).N
 			switch bits {
 			case 32:
-				r.Add2(_32, v.Type(), nil, v.Args()...)
+				rr.Add2(_32, v.Type(), nil, v.Args()...)
 			default:
 				// TODO: panic with an error object instead
 				panic(fmt.Sprintf("cannot lower %d-bit %s", bits, v.Op()))
@@ -161,13 +161,13 @@ func lowerFloatArith(match compiler.Op, _32 compiler.Op) compiler.RewriteRule {
 func lowerFloatCmp(match compiler.Op, _32 compiler.Op) compiler.RewriteRule {
 	return compiler.RewriteRule{
 		Pattern: &compiler.Pattern{Op: match, ArgsDDD: true},
-		Rewrite: func(b *compiler.Builder, r *compiler.RewriteResult, v *compiler.Value) {
+		Rewrite: func(rr *compiler.RewriteResult, b *compiler.Builder, v *compiler.Value) {
 			bits := v.Type().(core.IntType).N
 			switch bits {
 			case 32:
 				// TODO: std comparisons return 1-bit values, while we return
 				// Bits32. So we need a helper op to bridge this gap.
-				r.Add2(_32, core.Int32, nil, v.Args()...)
+				rr.Add2(_32, core.Int32, nil, v.Args()...)
 			default:
 				// TODO: panic with an error object instead
 				panic(fmt.Sprintf("cannot lower %d-bit %s", bits, v.Op()))

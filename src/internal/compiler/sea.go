@@ -88,7 +88,7 @@ func (c *Class) Values() iter.Seq[*Value] {
 	}
 }
 
-// TODO: rename to something else to make it clearer what the requirements
+// TODO: remove
 func (c *Class) Value() *Value {
 	var v *Value
 	for tmp := range c.Values() {
@@ -200,6 +200,7 @@ func commonClass(values iter.Seq[*Value]) *Class {
 // TODO: we also should probably take a func or interface to get an iterator
 // from rather than hardcode map[*Value]bool, and force filtering onto the
 // caller.
+// TODO: infer type?
 func (sea *Sea) class(typ Type, values map[*Value]bool) *Class {
 	for v, keep := range values {
 		if !keep {

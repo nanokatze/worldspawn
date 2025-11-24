@@ -7,21 +7,13 @@ type Builder struct {
 }
 
 func (b *Builder) Value2(op Op, typ Type, imm any, args ...*Class) *Class {
-	// TODO: reuse this with a sync.Pool
-	rc := &ruleBasedRewriter{
+	r := &ruleBasedRewriter{
 		values: make(map[*Value]bool),
 	}
-
-	rc.add(b.Sea.value(op, typ, imm, args...))
-
-	rc.applyRules(b)
-
-	// TODO: factor into a method on rc
-	return b.Sea.class(typ, rc.values)
+	r.Add(b.Sea.value(op, typ, imm, args...))
+	return r.Class(b)
 }
 
-// TODO: this doesn't really use Builder other than container for sea + rules. I
-// guess we could equally make it a method on the Builder. Probably should too
 func Rewrite(b *Builder, c *Class) *Class {
 	// TODO: see if we can rewrite this non-recursively
 
@@ -33,7 +25,7 @@ func Rewrite(b *Builder, c *Class) *Class {
 			return x
 		}
 
-		rc := &ruleBasedRewriter{
+		r := &ruleBasedRewriter{
 			values: make(map[*Value]bool),
 		}
 		for v := range c.Values() {
@@ -45,11 +37,9 @@ func Rewrite(b *Builder, c *Class) *Class {
 			}
 			// Go through value creation path, as we don't know whether it's
 			// from the same sea or not.
-			rc.add(b.Sea.value(v.Op(), v.Type(), v.Imm(), args...))
+			r.Add(b.Sea.value(v.Op(), v.Type(), v.Imm(), args...))
 		}
-		rc.applyRules(b)
-
-		x := b.Sea.class(c.Type(), rc.values)
+		x := r.Class(b)
 
 		visited[c] = x
 		return x
