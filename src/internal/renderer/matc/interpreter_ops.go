@@ -76,15 +76,10 @@ var (
 
 	opInterpreterCondSelect32 = defInterpreterOp("CondSelect32", aaa{op: material.ACondSelect32, dst: true, arity: 3})
 
-	// TODO: add corresponding common ops, lowering and hide the interpreter
-	// variants.
+	opInterpreterLoadArgument  = defInterpreterOp("LoadArgument", aparam(material.ALoadParam))
+	opInterpreterLoadAttribute = defInterpreterOp("LoadAttribute", aparam(material.ALoadAttr))
 
-	// TODO: add LoadAttrScene/LoadAttrFrame
-
-	opInterpreterLoadObjectProperty = defInterpreterOp("LoadAttrObject", aparam(material.ALoadParam))
-	opInterpreterLoadAttribute      = defInterpreterOp("LoadAttrGeometry", aparam(material.ALoadAttr))
-
-	// TODO: kill in favor of LoadAttrGeometry
+	// TODO: kill in favor of LoadAttribute
 	OpInterpreterGetShadingNormal = defInterpreterOp("GetShadingNormal", aaa{op: material.ALoadNormal, dst: true})
 
 	// TODO: we'll want an instruction per BSDF probably...
@@ -94,12 +89,12 @@ var (
 type aparam material.A
 
 func (d aparam) Validate(typ compiler.Type, imm any, args ...*compiler.Class) {
-	_ = imm.(string)
+	_ = imm.(int32)
 }
 
 func (d aparam) Assemble(as *assembler, c *compiler.Class, v *compiler.Value, regm map[*compiler.Class]regRange) {
 	dst := uint32(regm[c].I)
-	off := as.params[v.Imm().(string)]
+	off := as.params[v.Imm().(int32)]
 
 	as.code = append(as.code, packinstr(material.A(d), dst, 0, 0), off)
 }

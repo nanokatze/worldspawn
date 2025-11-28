@@ -1,6 +1,7 @@
-package mtlx
+package mtlj
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/go-json-experiment/json"
@@ -41,7 +42,7 @@ var opByName = map[string]compiler.Op{
 	"IConst":           core.OpIConst,
 	"MakeArray":        core.OpMakeArray,
 	"ArrayExtract":     core.OpArrayExtract,
-	"LoadParameter":    matc.OpLoadParameter,
+	"LoadArgument":     matc.OpLoadArgument,
 	"GetShadingNormal": matc.OpInterpreterGetShadingNormal,
 	"DiffuseBSDF":      matc.OpDiffuseBSDF,
 	"UniformEDF":       matc.OpUniformEDF,
@@ -50,9 +51,12 @@ var opByName = map[string]compiler.Op{
 }
 
 var opImmParser = map[compiler.Op]func(imm string) (any, error){
-	core.OpIConst:        func(imm string) (any, error) { return strconv.ParseInt(imm, 10, 64) },
-	core.OpArrayExtract:  func(imm string) (any, error) { return strconv.ParseInt(imm, 10, 64) },
-	matc.OpLoadParameter: func(imm string) (any, error) { return imm, nil },
+	core.OpIConst:       func(imm string) (any, error) { return strconv.ParseInt(imm, 10, 64) },
+	core.OpArrayExtract: func(imm string) (any, error) { return strconv.ParseInt(imm, 10, 64) },
+	matc.OpLoadArgument: func(imm string) (any, error) {
+		idx, err := strconv.ParseInt(imm, 10, 64)
+		return int32(idx), err
+	},
 }
 
 // TODO: a proper syntax?
@@ -67,7 +71,7 @@ func Parse(b *compiler.Builder, src []byte) (*compiler.Class, error) {
 	for _, p := range prog {
 		op := opByName[p.Op]
 		if op == (compiler.Op{}) {
-			panic("cock")
+			panic(fmt.Sprintf("cock %s", p.Op))
 		}
 
 		typ := cooktype(p.Type)

@@ -89,6 +89,11 @@ func CompileInterpretedMaterial(sea *compiler.Sea, c *compiler.Class) *Interpret
 
 	x := extract2(&compiler.Builder{Sea: sea2}, c, make(map[*compiler.Class]*compiler.Class))
 
+	if true {
+		log.Println("extract2")
+		compiler.Dump(sea2, x, nil)
+	}
+
 	// TODO: assert that x is opInterpreterPseudoMakeMaterial
 	// x = x.Value().Arg(0)
 
@@ -101,7 +106,7 @@ func CompileInterpretedMaterial(sea *compiler.Sea, c *compiler.Class) *Interpret
 
 	regm := regassign3(sched)
 
-	if false {
+	if true {
 		for _, c := range sched {
 			v := c.Value()
 			var sb strings.Builder
@@ -119,7 +124,7 @@ func CompileInterpretedMaterial(sea *compiler.Sea, c *compiler.Class) *Interpret
 	}
 
 	assembled := assemble(sched, regm)
-	if false {
+	if true {
 		log.Println("disassembly")
 		for i := 0; i < len(assembled); {
 			w := assembled[i]

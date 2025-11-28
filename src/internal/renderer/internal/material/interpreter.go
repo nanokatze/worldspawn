@@ -23,6 +23,7 @@ const (
 	EDFUniform
 )
 
+// TODO: rename from InterpreterOutputInterface
 type InterpreterABI struct {
 	BSDFs     [4]uint8
 	BSDFCount uint8

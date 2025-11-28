@@ -12,7 +12,7 @@ import (
 	"worldspawn/image/ktx2"
 	"worldspawn/internal/compiler"
 	"worldspawn/internal/compiler/core"
-	mtlx "worldspawn/internal/irtext"
+	"worldspawn/internal/mtlj"
 	"worldspawn/internal/renderer"
 	"worldspawn/internal/renderer/matc"
 
@@ -124,13 +124,14 @@ func getmaterial(identifier string) renderer.MaterialInstance {
 			Sea:   sea,
 			Rules: append(append([]compiler.RewriteRule(nil), core.Rules...), matc.LowerToInterpreter...),
 		}
-		ir, err := mtlx.Parse(b, mat.Program)
+		ir, err := mtlj.Parse(b, mat.Program)
 		if err != nil {
 			log.Printf("getmaterial: %v", err)
 			goto bail
 		}
 
 		m.Material = renderer.NewMaterial(sea, ir)
+		m.BaseColor = [3]float32{1, 0.2, 0}
 	}
 	materialcache[identifier] = m
 	return m

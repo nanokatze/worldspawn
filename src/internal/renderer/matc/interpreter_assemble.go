@@ -1,14 +1,13 @@
 package matc
 
 import (
-	"reflect"
-
+	"unsafe"
 	"worldspawn/internal/compiler"
 	"worldspawn/internal/renderer/internal/material"
 )
 
 type assembler struct {
-	params map[string]uint32
+	params []uint32 // can be just array at this point
 	code   []uint32
 }
 
@@ -20,13 +19,22 @@ func packinstr(op material.A, dst, src0, src1 uint32) uint32 {
 func assemble(schedule []*compiler.Class, regm map[*compiler.Class]regRange) []uint32 {
 	as := assembler{}
 
-	as.params = map[string]uint32{}
+	as.params = []uint32{
+		uint32(unsafe.Offsetof(material.MaterialParams{}.UVs)),
+		uint32(unsafe.Offsetof(material.MaterialParams{}.BaseColorR)),
+		uint32(unsafe.Offsetof(material.MaterialParams{}.BaseColorG)),
+		uint32(unsafe.Offsetof(material.MaterialParams{}.BaseColorB)),
+	}
+
 	{
-		typ := reflect.TypeFor[material.MaterialParams]()
-		for i := range typ.NumField() {
-			f := typ.Field(i)
-			as.params[f.Name] = uint32(f.Offset)
-		}
+		// TODO: this map has to be passed by the user to CompileXxx
+		/*
+			typ := reflect.TypeFor[material.MaterialParams]()
+			for i := range typ.NumField() {
+				f := typ.Field(i)
+				as.params[f.Name] = uint32(f.Offset)
+			}
+		*/
 	}
 
 	for _, class := range schedule {
