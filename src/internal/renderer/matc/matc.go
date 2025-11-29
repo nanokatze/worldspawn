@@ -5,6 +5,8 @@ import (
 	"worldspawn/internal/compiler/core"
 )
 
+// TODO: split this file?
+
 func defOp(name string, validate compiler.Validator) compiler.Op {
 	return compiler.DefOp("matc."+name, validate)
 }
@@ -34,8 +36,8 @@ func LoadAttribute(b *compiler.Builder, arg *compiler.Class) *compiler.Class {
 	return b.Value2(OpLoadAttribute, core.ArrayType{2, core.Int32}, nil, arg)
 }
 
-// TODO: unify these into a single type? We have some ops that are defined on
-// either.
+// TODO: unify these into a single type? We have some ops that are defined for
+// either BSDF or EDF.
 type (
 	BSDFType struct{}
 	EDFType  struct{}

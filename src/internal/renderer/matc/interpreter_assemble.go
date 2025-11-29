@@ -2,6 +2,7 @@ package matc
 
 import (
 	"unsafe"
+
 	"worldspawn/internal/compiler"
 	"worldspawn/internal/renderer/internal/material"
 )
@@ -24,17 +25,6 @@ func assemble(schedule []*compiler.Class, regm map[*compiler.Class]regRange) []u
 		uint32(unsafe.Offsetof(material.MaterialParams{}.BaseColorR)),
 		uint32(unsafe.Offsetof(material.MaterialParams{}.BaseColorG)),
 		uint32(unsafe.Offsetof(material.MaterialParams{}.BaseColorB)),
-	}
-
-	{
-		// TODO: this map has to be passed by the user to CompileXxx
-		/*
-			typ := reflect.TypeFor[material.MaterialParams]()
-			for i := range typ.NumField() {
-				f := typ.Field(i)
-				as.params[f.Name] = uint32(f.Offset)
-			}
-		*/
 	}
 
 	for _, class := range schedule {

@@ -71,7 +71,7 @@ func TestXxx(t *testing.T) {
 		}
 	*/
 
-	normal := b.Value2(OpInterpreterGetShadingNormal, core.ArrayType{3, core.Int32}, nil)
+	normal := b.Value2(OpInterpGetShadingNormal, core.ArrayType{3, core.Int32}, nil)
 	// normal_x := core.ArrayExtract(b, normal, 0)
 	// normal_y := core.ArrayExtract(b, normal, 1)
 	// normal_z := core.ArrayExtract(b, normal, 2)
@@ -93,7 +93,7 @@ func TestXxx(t *testing.T) {
 	idk3 := buildArith2(b, core.OpFMin, idk1, idk2)
 
 	selector := b.Value2(
-		OpInterpreterFLessOrEqualE8M23,
+		OpInterpFLessOrEqualE8M23,
 		core.Int32,
 		nil,
 		idk3,

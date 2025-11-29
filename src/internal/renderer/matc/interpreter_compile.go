@@ -14,10 +14,10 @@ import (
 )
 
 func cost(v *compiler.Value) int {
-	if v.Op() == opInterpreterConst32 {
+	if v.Op() == opInterpConst32 {
 		return 0
 	}
-	if v.Op() == opInterpreterPseudoArrayExtract {
+	if v.Op() == opInterpPseudoArrayExtract {
 		return 2
 	}
 	return 1

@@ -21,7 +21,7 @@ var LowerToInterpreter = []compiler.RewriteRule{
 			if v.Type() != core.Int32 {
 				return
 			}
-			rr.Add2(opInterpreterCondSelect32, v.Type(), nil, v.Args()...)
+			rr.Add2(opInterpCondSelect32, v.Type(), nil, v.Args()...)
 		},
 	},
 
@@ -29,7 +29,7 @@ var LowerToInterpreter = []compiler.RewriteRule{
 		Name:    "Lower ArrayExtract",
 		Pattern: &compiler.Pattern{Op: core.OpArrayExtract, Args: []*compiler.Pattern{{}}},
 		Rewrite: func(rr *compiler.RewriteResult, b *compiler.Builder, v *compiler.Value) {
-			rr.Add2(opInterpreterPseudoArrayExtract, v.Type(), uint32(v.Imm().(int64)), v.Args()...)
+			rr.Add2(opInterpPseudoArrayExtract, v.Type(), uint32(v.Imm().(int64)), v.Args()...)
 		},
 	},
 
@@ -40,18 +40,18 @@ var LowerToInterpreter = []compiler.RewriteRule{
 			if v.Type() != core.Int32 {
 				return
 			}
-			rr.Add2(opInterpreterConst32, v.Type(), uint32(v.Imm().(int64)))
+			rr.Add2(opInterpConst32, v.Type(), uint32(v.Imm().(int64)))
 		},
 	},
 
-	lowerFloatArith(core.OpFAdd, opInterpreterFAddE8M23),
-	lowerFloatArith(core.OpFSub, opInterpreterFSubE8M23),
-	lowerFloatArith(core.OpFMul, opInterpreterFMulE8M23),
-	lowerFloatArith(core.OpFDiv, opInterpreterFDivE8M23),
-	lowerFloatArith(core.OpFMin, opInterpreterFMinE8M23),
-	lowerFloatArith(core.OpFMax, opInterpreterFMaxE8M23),
-	lowerFloatArith(core.OpFFloor, opInterpreterFFloorE8M23),
-	lowerFloatCmp(core.OpFLessOrEqual, OpInterpreterFLessOrEqualE8M23),
+	lowerFloatArith(core.OpFAdd, opInterpFAddE8M23),
+	lowerFloatArith(core.OpFSub, opInterpFSubE8M23),
+	lowerFloatArith(core.OpFMul, opInterpFMulE8M23),
+	lowerFloatArith(core.OpFDiv, opInterpFDivE8M23),
+	lowerFloatArith(core.OpFMin, opInterpFMinE8M23),
+	lowerFloatArith(core.OpFMax, opInterpFMaxE8M23),
+	lowerFloatArith(core.OpFFloor, opInterpFFloorE8M23),
+	lowerFloatCmp(core.OpFLessOrEqual, OpInterpFLessOrEqualE8M23),
 
 	{
 		Name:    fmt.Sprintf("Lower %s (interpreter)", OpLoadArgument),
@@ -60,7 +60,7 @@ var LowerToInterpreter = []compiler.RewriteRule{
 			if _, ok := v.Type().(core.IntType); !ok {
 				return
 			}
-			rr.Add2(opInterpreterLoadArgument, v.Type(), v.Imm())
+			rr.Add2(opInterpLoadArgument, v.Type(), v.Imm())
 		},
 	},
 	{
@@ -71,7 +71,7 @@ var LowerToInterpreter = []compiler.RewriteRule{
 
 			for w := range v.Arg(0).Values() {
 				if w.Op() == OpLoadArgument {
-					rr.Add2(opInterpreterLoadAttribute, v.Type(), w.Imm().(int32))
+					rr.Add2(opInterpLoadAttribute, v.Type(), w.Imm().(int32))
 				}
 			}
 		},
@@ -141,7 +141,7 @@ var LowerToInterpreter = []compiler.RewriteRule{
 			args = append(args, args2...)
 			args2 = args[:0]
 
-			rr.Add2(OpInterpreterPseudoOutput, core.EmptyType{}, &abi, args...)
+			rr.Add2(OpInterpPseudoOutput, core.EmptyType{}, &abi, args...)
 		},
 	},
 }

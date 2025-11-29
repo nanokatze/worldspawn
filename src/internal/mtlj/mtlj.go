@@ -43,7 +43,7 @@ var opByName = map[string]compiler.Op{
 	"MakeArray":        core.OpMakeArray,
 	"ArrayExtract":     core.OpArrayExtract,
 	"LoadArgument":     matc.OpLoadArgument,
-	"GetShadingNormal": matc.OpInterpreterGetShadingNormal,
+	"GetShadingNormal": matc.OpInterpGetShadingNormal,
 	"DiffuseBSDF":      matc.OpDiffuseBSDF,
 	"UniformEDF":       matc.OpUniformEDF,
 	"DFComposition":    matc.OpDFComposition,

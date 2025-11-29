@@ -102,12 +102,12 @@ func gatherConstraints(sched []*compiler.Class) map[*compiler.Class]*constraint 
 		}
 
 		switch v.Op() {
-		case OpInterpreterPseudoOutput:
+		case OpInterpPseudoOutput:
 			for i, a := range v.Args() {
 				constrain(constraints, c, a, i)
 			}
 
-		case opInterpreterPseudoArrayExtract:
+		case opInterpPseudoArrayExtract:
 			constrain(constraints, v.Arg(0), c, int(v.Imm().(uint32)))
 		}
 	}
@@ -131,7 +131,7 @@ func regassign3(sched []*compiler.Class) map[*compiler.Class]regRange {
 
 		// TODO: our PseudoOutput special case is busted, we should handle it like
 		// everything else and just properly emit parallel copy when assembling.
-		pcopy := v.Op() == OpInterpreterPseudoOutput
+		pcopy := v.Op() == OpInterpPseudoOutput
 
 		if !pcopy {
 			ra.free(ra.m[c])

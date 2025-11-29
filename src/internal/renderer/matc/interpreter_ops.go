@@ -5,10 +5,6 @@ import (
 	"worldspawn/internal/renderer/internal/material"
 )
 
-// TODO: use a shorter prefix instead of "interpreter"? Wasmtime uses interp for
-// pulley in a few places but I also hate that interp is used to mean
-// interpolation. Most things indeed seem to be using interp...
-
 // type regType struct{ N int }
 
 // Adding a new instruction
@@ -23,7 +19,8 @@ import (
 // standard tuples? We'll still have to deal with memes like certain ops
 // returning (mem, data) etc.
 
-type interpreterOp interface {
+// TODO: could we generalize this to machineOp?
+type interpOp interface {
 	Validate(typ compiler.Type, imm any, args ...*compiler.Class)
 	Assemble(as *assembler, c *compiler.Class, v *compiler.Value, regm map[*compiler.Class]regRange)
 }
@@ -31,8 +28,8 @@ type interpreterOp interface {
 // TODO: rename to make it clear that it's asm map for interpreter ops
 var amap = make(map[compiler.Op]func(as *assembler, class *compiler.Class, v *compiler.Value, regm map[*compiler.Class]regRange))
 
-func defInterpreterOp(name string, a interpreterOp) compiler.Op {
-	op := defOp("Interpreter"+name, a.Validate)
+func defInterpOp(name string, a interpOp) compiler.Op {
+	op := defOp("Interp"+name, a.Validate)
 	amap[op] = a.Assemble
 	return op
 }
@@ -46,44 +43,28 @@ type aaa struct {
 	imm     bool
 }
 
-/*
-func init() {
-	f := func(as *assembler, class *compiler.Class, v *compiler.Value, regm map[*compiler.Class]regRange) {
-		panic("do not assemble ")
-	}
-	amap[OpDiffuseBSDF] = f
-	amap[OpUniformEDF] = f
-	amap[OpDFComposition] = f
-	amap[OpMakeSurface] = f
-	amap[OpDFComposition] = f
-}
-*/
-
 var (
-	opInterpreterConst32 = defInterpreterOp("Const32", aaa{op: material.AConst32, dst: true, imm: true})
+	opInterpConst32 = defInterpOp("Const32", aaa{op: material.AConst32, dst: true, imm: true})
 
-	opInterpreterFAddE8M23 = defInterpreterOp("FAddE8M23", aaa{op: material.AFAddE8M23, dst: true, arity: 2})
-	opInterpreterFSubE8M23 = defInterpreterOp("FSubE8M23", aaa{op: material.AFSubE8M23, dst: true, arity: 2})
-	opInterpreterFMulE8M23 = defInterpreterOp("FMulE8M23", aaa{op: material.AFMulE8M23, dst: true, arity: 2})
-	opInterpreterFDivE8M23 = defInterpreterOp("FDivE8M23", aaa{op: material.AFDivE8M23, dst: true, arity: 2})
-	opInterpreterFMinE8M23 = defInterpreterOp("FMinE8M23", aaa{op: material.AFMinE8M23, dst: true, arity: 2})
-	opInterpreterFMaxE8M23 = defInterpreterOp("FMaxE8M23", aaa{op: material.AFMaxE8M23, dst: true, arity: 2})
+	opInterpFAddE8M23 = defInterpOp("FAddE8M23", aaa{op: material.AFAddE8M23, dst: true, arity: 2})
+	opInterpFSubE8M23 = defInterpOp("FSubE8M23", aaa{op: material.AFSubE8M23, dst: true, arity: 2})
+	opInterpFMulE8M23 = defInterpOp("FMulE8M23", aaa{op: material.AFMulE8M23, dst: true, arity: 2})
+	opInterpFDivE8M23 = defInterpOp("FDivE8M23", aaa{op: material.AFDivE8M23, dst: true, arity: 2})
+	opInterpFMinE8M23 = defInterpOp("FMinE8M23", aaa{op: material.AFMinE8M23, dst: true, arity: 2})
+	opInterpFMaxE8M23 = defInterpOp("FMaxE8M23", aaa{op: material.AFMaxE8M23, dst: true, arity: 2})
 
-	opInterpreterFFloorE8M23 = defInterpreterOp("FFloorE8M23", aaa{op: material.AFFloorE8M23, dst: true, arity: 1})
+	opInterpFFloorE8M23 = defInterpOp("FFloorE8M23", aaa{op: material.AFFloorE8M23, dst: true, arity: 1})
 
 	// blender materials actually don't have LessOrEqual, they only have less.
-	OpInterpreterFLessOrEqualE8M23 = defInterpreterOp("FLessOrEqualE8M23", aaa{op: material.AFLessOrEqualE8M23, dst: true, arity: 2})
+	OpInterpFLessOrEqualE8M23 = defInterpOp("FLessOrEqualE8M23", aaa{op: material.AFLessOrEqualE8M23, dst: true, arity: 2})
 
-	opInterpreterCondSelect32 = defInterpreterOp("CondSelect32", aaa{op: material.ACondSelect32, dst: true, arity: 3})
+	opInterpCondSelect32 = defInterpOp("CondSelect32", aaa{op: material.ACondSelect32, dst: true, arity: 3})
 
-	opInterpreterLoadArgument  = defInterpreterOp("LoadArgument", aparam(material.ALoadParam))
-	opInterpreterLoadAttribute = defInterpreterOp("LoadAttribute", aparam(material.ALoadAttr))
+	opInterpLoadArgument  = defInterpOp("LoadArgument", aparam(material.ALoadParam))
+	opInterpLoadAttribute = defInterpOp("LoadAttribute", aparam(material.ALoadAttr))
 
 	// TODO: kill in favor of LoadAttribute
-	OpInterpreterGetShadingNormal = defInterpreterOp("GetShadingNormal", aaa{op: material.ALoadNormal, dst: true})
-
-	// TODO: we'll want an instruction per BSDF probably...
-	// OpMVMBSDFDiffuseAlbedo
+	OpInterpGetShadingNormal = defInterpOp("GetShadingNormal", aaa{op: material.ALoadNormal, dst: true})
 )
 
 type aparam material.A
@@ -111,11 +92,11 @@ type InterpreterABI struct {
 
 // TODO: these should use their own interpreterOp implementations
 var (
-	opInterpreterPseudoArrayExtract = defInterpreterOp("PseudoArrayExtract", aaa{special: true})
+	opInterpPseudoArrayExtract = defInterpOp("PseudoArrayExtract", aaa{special: true})
 
 	// TODO: rename this to PseudoMakeMaterial? Or PseudoOutputMaterial. Idk.
 	// Must be noreturn.
-	OpInterpreterPseudoOutput = defInterpreterOp("PseudoOutput", aaa{special: true})
+	OpInterpPseudoOutput = defInterpOp("PseudoOutput", aaa{special: true})
 )
 
 func (d aaa) Validate(typ compiler.Type, imm any, args ...*compiler.Class) {
@@ -156,7 +137,7 @@ func (d aaa) Assemble(as *assembler, class *compiler.Class, v *compiler.Value, r
 			as.code = append(as.code, v.Imm().(uint32))
 		}
 
-	case OpInterpreterPseudoOutput:
+	case OpInterpPseudoOutput:
 		// TODO: implement this as parallel copy. Right now, regassign
 		// assigns registers in a way that there are no conflicts.
 
@@ -168,7 +149,7 @@ func (d aaa) Assemble(as *assembler, class *compiler.Class, v *compiler.Value, r
 			}
 		}
 
-	case opInterpreterPseudoArrayExtract:
+	case opInterpPseudoArrayExtract:
 		if !d.special {
 			panic("must be special")
 		}
