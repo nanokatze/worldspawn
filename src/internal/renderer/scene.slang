@@ -30,6 +30,29 @@ public struct lightSampler {
     public uint64_t emissiveInstanceCount; // !
 };
 
+// TODO: should be moved to scene.slang
+public struct MeshPart {
+    public void *triangles;
+    public uint32_t num_triangles;
+    public float3 *posBuffer;
+    public float3 *normals;
+}
+
+public struct materialParams2 {
+    public float2 *uvs;
+    public float baseColor[3];
+    public float emission[3];
+}
+
+// TODO: kill kill kill
+public struct MaterialParams {
+    public interpreterProgram program;
+
+    public MeshPart meshPart;
+
+    public materialParams2 params;
+}
+
 public struct Scene {
     public int64_t maxPartsPerMesh;
 

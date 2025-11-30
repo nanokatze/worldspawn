@@ -21,7 +21,38 @@ type Camera struct {
 	NearClipPlane float32
 }
 
-type materialParams = material.MaterialParams
+// TODO: kill this when we make scene.Mesh and scene.MeshPart directly
+// accessible. Then we can just yeet the whole thing onto gpu.
+type meshPart2 struct {
+	_ structs.HostLayout
+
+	Triangles    gpu.Pointer[[3]uint16]
+	NumTriangles uint32
+	PosBuffer    gpu.Pointer[[3]float32]
+	Normals      gpu.Pointer[[3]float32]
+}
+
+// TODO: replace with [256]byte and rely on matc to provide the function to fill
+// stuff out
+type materialParams2 struct {
+	UVs        gpu.Pointer[[2]float32]
+	BaseColorR float32
+	BaseColorG float32
+	BaseColorB float32
+	Emission   [3]float32
+}
+
+// TODO: kill!!!!!!!!!
+type materialParams struct {
+	_ structs.HostLayout
+
+	// Doesn't even belong here
+	Program material.InterpreterProgram
+
+	MeshPart meshPart2
+
+	Params materialParams2
+}
 
 // TODO: I guess we'll need to do some involved memory management in Scene.
 

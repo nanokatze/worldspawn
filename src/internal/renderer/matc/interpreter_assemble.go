@@ -1,8 +1,6 @@
 package matc
 
 import (
-	"unsafe"
-
 	"worldspawn/internal/compiler"
 	"worldspawn/internal/renderer/internal/material"
 )
@@ -20,11 +18,12 @@ func packinstr(op material.A, dst, src0, src1 uint32) uint32 {
 func assemble(schedule []*compiler.Class, regm map[*compiler.Class]regRange) []uint32 {
 	as := assembler{}
 
+	// Matches renderer.materialParams
 	as.params = []uint32{
-		uint32(unsafe.Offsetof(material.MaterialParams{}.UVs)),
-		uint32(unsafe.Offsetof(material.MaterialParams{}.BaseColorR)),
-		uint32(unsafe.Offsetof(material.MaterialParams{}.BaseColorG)),
-		uint32(unsafe.Offsetof(material.MaterialParams{}.BaseColorB)),
+		uint32(0),
+		uint32(8),
+		uint32(12),
+		uint32(16),
 	}
 
 	for _, class := range schedule {

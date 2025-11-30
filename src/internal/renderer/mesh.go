@@ -39,6 +39,7 @@ type IndexSlice struct {
 }
 */
 
+// TODO: make this gpu-accessible
 type MeshPart struct {
 	PosBuffer     gpu.Slice[[3]float32]
 	NormalBuffer  gpu.Slice[[3]float32]

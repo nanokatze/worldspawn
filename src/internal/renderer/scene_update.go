@@ -118,27 +118,33 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 		mesh := dirty.Mesh[instanceIdx]
 
 		for partIdx, part := range mesh.parts {
-			material := dirty.Materials[instanceIdx][partIdx]
+			materialInstance := dirty.Materials[instanceIdx][partIdx]
 
 			materialParamsHost[instanceIdx*scene.maxPartsPerMesh+partIdx] = materialParams{
-				Program: material.Material.program,
+				Program: materialInstance.Material.program,
 
-				Triangles:    gpu.SliceData(part.IndexBuffer),
-				NumTriangles: uint32(gpu.SliceLen(part.IndexBuffer)),
-				PosBuffer:    gpu.SliceData(part.PosBuffer),
-				Normals:      gpu.SliceData(part.NormalBuffer),
-				UVs:          gpu.SliceData(part.AttribBuffers[0].(gpu.Slice[[2]float32])),
-				BaseColorR:   material.BaseColor[0],
-				BaseColorG:   material.BaseColor[1],
-				BaseColorB:   material.BaseColor[2],
-				Emission:     material.Emission,
+				// TODO: make Mesh device-accessible so we don't have to do these redundant copies every time
+				MeshPart: meshPart2{
+					Triangles:    gpu.SliceData(part.IndexBuffer),
+					NumTriangles: uint32(gpu.SliceLen(part.IndexBuffer)),
+					PosBuffer:    gpu.SliceData(part.PosBuffer),
+					Normals:      gpu.SliceData(part.NormalBuffer),
+				},
+
+				Params: materialParams2{
+					UVs:        gpu.SliceData(part.AttribBuffers[0].(gpu.Slice[[2]float32])),
+					BaseColorR: materialInstance.BaseColor[0],
+					BaseColorG: materialInstance.BaseColor[1],
+					BaseColorB: materialInstance.BaseColor[2],
+					Emission:   materialInstance.Emission,
+				},
 			}
 
 			// TODO: we should build an emissive blas and when instancing it
 			// we'll enable/disable geometries (by specifying emission power for
 			// those geometries)
-			if material.Material.emissive() {
-				materialParamsHost[instanceIdx*scene.maxPartsPerMesh+partIdx].Emission = material.Emission
+			if materialInstance.Material.emissive() {
+				materialParamsHost[instanceIdx*scene.maxPartsPerMesh+partIdx].Params.Emission = materialInstance.Emission
 
 				emissiveInstancesHost[emissiveInstanceCount] = emissiveInstance{
 					transform:             A,

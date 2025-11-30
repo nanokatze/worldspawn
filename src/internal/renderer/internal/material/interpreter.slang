@@ -30,6 +30,8 @@ public struct interpreterABI {
     public uint8_t edfCount;
     public uint8_t edfsOff; // TODO: move it before the array or something?
 
+    // TODO: AOVs
+
     // TODO: kill
     public uint32_t outputsReg;
 }
@@ -37,19 +39,6 @@ public struct interpreterABI {
 public struct interpreterProgram {
     public interpreterABI abi;
     public uint32_t *code;
-}
-
-// TODO: kill kill kill
-public struct MaterialParams {
-    public interpreterProgram program;
-
-    public void *triangles;
-    public uint32_t num_triangles;
-    public float3 *posBuffer;
-    public float3 *normals;
-    public float2 *uvs;
-    public float baseColor[3];
-    public float emission[3];
 }
 
 // TODO: move interpolators into their own file!!!
@@ -99,13 +88,16 @@ public enum Op {
 
     LoadParam,
     LoadAttr,
+
+    // TODO: rename to LoadShadingNormal?
     LoadNormal,
 };
 
 public void mateval(
     __ref InterpreterState regs,
     uint32_t *code,
-    MaterialParams *materialParams,
+    float3 normal,
+    void *materialParams,
     float3x4 ObjectToWorld,
     uint3 triIdxs,
     float2 barys_yz)
@@ -194,15 +186,7 @@ evalLoop:
             // I guess?
             break;
         }
-        // TODO: remove this in favor of LoadAttr + DisturbNormal or smth
         case Op::LoadNormal: {
-            let normal = mul((float3x3)ObjectToWorld,
-                interpolate3(
-                    float3x3(
-                        materialParams->normals[triIdxs[0]],
-                        materialParams->normals[triIdxs[1]],
-                        materialParams->normals[triIdxs[2]]),
-                    barys_yz));
             regs[dst+0] = reinterpret<uint32_t>(normal.x);
             regs[dst+1] = reinterpret<uint32_t>(normal.y);
             regs[dst+2] = reinterpret<uint32_t>(normal.z);

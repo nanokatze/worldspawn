@@ -133,6 +133,8 @@ void exportIrradiance(Spectrum L) {
     push.out.Store2D((int2)LaunchID.xy, float4(oetf(0, L), 1));
 }
 
+// TODO: compartmentalize stuff into methods on Path?
+
 [[shader("raygeneration")]]
 void raygen() {
     uint3 LaunchID = DispatchRaysIndex();
@@ -144,9 +146,6 @@ void raygen() {
     float2 inUV = pixelCenter / float2(LaunchSize.xy);
     float2 d = inUV * 2.0 - 1.0;
     float4 target = mul(push.camera->projInverse, float4(d.x, d.y, 1, 1));
-
-    // TODO: special case the first bounce, we need to get the primary surface
-    // for denoiser and motion vectors/mask out for TAA
 
     Path path = {};
     path.L = Spectrum(0.0);
@@ -230,6 +229,7 @@ struct triangleLight {
     // TODO: this should return Le, PDF and normal.
     leSample SampleLe(float3 hitpos, float2 u) {
         let area = length(cross(verts[1] - verts[0], verts[2] - verts[0])) * 0.5;
+        // TODO: should this really be geometric normal?
         let normal = normalize(cross(verts[1] - verts[0], verts[2] - verts[0]));
 
         let barys = SampleTriangle(u);
@@ -245,9 +245,10 @@ struct triangleLight {
         mateval(
             m.regs,
             materialParams->program.code,
-            materialParams,
+            float3(0), // TODO
+            (void*)&materialParams->params,
             ObjectToWorld,
-            uint3(0),
+            uint3(0), // TODO
             barys);
 
         return {
@@ -329,19 +330,19 @@ Spectrum sampleLd(
             emissiveInstance->originalInstanceIndex * push.scene->maxPartsPerMesh +
             emissiveInstance->originalGeometryIndex];
 
-        IndexSlice idxs2 = {(uint8_t*)lightMaterialParams->triangles, (uint64_t)2 << 62};
+        IndexSlice idxs2 = {(uint8_t*)lightMaterialParams->meshPart.triangles, (uint64_t)2 << 62};
 
-        let triPmf = 1.0 / (float)lightMaterialParams->num_triangles;
+        let triPmf = 1.0 / (float)lightMaterialParams->meshPart.num_triangles;
         // TODO: we need to make sure this actually triangle < len always
-        let triIdx = (int)((float)lightMaterialParams->num_triangles * u);
+        let triIdx = (int)((float)lightMaterialParams->meshPart.num_triangles * u);
         let vertIdxs = idxs2.Load3(triIdx);
 
         triangleLight l = {
             emissiveInstance->transform,
             {
-                mul(emissiveInstance->transform, float4(lightMaterialParams->posBuffer[vertIdxs[0]], 1.0)),
-                mul(emissiveInstance->transform, float4(lightMaterialParams->posBuffer[vertIdxs[1]], 1.0)),
-                mul(emissiveInstance->transform, float4(lightMaterialParams->posBuffer[vertIdxs[2]], 1.0)),
+                mul(emissiveInstance->transform, float4(lightMaterialParams->meshPart.posBuffer[vertIdxs[0]], 1.0)),
+                mul(emissiveInstance->transform, float4(lightMaterialParams->meshPart.posBuffer[vertIdxs[1]], 1.0)),
+                mul(emissiveInstance->transform, float4(lightMaterialParams->meshPart.posBuffer[vertIdxs[2]], 1.0)),
             },
             lightMaterialParams,
         };
@@ -406,9 +407,17 @@ bool closesthit(
     let materialParams = &push.scene->materialParams.data[instanceIndex * push.scene->maxPartsPerMesh + geometryIndex];
 
     // TODO: pass the entire thing from host, rather than constructing it here.
-    IndexSlice idxBuffer = {(uint8_t*)materialParams->triangles, (uint64_t)2 << 62};
+    IndexSlice idxBuffer = {(uint8_t*)materialParams->meshPart.triangles, (uint64_t)2 << 62};
 
     let triIdxs = idxBuffer.Load3(primitiveIndex);
+
+    let normal = mul((float3x3)ObjectToWorld,
+        interpolate3(
+            float3x3(
+                materialParams->meshPart.normals[triIdxs[0]],
+                materialParams->meshPart.normals[triIdxs[1]],
+                materialParams->meshPart.normals[triIdxs[2]]),
+            barys_yz));
 
     // TODO: should not be called bsdf
     EvaluatedInterpretedMaterial bsdf;
@@ -416,22 +425,13 @@ bool closesthit(
     mateval(
         bsdf.regs,
         materialParams->program.code,
-        materialParams,
+        normal,
+        (void*)&materialParams->params,
         ObjectToWorld,
         triIdxs,
         barys_yz);
 
     let wo = -WorldRayDirection;
-
-    // TODO: this should be the eometric normal actually, i.e. perpendicular to
-    // the triangle
-    let normal = mul((float3x3)ObjectToWorld,
-        interpolate3(
-            float3x3(
-                materialParams->normals[triIdxs[0]],
-                materialParams->normals[triIdxs[1]],
-                materialParams->normals[triIdxs[2]]),
-            barys_yz));
 
     // Account for emission
     let Le = bsdf.EDFEval(wo);
@@ -447,6 +447,8 @@ bool closesthit(
     // different IOR.) We'll want to think how to express that.
     if (path.depth == 0) {
         // TODO: export normal, depth, AOVs, etc, here
+        // TODO: the exported normal should be the normal averaged over all
+        // BSDFs
 
         // uint3 LaunchID = int3(DispatchRaysDimensions().x, 0, 0) + DispatchRaysIndex();
 

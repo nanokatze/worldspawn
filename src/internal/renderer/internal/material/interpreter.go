@@ -33,6 +33,8 @@ type InterpreterABI struct {
 	EDFCount uint8
 	EDFsOff  uint8
 
+	// TODO: AOVs
+
 	OutputsReg uint32
 }
 
@@ -45,24 +47,6 @@ type InterpreterProgram struct {
 	// TODO: could be a slice
 	// TODO: rename to describe what this actually computes?
 	Code gpu.Pointer[uint32]
-}
-
-// TODO: kill!!!!!!!
-type MaterialParams struct {
-	_ structs.HostLayout
-
-	// Doesn't even belong here
-	Program InterpreterProgram
-
-	Triangles    gpu.Pointer[[3]uint16]
-	NumTriangles uint32
-	PosBuffer    gpu.Pointer[[3]float32]
-	Normals      gpu.Pointer[[3]float32]
-	UVs          gpu.Pointer[[2]float32]
-	BaseColorR   float32
-	BaseColorG   float32
-	BaseColorB   float32
-	Emission     [3]float32
 }
 
 // TODO: make an interpreter generator
