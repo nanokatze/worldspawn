@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"log"
 	"path"
+	"sync"
 
 	"worldspawn/deathmatch/internal/game"
 	"worldspawn/gpu"
@@ -138,11 +139,38 @@ func getmaterial(identifier string) renderer.MaterialInstance {
 
 bail:
 	// TODO: stop using gotos lmao aaa
-	m.Material = renderer.TestMaterial2()
+	m.Material = errorMaterial()
 	m.Emission = [3]float32{1, 0, 1}
 	materialcache[identifier] = m
 	return m
 }
+
+var errorMaterial = sync.OnceValue(func() *renderer.InterpretedMaterial {
+	sea := compiler.NewSea()
+	b := &compiler.Builder{
+		Sea:   sea,
+		Rules: append(append([]compiler.RewriteRule(nil), core.Rules...), matc.InterpreterLowerings...),
+	}
+
+	/*
+		emissionSpectrum := core.MakeArray(b,
+			core.Int32,
+			core.IConst(b, core.Int32, int64(math.Float32bits(1))),
+			core.IConst(b, core.Int32, int64(math.Float32bits(0))),
+			core.IConst(b, core.Int32, int64(math.Float32bits(1))))
+	*/
+	program := b.Value2(
+		matc.OpMakeSurface,
+		core.EmptyType{},
+		nil,
+		// bsdf,
+		b.Value2(matc.OpDFComposition, matc.BSDFType{}, nil),
+		// edf
+		b.Value2(matc.OpDFComposition, matc.EDFType{}, nil),
+	)
+
+	return renderer.NewMaterial(sea, program)
+})
 
 func model(geo game.GeometryPacked) *renderer.Mesh {
 	m, ok := modelcache[geo]

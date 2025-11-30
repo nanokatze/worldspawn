@@ -1,12 +1,8 @@
 package renderer
 
 import (
-	"math"
-	"sync"
-
 	"worldspawn/gpu"
 	"worldspawn/internal/compiler"
-	"worldspawn/internal/compiler/core"
 	"worldspawn/internal/renderer/internal/material"
 	"worldspawn/internal/renderer/matc"
 )
@@ -104,40 +100,11 @@ var TestMaterial = sync.OnceValue(func() *InterpretedMaterial {
 })
 */
 
-var TestMaterial2 = sync.OnceValue(func() *InterpretedMaterial {
-	sea := compiler.NewSea()
-	b := &compiler.Builder{
-		Sea:   sea,
-		Rules: append(append([]compiler.RewriteRule(nil), core.Rules...), matc.InterpreterLowerings...),
-	}
-
-	emission_r := core.IConst(b, core.Int32, int64(math.Float32bits(1.0)))
-	emission_g := core.IConst(b, core.Int32, int64(math.Float32bits(0)))
-	emission_b := core.IConst(b, core.Int32, int64(math.Float32bits(1.0)))
-	emissionSpectrum := core.MakeArray(b, core.Int32, emission_r, emission_g, emission_b)
-	_ = emissionSpectrum
-	program := b.Value2(
-		matc.OpMakeSurface,
-		core.EmptyType{},
-		nil,
-		// bsdf,
-		b.Value2(matc.OpDFComposition, matc.BSDFType{}, nil),
-		// edf
-		b.Value2(matc.OpDFComposition, matc.EDFType{}, nil),
-
-		// b.Value2(matc.OpDFComposition, matc.EDFType{}, nil,
-		// 	emissionSpectrum, b.Value2(matc.OpUniformEDF, matc.EDFType{}, nil)),
-	)
-
-	return NewMaterial(sea, program)
-})
-
-// TODO: error material, which would be a pink/black emissive checkerboard
-
 // TODO: we need a knob to specify whether to compile an interpreted material or
 // an API shader material
-func NewMaterial(sea *compiler.Sea, v *compiler.Class) *InterpretedMaterial {
-	interpretedMaterial := matc.CompileInterpretedMaterial(sea, v)
+// TODO: pass offsets for arguments
+func NewMaterial(sea *compiler.Sea, c *compiler.Class) *InterpretedMaterial {
+	interpretedMaterial := matc.CompileInterpretedMaterial(sea, c)
 
 	device := gpu.MakeSliceUncached[uint32](len(interpretedMaterial.Code))
 	copy(device.Value(), interpretedMaterial.Code)
