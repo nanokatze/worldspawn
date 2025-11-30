@@ -108,7 +108,7 @@ var TestMaterial2 = sync.OnceValue(func() *InterpretedMaterial {
 	sea := compiler.NewSea()
 	b := &compiler.Builder{
 		Sea:   sea,
-		Rules: append(append([]compiler.RewriteRule(nil), core.Rules...), matc.LowerToInterpreter...),
+		Rules: append(append([]compiler.RewriteRule(nil), core.Rules...), matc.InterpreterLowerings...),
 	}
 
 	emission_r := core.IConst(b, core.Int32, int64(math.Float32bits(1.0)))

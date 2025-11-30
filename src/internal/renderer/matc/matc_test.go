@@ -11,7 +11,7 @@ import (
 	"worldspawn/internal/compiler/core"
 )
 
-var allRules = append(append([]compiler.RewriteRule(nil), core.Rules...), LowerToInterpreter...)
+var allRules = append(append([]compiler.RewriteRule(nil), core.Rules...), InterpreterLowerings...)
 
 func asdasd(t compiler.Type) reflect.Type {
 	switch t := t.(type) {

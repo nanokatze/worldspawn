@@ -122,7 +122,7 @@ func getmaterial(identifier string) renderer.MaterialInstance {
 		sea := compiler.NewSea()
 		b := &compiler.Builder{
 			Sea:   sea,
-			Rules: append(append([]compiler.RewriteRule(nil), core.Rules...), matc.LowerToInterpreter...),
+			Rules: append(append([]compiler.RewriteRule(nil), core.Rules...), matc.InterpreterLowerings...),
 		}
 		ir, err := mtlj.Parse(b, mat.Program)
 		if err != nil {

@@ -8,10 +8,9 @@ import (
 
 // TODO: plop interpreter optimization rules into a separate rule set?
 
-var LowerToInterpreter = []compiler.RewriteRule{
-	// TODO: we'll make OpCondSelect's cond 1-bit, while
-	// InterpreterCondSelect32's is 32-bit, so we'll need to consider that when
-	// lowering
+var InterpreterLowerings = []compiler.RewriteRule{
+	// TODO: we'll make OpCondSelect's cond 1-bit, while InterpCondSelect32's is
+	// 32-bit, so we'll need to consider that when lowering
 	{
 		Comment: "interpreter lowering",
 		Pattern: &compiler.Pattern{Op: core.OpCondSelect, Args: []*compiler.Pattern{{}, {}, {}}},
@@ -42,14 +41,14 @@ var LowerToInterpreter = []compiler.RewriteRule{
 		},
 	},
 
-	lowerFloatArith(core.OpFAdd, opInterpFAddE8M23),
-	lowerFloatArith(core.OpFSub, opInterpFSubE8M23),
-	lowerFloatArith(core.OpFMul, opInterpFMulE8M23),
-	lowerFloatArith(core.OpFDiv, opInterpFDivE8M23),
-	lowerFloatArith(core.OpFMin, opInterpFMinE8M23),
-	lowerFloatArith(core.OpFMax, opInterpFMaxE8M23),
-	lowerFloatArith(core.OpFFloor, opInterpFFloorE8M23),
-	lowerFloatCmp(core.OpFLessOrEqual, OpInterpFLessOrEqualE8M23),
+	interpLowerArith(core.OpFAdd, opInterpFAddE8M23),
+	interpLowerArith(core.OpFSub, opInterpFSubE8M23),
+	interpLowerArith(core.OpFMul, opInterpFMulE8M23),
+	interpLowerArith(core.OpFDiv, opInterpFDivE8M23),
+	interpLowerArith(core.OpFMin, opInterpFMinE8M23),
+	interpLowerArith(core.OpFMax, opInterpFMaxE8M23),
+	interpLowerArith(core.OpFFloor, opInterpFFloorE8M23),
+	interpLowerCmp(core.OpFLessOrEqual, OpInterpFLessOrEqualE8M23),
 
 	{
 		Comment: "interpreter lowering",
@@ -144,7 +143,7 @@ var LowerToInterpreter = []compiler.RewriteRule{
 	},
 }
 
-func lowerFloatArith(match compiler.Op, _32 compiler.Op) compiler.RewriteRule {
+func interpLowerArith(match compiler.Op, _32 compiler.Op) compiler.RewriteRule {
 	return compiler.RewriteRule{
 		Comment: "interpreter lowering",
 		Pattern: &compiler.Pattern{Op: match, ArgsDDD: true},
@@ -157,7 +156,7 @@ func lowerFloatArith(match compiler.Op, _32 compiler.Op) compiler.RewriteRule {
 	}
 }
 
-func lowerFloatCmp(match compiler.Op, _32 compiler.Op) compiler.RewriteRule {
+func interpLowerCmp(match compiler.Op, _32 compiler.Op) compiler.RewriteRule {
 	return compiler.RewriteRule{
 		Comment: "interpreter lowering",
 		Pattern: &compiler.Pattern{Op: match, ArgsDDD: true},
