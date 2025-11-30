@@ -1,8 +1,6 @@
 package matc
 
 import (
-	"fmt"
-
 	"worldspawn/internal/compiler"
 	"worldspawn/internal/compiler/core"
 	"worldspawn/internal/renderer/internal/material"
@@ -15,7 +13,7 @@ var LowerToInterpreter = []compiler.RewriteRule{
 	// InterpreterCondSelect32's is 32-bit, so we'll need to consider that when
 	// lowering
 	{
-		Name:    "Lower CondSelect",
+		Comment: "interpreter lowering",
 		Pattern: &compiler.Pattern{Op: core.OpCondSelect, Args: []*compiler.Pattern{{}, {}, {}}},
 		Rewrite: func(rr *compiler.RewriteResult, b *compiler.Builder, v *compiler.Value) {
 			if v.Type() != core.Int32 {
@@ -26,7 +24,7 @@ var LowerToInterpreter = []compiler.RewriteRule{
 	},
 
 	{
-		Name:    "Lower ArrayExtract",
+		Comment: "interpreter lowering",
 		Pattern: &compiler.Pattern{Op: core.OpArrayExtract, Args: []*compiler.Pattern{{}}},
 		Rewrite: func(rr *compiler.RewriteResult, b *compiler.Builder, v *compiler.Value) {
 			rr.Add2(opInterpPseudoArrayExtract, v.Type(), uint32(v.Imm().(int64)), v.Args()...)
@@ -34,7 +32,7 @@ var LowerToInterpreter = []compiler.RewriteRule{
 	},
 
 	{
-		Name:    "Lower IConst",
+		Comment: "interpreter lowering",
 		Pattern: &compiler.Pattern{Op: core.OpIConst},
 		Rewrite: func(rr *compiler.RewriteResult, b *compiler.Builder, v *compiler.Value) {
 			if v.Type() != core.Int32 {
@@ -54,7 +52,7 @@ var LowerToInterpreter = []compiler.RewriteRule{
 	lowerFloatCmp(core.OpFLessOrEqual, OpInterpFLessOrEqualE8M23),
 
 	{
-		Name:    fmt.Sprintf("Lower %s (interpreter)", OpLoadArgument),
+		Comment: "interpreter lowering",
 		Pattern: &compiler.Pattern{Op: OpLoadArgument},
 		Rewrite: func(rr *compiler.RewriteResult, b *compiler.Builder, v *compiler.Value) {
 			if _, ok := v.Type().(core.IntType); !ok {
@@ -64,7 +62,7 @@ var LowerToInterpreter = []compiler.RewriteRule{
 		},
 	},
 	{
-		Name:    fmt.Sprintf("Lower %s (interpreter)", OpLoadAttribute),
+		Comment: "interpreter lowering",
 		Pattern: &compiler.Pattern{Op: OpLoadAttribute, Args: []*compiler.Pattern{{Op: OpLoadArgument}}},
 		Rewrite: func(rr *compiler.RewriteResult, b *compiler.Builder, v *compiler.Value) {
 			_ = v.Arg(0).Type().(AttributeDescriptor)
@@ -78,7 +76,7 @@ var LowerToInterpreter = []compiler.RewriteRule{
 	},
 
 	{
-		Name:    "Lower MakeSurface",
+		Comment: "interpreter lowering",
 		Pattern: &compiler.Pattern{Op: OpMakeSurface, Args: []*compiler.Pattern{{}, {}}},
 		Rewrite: func(rr *compiler.RewriteResult, b *compiler.Builder, v *compiler.Value) {
 			// TODO: don't assume that there's just a single instruction
@@ -148,6 +146,7 @@ var LowerToInterpreter = []compiler.RewriteRule{
 
 func lowerFloatArith(match compiler.Op, _32 compiler.Op) compiler.RewriteRule {
 	return compiler.RewriteRule{
+		Comment: "interpreter lowering",
 		Pattern: &compiler.Pattern{Op: match, ArgsDDD: true},
 		Rewrite: func(rr *compiler.RewriteResult, b *compiler.Builder, v *compiler.Value) {
 			if v.Type() != core.Int32 {
@@ -160,6 +159,7 @@ func lowerFloatArith(match compiler.Op, _32 compiler.Op) compiler.RewriteRule {
 
 func lowerFloatCmp(match compiler.Op, _32 compiler.Op) compiler.RewriteRule {
 	return compiler.RewriteRule{
+		Comment: "interpreter lowering",
 		Pattern: &compiler.Pattern{Op: match, ArgsDDD: true},
 		Rewrite: func(rr *compiler.RewriteResult, b *compiler.Builder, v *compiler.Value) {
 			if v.Arg(0).Type() != core.Int32 {

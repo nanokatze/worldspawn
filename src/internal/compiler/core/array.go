@@ -32,7 +32,7 @@ func ArrayExtract(b *compiler.Builder, arr *compiler.Class, idx int64) *compiler
 func init() {
 	Rules = append(Rules,
 		compiler.RewriteRule{
-			Name:    "Forward ArrayExtract to the element's definition",
+			Comment: "forward element definition",
 			Pattern: &compiler.Pattern{Op: OpArrayExtract, Args: []*compiler.Pattern{{Op: OpMakeArray, ArgsDDD: true}}},
 			Rewrite: func(rr *compiler.RewriteResult, b *compiler.Builder, v *compiler.Value) {
 				idx := v.Imm().(int64)
@@ -46,7 +46,7 @@ func init() {
 			},
 		},
 		compiler.RewriteRule{
-			Name:    "Split CondSelect of arrays into per element CondSelect",
+			Comment: "split into a CondSelect per element",
 			Pattern: &compiler.Pattern{Op: OpCondSelect, Args: []*compiler.Pattern{{}, {}, {}}},
 			Rewrite: func(rr *compiler.RewriteResult, b *compiler.Builder, v *compiler.Value) {
 				arr, ok := v.Type().(ArrayType)

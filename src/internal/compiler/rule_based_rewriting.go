@@ -1,16 +1,17 @@
 package compiler
 
-import (
-	"fmt"
-)
-
+// TODO: change RewriteRule to be pointer receivers?
 type RewriteRule struct {
-	Name    string
+	Comment string
 	Pattern *Pattern
 	// TODO: instead of a single *Value, it should be the "binds" that we got
 	// from pattern matching
 	// TODO: preemptively change match to be a slice?
 	Rewrite func(rr *RewriteResult, b *Builder, match *Value)
+}
+
+func (rule RewriteRule) String() string {
+	return rule.Pattern.String() + " /* " + rule.Comment + " */"
 }
 
 // This handles only 2-ary ops, TODO: teach it to handle n-ary by only swapping
@@ -19,7 +20,7 @@ type RewriteRule struct {
 // TODO: rename to something like CommutativityRule or whatever.
 func Commutativity(op Op) RewriteRule {
 	return RewriteRule{
-		Name:    fmt.Sprintf("%v commutativity", op),
+		Comment: "commutativity",
 		Pattern: &Pattern{Op: op, Args: []*Pattern{{}, {}}},
 		Rewrite: func(rr *RewriteResult, b *Builder, v *Value) {
 			rr.Add2(v.Op(), v.Type(), v.Imm(), v.Arg(1), v.Arg(0))
@@ -30,7 +31,7 @@ func Commutativity(op Op) RewriteRule {
 /*
 func Associativity(op Op) RewriteRule {
 	return RewriteRule{
-		Name: fmt.Sprintf("%v associativity", op),
+		Comment: "associativity",
 		Pattern: &Pattern{
 			Op: op,
 			Args: []*Pattern{
