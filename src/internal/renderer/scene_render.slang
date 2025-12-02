@@ -401,8 +401,7 @@ bool closesthit(
     // TODO: rename to something like "vampireInstance" or whatever
     bool vampire = ((push->scene->accelInstances[instanceIndex].instanceIDAndMask >> 24) & 0b11) == 0b01;
 
-    // TODO: rename to sampler or something
-    var bn = ShiftedBlueNoise<R2LDS>(R2LDS(), dispatchRaysIndex.xy, 10 * path.depth);
+    var sampler = ShiftedBlueNoise<R2LDS>(R2LDS(), dispatchRaysIndex.xy, 10 * path.depth);
 
     let materialParams = &push.scene->materialParams.data[instanceIndex * push.scene->maxPartsPerMesh + geometryIndex];
 
@@ -462,8 +461,8 @@ bool closesthit(
 
     // Direct light sampling
     {
-        let u = bn.Get1D();
-        let b = bn.Get2D();
+        let u = sampler.Get1D();
+        let b = sampler.Get2D();
         if (bsdf.Flags() & (BSDFFlags::Diffuse | BSDFFlags::Glossy)) {
             let Ld = sampleLd(vampire, hitpos, normal, wo, bsdf, u, b);
 
@@ -473,7 +472,7 @@ bool closesthit(
 
     // Sample the bsdf for the next ray
 
-    let bsdfSample = bsdf.Sample(wo, bn.Get1D(), bn.Get2D());
+    let bsdfSample = bsdf.Sample(wo, sampler.Get1D(), sampler.Get2D());
 
     // TODO: once we get diffuse cache, (optionally) terminate the path for
     // diffuse-only bsdfSamples and instead get the information from the cache.
@@ -499,7 +498,7 @@ bool closesthit(
     // Russian roulette
     //
     // TODO: I guess we could also use an ordinary RNG here. Should we?
-    float rr = bn.Get1D();
+    float rr = sampler.Get1D();
     if (path.depth >= push.camera->russianRouletteThreshold) {
         // TODO: introduce Spectrum.MaxComponentValue()
         float p = saturate(max(max(path.beta.x, path.beta.y), path.beta.z));
