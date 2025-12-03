@@ -10,6 +10,8 @@ import (
 	"worldspawn/internal/compiler/core"
 )
 
+// TODO: rename this file pls
+
 func asdasd(t compiler.Type) reflect.Type {
 	switch t := t.(type) {
 	case core.IntType:

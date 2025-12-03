@@ -1,6 +1,8 @@
 import "../../spectrum";
 import shading_frame;
 
+// TODO: rename BSDF to BxDF?
+
 // TODO: rename to smth like summary idk
 // TODO: combine flags so that we have ReflectionDiffuse, ReflectionGlossy, etc?
 public enum BSDFFlags {
@@ -17,23 +19,15 @@ public struct BSDFEval {
     public Spectrum f;
     public float pdf;
 
-    public BSDFEval Add(BSDFEval other) {
-        return {
-            f + other.f,
-            pdf + other.pdf,
-        };
+    public BSDFEval Add(BSDFEval b) {
+        return {f + b.f, pdf + b.pdf};
     }
-
-    // public BSDFEval Scale(float scale) {
-    //     return {
-    //         f * scale,
-    //         pdf * scale,
-    //     };
-    // }
 };
 
 public struct BSDFSample {
     public BSDFFlags flags;
+    // TODO: exclude f, pdf in favor of forcing the caller to poke Eval? Or
+    // replace with embedding BSDFEval.
     public Spectrum f;
     public float pdf;
     public float3 wi;

@@ -75,9 +75,6 @@ var (
 
 	OpBSDFReflectance = defOp("BSDFReflectance", nil) // BSDF -> color
 
-	// Even args are tints (weights), odd args are DFs (TODO: swap?)
-	OpDFWeightedSum = defOp("DFWeightedSum", nil)
-
 	OpMakeSurface = defOp("MakeSurface", nil) // (BSDF, EDF) -> Surface
 
 	// OpMakeMaterial = defOp("MakeMaterial", nil) // (Surface, Surface, Volume)
@@ -90,6 +87,9 @@ var (
 
 	// TODO: swap parameters so that tint is first and df is second
 	OpDFTint = defOp("DFTint", nil) // T : DF, (Vec[3, Float], T) -> T
+
+	// Even args are tints (weights), odd args are DFs (TODO: swap?)
+	OpDFWeightedSum = defOp("DFWeightedSum", nil)
 )
 
 // Rules for flattening BSDF composition and stuff
