@@ -55,9 +55,7 @@ func makeDefaultMarshaler(t reflect.Type) marshaler {
 			n = 8
 		}
 		return func(enc *Encoder, v reflect.Value) error {
-			x := uint64(v.Int())
-			enc.Scratch = binary.LittleEndian.AppendUint64(enc.Scratch[:0], x)
-			return writeBytes(enc, enc.Scratch[:n])
+			return writeUint(enc, uint64(v.Int()), n)
 		}
 
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
@@ -66,23 +64,19 @@ func makeDefaultMarshaler(t reflect.Type) marshaler {
 			n = 8
 		}
 		return func(enc *Encoder, v reflect.Value) error {
-			x := v.Uint()
-			enc.Scratch = binary.LittleEndian.AppendUint64(enc.Scratch[:0], x)
-			return writeBytes(enc, enc.Scratch[:n])
+			return writeUint(enc, v.Uint(), n)
 		}
 
 	case reflect.Float32:
 		return func(enc *Encoder, v reflect.Value) error {
-			x := uint32(math.Float32bits(float32(v.Float())))
-			enc.Scratch = binary.LittleEndian.AppendUint32(enc.Scratch[:0], x)
-			return writeBytes(enc, enc.Scratch)
+			x := uint64(math.Float32bits(float32(v.Float())))
+			return writeUint(enc, x, 4)
 		}
 
 	case reflect.Float64:
 		return func(enc *Encoder, v reflect.Value) error {
-			x := uint64(math.Float64bits(v.Float()))
-			enc.Scratch = binary.LittleEndian.AppendUint64(enc.Scratch[:0], x)
-			return writeBytes(enc, enc.Scratch)
+			x := math.Float64bits(v.Float())
+			return writeUint(enc, x, 8)
 		}
 
 	case reflect.Array:
@@ -120,7 +114,7 @@ func makeDefaultMarshaler(t reflect.Type) marshaler {
 
 		return func(enc *Encoder, m reflect.Value) error {
 			n := m.Len()
-			if err := writeInt(enc, n); err != nil {
+			if err := writeLen(enc, n); err != nil {
 				return err
 			}
 			if n == 0 {
@@ -176,7 +170,7 @@ func makeDefaultMarshaler(t reflect.Type) marshaler {
 
 		return func(enc *Encoder, v reflect.Value) error {
 			n := v.Len()
-			if err := writeInt(enc, n); err != nil {
+			if err := writeLen(enc, n); err != nil {
 				return err
 			}
 			if n == 0 {
@@ -201,7 +195,7 @@ func makeDefaultMarshaler(t reflect.Type) marshaler {
 			// writes
 			s := v.String()
 			// TODO: enforce size limit
-			if err := writeInt(enc, len(s)); err != nil {
+			if err := writeLen(enc, len(s)); err != nil {
 				return err
 			}
 			if _, err := io.WriteString(enc.Writer(), s); err != nil {
@@ -225,10 +219,12 @@ func makeDefaultMarshaler(t reflect.Type) marshaler {
 			}
 			return nil
 		}
-	}
 
-	return func(enc *Encoder, v reflect.Value) error {
-		return fmt.Errorf("no default marshaler for %v", t)
+	default:
+		err := fmt.Errorf("no default marshaler for %v", t)
+		return func(enc *Encoder, v reflect.Value) error {
+			return err
+		}
 	}
 }
 
@@ -241,6 +237,11 @@ func writeBytes(enc *Encoder, b []byte) error {
 	return err
 }
 
+func writeUint(enc *Encoder, x uint64, n int) error {
+	enc.Scratch = binary.LittleEndian.AppendUint64(enc.Scratch[:0], x)
+	return writeBytes(enc, enc.Scratch[:n])
+}
+
 func writeBool(enc *Encoder, x bool) error {
 	b := byte(0)
 	if x {
@@ -250,10 +251,9 @@ func writeBool(enc *Encoder, x bool) error {
 	return writeBytes(enc, enc.Scratch)
 }
 
-func writeInt(enc *Encoder, x int) error {
+func writeLen(enc *Encoder, x int) error {
 	if x < 0 {
 		panic("bad")
 	}
-	enc.Scratch = binary.LittleEndian.AppendUint64(enc.Scratch[:0], uint64(x))
-	return writeBytes(enc, enc.Scratch)
+	return writeUint(enc, uint64(x), 8)
 }

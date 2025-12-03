@@ -55,11 +55,11 @@ func makeDefaultUnmarshaler(t reflect.Type) unmarshaler {
 			n = 8
 		}
 		return func(dec *Decoder, v reflect.Value) error {
-			buf := dec.Scratch(8)
-			if err := readBytes(dec, buf[:n]); err != nil {
+			x, err := readUint(dec, n)
+			if err != nil {
 				return err
 			}
-			v.SetInt(int64(binary.LittleEndian.Uint64(buf)))
+			v.SetInt(int64(x))
 			return nil
 		}
 
@@ -69,31 +69,31 @@ func makeDefaultUnmarshaler(t reflect.Type) unmarshaler {
 			n = 8
 		}
 		return func(dec *Decoder, v reflect.Value) error {
-			buf := dec.Scratch(8)
-			if err := readBytes(dec, buf[:n]); err != nil {
+			x, err := readUint(dec, n)
+			if err != nil {
 				return err
 			}
-			v.SetUint(binary.LittleEndian.Uint64(buf))
+			v.SetUint(x)
 			return nil
 		}
 
 	case reflect.Float32:
 		return func(dec *Decoder, v reflect.Value) error {
-			buf, err := readBytes2(dec, 4)
+			x, err := readUint(dec, 4)
 			if err != nil {
 				return err
 			}
-			v.SetFloat(float64(math.Float32frombits(binary.LittleEndian.Uint32(buf))))
+			v.SetFloat(float64(math.Float32frombits(uint32(x))))
 			return nil
 		}
 
 	case reflect.Float64:
 		return func(dec *Decoder, v reflect.Value) error {
-			buf, err := readBytes2(dec, 8)
+			x, err := readUint(dec, 8)
 			if err != nil {
 				return err
 			}
-			v.SetFloat(math.Float64frombits(binary.LittleEndian.Uint64(buf)))
+			v.SetFloat(math.Float64frombits(x))
 			return nil
 		}
 
@@ -130,7 +130,7 @@ func makeDefaultUnmarshaler(t reflect.Type) unmarshaler {
 		defaultUnmarshalVal := defaultUnmarshaler(t.Elem())
 
 		return func(dec *Decoder, m reflect.Value) error {
-			n, err := readInt(dec)
+			n, err := readLen(dec)
 			if err != nil {
 				return err
 			}
@@ -192,7 +192,7 @@ func makeDefaultUnmarshaler(t reflect.Type) unmarshaler {
 		defaultUnmarshal := defaultUnmarshaler(t.Elem())
 
 		return func(dec *Decoder, v reflect.Value) error {
-			n, err := readInt(dec)
+			n, err := readLen(dec)
 			if err != nil {
 				return err
 			}
@@ -218,7 +218,7 @@ func makeDefaultUnmarshaler(t reflect.Type) unmarshaler {
 
 	case reflect.String:
 		return func(dec *Decoder, v reflect.Value) error {
-			n, err := readInt(dec)
+			n, err := readLen(dec)
 			if err != nil {
 				return err
 			}
@@ -227,8 +227,8 @@ func makeDefaultUnmarshaler(t reflect.Type) unmarshaler {
 				return err
 			}
 
-			buf, err := readBytes2(dec, n)
-			if err != nil {
+			buf := dec.Scratch(n)
+			if err := readBytes(dec, buf); err != nil {
 				return err
 			}
 			// TODO: is this optimization worth it?
@@ -253,10 +253,12 @@ func makeDefaultUnmarshaler(t reflect.Type) unmarshaler {
 			}
 			return nil
 		}
-	}
 
-	return func(dec *Decoder, v reflect.Value) error {
-		return fmt.Errorf("no default unmarshaler for %v", t)
+	default:
+		err := fmt.Errorf("no default unmarshaler for %v", t)
+		return func(dec *Decoder, v reflect.Value) error {
+			return err
+		}
 	}
 }
 
@@ -264,40 +266,41 @@ func unmarshalEmpty(dec *Decoder, v reflect.Value) error {
 	return nil
 }
 
-// TODO: distinguish readBytes and readBytes2 better
-
 func readBytes(dec *Decoder, b []byte) error {
 	_, err := io.ReadFull(dec.Reader(), b)
 	return err
 }
 
-func readBytes2(dec *Decoder, n int) ([]byte, error) {
-	buf := dec.Scratch(n)
-	if err := readBytes(dec, buf); err != nil {
-		return nil, err
+func readUint(dec *Decoder, n int) (uint64, error) {
+	buf := dec.Scratch(8)
+	clear(buf)
+	if err := readBytes(dec, buf[:n]); err != nil {
+		return 0, nil
 	}
-	return buf, nil
+	return binary.LittleEndian.Uint64(buf), nil
 }
 
 func readBool(dec *Decoder) (bool, error) {
-	buf, err := readBytes2(dec, 1)
+	x, err := readUint(dec, 1)
 	if err != nil {
 		return false, err
 	}
-	if buf[0] > 1 {
+	if x != 0 && x != 1 {
 		return false, fmt.Errorf("bad") // TODO: nicer error message
 	}
-	return buf[0] != 0, nil
+	return x != 0, nil
 }
 
-func readInt(dec *Decoder) (int, error) {
-	buf, err := readBytes2(dec, 8)
+func readLen(dec *Decoder) (int, error) {
+	x, err := readUint(dec, 8)
 	if err != nil {
-		return 0, nil
+		return -1, err
 	}
-	x := int(binary.LittleEndian.Uint64(buf))
-	if x < 0 {
-		return 0, fmt.Errorf("bad")
+	if x != uint64(int(x)) {
+		return -1, fmt.Errorf("bad")
+	}
+	if int(x) < 0 {
+		return -1, fmt.Errorf("bad")
 	}
 	return int(x), nil
 }

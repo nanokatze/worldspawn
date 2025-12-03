@@ -12,9 +12,7 @@ import (
 
 // TODO: explore optimizing un/marshaling of certain structs with a memcpy
 
-// TODO: schema?
-
-var optimizedArshalers = false
+const optimizedArshalers = false
 
 type (
 	marshaler   func(enc *Encoder, v reflect.Value) error

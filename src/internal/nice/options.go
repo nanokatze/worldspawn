@@ -40,12 +40,12 @@ func JoinOptions(opts2 ...Option) Option {
 }
 
 func WithMarshaler[T any](fn func(enc *Encoder, v *T) error) Option {
-	return func(opts *options) {
-		// TODO: rename
-		fn2 := func(enc *Encoder, v reflect.Value) error {
-			return fn(enc, v.Addr().Interface().(*T))
-		}
+	// TODO: rename
+	fn2 := func(enc *Encoder, v reflect.Value) error {
+		return fn(enc, v.Addr().Interface().(*T))
+	}
 
+	return func(opts *options) {
 		if opts.customMarshalers == nil {
 			opts.customMarshalers = make(map[reflect.Type]marshaler)
 		}
@@ -54,12 +54,12 @@ func WithMarshaler[T any](fn func(enc *Encoder, v *T) error) Option {
 }
 
 func WithUnmarshaler[T any](fn func(dec *Decoder, v *T) error) Option {
-	return func(opts *options) {
-		// TODO: rename
-		fn2 := func(dec *Decoder, v reflect.Value) error {
-			return fn(dec, v.Addr().Interface().(*T))
-		}
+	// TODO: rename
+	fn2 := func(dec *Decoder, v reflect.Value) error {
+		return fn(dec, v.Addr().Interface().(*T))
+	}
 
+	return func(opts *options) {
 		if opts.customUnmarshalers == nil {
 			opts.customUnmarshalers = make(map[reflect.Type]unmarshaler)
 		}
