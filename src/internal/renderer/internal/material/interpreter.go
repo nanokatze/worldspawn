@@ -24,12 +24,14 @@ const (
 )
 
 // TODO: rename from InterpreterOutputInterface
+// TODO: once we plop this behind a pointer, change this to be a variable length
+// byte bag
 type InterpreterABI struct {
-	BSDFs     [4]uint8
+	BSDFs     [4]BSDF
 	BSDFCount uint8
 	BSDFsOff  uint8
 
-	EDFs     [1]uint8
+	EDFs     [1]EDF
 	EDFCount uint8
 	EDFsOff  uint8
 

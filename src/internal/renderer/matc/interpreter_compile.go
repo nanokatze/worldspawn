@@ -64,19 +64,15 @@ func extract2(b *compiler.Builder, c *compiler.Class, extracted map[*compiler.Cl
 
 // This is basically the same as renderer.InterpretedMaterial
 type InterpretedMaterial struct {
-	// TODO: outline these fields into a struct similar to
-	// material.InterpreterProgram, but with host slice for code
-	Code    []uint32
-	ABI     InterpreterABI // TODO: use material.InterpreterABI
-	Outputs int            // TODO: kill this and make it live in the InterpreterABI
-	// TODO: other stuff, e.g. packing the parameters, etc.
+	ABI  material.InterpreterABI
+	Code []uint32
 }
 
 // TODO: the user should provide a function for mapping frame property names to
 // offsets
 // TODO: AOVs. Either the user can specify aov name -> offset mapping at compile
 // time, we can do the remapping later somehow
-func CompileInterpretedMaterial(sea *compiler.Sea, c *compiler.Class) *InterpretedMaterial {
+func CompileInterpretedMaterial(paramOffsets []int64, sea *compiler.Sea, c *compiler.Class) *InterpretedMaterial {
 	t0 := time.Now()
 	defer func() { log.Println("Compile", time.Since(t0)) }()
 
@@ -93,11 +89,6 @@ func CompileInterpretedMaterial(sea *compiler.Sea, c *compiler.Class) *Interpret
 		log.Println("extract2")
 		compiler.Dump(sea2, x, nil)
 	}
-
-	// TODO: assert that x is opInterpreterPseudoMakeMaterial
-	// x = x.Value().Arg(0)
-
-	// x.Value().Op()
 
 	// log.Println("extraction")
 	// compiler.Dump(sea2, x, nil)
@@ -123,7 +114,7 @@ func CompileInterpretedMaterial(sea *compiler.Sea, c *compiler.Class) *Interpret
 		}
 	}
 
-	assembled := assemble(sched, regm)
+	assembled := assemble(sched, regm, paramOffsets)
 	if true {
 		log.Println("disassembly")
 		for i := 0; i < len(assembled); {
@@ -152,10 +143,32 @@ func CompileInterpretedMaterial(sea *compiler.Sea, c *compiler.Class) *Interpret
 
 	abi := x.Value().Imm().(*InterpreterABI)
 
+	// TODO: change material.InterpreterABI to be a string/byte bag and use that
+	// throughout
+
+	var bsdfs [4]material.BSDF
+	for i, num := range abi.BSDFs {
+		bsdfs[i] = num
+	}
+
+	var edfs [1]material.EDF
+	for i, num := range abi.EDFs {
+		edfs[i] = num
+	}
+
 	return &InterpretedMaterial{
-		Code:    assembled,
-		ABI:     *abi,
-		Outputs: regm[x].I,
+		ABI: material.InterpreterABI{
+			BSDFs:     bsdfs,
+			BSDFCount: uint8(len(abi.BSDFs)),
+			BSDFsOff:  uint8(abi.BSDFOff),
+
+			EDFs:     edfs,
+			EDFCount: uint8(len(abi.EDFs)),
+			EDFsOff:  uint8(abi.EDFOff),
+
+			OutputsReg: uint32(regm[x].I),
+		},
+		Code: assembled,
 	}
 }
 

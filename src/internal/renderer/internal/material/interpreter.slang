@@ -97,7 +97,7 @@ public void mateval(
     __ref InterpreterState regs,
     uint32_t *code,
     float3 normal,
-    void *materialParams,
+    void *args,
     float3x4 ObjectToWorld,
     uint3 triIdxs,
     float2 barys_yz)
@@ -168,12 +168,12 @@ evalLoop:
 
         case Op::LoadParam: {
             uint32_t off = fetcher.fetch();
-            regs[dst] = *(uint32_t*)((uint8_t*)materialParams + off);
+            regs[dst] = *(uint32_t*)((uint8_t*)args + off);
             break;
         }
         case Op::LoadAttr: {
             uint32_t off = fetcher.fetch();
-            float2 *attrbuf = *(float2**)((uint8_t*)materialParams + off);
+            float2 *attrbuf = *(float2**)((uint8_t*)args + off);
             float2 attr0 = attrbuf[triIdxs[0]];
             float2 attr1 = attrbuf[triIdxs[1]];
             float2 attr2 = attrbuf[triIdxs[2]];

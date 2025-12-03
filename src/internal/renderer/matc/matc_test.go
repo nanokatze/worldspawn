@@ -2,51 +2,13 @@ package matc
 
 import (
 	"math"
-	"reflect"
-	"strconv"
 	"testing"
 
-	"worldspawn/gpu"
 	"worldspawn/internal/compiler"
 	"worldspawn/internal/compiler/core"
 )
 
 var allRules = append(append([]compiler.RewriteRule(nil), core.Rules...), InterpreterLowerings...)
-
-func asdasd(t compiler.Type) reflect.Type {
-	switch t := t.(type) {
-	case core.IntType:
-		switch t.N {
-		case 32:
-			return reflect.TypeFor[int32]()
-		}
-	case AttributeDescriptor:
-		return reflect.TypeFor[gpu.UnsafePointer]()
-	}
-
-	panic("bad")
-}
-
-func materialArguments(abi []compiler.Type) reflect.Type {
-	fields := make([]reflect.StructField, len(abi))
-	for i, t := range abi {
-		fields[i] = reflect.StructField{
-			Name: "F" + strconv.Itoa(i),
-			Type: asdasd(t),
-		}
-	}
-	return reflect.StructOf(fields)
-}
-
-func TestXxx3(t *testing.T) {
-	abi := []compiler.Type{
-		AttributeDescriptor{},
-		core.Int32,
-		core.Int32,
-		core.Int32,
-	}
-	materialArguments(abi)
-}
 
 func TestXxx(t *testing.T) {
 	sea := compiler.NewSea()
@@ -56,27 +18,26 @@ func TestXxx(t *testing.T) {
 		Rules: allRules,
 	}
 
-	/*
-		argmap := []string{
-			"UVs",
-			"BaseColorR",
-			"BaseColorG",
-			"BaseColorB",
-		}
-		abi := []compiler.Type{
-			AttributeDescriptor{},
-			core.Int32,
-			core.Int32,
-			core.Int32,
-		}
-	*/
+	paramTypes := []compiler.Type{
+		AttributeDescriptor{},
+		core.Int32,
+		core.Int32,
+		core.Int32,
+	}
 
-	normal := b.Value2(OpInterpGetShadingNormal, core.ArrayType{3, core.Int32}, nil)
+	paramStruct := ParamStruct(paramTypes)
+
+	paramOffsets := make([]int64, len(paramTypes))
+	for i := range paramOffsets {
+		paramOffsets[i] = int64(paramStruct.Field(i).Offset)
+	}
+
+	normal := b.Value2(OpInterpLoadShadingNormal, core.ArrayType{3, core.Int32}, nil)
 	// normal_x := core.ArrayExtract(b, normal, 0)
 	// normal_y := core.ArrayExtract(b, normal, 1)
 	// normal_z := core.ArrayExtract(b, normal, 2)
 
-	uv := LoadAttribute(b, LoadArgument(b, AttributeDescriptor{}, 0))
+	uv := LoadAttribute(b, LoadMaterialParameter(b, AttributeDescriptor{}, 0))
 	u := core.ArrayExtract(b, uv, 0)
 	v := core.ArrayExtract(b, uv, 1)
 
@@ -102,9 +63,9 @@ func TestXxx(t *testing.T) {
 	color := core.MakeArray(
 		b,
 		core.Int32,
-		LoadArgument(b, core.Int32, 1),
-		LoadArgument(b, core.Int32, 2),
-		LoadArgument(b, core.Int32, 3))
+		LoadMaterialParameter(b, core.Int32, 1),
+		LoadMaterialParameter(b, core.Int32, 2),
+		LoadMaterialParameter(b, core.Int32, 3))
 
 	white := core.MakeArray(b, core.Int32, one, one, one)
 
@@ -118,15 +79,14 @@ func TestXxx(t *testing.T) {
 		core.EmptyType{},
 		nil,
 		// bsdf
-		b.Value2(OpDFComposition, BSDFType{}, nil,
+		b.Value2(OpDFWeightedSum, BSDFType{}, nil,
 			final, b.Value2(OpDiffuseBSDF, BSDFType{}, nil, normal)),
 		// edf
-		b.Value2(OpDFComposition, EDFType{}, nil),
+		b.Value2(OpDFWeightedSum, EDFType{}, nil),
 	)
 
-	compiled := CompileInterpretedMaterial(sea, program)
+	compiled := CompileInterpretedMaterial(paramOffsets, sea, program)
 
-	t.Log(compiled.Outputs)
 	t.Log(compiled.ABI)
 }
 
@@ -147,9 +107,9 @@ func TestXxx2(t *testing.T) {
 		core.EmptyType{},
 		nil,
 		// bsdf,
-		b.Value2(OpDFComposition, BSDFType{}, nil),
+		b.Value2(OpDFWeightedSum, BSDFType{}, nil),
 		// edf
-		b.Value2(OpDFComposition, EDFType{}, nil,
+		b.Value2(OpDFWeightedSum, EDFType{}, nil,
 			emissionSpectrum, b.Value2(OpUniformEDF, EDFType{}, nil)),
 	)
 

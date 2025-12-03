@@ -64,20 +64,20 @@ var (
 	opInterpLoadAttribute = defInterpOp("LoadAttribute", aparam(material.ALoadAttr))
 
 	// TODO: kill in favor of LoadAttribute
-	OpInterpGetShadingNormal = defInterpOp("GetShadingNormal", aaa{op: material.ALoadNormal, dst: true})
+	OpInterpLoadShadingNormal = defInterpOp("GetShadingNormal", aaa{op: material.ALoadNormal, dst: true})
 )
 
 type aparam material.A
 
 func (d aparam) Validate(typ compiler.Type, imm any, args ...*compiler.Class) {
-	_ = imm.(int32)
+	_ = imm.(int64)
 }
 
 func (d aparam) Assemble(as *assembler, c *compiler.Class, v *compiler.Value, regm map[*compiler.Class]regRange) {
 	dst := uint32(regm[c].I)
-	off := as.params[v.Imm().(int32)]
+	off := as.paramOffsets[v.Imm().(int64)]
 
-	as.code = append(as.code, packinstr(material.A(d), dst, 0, 0), off)
+	as.code = append(as.code, packinstr(material.A(d), dst, 0, 0), uint32(off))
 }
 
 // TODO: should be hashable. Doesn't need to be public.

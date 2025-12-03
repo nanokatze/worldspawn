@@ -38,19 +38,14 @@ public struct MeshPart {
     public float3 *normals;
 }
 
-public struct materialParams2 {
-    public float2 *uvs;
-    public float baseColor[3];
-    public float emission[3];
-}
-
 // TODO: kill kill kill
 public struct MaterialParams {
     public interpreterProgram program;
 
     public MeshPart meshPart;
 
-    public materialParams2 params;
+    // must be aligned to 8-byte boundary
+    public uint8_t[256] args;
 }
 
 public struct Scene {

@@ -6,8 +6,8 @@ import (
 )
 
 type assembler struct {
-	params []uint32 // can be just array at this point
-	code   []uint32
+	paramOffsets []int64
+	code         []uint32
 }
 
 // TODO: move to a different file? perhaps back to mc?
@@ -15,16 +15,10 @@ func packinstr(op material.A, dst, src0, src1 uint32) uint32 {
 	return uint32(op) | uint32(dst)<<8 | uint32(src0)<<16 | uint32(src1)<<24
 }
 
-func assemble(schedule []*compiler.Class, regm map[*compiler.Class]regRange) []uint32 {
+func assemble(schedule []*compiler.Class, regm map[*compiler.Class]regRange, paramOffsets []int64) []uint32 {
 	as := assembler{}
 
-	// Matches renderer.materialParams
-	as.params = []uint32{
-		uint32(0),
-		uint32(8),
-		uint32(12),
-		uint32(16),
-	}
+	as.paramOffsets = paramOffsets
 
 	for _, class := range schedule {
 		v := class.Value()

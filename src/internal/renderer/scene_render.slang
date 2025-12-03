@@ -246,7 +246,7 @@ struct triangleLight {
             m.regs,
             materialParams->program.code,
             float3(0), // TODO
-            (void*)&materialParams->params,
+            (void*)&materialParams->args,
             ObjectToWorld,
             uint3(0), // TODO
             barys);
@@ -425,7 +425,7 @@ bool closesthit(
         bsdf.regs,
         materialParams->program.code,
         normal,
-        (void*)&materialParams->params,
+        (void*)&materialParams->args,
         ObjectToWorld,
         triIdxs,
         barys_yz);

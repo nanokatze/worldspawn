@@ -14,8 +14,10 @@ import (
 	"math"
 	"os"
 	"path"
+	"reflect"
 	"runtime"
 	"runtime/trace"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -33,6 +35,7 @@ import (
 	"worldspawn/internal/fuckwwise/opusfile"
 	"worldspawn/internal/fuckwwise/wav"
 	"worldspawn/internal/renderer"
+	"worldspawn/internal/renderer/matc"
 	"worldspawn/sdl"
 )
 
@@ -245,7 +248,6 @@ func redrawLocked() bool {
 		copy(clientRenderer.privateScene.Instance, clientRenderer.scene.Instance)
 		copy(clientRenderer.privateScene.Mesh, clientRenderer.scene.Mesh)
 		copy(clientRenderer.privateScene.Materials, clientRenderer.scene.Materials)
-		copy(clientRenderer.privateScene.Pose, clientRenderer.scene.Pose)
 		clientRenderer.privateScene.Sky = clientRenderer.scene.Sky
 		clientRenderer.privateScene.OurCamera = clientRenderer.scene.OurCamera
 
@@ -477,9 +479,6 @@ func (sr *idk) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDurat
 		for i := range sr.scene.Instance {
 			sr.scene.Instance[i].Transform = 0
 		}
-		for i := range sr.scene.Pose {
-			sr.scene.Pose[i] = nil
-		}
 		sr.scene.Sky = texture(w.Sky).Image
 
 		playerEntity, _ := w.Entity.Load(playerID)
@@ -512,6 +511,7 @@ func (sr *idk) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDurat
 		}
 
 		for id, v := range ecs.Join(w.RenderingGeometry, w.TranslationRotation) {
+			entity, hasEntity := w.Entity.Load(id)
 			renderingGeometry := v.V1
 
 			i := id.Index()
@@ -528,46 +528,24 @@ func (sr *idk) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDurat
 				}
 			}
 
-			// color := [][3]float32{
-			// 	{1, 0.4, 0},
-			// 	{0, 0.4, 1},
-			// }[i%2]
-
 			mesh := model(renderingGeometry)
 
 			sr.scene.Mesh[i] = mesh
-			sr.scene.Materials[i] = mesh.DefaultMaterials
 
-			/*
-				// This is just horribly broken
+			// TODO: stop doing slices.Clone
+			sr.scene.Materials[i] = slices.Clone(mesh.DefaultMaterials)
 
-				baseMesh := model(rendererModel.Filename)
-
-				// tbf we can always just allocate a unique deforming mesh
-				mesh := sr.scene.MeshInstance[i].Mesh
-
-				if sr.scene.MeshInstance[i].BaseMesh != baseMesh {
-					mesh = new(renderer.Mesh)
-					mesh.InitDeforming(baseMesh)
-					sr.scene.MeshInstance[i].BaseMesh = baseMesh
-					sr.scene.MeshInstance[i].Mesh = mesh
+			if hasEntity {
+				for j := range sr.scene.Materials[i] {
+					m := &sr.scene.Materials[i][j]
+					// TODO: do we call this params or args?
+					args := reflect.NewAt(m.Material.ParamStruct, unsafe.Pointer(&m.Args)).Elem()
+					// TODO: precompile Gather
+					matc.GatherArgs(args, reflect.ValueOf(entity), m.Material.ParamNames)
 				}
-
-				if pose, ok := w.Pose.Load(id); ok {
-					indirectedPose := make([]geometry.Mat4x4, len(mesh.VertexGroups))
-					for i, groupName := range mesh.VertexGroups {
-						xform, ok := pose[groupName]
-						if !ok {
-							xform = geometry.Mat4x4Identity()
-						}
-						indirectedPose[i] = xform
-					}
-					sr.scene.Pose[i] = indirectedPose
-				}
-			*/
+			}
 
 			sr.scene.Instance[i].Mask = mask
-
 			sr.scene.Instance[i].Transform = i
 		}
 

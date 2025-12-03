@@ -32,16 +32,6 @@ type meshPart2 struct {
 	Normals      gpu.Pointer[[3]float32]
 }
 
-// TODO: replace with [256]byte and rely on matc to provide the function to fill
-// stuff out
-type materialParams2 struct {
-	UVs        gpu.Pointer[[2]float32]
-	BaseColorR float32
-	BaseColorG float32
-	BaseColorB float32
-	Emission   [3]float32
-}
-
 // TODO: kill!!!!!!!!!
 type materialParams struct {
 	_ structs.HostLayout
@@ -51,7 +41,8 @@ type materialParams struct {
 
 	MeshPart meshPart2
 
-	Params materialParams2
+	// must be aligned to 8-byte boundary
+	Args [256]byte
 }
 
 // TODO: I guess we'll need to do some involved memory management in Scene.

@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"log"
 	"path"
+	"reflect"
 	"sync"
 
 	"worldspawn/deathmatch/internal/game"
@@ -111,13 +112,26 @@ func getmaterial(identifier string) renderer.MaterialInstance {
 			goto bail
 		}
 
+		// TODO: naming!!!!!!!!!!!!!!!!
+
 		var mat struct {
-			Header  any
-			Program jsontext.Value
+			ParamTypes []string
+			Host       []string
+			Program    jsontext.Value
 		}
 		if err := json.Unmarshal(src, &mat); err != nil {
 			log.Printf("getmaterial: %v", err)
 			goto bail
+		}
+
+		paramTypes := make([]compiler.Type, len(mat.ParamTypes))
+		for i := range paramTypes {
+			paramTypes[i] = mtlj.Type(mat.ParamTypes[i])
+		}
+		paramStruct := matc.ParamStruct(paramTypes)
+		paramOffsets := make([]int64, paramStruct.NumField())
+		for i := range paramOffsets {
+			paramOffsets[i] = int64(paramStruct.Field(i).Offset)
 		}
 
 		sea := compiler.NewSea()
@@ -131,8 +145,9 @@ func getmaterial(identifier string) renderer.MaterialInstance {
 			goto bail
 		}
 
-		m.Material = renderer.NewMaterial(sea, ir)
-		m.BaseColor = [3]float32{1, 0.2, 0}
+		m.Material = renderer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(paramOffsets, sea, ir))
+		m.Material.ParamStruct = paramStruct
+		m.Material.ParamNames = mat.Host
 	}
 	materialcache[identifier] = m
 	return m
@@ -140,7 +155,7 @@ func getmaterial(identifier string) renderer.MaterialInstance {
 bail:
 	// TODO: stop using gotos lmao aaa
 	m.Material = errorMaterial()
-	m.Emission = [3]float32{1, 0, 1}
+	m.Material.ParamStruct = reflect.StructOf(nil)
 	materialcache[identifier] = m
 	return m
 }
@@ -164,12 +179,12 @@ var errorMaterial = sync.OnceValue(func() *renderer.InterpretedMaterial {
 		core.EmptyType{},
 		nil,
 		// bsdf,
-		b.Value2(matc.OpDFComposition, matc.BSDFType{}, nil),
+		b.Value2(matc.OpDFWeightedSum, matc.BSDFType{}, nil),
 		// edf
-		b.Value2(matc.OpDFComposition, matc.EDFType{}, nil),
+		b.Value2(matc.OpDFWeightedSum, matc.EDFType{}, nil),
 	)
 
-	return renderer.NewMaterial(sea, program)
+	return renderer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(nil, sea, program))
 })
 
 func model(geo game.GeometryPacked) *renderer.Mesh {

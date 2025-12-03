@@ -16,9 +16,7 @@ type Instance struct {
 // TODO: move Material into its own column (array)?
 type MaterialInstance struct {
 	Material *InterpretedMaterial
-	// TODO: these should be expressed somehow generically
-	BaseColor [3]float32
-	Emission  [3]float32
+	Args     [256]byte
 }
 
 // TODO: actually remove this entirely from here and push any kind of tracking
@@ -37,13 +35,9 @@ type SceneDirty struct {
 
 	// TODO: prefix instance-rate stuff with instance? or idk Or put them into
 	// Instance struct { ... }
-	Instance []Instance
-	Mesh     []*Mesh
-	// Vox []*Vox
+	Instance  []Instance
+	Mesh      []*Mesh
 	Materials [][]MaterialInstance
-
-	// TODO: this is a hack for testing skeletal posing and should be removed.
-	Pose [][]geometry.Mat4x4
 }
 
 func NewSceneDirty(n int) *SceneDirty {
@@ -55,8 +49,6 @@ func NewSceneDirty(n int) *SceneDirty {
 		Instance:  make([]Instance, n),
 		Mesh:      make([]*Mesh, n),
 		Materials: make([][]MaterialInstance, n),
-
-		Pose: make([][]geometry.Mat4x4, n),
 	}
 }
 
@@ -131,21 +123,13 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 					Normals:      gpu.SliceData(part.NormalBuffer),
 				},
 
-				Params: materialParams2{
-					UVs:        gpu.SliceData(part.AttribBuffers[0].(gpu.Slice[[2]float32])),
-					BaseColorR: materialInstance.BaseColor[0],
-					BaseColorG: materialInstance.BaseColor[1],
-					BaseColorB: materialInstance.BaseColor[2],
-					Emission:   materialInstance.Emission,
-				},
+				Args: materialInstance.Args,
 			}
 
 			// TODO: we should build an emissive blas and when instancing it
 			// we'll enable/disable geometries (by specifying emission power for
 			// those geometries)
 			if materialInstance.Material.emissive() {
-				materialParamsHost[instanceIdx*scene.maxPartsPerMesh+partIdx].Params.Emission = materialInstance.Emission
-
 				emissiveInstancesHost[emissiveInstanceCount] = emissiveInstance{
 					transform:             A,
 					originalInstanceIndex: uint32(instanceIdx),

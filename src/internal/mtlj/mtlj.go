@@ -19,7 +19,7 @@ type stmt struct {
 	Args []string
 }
 
-func cooktype(typ string) compiler.Type {
+func Type(typ string) compiler.Type {
 	switch typ {
 	case "Empty":
 		return core.EmptyType{}
@@ -39,24 +39,21 @@ func cooktype(typ string) compiler.Type {
 }
 
 var opByName = map[string]compiler.Op{
-	"IConst":           core.OpIConst,
-	"MakeArray":        core.OpMakeArray,
-	"ArrayExtract":     core.OpArrayExtract,
-	"LoadArgument":     matc.OpLoadArgument,
-	"GetShadingNormal": matc.OpInterpGetShadingNormal,
-	"DiffuseBSDF":      matc.OpDiffuseBSDF,
-	"UniformEDF":       matc.OpUniformEDF,
-	"DFComposition":    matc.OpDFComposition,
-	"MakeSurface":      matc.OpMakeSurface,
+	"IConst":                core.OpIConst,
+	"MakeArray":             core.OpMakeArray,
+	"ArrayExtract":          core.OpArrayExtract,
+	"LoadMaterialParameter": matc.OpLoadMaterialParameter,
+	"LoadShadingNormal":     matc.OpInterpLoadShadingNormal,
+	"DiffuseBSDF":           matc.OpDiffuseBSDF,
+	"UniformEDF":            matc.OpUniformEDF,
+	"DFWeightedSum":         matc.OpDFWeightedSum,
+	"MakeSurface":           matc.OpMakeSurface,
 }
 
 var opImmParser = map[compiler.Op]func(imm string) (any, error){
-	core.OpIConst:       func(imm string) (any, error) { return strconv.ParseInt(imm, 10, 64) },
-	core.OpArrayExtract: func(imm string) (any, error) { return strconv.ParseInt(imm, 10, 64) },
-	matc.OpLoadArgument: func(imm string) (any, error) {
-		idx, err := strconv.ParseInt(imm, 10, 64)
-		return int32(idx), err
-	},
+	core.OpIConst:                func(imm string) (any, error) { return strconv.ParseInt(imm, 10, 64) },
+	core.OpArrayExtract:          func(imm string) (any, error) { return strconv.ParseInt(imm, 10, 64) },
+	matc.OpLoadMaterialParameter: func(imm string) (any, error) { return strconv.ParseInt(imm, 10, 64) },
 }
 
 // TODO: a proper syntax?
@@ -74,7 +71,7 @@ func Parse(b *compiler.Builder, src []byte) (*compiler.Class, error) {
 			panic(fmt.Sprintf("cock %s", p.Op))
 		}
 
-		typ := cooktype(p.Type)
+		typ := Type(p.Type)
 
 		var imm any
 		immparser := opImmParser[op]

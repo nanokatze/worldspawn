@@ -11,13 +11,10 @@ func defOp(name string, validate compiler.Validator) compiler.Op {
 	return compiler.DefOp("matc."+name, validate)
 }
 
-// TODO: rename to LoadMaterialInput?
-// TODO: we also need a version of this that takes string identifier which will
-// be used for some stuff offline
-var OpLoadArgument = defOp("LoadArgument", nil)
+var OpLoadMaterialParameter = defOp("LoadParameter", nil)
 
-func LoadArgument(b *compiler.Builder, typ compiler.Type, index int32) *compiler.Class {
-	return b.Value2(OpLoadArgument, typ, index)
+func LoadMaterialParameter(b *compiler.Builder, typ compiler.Type, index int32) *compiler.Class {
+	return b.Value2(OpLoadMaterialParameter, typ, index)
 }
 
 // TODO: put other fields into AttributeDescriptor (e.g. the set of domains it
@@ -79,10 +76,7 @@ var (
 	OpBSDFReflectance = defOp("BSDFReflectance", nil) // BSDF -> color
 
 	// Even args are tints (weights), odd args are DFs (TODO: swap?)
-	// TODO: rename to something else, e.g. DFCompose or DFWeightedSum? MDL
-	// actually has similar functions that it calls mix, so I guess we could
-	// also call it DFMix.
-	OpDFComposition = defOp("DFComposition", nil)
+	OpDFWeightedSum = defOp("DFWeightedSum", nil)
 
 	OpMakeSurface = defOp("MakeSurface", nil) // (BSDF, EDF) -> Surface
 
