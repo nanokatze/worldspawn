@@ -17,6 +17,7 @@ type Entity any
 // construct un/marshalers
 var entityarshaltab = mkarshaltab()
 
+// TODO: kill
 func registerEntity[T any]() {
 	t := reflect.TypeFor[T]()
 	entityarshaltab.Register(t.Name(), t)

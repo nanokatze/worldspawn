@@ -40,8 +40,12 @@ type FPSCharacter struct {
 	Move    geometry.Vec2
 	Buttons uint64
 
-	ActiveWeapon ecs.ID
-	Supported    bool
+	Supported bool
+
+	ActiveWeapon           ecs.ID
+	ActiveWeaponViewmodel  ecs.ID
+	ActiveWeaponWorldmodel ecs.ID
+	Weapons                []ecs.ID
 }
 
 func init() {
@@ -51,13 +55,13 @@ func init() {
 var _ Character = FPSCharacter{}
 
 func (entity FPSCharacter) CharacterUpdate(w *Scene, id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
-	positionRotation, _ := w.TranslationRotation.Load(id)
+	// positionRotation, _ := w.TranslationRotation.Load(id)
 	inventory, _ := w.ArmedCharacter.Load(id)
 
 	// should this be subtick time?
-	now := w.Now
+	// now := w.Now
 
-	oldActiveWeapon := entity.ActiveWeapon
+	var switchToWeapon ecs.ID
 
 	switch cmd := cmd.Cmd.(type) {
 	case DLookX:
@@ -74,58 +78,71 @@ func (entity FPSCharacter) CharacterUpdate(w *Scene, id ecs.ID, cmd TimestampedI
 		entity.Buttons &^= uint64(1) << cmd
 	case Slot:
 		if 0 <= int(cmd) && int(cmd) < len(inventory.Slots) {
-			entity.ActiveWeapon = inventory.Slots[cmd]
+			switchToWeapon = inventory.Slots[cmd]
 		}
 	default:
 		// TODO: optionally print this command for debugging and stuff
 	}
 
-	// TODO: instead of checking for zero, we should check for validity
 	if !w.IsEntityValid(entity.ActiveWeapon) && len(inventory.Slots) > 0 {
-		entity.ActiveWeapon = inventory.Slots[0]
+		switchToWeapon = inventory.Slots[0]
 	}
 
-	if oldActiveWeapon != entity.ActiveWeapon {
-		weapon, ok := assertEntity[WeaponDeployedInterface](w, entity.ActiveWeapon)
+	// TODO: check for validity!
+	if switchToWeapon != 0 {
+		// TODO: check for validity!
+		if entity.ActiveWeaponViewmodel != 0 {
+			w.Delete.Store(entity.ActiveWeaponViewmodel, struct{}{})
+		}
+
+		// Now we can switch the weapons
+
+		entity.ActiveWeapon = switchToWeapon
+		entity.ActiveWeaponViewmodel = 0
+
+		weapon, ok := assertEntity[Weapon2](w, entity.ActiveWeapon)
 		if ok {
-			weapon.WeaponDeployed(w, entity.ActiveWeapon, id, now, info.Δt)
+			entity.ActiveWeaponViewmodel = weapon.CreateGeometry(w)
+
+			w.Viewmodel2.Store(entity.ActiveWeaponViewmodel,
+				Viewmodel2{
+					Camera: entity.Camera,
+					Mode:   1,
+				})
+			w.ParentTo(entity.ActiveWeaponViewmodel, entity.Camera)
 		}
 	}
 
-	if w.IsEntityValid(entity.ActiveWeapon) {
-		// TODO: we should add a component on the player which will specify offset
-		// wrt view for some weapons. Weapons will need to carry some sort of
-		// identifier for this purpose.
-		elevation := float32(0)
-		// HACK: we should probably just let the weapon specify elevation or provide an ID
-		/*
-			if fpsCharacter.ActiveWeapon != inventory.Slots[1] {
-				elevation = 0
-			}
-		*/
+	/*
+		if w.IsEntityValid(entity.ActiveWeapon) {
+			// TODO: we should add a component on the player which will specify offset
+			// wrt view for some weapons. Weapons will need to carry some sort of
+			// identifier for this purpose.
+			elevation := float32(0)
 
-		w.WeaponAim.Store(entity.ActiveWeapon, WeaponAim{
-			ShootPos: positionRotation.Translation.
-				Add(geometry.DVec3FromVec3(positionRotation.Rotation.Rotate(geometry.Vec3{0, 0, entity.StandingViewHeight}))),
-			ShootRotation: positionRotation.Rotation.
-				Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, -1}, 2*math.Pi*entity.Look.X)).
-				Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, 2*math.Pi*entity.Look.Y-elevation)),
-			Buttons: entity.Buttons,
-		})
+			w.WeaponAim.Store(entity.ActiveWeapon, WeaponAim{
+				ShootPos: positionRotation.Translation.
+					Add(geometry.DVec3FromVec3(positionRotation.Rotation.Rotate(geometry.Vec3{0, 0, entity.StandingViewHeight}))),
+				ShootRotation: positionRotation.Rotation.
+					Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, -1}, 2*math.Pi*entity.Look.X)).
+					Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, 2*math.Pi*entity.Look.Y-elevation)),
+				Buttons: entity.Buttons,
+			})
 
-		if weapon, ok := assertEntity[Weapon](w, entity.ActiveWeapon); ok {
-			recoil := weapon.WeaponUpdateSubtick(w, entity.ActiveWeapon, id, now, info)
+			if weapon, ok := assertEntity[Weapon](w, entity.ActiveWeapon); ok {
+				recoil := weapon.WeaponUpdateSubtick(w, entity.ActiveWeapon, id, now, info)
 
-			if recoil.LengthSq() > 0 {
-				viewPunch, ok := w.ViewPunch.Load(id)
-				if !ok {
-					viewPunch = geometry.Rot3One()
+				if recoil.LengthSq() > 0 {
+					viewPunch, ok := w.ViewPunch.Load(id)
+					if !ok {
+						viewPunch = geometry.Rot3One()
+					}
+					viewPunch = viewPunch.Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, -recoil[0]))
+					w.ViewPunch.Store(id, viewPunch)
 				}
-				viewPunch = viewPunch.Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, -recoil[0]))
-				w.ViewPunch.Store(id, viewPunch)
 			}
 		}
-	}
+	*/
 
 	// TODO: avoid unnecessary updates
 	w.Entity.Store(id, entity)

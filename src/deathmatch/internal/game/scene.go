@@ -155,6 +155,7 @@ type Components struct {
 	PhysicsMassOverride    ecs.ComponentStore[float32] // TODO: remove "Physics" prefix from these
 	PhysicsInertiaOverride ecs.ComponentStore[geometry.Mat4x4]
 
+	// TODO: remove this component
 	ArmedCharacter ecs.ComponentStore[ArmedCharacter]
 
 	// TODO: unify these two components probably
