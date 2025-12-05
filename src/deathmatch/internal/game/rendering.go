@@ -25,13 +25,6 @@ type SoundEmitter struct {
 	PlayTime Time
 }
 
-// Deprecated; TODO: remove in favor of creating a separate entity with
-// visibility restricted through Viewmodel2 and parenting it to camera at a
-// particular offset
-type Viewmodel struct {
-	Translation geometry.Vec3
-}
-
 // TODO: rename
 type Viewmodel2 struct {
 	// TODO: replace with an arbitrary int64 id so we can have the same cameras

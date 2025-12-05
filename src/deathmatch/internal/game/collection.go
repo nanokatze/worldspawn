@@ -123,9 +123,6 @@ func (dst *Components) CopyEntities(id ecs.ID, src *Components) {
 	if v, ok := src.Scale.Load(1); ok {
 		dst.Scale.Store(id, v)
 	}
-	if v, ok := src.Viewmodel.Load(1); ok {
-		dst.Viewmodel.Store(id, v)
-	}
 	if v, ok := src.RenderingGeometry.Load(1); ok {
 		dst.RenderingGeometry.Store(id, v)
 	}

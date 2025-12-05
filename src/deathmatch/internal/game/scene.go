@@ -162,8 +162,6 @@ type Components struct {
 	ViewPunch         ecs.ComponentStore[geometry.Rot3]
 	ViewPunchVelocity ecs.ComponentStore[geometry.Vec3]
 
-	Viewmodel ecs.ComponentStore[Viewmodel]
-
 	PlayerSpawn ecs.ComponentStore[struct{}]
 
 	DeleteAfter ecs.ComponentStore[Time]
