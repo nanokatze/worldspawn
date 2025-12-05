@@ -1,4 +1,4 @@
-package protocol
+package framing
 
 import "io"
 

@@ -1,6 +1,6 @@
-package protocol
+package framing
 
-// TODO: could we perhaps replace these with an interface {}?
+// TODO: move these out of here
 
 // methods called by server, on client
 const (

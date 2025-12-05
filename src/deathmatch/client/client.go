@@ -18,8 +18,8 @@ import (
 
 	"worldspawn/deathmatch/internal/game"
 	"worldspawn/internal/ecs"
+	"worldspawn/internal/framing"
 	"worldspawn/internal/nice"
-	"worldspawn/internal/protocol"
 )
 
 var _ = hex.Dump
@@ -96,7 +96,7 @@ func newClient(renderer Renderer, addr string) (*Client, error) {
 
 	ready := make(chan struct{})
 	go func() {
-		deframer := protocol.NewDeframer(stream2)
+		deframer := framing.NewDeframer(stream2)
 		for {
 			var msgtype uint64
 			if err := binary.Read(deframer, binary.LittleEndian, &msgtype); err != nil {
@@ -104,12 +104,12 @@ func newClient(renderer Renderer, addr string) (*Client, error) {
 			}
 			// TODO: rewrite this mess
 			switch msgtype {
-			case protocol.SetDeltaTime:
+			case framing.SetDeltaTime:
 				// TODO: add a method on the Session to set delta time or
 				// whatever?
 				binary.Read(deframer, binary.LittleEndian, &s.Δt)
 
-			case protocol.ResetWorld:
+			case framing.ResetWorld:
 				var maxEntities int64
 				binary.Read(deframer, binary.LittleEndian, &maxEntities)
 				// TODO: for client-only entities we can use the high
@@ -126,14 +126,14 @@ func newClient(renderer Renderer, addr string) (*Client, error) {
 
 				// The renderer will resize its scene by itself
 
-			case protocol.SetPlayer:
+			case framing.SetPlayer:
 				var player ecs.ID
 				binary.Read(deframer, binary.LittleEndian, &player)
 				s.mu.Lock()
 				s.player = player
 				s.mu.Unlock()
 
-			case protocol.UpdateWorld:
+			case framing.UpdateWorld:
 				// TODO: be careful to only read up to a limit.
 				buf, err := io.ReadAll(deframer)
 				if err != nil {
@@ -320,7 +320,7 @@ func (s *Client) tick(Δt time.Duration) {
 		s.inputCmds = s.inputCmds[:0]
 
 		// TODO: this can block which is not very nice... or maybe that's fine?
-		msg := protocol.NewFramer(s.inputStream)
+		msg := framing.NewFramer(s.inputStream)
 		msg.Write(buf.Bytes())
 		msg.Next()
 	}
