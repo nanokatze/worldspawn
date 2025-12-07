@@ -60,17 +60,17 @@ func (entity FPSCharacter) CharacterUpdate(w *Scene, id ecs.ID, cmd TimestampedI
 	var switchToWeapon ecs.ID
 
 	switch cmd := cmd.Cmd.(type) {
-	case DLookX:
+	case InputCmdDLookX:
 		entity.Look.X = float32(math.Mod(float64(entity.Look.X+float32(cmd)), 1))
-	case DLookY:
+	case InputCmdDLookY:
 		entity.Look.Y = min(max(entity.Look.Y+float32(cmd), -0.25), 0.25)
-	case MoveX:
+	case InputCmdSetMovementVelocityX:
 		entity.Move.X = float32(cmd)
-	case MoveY:
+	case InputCmdSetMovementVelocityY:
 		entity.Move.Y = float32(cmd)
-	case ButtonDown:
+	case InputCmdPressButton:
 		entity.Buttons |= uint64(1) << cmd
-	case ButtonUp:
+	case InputCmdReleaseButton:
 		entity.Buttons &^= uint64(1) << cmd
 	case Slot:
 		if 0 <= int(cmd) && int(cmd) < len(inventory.Slots) {

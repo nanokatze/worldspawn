@@ -79,7 +79,7 @@ func (w *World) Transform(id ecs.ID) (geometry.Mat4x4, bool) {
 }
 */
 
-// TODO: rename
+// TODO: rename?
 type SingletonComponents struct {
 	// TODO: document what this means when we're in the middle of an Update
 	Now Time
@@ -95,13 +95,7 @@ type Camera struct {
 	FieldOfView float32
 }
 
-// TODO: component for viewmodels and being drawn at custom fov or something
-// TODO: we'll probably want viewmodels to be separate entities
-
 // TODO: add a type for representing non-mutable lists and stuff?
-
-// TODO: make Components be registered dynamically? this would let us move them
-// into each individual func init()
 
 // TODO: we can update OldWorld (against which we compute delta) only sometimes
 // and incrementally (this is the actually useful bit, as updating "sometimes"
@@ -120,7 +114,7 @@ func (scene *Scene) ParentTo(child, parent ecs.ID) {
 // func (scene *Scene) GetScale(id ecs.ID, scale geometry.Vec3) {
 // }
 
-// TODO: rename
+// TODO: rename to ObjectComponents?
 // TODO: introduce struct tags like compatibility names etc
 type Components struct {
 	// Name ecs.ComponentStore[string]

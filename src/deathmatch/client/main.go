@@ -728,14 +728,14 @@ func handleInput(e any) {
 				value = 0
 			}
 
-			cmds = game.AppendAction(cmds, etime, game.ActionMoveX, value)
+			cmds = game.AppendAction(cmds, etime, game.ActionSetMovementVelocityX, value)
 
 		case sdl.GAMEPAD_AXIS_LEFTY:
 			if math.Abs(float64(value)) < 0.2 {
 				value = 0
 			}
 
-			cmds = game.AppendAction(cmds, etime, game.ActionMoveY, -value)
+			cmds = game.AppendAction(cmds, etime, game.ActionSetMovementVelocityY, -value)
 
 		case sdl.GAMEPAD_AXIS_RIGHTX:
 			flickStickTest.deflection.X = value
