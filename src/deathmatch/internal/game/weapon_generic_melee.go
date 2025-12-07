@@ -8,10 +8,6 @@ import (
 type WeaponGenericMelee struct {
 }
 
-func init() {
-	registerEntity[WeaponGenericMelee]()
-}
-
 var _ Weapon = WeaponGenericMelee{}
 
 func (weapon WeaponGenericMelee) WeaponUpdateSubtick(w *Scene, weaponID, operatorID ecs.ID, now Time, info *UpdateParams) (recoil geometry.Vec3) {

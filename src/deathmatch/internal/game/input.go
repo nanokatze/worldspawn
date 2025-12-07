@@ -1,16 +1,11 @@
 package game
 
 import (
-	"fmt"
-	"io"
 	"reflect"
-
-	"worldspawn/internal/nice"
-
-	"golang.org/x/crypto/blake2b"
 )
 
 // TODO: give these a type
+// TODO: rename to axis?
 const (
 	_ = iota
 
@@ -82,112 +77,6 @@ type TimestampedInputCmd struct {
 
 type InputCmd any
 
-func init() {
-	registerInputCommand[DLookX]()
-	registerInputCommand[DLookY]()
-	registerInputCommand[MoveX]()
-	registerInputCommand[MoveY]()
-	registerInputCommand[ButtonDown]()
-	registerInputCommand[ButtonUp]()
-	registerInputCommand[Slot]()
-}
-
-// TODO: delete this
-type arshaltab struct {
-	typ map[reflect.Type]struct {
-		name string
-		hash [4]byte // TODO: input cmds would benefit from 2 or even 1 byte identifiers
-	}
-	name map[string]reflect.Type
-	hash map[[4]byte]reflect.Type
-}
-
-func (a *arshaltab) Register(name string, t reflect.Type) {
-	if _, ok := a.name[name]; ok {
-		panic("collision")
-	}
-
-	h, _ := blake2b.New(4, nil)
-	h.Write([]byte(name))
-
-	hash := [4]byte(h.Sum(nil))
-
-	if _, ok := a.hash[hash]; ok {
-		panic("collision")
-	}
-
-	a.typ[t] = struct {
-		name string
-		hash [4]byte
-	}{
-		name: name,
-		hash: hash,
-	}
-	a.name[name] = t
-	a.hash[hash] = t
-}
-
-func mkarshaltab() *arshaltab {
-	return &arshaltab{
-		typ: map[reflect.Type]struct {
-			name string
-			hash [4]byte
-		}{},
-		name: map[string]reflect.Type{},
-		hash: map[[4]byte]reflect.Type{},
-	}
-}
-
-var inputcmdarshaltab = mkarshaltab()
-
-func registerInputCommand[T any]() {
-	t := reflect.TypeFor[T]()
-	inputcmdarshaltab.Register(t.Name(), t)
-}
-
-// TODO: when we move game stuff into game/???/, arshaler code should not be in
-// the game's code
-
-func InputCommandNiceMarshal(enc *nice.Encoder, icmd *InputCmd) error {
-	data := reflect.ValueOf(*icmd)
-	typ := data.Type()
-
-	info, ok := inputcmdarshaltab.typ[typ]
-	if !ok {
-		panic("bad")
-	}
-
-	if _, err := enc.Writer().Write(info.hash[:]); err != nil {
-		return err
-	}
-
-	// TODO: any way we could avoid an alloc?
-	tmp := reflect.New(typ)
-	tmp.Elem().Set(data)
-	return nice.MarshalEncode(enc, tmp.Interface())
-}
-
-func InputCommandNiceUnmarshal(dec *nice.Decoder, icmd *InputCmd) error {
-	buf := dec.Scratch(4)
-	if _, err := io.ReadFull(dec.Reader(), buf); err != nil {
-		return err
-	}
-	hash := [4]byte(buf)
-
-	typ, ok := inputcmdarshaltab.hash[hash]
-	if !ok {
-		return fmt.Errorf("unknown input command")
-	}
-
-	// TODO: any way we could avoid an alloc?
-	data := reflect.New(typ)
-	if err := nice.UnmarshalDecode(dec, data.Interface()); err != nil {
-		return err
-	}
-	*icmd = data.Elem().Interface()
-	return nil
-}
-
 // TODO: use SNORM for move and look?
 
 // TODO: prefix these with InputCmd probably
@@ -222,3 +111,13 @@ type ButtonUp Button
 // TODO: remove in favor of slot buttons, so that weapon switching is entirely
 // dictated by the game.
 type Slot int8
+
+var InputCmds = []reflect.Type{
+	reflect.TypeFor[DLookX](),
+	reflect.TypeFor[DLookY](),
+	reflect.TypeFor[MoveX](),
+	reflect.TypeFor[MoveY](),
+	reflect.TypeFor[ButtonDown](),
+	reflect.TypeFor[ButtonUp](),
+	reflect.TypeFor[Slot](),
+}

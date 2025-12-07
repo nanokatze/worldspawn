@@ -4,44 +4,51 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"maps"
 	"reflect"
 	"time"
-
-	"github.com/go-json-experiment/json"
 
 	"worldspawn/geometry-go"
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/ecs/bitset"
-	"worldspawn/internal/nice"
 	"worldspawn/physics"
+
+	"github.com/go-json-experiment/json"
 )
 
 // TODO: use "object" instead of "entity" throughout the code?
 
 // TODO: split this file up
 
-// TODO: it is up to the server and client to implement un/marshalers, we should
-// only expose the info necessary for it.
-// TODO: actually, we need this in worldspawn for prefab de/serialization, so we
-// should just make it private and expose methods for the "standard"
-// de/serializaing of the world.
-var WorldJSONOptions = json.JoinOptions(
-	JSONOptions,
-	json.WithMarshalers(json.MarshalToFunc(entityJSONMarshaler)),
-	json.WithUnmarshalers(json.UnmarshalFromFunc(entityJSONUnmarshaler)),
-)
-
-// TODO: same as WorldJSONOptions
-var WorldNiceOptions = nice.JoinOptions(
-	nice.WithMarshaler(EntityNiceMarshaler),
-	nice.WithUnmarshaler(EntityNiceUnmarshaler),
-)
+// TODO: make private and provide methods for de/serializing the scene
+var JSONOptions = json.JoinOptions(
+	json.StringifyNumbers(true),
+	json.WithMarshalers(json.JoinMarshalers(
+		json.MarshalToFunc(float32JSONMarshaler),
+		json.MarshalToFunc(float64JSONMarshaler),
+	)),
+	json.WithUnmarshalers(json.JoinUnmarshalers(
+		json.UnmarshalFromFunc(float32JSONUnmarshaler),
+		json.UnmarshalFromFunc(float64JSONUnmarshaler),
+		json.UnmarshalFromFunc(InterfaceJSONUnmarshaler[Entity](
+			maps.Collect(func(yield func(string, reflect.Type) bool) {
+				for _, typ := range EntityTypes {
+					yield(typ.Name(), typ)
+				}
+			}))),
+	)))
 
 type UpdateParams struct {
 	Δt          time.Duration
 	Speculating bool
 	Logger      *slog.Logger
 }
+
+/*
+type SubtickUpdateParams struct {
+	UpdateParams
+}
+*/
 
 // TODO: move this into the World object?
 var Data fs.FS
@@ -105,14 +112,18 @@ type Camera struct {
 // TODO: or SetParent?
 func (scene *Scene) ParentTo(child, parent ecs.ID) {
 	scene.Parent.Store(child, parent)
+
 	// children, _ := scene.Children.Load(parent)
 	// children
 }
 
+// func (scene *Scene) GetScale(id ecs.ID, scale geometry.Vec3) {
+// }
+
 // TODO: rename
 // TODO: introduce struct tags like compatibility names etc
 type Components struct {
-	Name ecs.ComponentStore[string]
+	// Name ecs.ComponentStore[string]
 
 	CreationTime ecs.ComponentStore[Time]
 
@@ -471,6 +482,7 @@ func ClearTransientComponents(w *Scene) {
 	w.ContactEvents.Clear()
 }
 
+// TODO: rename to assertEntityType or idk
 func assertEntity[T any](w *Scene, id ecs.ID) (T, bool) {
 	entity, _ := w.Entity.Load(id)
 	entityT, ok := entity.(T)

@@ -28,10 +28,6 @@ type WeaponGenericProjectileLauncher struct {
 	NextAttack Time
 }
 
-func init() {
-	registerEntity[WeaponGenericProjectileLauncher]()
-}
-
 var _ WeaponDeployedInterface = WeaponGenericProjectileLauncher{}
 
 func (weapon WeaponGenericProjectileLauncher) WeaponDeployed(w *Scene, weaponID, operatorID ecs.ID, now Time, Δt time.Duration) {

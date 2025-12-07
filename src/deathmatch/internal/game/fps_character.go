@@ -48,10 +48,6 @@ type FPSCharacter struct {
 	Weapons                []ecs.ID
 }
 
-func init() {
-	registerEntity[FPSCharacter]()
-}
-
 var _ Character = FPSCharacter{}
 
 func (entity FPSCharacter) CharacterUpdate(w *Scene, id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
@@ -89,9 +85,11 @@ func (entity FPSCharacter) CharacterUpdate(w *Scene, id ecs.ID, cmd TimestampedI
 	}
 
 	// TODO: check for validity!
-	if switchToWeapon != 0 {
+	if w.IsEntityValid(switchToWeapon) {
 		// TODO: check for validity!
-		if entity.ActiveWeaponViewmodel != 0 {
+		// TODO: don't delete the view and worldmodel entities but just hide
+		// them
+		if w.IsEntityValid(entity.ActiveWeaponViewmodel) {
 			w.Delete.Store(entity.ActiveWeaponViewmodel, struct{}{})
 		}
 
@@ -115,20 +113,6 @@ func (entity FPSCharacter) CharacterUpdate(w *Scene, id ecs.ID, cmd TimestampedI
 
 	/*
 		if w.IsEntityValid(entity.ActiveWeapon) {
-			// TODO: we should add a component on the player which will specify offset
-			// wrt view for some weapons. Weapons will need to carry some sort of
-			// identifier for this purpose.
-			elevation := float32(0)
-
-			w.WeaponAim.Store(entity.ActiveWeapon, WeaponAim{
-				ShootPos: positionRotation.Translation.
-					Add(geometry.DVec3FromVec3(positionRotation.Rotation.Rotate(geometry.Vec3{0, 0, entity.StandingViewHeight}))),
-				ShootRotation: positionRotation.Rotation.
-					Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, -1}, 2*math.Pi*entity.Look.X)).
-					Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, 2*math.Pi*entity.Look.Y-elevation)),
-				Buttons: entity.Buttons,
-			})
-
 			if weapon, ok := assertEntity[Weapon](w, entity.ActiveWeapon); ok {
 				recoil := weapon.WeaponUpdateSubtick(w, entity.ActiveWeapon, id, now, info)
 

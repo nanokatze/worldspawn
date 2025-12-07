@@ -17,6 +17,7 @@ import (
 	"github.com/quic-go/quic-go"
 
 	"worldspawn/deathmatch/internal/game"
+	"worldspawn/deathmatch/internal/replication"
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/framing"
 	"worldspawn/internal/nice"
@@ -202,7 +203,7 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 
 	r := bytes.NewReader(buf)
 
-	dec := nice.NewDecoder(r, nice.WithUnmarshaler(game.EntityNiceUnmarshaler))
+	dec := nice.NewDecoder(r, replication.NiceOptions)
 
 	if err := nice.UnmarshalDecode(dec, &s.world.SingletonComponents); err != nil {
 		return err
@@ -336,7 +337,7 @@ func (s *Client) tick(Δt time.Duration) {
 
 // TODO: remove this func in favor of the caller just using nice directly?
 func writeInputCmds(w io.Writer, cmds []game.TimestampedInputCmd) error {
-	enc := nice.NewEncoder(w, nice.WithMarshaler(game.InputCommandNiceMarshal))
+	enc := nice.NewEncoder(w, replication.InputCmdMarshalers)
 	return nice.MarshalEncode(enc, &cmds)
 }
 

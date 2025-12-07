@@ -55,10 +55,6 @@ type WeaponSniperRifle struct {
 	NextZoomAdjust Time
 }
 
-func init() {
-	registerEntity[WeaponSniperRifle]()
-}
-
 var _ Weapon = WeaponSniperRifle{}
 
 // TODO: change to value receiver? we might want the network differ to assume

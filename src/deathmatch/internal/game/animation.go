@@ -91,7 +91,7 @@ func getAnimation(filename string) *Action {
 		defer f.Close()
 
 		var m map[string][]geometry.TRS3
-		if err := json.UnmarshalRead(f, &m, JSONOptions); err != nil {
+		if err := json.UnmarshalRead(f, &m, json.StringifyNumbers(true)); err != nil {
 			panic(err)
 		}
 

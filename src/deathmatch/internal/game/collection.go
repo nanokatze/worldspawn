@@ -82,7 +82,7 @@ func prefab(filename string) *Components {
 	// TODO: we'll want a rather very custom deserialization code here
 
 	w := new(Components)
-	if err := json.UnmarshalRead(f, w, WorldJSONOptions); err != nil {
+	if err := json.UnmarshalRead(f, w, JSONOptions); err != nil {
 		log.Fatalf("prefab: %v", err)
 	}
 	// TODO: fix up filenames after load

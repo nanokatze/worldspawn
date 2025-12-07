@@ -9,17 +9,13 @@ type Weapon2 interface {
 	// Only call this on the server
 	CreateGeometry(s *Scene) ecs.ID
 
-	// Weapon2UpdateSubtick(scene *Scene, operatorID ecs.ID)
+	// Weapon2UpdateSubtick(s *Scene, operator ecs.ID)
 }
 
 type Weapon2GenericProjectileLauncher struct {
 }
 
 var _ Weapon2 = Weapon2GenericProjectileLauncher{}
-
-func init() {
-	registerEntity[Weapon2GenericProjectileLauncher]()
-}
 
 func (w Weapon2GenericProjectileLauncher) CreateGeometry(s *Scene) ecs.ID {
 	root := s.CreateEntity()

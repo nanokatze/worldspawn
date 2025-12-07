@@ -27,6 +27,7 @@ import (
 	"github.com/quic-go/quic-go"
 
 	"worldspawn/deathmatch/internal/game"
+	"worldspawn/deathmatch/internal/replication"
 	"worldspawn/geometry-go"
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/framing"
@@ -383,7 +384,7 @@ func (s *Server) sendUpdates(u *user) {
 	// TODO: we could use our own Buffer with Seek depending on how we're going
 	// to arrange things (where compression will happen etc)
 	buf := new(bytes.Buffer)
-	enc := nice.NewEncoder(buf, game.WorldNiceOptions)
+	enc := nice.NewEncoder(buf, replication.NiceOptions)
 
 	{
 		// TODO: only send SingletonComponents that changed
@@ -398,7 +399,7 @@ func (s *Server) sendUpdates(u *user) {
 		// TODO: we should seek instead of doing extra allocations I think...
 
 		buf2 := new(bytes.Buffer)
-		enc2 := nice.NewEncoder(buf2, game.WorldNiceOptions)
+		enc2 := nice.NewEncoder(buf2, replication.NiceOptions)
 
 		n := 0
 		for i, dirtied := range s.dirty.IDAlloc {
@@ -436,7 +437,7 @@ func (s *Server) sendUpdates(u *user) {
 		cs := ecs.Reflect(reflect.ValueOf(&s.scene.Components).Elem().FieldByName(comp).Addr().Interface())
 
 		buf2 := new(bytes.Buffer)
-		enc2 := nice.NewEncoder(buf2, game.WorldNiceOptions)
+		enc2 := nice.NewEncoder(buf2, replication.NiceOptions)
 
 		n := 0
 		v := reflect.New(cs.ElemType())
@@ -505,7 +506,7 @@ func (w *CountingWriter) Write(b []byte) (int, error) {
 // TODO: remove this function in favor of just having the caller use
 // nice directly?
 func readInputCmds(r io.Reader, cmds *[]game.TimestampedInputCmd) error {
-	dec := nice.NewDecoder(r, nice.WithUnmarshaler(game.InputCommandNiceUnmarshal))
+	dec := nice.NewDecoder(r, replication.InputCmdMarshalers)
 	return nice.UnmarshalDecode(dec, cmds)
 }
 
@@ -650,7 +651,7 @@ func main() {
 	if err != nil {
 		log.Fatal("newSinglePlayerSession: ", err)
 	}
-	if err := json.UnmarshalRead(sceneFile, s.scene, game.WorldJSONOptions); err != nil {
+	if err := json.UnmarshalRead(sceneFile, s.scene, game.JSONOptions); err != nil {
 		log.Fatalf("newSinglePlayerSession %v: %v", sceneFile, err)
 	}
 	sceneFile.Close()
