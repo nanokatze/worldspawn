@@ -6,8 +6,8 @@ import internal.interpolation;
 import internal.material.bsdf;
 import internal.material.interpreter;
 import internal.spectrum;
-import light_triangle;
-import lighting;
+import light_mesh_triangle;
+import light;
 import scene;
 import transfer_functions;
 
@@ -161,18 +161,12 @@ void raygen() {
     path.rayDir = normalize(mul(push.camera->viewInverse, float4(normalize(target.xyz), 0)).xyz);
 
     for (;;) {
-        RayDesc rayDesc;
-        rayDesc.Origin = path.rayOrigin;
-        rayDesc.Direction = path.rayDir;
-        rayDesc.TMin = 0.0;
-        rayDesc.TMax = 1.0 / 0.0;
-
         RayQuery<RAY_FLAG_FORCE_OPAQUE> rq;
         rq.TraceRayInline(
             rtas(push.scene->accel.ptr),
             0, // OR'd with flags above
             path.vampire ? 0b01 : 0b10,
-            rayDesc);
+            RayDesc(path.rayOrigin, 0, path.rayDir, 1.0 / 0.0));
         rq.Proceed();
 
         if (rq.CommittedStatus() == COMMITTED_TRIANGLE_HIT) {
@@ -255,7 +249,7 @@ Spectrum sampleDirectLight(
         let triIdx = (int)((float)lightMaterialParams->meshPart.num_triangles * u);
         let vertIdxs = idxs2.Load3(triIdx);
 
-        triangleLight light = {
+        meshTriangleLight light = {
             emissiveInstance->transform,
             vertIdxs,
             lightMaterialParams,
@@ -263,18 +257,13 @@ Spectrum sampleDirectLight(
 
         let d = light.SamplePoint(hitpos, uLight);
 
-        RayDesc rd;
-        rd.Origin = hitpos;
-        rd.Direction = d.dir;
-        rd.TMin = 0.0;
-        // TODO: move this epsilon into a top level constant
-        rd.TMax = max(d.dist - 0.001, 0);
         RayQuery<RAY_FLAG_FORCE_OPAQUE> rq;
         rq.TraceRayInline(
             rtas(push.scene->accel.ptr),
             0, // OR'd with flags above
             vampire ? 0b01 : 0b10,
-            rd);
+            // TODO: move the epsilon into a top level constant
+            RayDesc(hitpos, 0, d.dir, max(d.dist - 0.001, 0)));
         rq.Proceed();
 
         if (rq.CommittedStatus() == COMMITTED_NOTHING) {

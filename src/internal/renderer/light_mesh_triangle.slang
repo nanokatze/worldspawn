@@ -4,11 +4,8 @@ import internal.material.interpreter;
 import lighting;
 import scene; // TODO: stop importing this
 
-// TODO: this to mesh triangle light? To make it clear that it's backed by a
-// mesh.
-
 // TODO: clean up.
-public struct triangleLight {
+public struct meshTriangleLight {
     public float3x4 ObjectToWorld;
 
     public uint3 indices;
