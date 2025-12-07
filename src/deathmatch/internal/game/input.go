@@ -6,6 +6,9 @@ import (
 
 // TODO: give these a type
 // TODO: rename to axis?
+// TODO: these depend on action sets actually
+// TODO: move action stuff into a subpackage? This is mostly just a glue between
+// InputCmds and user stuff.
 const (
 	_ = iota
 
