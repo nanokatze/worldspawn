@@ -9,6 +9,8 @@ import (
 	"sync"
 )
 
+// TODO: rename Unmarshal to just Decode? Also add a convenience DecodeBytes or
+// w/e idk
 func UnmarshalDecode(dec *Decoder, out any) error {
 	p := reflect.ValueOf(out)
 	if p.Kind() != reflect.Pointer || p.IsNil() {
