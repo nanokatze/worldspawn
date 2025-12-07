@@ -1,10 +1,11 @@
+import "../interpolation";
 import "../spectrum";
-import shading_frame;
 import bsdf;
 import bsdf_diffuse;
 import bsdf_microfacet;
 import edf;
 import edf_uniform;
+import shading_frame;
 
 public enum BSDFNum {
     _,
@@ -44,24 +45,6 @@ public struct interpreterProgram {
 
 // TODO: review whether we want to do something more clever (numerically) in the
 // interpolators, e.g. do we need to tinker with rounding modes or whatever?
-
-float
-interpolate1(float3x1 attrs, float2 barys)
-{
-    return mul(transpose(attrs), float3(1.0 - barys.x - barys.y, barys));
-}
-
-float2
-interpolate2(float3x2 attrs, float2 barys)
-{
-    return mul(transpose(attrs), float3(1.0 - barys.x - barys.y, barys));
-}
-
-float3
-interpolate3(float3x3 attrs, float2 barys)
-{
-    return mul(transpose(attrs), float3(1.0 - barys.x - barys.y, barys));
-}
 
 public enum Op {
     Stop,
@@ -203,7 +186,7 @@ evalLoop:
             float2 attr2 = attrbuf[triIdxs[2]];
             // TODO: make a dedicated interpolation function which will take care of the
             // edge cases
-            float2 attr = interpolate2(float3x2(attr0, attr1, attr2), barys_yz);
+            float2 attr = interpolate2(float2[3](attr0, attr1, attr2), barys_yz);
             regs[dst+0] = reinterpret<uint32_t>(attr.x);
             regs[dst+1] = reinterpret<uint32_t>(attr.y);
             // TODO: we'll probs be loading the entire vec3 or vec4 at all times

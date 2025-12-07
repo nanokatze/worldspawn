@@ -2,6 +2,7 @@ import attribute;
 import gpu;
 import internal.integration.lds;
 import internal.integration.mapping;
+import internal.interpolation;
 import internal.material.bsdf;
 import internal.material.interpreter;
 import internal.spectrum;
@@ -234,7 +235,7 @@ struct triangleLight {
 
         let barys = SampleTriangle(u);
 
-        let p = interpolate3(reinterpret<float3x3>(verts), barys);
+        let p = interpolate3(verts, barys);
 
         let uhh = p - hitpos;
 
@@ -266,7 +267,7 @@ struct triangleLight {
     lightSampleA SampleA(float3 hitpos, float2 u) {
         let barys = SampleTriangle(u);
 
-        let p = interpolate3(reinterpret<float3x3>(verts), barys);
+        let p = interpolate3(verts, barys);
 
         let uhh = p - hitpos;
 
@@ -278,24 +279,6 @@ struct triangleLight {
         };
     }
 };
-
-float
-interpolate1(float3x1 attrs, float2 barys)
-{
-    return mul(transpose(attrs), float3(1.0 - barys.x - barys.y, barys));
-}
-
-float2
-interpolate2(float3x2 attrs, float2 barys)
-{
-    return mul(transpose(attrs), float3(1.0 - barys.x - barys.y, barys));
-}
-
-float3
-interpolate3(float3x3 attrs, float2 barys)
-{
-    return mul(transpose(attrs), float3(1.0 - barys.x - barys.y, barys));
-}
 
 struct ShaderRecordData {
     uint32_t *code;
@@ -412,10 +395,11 @@ bool closesthit(
 
     let normal = mul((float3x3)ObjectToWorld,
         interpolate3(
-            float3x3(
+            float3[3](
                 materialParams->meshPart.normals[triIdxs[0]],
                 materialParams->meshPart.normals[triIdxs[1]],
-                materialParams->meshPart.normals[triIdxs[2]]),
+                materialParams->meshPart.normals[triIdxs[2]],
+            ),
             barys_yz));
 
     // TODO: should not be called bsdf
