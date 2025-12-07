@@ -6,6 +6,8 @@ import internal.interpolation;
 import internal.material.bsdf;
 import internal.material.interpreter;
 import internal.spectrum;
+import light_triangle;
+import lighting;
 import scene;
 import transfer_functions;
 
@@ -199,9 +201,9 @@ void raygen() {
             // into filtering after shading for sky as well, but hopefully things might
             // get fixed.
             // TODO: same as with emissive surfaces/volumes, we need to consult
-            // lightSampler and apply the pdf (when lightSampler has a
+            // lightAccel and apply the pdf (when lightAccel has a
             // possibility of returning the sky light.)
-            path.L += path.beta * push.scene->lightSampler.env.SampleCubeLOD(float3(-V.y, V.z, V.x), 0).xyz;
+            path.L += path.beta * push.scene->lightAccel.env.SampleCubeLOD(float3(-V.y, V.z, V.x), 0).xyz;
 
             break;
         } else {
@@ -213,73 +215,6 @@ void raygen() {
     exportIrradiance(path.L);
 }
 
-// TODO: verts should be local. We also need to remember the original triIdxs
-struct triangleLight {
-    float3x4 ObjectToWorld;
-
-    float3 verts[3];
-
-    MaterialParams *materialParams;
-
-    // TODO: switch to spherical triangle sampling for better distribution
-    // instead.
-
-    // Light emitted from a sampled point. u must be the same as what was used
-    // for sampling the point.
-    //
-    // TODO: this should return Le, PDF and normal.
-    leSample SampleLe(float3 hitpos, float2 u) {
-        let area = length(cross(verts[1] - verts[0], verts[2] - verts[0])) * 0.5;
-        // TODO: should this really be geometric normal?
-        let normal = normalize(cross(verts[1] - verts[0], verts[2] - verts[0]));
-
-        let barys = SampleTriangle(u);
-
-        let p = interpolate3(verts, barys);
-
-        let uhh = p - hitpos;
-
-        let wi = normalize(uhh);
-
-        EvaluatedInterpretedMaterial m;
-        m.abi = &materialParams->program.abi;
-        mateval(
-            m.regs,
-            materialParams->program.code,
-            float3(0), // TODO
-            (void*)&materialParams->args,
-            ObjectToWorld,
-            uint3(0), // TODO
-            barys);
-
-        return {
-            m.EDFEval(wi),
-            normal,
-            dot(uhh, uhh) / (abs(dot(normal, wi)) * area),
-        };
-    }
-
-    // Sample a point on the light.
-    //
-    // TODO: rename hitpos to something else
-    // TODO: this should only choose a point on the light. Le, PDF and normal
-    // should be factored out into the other function.
-    lightSampleA SampleA(float3 hitpos, float2 u) {
-        let barys = SampleTriangle(u);
-
-        let p = interpolate3(verts, barys);
-
-        let uhh = p - hitpos;
-
-        let wi = normalize(uhh);
-
-        return {
-            wi,
-            length(uhh),
-        };
-    }
-};
-
 struct ShaderRecordData {
     uint32_t *code;
 };
@@ -289,7 +224,7 @@ struct ShaderRecordData {
 // TODO: do not pass bsdf here, make the caller deal with it instead
 // TODO: if we still want to pass bsdf, make this generic over BSDFs and make
 // EvaluatedInterpretedMaterial implement it.
-Spectrum sampleLd(
+Spectrum sampleDirectLight(
     bool vampire,
     float3 hitpos,
     float3 normal,
@@ -298,15 +233,15 @@ Spectrum sampleLd(
     float asd,
     float2 uLight,
 ) {
-    let lightSampler = &push.scene->lightSampler;
+    let lightAccel = &push.scene->lightAccel;
 
-    // TODO: encapsulate this into lightSampler->SampleLight
-    let emissiveInstanceIndex = (int)(asd * (float)lightSampler->emissiveInstanceCount);
-    let emissiveInstance = &lightSampler->emissiveInstances.data[emissiveInstanceIndex];
+    // TODO: encapsulate this into lightAccel->SampleLight
+    let emissiveInstanceIndex = (int)(asd * (float)lightAccel->emissiveInstanceCount);
+    let emissiveInstance = &lightAccel->emissiveInstances.data[emissiveInstanceIndex];
 
-    float u = fract(asd * (float)lightSampler->emissiveInstanceCount);
+    float u = fract(asd * (float)lightAccel->emissiveInstanceCount);
 
-    let instancePmf = 1.0 / (float)lightSampler->emissiveInstanceCount;
+    let instancePMF = 1.0 / (float)lightAccel->emissiveInstanceCount;
 
     if (emissiveInstance->originalInstanceIndex != 0) {
         let lightMaterialParams = &push.scene->materialParams.data[
@@ -315,29 +250,25 @@ Spectrum sampleLd(
 
         IndexSlice idxs2 = {(uint8_t*)lightMaterialParams->meshPart.triangles, (uint64_t)2 << 62};
 
-        let triPmf = 1.0 / (float)lightMaterialParams->meshPart.num_triangles;
+        let triPMF = 1.0 / (float)lightMaterialParams->meshPart.num_triangles;
         // TODO: we need to make sure this actually triangle < len always
         let triIdx = (int)((float)lightMaterialParams->meshPart.num_triangles * u);
         let vertIdxs = idxs2.Load3(triIdx);
 
-        triangleLight l = {
+        triangleLight light = {
             emissiveInstance->transform,
-            {
-                mul(emissiveInstance->transform, float4(lightMaterialParams->meshPart.posBuffer[vertIdxs[0]], 1.0)),
-                mul(emissiveInstance->transform, float4(lightMaterialParams->meshPart.posBuffer[vertIdxs[1]], 1.0)),
-                mul(emissiveInstance->transform, float4(lightMaterialParams->meshPart.posBuffer[vertIdxs[2]], 1.0)),
-            },
+            vertIdxs,
             lightMaterialParams,
         };
 
-        let ls = l.SampleA(hitpos, uLight);
+        let d = light.SamplePoint(hitpos, uLight);
 
         RayDesc rd;
         rd.Origin = hitpos;
-        rd.Direction = ls.wi;
+        rd.Direction = d.dir;
         rd.TMin = 0.0;
         // TODO: move this epsilon into a top level constant
-        rd.TMax = max(ls.dist - 0.001, 0);
+        rd.TMax = max(d.dist - 0.001, 0);
         RayQuery<RAY_FLAG_FORCE_OPAQUE> rq;
         rq.TraceRayInline(
             rtas(push.scene->accel.ptr),
@@ -347,18 +278,14 @@ Spectrum sampleLd(
         rq.Proceed();
 
         if (rq.CommittedStatus() == COMMITTED_NOTHING) {
-            let ls2 = l.SampleLe(hitpos, uLight);
+            let bsdfEvaluation = bsdf.Eval(wo, d.dir);
+            let emissionSample = light.SampleEmission(hitpos, uLight);
 
-            let pdfLight = ls2.pdf * triPmf * instancePmf;
+            let emissionPDF = emissionSample.pdf * triPMF * instancePMF;
 
-            let fLight = ls2.Le;
-            let bsdfEvaluation = bsdf.Eval(wo, ls.wi);
+            let pdf = abs(dot(d.dir, normal)) / (bsdfEvaluation.pdf + emissionPDF);
 
-            // TODO: normal should be geometric
-            let Ld = fLight * bsdfEvaluation.f * (abs(dot(ls.wi, normal)) /
-                (pdfLight + bsdfEvaluation.pdf));
-
-            return Ld;
+            return bsdfEvaluation.f * emissionSample.f * pdf;
         }
     }
 
@@ -402,11 +329,10 @@ bool closesthit(
             ),
             barys_yz));
 
-    // TODO: should not be called bsdf
-    EvaluatedInterpretedMaterial bsdf;
-    bsdf.abi = &materialParams->program.abi;
+    EvaluatedInterpretedMaterial material;
+    material.abi = &materialParams->program.abi;
     mateval(
-        bsdf.regs,
+        material.regs,
         materialParams->program.code,
         normal,
         (void*)&materialParams->args,
@@ -416,12 +342,11 @@ bool closesthit(
 
     let wo = -WorldRayDirection;
 
-    // Account for emission
-    let Le = bsdf.EDFEval(wo);
-    if (any(Le > float3(0))) {
+    let emission = material.EDFEval(wo);
+    if (any(emission > float3(0))) {
         // TODO: this is wrong, we need to apply MIS weight, which we'll need to
-        // consult lightSampler for, to figure out the pdf.
-        path.L += path.beta * Le;
+        // consult lightAccel for, to figure out the pdf.
+        path.L += path.beta * emission;
     }
 
     // TODO: we might want to sometimes write out the properties for a surface
@@ -447,16 +372,16 @@ bool closesthit(
     {
         let u = sampler.Get1D();
         let b = sampler.Get2D();
-        if (bsdf.Flags() & (BSDFFlags::Diffuse | BSDFFlags::Glossy)) {
-            let Ld = sampleLd(vampire, hitpos, normal, wo, bsdf, u, b);
+        if (material.Flags() & (BSDFFlags::Diffuse | BSDFFlags::Glossy)) {
+            let L = sampleDirectLight(vampire, hitpos, normal, wo, material, u, b);
 
-            path.L += path.beta * Ld;
+            path.L += path.beta * L;
         }
     }
 
-    // Sample the bsdf for the next ray
+    // Sample the BSDF for the next ray
 
-    let bsdfSample = bsdf.Sample(wo, sampler.Get1D(), sampler.Get2D());
+    let bsdfSample = material.Sample(wo, sampler.Get1D(), sampler.Get2D());
 
     // TODO: once we get diffuse cache, (optionally) terminate the path for
     // diffuse-only bsdfSamples and instead get the information from the cache.
@@ -476,7 +401,7 @@ bool closesthit(
             path.vampire = false;
     }
 
-    path.rayOrigin = hitpos; // TODO: this might come from bsdf as well
+    path.rayOrigin = hitpos; // TODO: this might come from material as well
     path.rayDir = bsdfSample.wi; // TODO: should we normalize() here?
 
     // Russian roulette

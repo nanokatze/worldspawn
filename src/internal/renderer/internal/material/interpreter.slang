@@ -36,11 +36,6 @@ public struct interpreterABI {
     public uint32_t outputsReg;
 }
 
-public struct interpreterProgram {
-    public interpreterABI abi;
-    public uint32_t *code;
-}
-
 // TODO: move interpolators into their own file!!!
 
 // TODO: review whether we want to do something more clever (numerically) in the
@@ -73,6 +68,11 @@ public enum Op {
 
     LoadShadingNormal,
 };
+
+public struct interpreterProgram {
+    public interpreterABI abi;
+    public uint32_t *code;
+}
 
 // TODO: rename to something else, like e.g. InstructionFetcher?
 struct Fetcher {

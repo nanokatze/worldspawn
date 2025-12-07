@@ -17,7 +17,7 @@ public enum BSDFFlags {
 
 public struct BSDFEval {
     public Spectrum f;
-    public float pdf;
+    public float pdf; // TODO: make this the first field?
 
     public BSDFEval Add(BSDFEval b) {
         return {f + b.f, pdf + b.pdf};

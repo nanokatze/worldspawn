@@ -3,19 +3,6 @@ import internal.material.interpreter;
 import internal.spectrum;
 import lighting;
 
-// TODO: naming
-public struct leSample {
-    public Spectrum Le;
-    public float3 normal;
-    public float pdf;
-}
-
-// TODO: naming
-public struct lightSampleA {
-    public float3 wi;
-    public float dist;
-}
-
 public struct emissiveInstance {
     public float3x4 transform;
     public uint32_t originalInstanceIndex;
@@ -23,7 +10,8 @@ public struct emissiveInstance {
 };
 
 // TODO: stable light IDs so that we can use them in RIS/ReSTIR etc
-public struct lightSampler {
+// TODO: rename to lightAccel
+public struct lightAccel {
     public SamplingViewWithSampler env;
 
     public Slice<emissiveInstance> emissiveInstances;
@@ -57,7 +45,7 @@ public struct Scene {
 
     public Accel accel;
 
-    public lightSampler lightSampler;
+    public lightAccel lightAccel;
 
     public Sampler sampler;
 

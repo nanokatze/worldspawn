@@ -56,7 +56,7 @@ type emissiveInstance struct {
 	originalGeometryIndex uint32 // TODO: we should not need this I think?
 }
 
-type lightSampler struct {
+type lightAccel struct {
 	_ structs.HostLayout
 
 	// TODO: drop SamplingViewWithSampler in favor passing an image descriptor
@@ -87,7 +87,7 @@ type Scene struct {
 
 	accel gpu.Accel
 
-	lightSampler lightSampler
+	lightAccel lightAccel
 
 	// TODO: this probs belongs to MaterialLibrary too
 	sampler gpu.Sampler
@@ -131,7 +131,7 @@ func NewScene(n int, maxPartsPerMesh int) *Scene {
 		materialParams:  instances,
 		accelInstances:  gpu.MakeSliceUncached[gpu.AccelInstance](n),
 		accel:           gpu.NewTopLevelAccel(n),
-		lightSampler: lightSampler{
+		lightAccel: lightAccel{
 			emissiveInstances: emissiveInstances,
 		},
 		sampler: gpu.NewSampler(&vk.SamplerCreateInfo{

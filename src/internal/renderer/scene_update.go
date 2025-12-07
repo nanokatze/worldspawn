@@ -72,9 +72,9 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 	// fun.
 	// TODO: hard-require sky?
 	if dirty.Sky != nil {
-		scene.lightSampler.env = dirty.Sky.SamplingDescriptor().WithSampler(scene.sampler)
+		scene.lightAccel.env = dirty.Sky.SamplingDescriptor().WithSampler(scene.sampler)
 	} else {
-		scene.lightSampler.env = gpu.SamplingViewWithSampler{}
+		scene.lightAccel.env = gpu.SamplingViewWithSampler{}
 	}
 
 	// BUG: writes should happen after all commands in jq complete. We should
@@ -85,7 +85,7 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 
 	materialParamsHost := scene.materialParams.Value()
 	accelInstancesHost := scene.accelInstances.Value()
-	emissiveInstancesHost := scene.lightSampler.emissiveInstances.Value()
+	emissiveInstancesHost := scene.lightAccel.emissiveInstances.Value()
 	for instanceIdx, instance := range dirty.Instance {
 		// TODO: is this necessary?
 		// TODO: actually we might have instances at index 0: this would happen
@@ -155,7 +155,7 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32
 		instanceCount = max(instanceCount, instanceIdx+1)
 	}
 
-	scene.lightSampler.emissiveInstanceCount = emissiveInstanceCount
+	scene.lightAccel.emissiveInstanceCount = emissiveInstanceCount
 
 	scene.accel.EnqueueBuild(jq,
 		&gpu.AccelBuildConfig{

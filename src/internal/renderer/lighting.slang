@@ -1,13 +1,15 @@
-public struct lightSample {
-    // Direction from the surface point to the light source point.
-    public float3 wi;
+import internal.spectrum;
 
-    // Distance from the surface point to the light source point. Infinity for
-    // infinite light sources.
+// Displacement from point on a surface to point on a light.
+//
+// TODO: questionable whether it really belong in this file...
+public struct Displacement {
+    public float3 dir;
     public float dist;
+}
 
-    // Normal at the light source point.
-    public float3 normal;
-
-    public float pdf;
-};
+public struct EmissionSample {
+    public Spectrum f;
+    public float pdf; // TODO: make this the first field?
+    public float3 normal; // TODO: why is this here?
+}
