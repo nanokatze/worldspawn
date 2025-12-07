@@ -210,7 +210,7 @@ evalLoop:
             // I guess?
             break;
         }
-        case Op::LoadNormal: {
+        case Op::LoadShadingNormal: {
             regs[dst+0] = reinterpret<uint32_t>(normal.x);
             regs[dst+1] = reinterpret<uint32_t>(normal.y);
             regs[dst+2] = reinterpret<uint32_t>(normal.z);

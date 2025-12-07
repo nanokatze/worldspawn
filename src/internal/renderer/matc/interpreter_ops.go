@@ -64,7 +64,7 @@ var (
 	opInterpLoadAttribute = defInterpOp("LoadAttribute", aparam(material.ALoadAttr))
 
 	// TODO: kill in favor of LoadAttribute
-	OpInterpLoadShadingNormal = defInterpOp("GetShadingNormal", aaa{op: material.ALoadNormal, dst: true})
+	OpInterpLoadShadingNormal = defInterpOp("GetShadingNormal", aaa{op: material.ALoadShadingNormal, dst: true})
 )
 
 type aparam material.A

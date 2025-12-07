@@ -82,7 +82,7 @@ const (
 
 	ALoadParam
 	ALoadAttr
-	ALoadNormal // GetGeometricNormal or whatever
+	ALoadShadingNormal
 
 	// ABSDFAlbedo
 )
