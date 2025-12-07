@@ -1,5 +1,5 @@
+import "../spectrum";
 import edf;
-import "../../spectrum";
 
 public struct UniformEDF : EDF {
     public Spectrum Eval(float3 wi) {

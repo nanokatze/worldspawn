@@ -1,7 +1,7 @@
 import gpu;
-import spectrum;
-import lighting;
 import internal.material.interpreter;
+import internal.spectrum;
+import lighting;
 
 // TODO: naming
 public struct leSample {

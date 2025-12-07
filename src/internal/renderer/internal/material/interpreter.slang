@@ -1,5 +1,4 @@
-import "../interpreter";
-import "../../spectrum";
+import "../spectrum";
 import shading_frame;
 import bsdf;
 import bsdf_diffuse;

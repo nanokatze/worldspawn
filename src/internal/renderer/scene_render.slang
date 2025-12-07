@@ -4,8 +4,8 @@ import internal.integration.lds;
 import internal.integration.mapping;
 import internal.material.bsdf;
 import internal.material.interpreter;
+import internal.spectrum;
 import scene;
-import spectrum;
 import transfer_functions;
 
 // Shifted blue noise shamelessly stolen from rtx remix, which is

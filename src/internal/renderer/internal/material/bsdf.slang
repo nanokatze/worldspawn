@@ -1,4 +1,4 @@
-import "../../spectrum";
+import "../spectrum";
 import shading_frame;
 
 // TODO: rename BSDF to BxDF?
