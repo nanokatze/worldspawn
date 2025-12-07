@@ -88,9 +88,34 @@ public enum Op {
     LoadParam,
     LoadAttr,
 
-    // TODO: rename to LoadShadingNormal?
-    LoadNormal,
+    LoadShadingNormal,
 };
+
+// TODO: rename to something else, like e.g. InstructionFetcher?
+struct Fetcher {
+    uint32_t *pc;
+
+    [[mutating]]
+    uint32_t fetch() {
+        return *pc++;
+    }
+}
+
+public struct InterpreterState {
+    // TODO: make this a pointer when we get pointers to private/function
+    public uint32_t scratch[32];
+
+    public __subscript(int i) -> uint32_t
+    {
+        get {
+            return scratch[i];
+        }
+
+        set {
+            scratch[i] = newValue;
+        }
+    }
+}
 
 public void mateval(
     __ref InterpreterState regs,
