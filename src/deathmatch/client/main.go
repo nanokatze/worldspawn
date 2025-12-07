@@ -299,11 +299,15 @@ func redrawLocked() bool {
 
 	clientRenderer.privateScene2.EnqueueUpdate(&jq, clientRenderer.privateScene, float32(t))
 
-	clientRenderer.privateScene2.Render(&jq,
+	clientRenderer.privateScene2.Render(
+		&jq,
+		renderer.Film{
+			Extent: swapchainImage.Extent(),
+			Color:  swapchainImage,
+		},
 		float32(t),
 		fn,
-		&clientRenderer.privateScene.OurCamera,
-		swapchainImage, currentExtent)
+		&clientRenderer.privateScene.OurCamera)
 	fn++
 
 	// TODO: it would probably be a good idea to inject overlay rendering into

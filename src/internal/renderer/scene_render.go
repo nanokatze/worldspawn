@@ -115,17 +115,18 @@ var toClipSpace = geometry.Mat4x4{
 
 // TODO: struct for per-view stuff, with history for TAA, etc.
 
-// TODO: res should probably be a rect?
-//
 // TODO: we need to pass other stuff like max aniso etc settings...
 // TODO: change fn to be an int?
 func (scene *Scene) Render(
 	jq *gpu.JobQueue,
+	film Film,
 	t float32,
 	fn uint32,
-	camera *Camera,
-	dst *gpu.Image,
-	res [3]int) {
+	camera *Camera) {
+	if film.Extent[2] != 1 {
+		panic("film.Extent[2] must be 1")
+	}
+
 	bn := blueNoise()
 
 	bnLayer := bn.SubImage(
@@ -141,7 +142,7 @@ func (scene *Scene) Render(
 	{
 		proj := geometry.Mat4x4InfinitePerspective(
 			float32(camera.FieldOfView),
-			float32(res[0])/float32(res[1]),
+			float32(film.Extent[0])/float32(film.Extent[1]), // TODO: add a field to Camera instead?
 			float32(camera.NearClipPlane)).
 			Mul4x4(toClipSpace)
 
@@ -175,24 +176,16 @@ func (scene *Scene) Render(
 	*dscene.Value() = *scene
 	defer jq.Cleanup(func() { gpu.Free(gpu.UnsafePointer(dscene)) })
 
-	// RT
-
-	{
-		// TODO: arguably this is the right place to do the linking the final
-		// pipeline and assemble the entire SBT. Scene should only concern
-		// itself with hit groups.
-
-		args := struct {
-			Scene  gpu.Pointer[Scene]
-			Camera gpu.Pointer[_FrameData]
-			Out    gpu.StorageView
-		}{
-			Scene:  dscene,
-			Camera: frameData,
-			Out:    dst.LoadStoreDescriptor(),
-		}
-		gpu.EnqueueTraceRays(jq, res, scene.pipeline, scene.sbt, &args)
+	args := struct {
+		Scene  gpu.Pointer[Scene]
+		Camera gpu.Pointer[_FrameData]
+		Out    gpu.StorageView
+	}{
+		Scene:  dscene,
+		Camera: frameData,
+		Out:    film.Color.LoadStoreDescriptor(),
 	}
+	gpu.EnqueueTraceRays(jq, film.Extent, scene.pipeline, scene.sbt, &args)
 }
 
 // TODO: move into gpu/vk or at least just gpu?
