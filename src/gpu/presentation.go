@@ -6,9 +6,9 @@ import (
 	"math"
 	"runtime"
 
+	"worldspawn/gpu/sdl_vulkan"
 	"worldspawn/gpu/vk"
 	"worldspawn/sdl"
-	sdl_vulkan "worldspawn/sdl/vulkan"
 )
 
 // TODO: experiment with and propose "displayable image" extension to VK WG.
@@ -191,26 +191,18 @@ type presentJob struct {
 	index     uint32
 }
 
-/*
-func (swapchain *Swapchain) Present(cq *JobQueue, index uint32, presentMode vk.PresentModeKHR) (ok bool) {
-	WakeyWakeyUrgent()
+func (swapchain *Swapchain) Present(jq *JobQueue, index uint32) (ok bool) {
+	swapchain.images[index].enqueueTransitionLayout(jq, vk.IMAGE_LAYOUT_GENERAL, vk.IMAGE_LAYOUT_PRESENT_SRC_KHR)
 
-	var pinner runtime.Pinner
-	defer pinner.Unpin()
+	jq.Enqueue(&presentJob{
+		swapchain: swapchain,
+		index:     index,
+	})
 
-	// TODO: missing sync
-	if err := vkFns.QueuePresentKHR(gfx.vkQueue, &vk.PresentInfoKHR{
-		SType:          vk.STRUCTURE_TYPE_PRESENT_INFO_KHR,
-		SwapchainCount: 1,
-		PSwapchains:    pinned(&pinner, &swapchain.vkSwapchain),
-		PImageIndices:  pinned(&pinner, &index),
-	}); err != nil {
-		panic(fmt.Sprintf("gpu: vkQueuePresentKHR: %v", err))
-	}
+	jq.WaitForIdle()
 
 	return true
 }
-*/
 
 func (job *presentJob) Info() JobInfo {
 	return JobInfo{

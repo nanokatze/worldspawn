@@ -1,13 +1,15 @@
 package sdl_vulkan
 
+// TODO: rename this package to sdlwsi or wsi_sdl or whatever
+
+// TODO: worldspawn/gpu should not import this package, it should be usable by
+// the end users, so it will need an API makeover as well
+
 // #cgo pkg-config: sdl3
 //
 // #include <SDL3/SDL.h>
 // #include <SDL3/SDL_vulkan.h>
 import "C"
-
-// TODO: remove SDL3/SDL.h include and SDL_WasInit hack. gpu should not be using
-// sdl_vulkan directly or at all.
 
 import (
 	"unsafe"
