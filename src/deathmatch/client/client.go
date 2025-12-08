@@ -105,12 +105,12 @@ func newClient(renderer Renderer, addr string) (*Client, error) {
 			}
 			// TODO: rewrite this mess
 			switch msgtype {
-			case framing.SetDeltaTime:
+			case replication.SetDeltaTime:
 				// TODO: add a method on the Session to set delta time or
 				// whatever?
 				binary.Read(deframer, binary.LittleEndian, &s.Δt)
 
-			case framing.ResetWorld:
+			case replication.ResetWorld:
 				var maxEntities int64
 				binary.Read(deframer, binary.LittleEndian, &maxEntities)
 				// TODO: for client-only entities we can use the high
@@ -127,14 +127,14 @@ func newClient(renderer Renderer, addr string) (*Client, error) {
 
 				// The renderer will resize its scene by itself
 
-			case framing.SetPlayer:
+			case replication.SetPlayer:
 				var player ecs.ID
 				binary.Read(deframer, binary.LittleEndian, &player)
 				s.mu.Lock()
 				s.player = player
 				s.mu.Unlock()
 
-			case framing.UpdateWorld:
+			case replication.UpdateWorld:
 				// TODO: be careful to only read up to a limit.
 				buf, err := io.ReadAll(deframer)
 				if err != nil {

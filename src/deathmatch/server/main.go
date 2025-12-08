@@ -159,7 +159,7 @@ func (s *Server) serveConn(conn *quic.Conn, logger *slog.Logger) error {
 	framer := framing.NewFramer(stream2)
 
 	{
-		binary.Write(framer, binary.LittleEndian, int64(framing.SetDeltaTime))
+		binary.Write(framer, binary.LittleEndian, int64(replication.SetDeltaTime))
 		binary.Write(framer, binary.LittleEndian, s.Δt)
 		framer.Next()
 	}
@@ -167,7 +167,7 @@ func (s *Server) serveConn(conn *quic.Conn, logger *slog.Logger) error {
 	// TODO: remove this and let world delta updates take care of this? That
 	// might introduce some delay so perhaps not.
 	{
-		binary.Write(framer, binary.LittleEndian, int64(framing.ResetWorld))
+		binary.Write(framer, binary.LittleEndian, int64(replication.ResetWorld))
 		binary.Write(framer, binary.LittleEndian, int64(s.maxEntities))
 		framer.Next()
 
@@ -183,7 +183,7 @@ func (s *Server) serveConn(conn *quic.Conn, logger *slog.Logger) error {
 	}
 
 	{
-		binary.Write(framer, binary.LittleEndian, int64(framing.SetPlayer))
+		binary.Write(framer, binary.LittleEndian, int64(replication.SetPlayer))
 		binary.Write(framer, binary.LittleEndian, u.player)
 		framer.Next()
 	}
@@ -210,7 +210,7 @@ func (s *Server) serveConn(conn *quic.Conn, logger *slog.Logger) error {
 
 				select {
 				case buf := <-u.marshaledUpdates:
-					binary.Write(framer, binary.LittleEndian, uint64(framing.UpdateWorld))
+					binary.Write(framer, binary.LittleEndian, uint64(replication.UpdateWorld))
 					framer.Write(buf)
 					framer.Next()
 				case <-done:
