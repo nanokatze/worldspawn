@@ -12,7 +12,9 @@ import "C"
 
 import (
 	"errors"
+	"reflect"
 	"runtime"
+	"structs"
 	"unsafe"
 )
 
@@ -76,11 +78,11 @@ func (props PropertiesID) Pointer(prop string, value uintptr) uintptr {
 	return uintptr(C.SDL_GetPointerProperty(C.SDL_PropertiesID(props), cstring(prop), nil))
 }
 
-func (props PropertiesID) SetBoolean(prop string, value bool) error {
+func (props PropertiesID) SetString(prop string, value string) error {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	if !C.SDL_SetBooleanProperty(C.SDL_PropertiesID(props), cstring(prop), C.bool(value)) {
+	if !C.SDL_SetStringProperty(C.SDL_PropertiesID(props), cstring(prop), cstring(value)) {
 		return getError()
 	}
 	return nil
@@ -96,14 +98,26 @@ func (props PropertiesID) SetNumber(prop string, value int64) error {
 	return nil
 }
 
-func (props PropertiesID) SetString(prop string, value string) error {
+func (props PropertiesID) SetBoolean(prop string, value bool) error {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	if !C.SDL_SetStringProperty(C.SDL_PropertiesID(props), cstring(prop), cstring(value)) {
+	if !C.SDL_SetBooleanProperty(C.SDL_PropertiesID(props), cstring(prop), C.bool(value)) {
 		return getError()
 	}
 	return nil
+}
+
+func WithStringProperty(prop string, value string) func(props PropertiesID) error {
+	return func(props PropertiesID) error { return props.SetString(prop, value) }
+}
+
+func WithNumberProperty(prop string, value int64) func(props PropertiesID) error {
+	return func(props PropertiesID) error { return props.SetNumber(prop, value) }
+}
+
+func WithBooleanProperty(prop string, value bool) func(props PropertiesID) error {
+	return func(props PropertiesID) error { return props.SetBoolean(prop, value) }
 }
 
 // Events
@@ -139,13 +153,20 @@ const (
 	EVENT_GAMEPAD_STEAM_HANDLE_UPDATED EventType = C.SDL_EVENT_GAMEPAD_STEAM_HANDLE_UPDATED
 )
 
+// TODO: rename so that it's clear it's not SDL_Event? E.g. EventPointer or idk.
+type Event interface{ event() }
+
 type QuitEvent struct {
+	_         structs.HostLayout
 	Type      EventType
 	_         uint32
 	Timestamp uint64
 }
 
+func (*QuitEvent) event() {}
+
 type WindowEvent struct {
+	_         structs.HostLayout
 	Type      EventType
 	_         uint32
 	Timestamp uint64
@@ -156,7 +177,10 @@ type WindowEvent struct {
 
 type WindowPixelSizeChangedEvent WindowEvent
 
+func (*WindowPixelSizeChangedEvent) event() {}
+
 type KeyboardEvent struct {
+	_         structs.HostLayout
 	Type      EventType
 	_         uint32
 	Timestamp uint64
@@ -173,7 +197,11 @@ type KeyboardEvent struct {
 type KeyDownEvent KeyboardEvent
 type KeyUpEvent KeyboardEvent
 
+func (*KeyDownEvent) event() {}
+func (*KeyUpEvent) event()   {}
+
 type MouseMotionEvent struct {
+	_         structs.HostLayout
 	Type      EventType
 	_         uint32
 	Timestamp uint64
@@ -186,7 +214,10 @@ type MouseMotionEvent struct {
 	YRel      float32
 }
 
+func (*MouseMotionEvent) event() {}
+
 type MouseButtonEvent struct {
+	_         structs.HostLayout
 	Type      EventType
 	_         uint32
 	Timestamp uint64
@@ -200,10 +231,16 @@ type MouseButtonEvent struct {
 	Y         float32
 }
 
-type MouseButtonDownEvent MouseButtonEvent
-type MouseButtonUpEvent MouseButtonEvent
+type (
+	MouseButtonDownEvent MouseButtonEvent
+	MouseButtonUpEvent   MouseButtonEvent
+)
+
+func (*MouseButtonDownEvent) event() {}
+func (*MouseButtonUpEvent) event()   {}
 
 type GamepadAxisEvent struct {
+	_         structs.HostLayout
 	Type      EventType
 	_         uint32
 	Timestamp uint64
@@ -218,7 +255,10 @@ type GamepadAxisEvent struct {
 
 type GamepadAxisMotionEvent GamepadAxisEvent
 
+func (*GamepadAxisMotionEvent) event() {}
+
 type GamepadButtonEvent struct {
+	_         structs.HostLayout
 	Type      EventType
 	_         uint32
 	Timestamp uint64
@@ -229,20 +269,33 @@ type GamepadButtonEvent struct {
 	_         uint8
 }
 
-type GamepadButtonDownEvent GamepadButtonEvent
-type GamepadButtonUpEvent GamepadButtonEvent
+type (
+	GamepadButtonDownEvent GamepadButtonEvent
+	GamepadButtonUpEvent   GamepadButtonEvent
+)
+
+func (*GamepadButtonDownEvent) event() {}
+func (*GamepadButtonUpEvent) event()   {}
 
 type GamepadDeviceEvent struct {
+	_         structs.HostLayout
 	Type      EventType
 	_         uint32
 	Timestamp uint64
 	Which     JoystickID
 }
 
-type GamepadAddedEvent GamepadDeviceEvent
-type GamepadRemappedEvent GamepadDeviceEvent
-type GamepadRemovedEvent GamepadDeviceEvent
-type GamepadUpdateCompleteEvent GamepadDeviceEvent
+type (
+	GamepadAddedEvent          GamepadDeviceEvent
+	GamepadRemappedEvent       GamepadDeviceEvent
+	GamepadRemovedEvent        GamepadDeviceEvent
+	GamepadUpdateCompleteEvent GamepadDeviceEvent
+)
+
+func (*GamepadAddedEvent) event()          {}
+func (*GamepadRemappedEvent) event()       {}
+func (*GamepadRemovedEvent) event()        {}
+func (*GamepadUpdateCompleteEvent) event() {}
 
 func _() {
 	var x [1]int
@@ -256,7 +309,24 @@ func _() {
 	_ = x[unsafe.Sizeof(GamepadDeviceEvent{})-unsafe.Sizeof(C.SDL_GamepadDeviceEvent{})]
 }
 
-func WaitEvent() (any, error) {
+var eventTypes = map[EventType]reflect.Type{
+	EVENT_QUIT:                      reflect.TypeFor[*QuitEvent](),
+	EVENT_WINDOW_PIXEL_SIZE_CHANGED: reflect.TypeFor[*WindowPixelSizeChangedEvent](),
+	EVENT_KEY_DOWN:                  reflect.TypeFor[*KeyDownEvent](),
+	EVENT_KEY_UP:                    reflect.TypeFor[*KeyUpEvent](),
+	EVENT_MOUSE_MOTION:              reflect.TypeFor[*MouseMotionEvent](),
+	EVENT_MOUSE_BUTTON_DOWN:         reflect.TypeFor[*MouseButtonDownEvent](),
+	EVENT_MOUSE_BUTTON_UP:           reflect.TypeFor[*MouseButtonUpEvent](),
+	EVENT_GAMEPAD_AXIS_MOTION:       reflect.TypeFor[*GamepadAxisMotionEvent](),
+	EVENT_GAMEPAD_BUTTON_DOWN:       reflect.TypeFor[*GamepadButtonDownEvent](),
+	EVENT_GAMEPAD_BUTTON_UP:         reflect.TypeFor[*GamepadButtonUpEvent](),
+	EVENT_GAMEPAD_ADDED:             reflect.TypeFor[*GamepadAddedEvent](),
+	EVENT_GAMEPAD_REMAPPED:          reflect.TypeFor[*GamepadRemappedEvent](),
+	EVENT_GAMEPAD_REMOVED:           reflect.TypeFor[*GamepadRemovedEvent](),
+	EVENT_GAMEPAD_UPDATE_COMPLETE:   reflect.TypeFor[*GamepadUpdateCompleteEvent](),
+}
+
+func WaitEvent() (Event, error) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
@@ -264,50 +334,19 @@ func WaitEvent() (any, error) {
 	if !C.SDL_WaitEvent(&event) {
 		return nil, getError()
 	}
-
 	return translateEvent(&event), nil
 }
 
-func translateEvent(event *C.SDL_Event) any {
-	switch eventType := *(*EventType)(unsafe.Pointer(event)); eventType {
-	case EVENT_QUIT:
-		return (*QuitEvent)(unsafe.Pointer(event))
+func translateEvent(p *C.SDL_Event) Event {
+	eventType := *(*EventType)(unsafe.Pointer(p))
 
-	case EVENT_WINDOW_PIXEL_SIZE_CHANGED:
-		return (*WindowPixelSizeChangedEvent)(unsafe.Pointer(event))
-
-	case EVENT_KEY_DOWN:
-		return (*KeyDownEvent)(unsafe.Pointer(event))
-	case EVENT_KEY_UP:
-		return (*KeyUpEvent)(unsafe.Pointer(event))
-
-	case EVENT_MOUSE_MOTION:
-		return (*MouseMotionEvent)(unsafe.Pointer(event))
-	case EVENT_MOUSE_BUTTON_DOWN:
-		return (*MouseButtonDownEvent)(unsafe.Pointer(event))
-	case EVENT_MOUSE_BUTTON_UP:
-		return (*MouseButtonUpEvent)(unsafe.Pointer(event))
-
-	case EVENT_GAMEPAD_AXIS_MOTION:
-		return (*GamepadAxisMotionEvent)(unsafe.Pointer(event))
-	case EVENT_GAMEPAD_BUTTON_DOWN:
-		return (*GamepadButtonDownEvent)(unsafe.Pointer(event))
-	case EVENT_GAMEPAD_BUTTON_UP:
-		return (*GamepadButtonUpEvent)(unsafe.Pointer(event))
-	case EVENT_GAMEPAD_ADDED:
-		return (*GamepadAddedEvent)(unsafe.Pointer(event))
-	case EVENT_GAMEPAD_REMAPPED:
-		return (*GamepadRemappedEvent)(unsafe.Pointer(event))
-	case EVENT_GAMEPAD_REMOVED:
-		return (*GamepadRemovedEvent)(unsafe.Pointer(event))
-	case EVENT_GAMEPAD_UPDATE_COMPLETE:
-		return (*GamepadUpdateCompleteEvent)(unsafe.Pointer(event))
-
-	default:
-		// TODO: handle all events our translation layer receives.
-		// println(fmt.Sprintf("sdl: unknown event 0x%x", uint32(eventType)))
+	typ := eventTypes[eventType]
+	if typ == nil {
 		return nil
 	}
+
+	pTyped, _ := reflect.TypeAssert[Event](reflect.NewAt(typ.Elem(), unsafe.Pointer(p)))
+	return pTyped
 }
 
 // Video
@@ -804,6 +843,7 @@ const (
 )
 
 type AudioSpec struct {
+	_          structs.HostLayout
 	Format     AudioFormat
 	Channels   int32
 	SampleRate int32
