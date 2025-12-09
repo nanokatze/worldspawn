@@ -1,7 +1,6 @@
 import gpu;
 import internal.material.interpreter;
 import internal.spectrum;
-import lighting;
 
 public struct emissiveInstance {
     public float3x4 transform;

@@ -1,7 +1,7 @@
 import internal.integration.mapping;
 import internal.interpolation;
 import internal.material.interpreter;
-import lighting;
+import light;
 import scene; // TODO: stop importing this
 
 // TODO: clean up.
