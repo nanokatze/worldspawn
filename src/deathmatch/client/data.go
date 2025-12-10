@@ -114,19 +114,19 @@ func getmaterial(identifier string) renderer.MaterialInstance {
 
 		// TODO: naming!!!!!!!!!!!!!!!!
 
-		var mat struct {
+		var header struct {
 			ParamTypes []string
 			Host       []string
 			Program    jsontext.Value
 		}
-		if err := json.Unmarshal(src, &mat); err != nil {
+		if err := json.Unmarshal(src, &header); err != nil {
 			log.Printf("getmaterial: %v", err)
 			goto bail
 		}
 
-		paramTypes := make([]compiler.Type, len(mat.ParamTypes))
+		paramTypes := make([]compiler.Type, len(header.ParamTypes))
 		for i := range paramTypes {
-			paramTypes[i] = mtlj.Type(mat.ParamTypes[i])
+			paramTypes[i] = mtlj.Type(header.ParamTypes[i])
 		}
 		paramStruct := matc.ParamStruct(paramTypes)
 		paramOffsets := make([]int64, paramStruct.NumField())
@@ -139,7 +139,7 @@ func getmaterial(identifier string) renderer.MaterialInstance {
 			Sea:   sea,
 			Rules: append(append([]compiler.RewriteRule(nil), core.Rules...), matc.InterpreterLowerings...),
 		}
-		ir, err := mtlj.Parse(b, mat.Program)
+		ir, err := mtlj.Parse(b, header.Program)
 		if err != nil {
 			log.Printf("getmaterial: %v", err)
 			goto bail
@@ -147,7 +147,7 @@ func getmaterial(identifier string) renderer.MaterialInstance {
 
 		m.Material = renderer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(paramOffsets, sea, ir))
 		m.Material.ParamStruct = paramStruct
-		m.Material.ParamNames = mat.Host
+		m.Material.ParamNames = header.Host
 	}
 	materialcache[identifier] = m
 	return m
