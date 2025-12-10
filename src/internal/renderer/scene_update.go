@@ -6,6 +6,8 @@ import (
 	"worldspawn/gpu/vk"
 )
 
+// TODO: merge this file into scene
+
 type Instance struct {
 	Transform int
 
@@ -21,11 +23,8 @@ type MaterialInstance struct {
 
 // TODO: actually remove this entirely from here and push any kind of tracking
 // onto the user.
-type SceneDirty struct {
+type SceneUpdate struct {
 	Sky *gpu.Image
-
-	// TODO: remove this field
-	OurCamera Camera
 
 	Parent      []int
 	TransformT0 []geometry.TRS3
@@ -40,8 +39,8 @@ type SceneDirty struct {
 	Materials [][]MaterialInstance
 }
 
-func NewSceneDirty(n int) *SceneDirty {
-	return &SceneDirty{
+func NewSceneDirty(n int) *SceneUpdate {
+	return &SceneUpdate{
 		Parent:      make([]int, n),
 		TransformT0: make([]geometry.TRS3, n),
 		TransformT1: make([]geometry.TRS3, n),
@@ -53,7 +52,7 @@ func NewSceneDirty(n int) *SceneDirty {
 }
 
 // TODO: rename to something like GlobalTransform?
-func (s *SceneDirty) Transform(i int, t float32) geometry.Mat4x4 {
+func (s *SceneUpdate) Transform(i int, t float32) geometry.Mat4x4 {
 	B := geometry.Mat4x4Identity()
 	for ; i != 0; i = s.Parent[i] {
 		A := s.TransformT0[i].NLerp(s.TransformT1[i], t).Mat4x4()
@@ -67,7 +66,7 @@ func (s *SceneDirty) Transform(i int, t float32) geometry.Mat4x4 {
 // TODO: do not do any host state management here but delegate things to the
 // user where applicable. E.g. for materials we'll want the user to be p
 // explicit about them (assign materials indices or w/e)
-func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneDirty, t float32) {
+func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneUpdate, t float32) {
 	// TODO: update sky device-side too? That would make things extra neat and
 	// fun.
 	// TODO: hard-require sky?

@@ -49,13 +49,28 @@ var window *sdl.Window
 var redrawMu sync.Mutex
 var resizeCond = sync.Cond{L: &redrawMu}
 
-var currentExtent [3]int
 var swapchain *gpu.Swapchain
 var swapchainImage *gpu.Image
 
 var currentSession atomic.Pointer[Client]
 
 var gamepad *sdl.Gamepad
+
+func createWindow(props2 ...func(props sdl.PropertiesID) error) (*sdl.Window, error) {
+	props, err := sdl.CreateProperties()
+	if err != nil {
+		return nil, err
+	}
+	defer props.Destroy()
+
+	for _, f := range props2 {
+		if err := f(props); err != nil {
+			return nil, err
+		}
+	}
+
+	return sdl.CreateWindowWithProperties(props)
+}
 
 // TODO: put sdl inits behind sync.Onces?
 
@@ -84,22 +99,16 @@ func main() {
 	}
 
 	{
-		props, err := sdl.CreateProperties()
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer props.Destroy()
-
-		props.SetString(sdl.PROP_WINDOW_CREATE_TITLE_STRING, "Wo̅r̅l̅d̅s̅p̅a̅w̅n̅")
-		props.SetBoolean(sdl.PROP_WINDOW_CREATE_WAYLAND_SURFACE_ROLE_CUSTOM_BOOLEAN, true)
-		props.SetBoolean(sdl.PROP_WINDOW_CREATE_VULKAN_BOOLEAN, true)
-		props.SetBoolean(sdl.PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN, true)
-		props.SetBoolean(sdl.PROP_WINDOW_CREATE_HIGH_PIXEL_DENSITY_BOOLEAN, true)
-		props.SetNumber(sdl.PROP_WINDOW_CREATE_WIDTH_NUMBER, 1280)
-		props.SetNumber(sdl.PROP_WINDOW_CREATE_HEIGHT_NUMBER, 800)
-
+		var err error
 		// TODO: make `window` not global, for the sake of tidier code
-		window, err = sdl.CreateWindowWithProperties(props)
+		window, err = createWindow(
+			sdl.WithStringProperty(sdl.PROP_WINDOW_CREATE_TITLE_STRING, "Wo̅r̅l̅d̅s̅p̅a̅w̅n̅"),
+			// sdl.WithBooleanProperty(sdl.PROP_WINDOW_CREATE_WAYLAND_SURFACE_ROLE_CUSTOM_BOOLEAN, true),
+			sdl.WithBooleanProperty(sdl.PROP_WINDOW_CREATE_VULKAN_BOOLEAN, true),
+			sdl.WithBooleanProperty(sdl.PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN, true),
+			sdl.WithBooleanProperty(sdl.PROP_WINDOW_CREATE_HIGH_PIXEL_DENSITY_BOOLEAN, true),
+			sdl.WithNumberProperty(sdl.PROP_WINDOW_CREATE_WIDTH_NUMBER, int64(1280)),
+			sdl.WithNumberProperty(sdl.PROP_WINDOW_CREATE_HEIGHT_NUMBER, int64(800)))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -162,7 +171,7 @@ func resize(width, height int) {
 
 	slog.Info("resize", "width", width, "height", height)
 
-	currentExtent = [3]int{width, height, 1}
+	currentExtent := [3]int{width, height, 1}
 
 	swapchain = gpu.NewSwapchain(&gpu.SwapchainConfig{
 		Window:     window,
@@ -231,75 +240,29 @@ func redrawLocked() bool {
 
 	var jq gpu.JobQueue
 
+	conf := config.Load()
+
+	select {
+	case update := <-clientRenderer.sceneUpdates:
+		clientRenderer.scene.EnqueueUpdate(&jq, update.SceneUpdate, 0)
+	default:
+	}
+
+	clientRenderer.stuffMu.Lock()
+	t := 1.0
+	if !conf.DontInterpolate {
+		// TODO: we need to be able to lock sceneMu for this but we can't.
+		// We should make our own scene type with the timestamps and stuff.
+		t = min(max(float64(sdl.TicksNS()-clientRenderer.t0sdl)/float64(clientRenderer.t1sdl-clientRenderer.t0sdl), 0), 1)
+	}
+	ourCamera := clientRenderer.ourCamera
+	clientRenderer.stuffMu.Unlock()
+
 	// swapchainImage := swapchain.Image(swapchainImageIndex)
 
 	swapchainImage.EnqueueInit(&jq)
 
-	conf := config.Load()
-
-	t := 1.0
-	func() {
-		clientRenderer.sceneMu.Lock()
-		defer clientRenderer.sceneMu.Unlock()
-
-		copy(clientRenderer.privateScene.Parent, clientRenderer.scene.Parent)
-		copy(clientRenderer.privateScene.TransformT0, clientRenderer.scene.TransformT0)
-		copy(clientRenderer.privateScene.TransformT1, clientRenderer.scene.TransformT1)
-		copy(clientRenderer.privateScene.Instance, clientRenderer.scene.Instance)
-		copy(clientRenderer.privateScene.Mesh, clientRenderer.scene.Mesh)
-		copy(clientRenderer.privateScene.Materials, clientRenderer.scene.Materials)
-		clientRenderer.privateScene.Sky = clientRenderer.scene.Sky
-		clientRenderer.privateScene.OurCamera = clientRenderer.scene.OurCamera
-
-		if !conf.DontInterpolate {
-			t = min(max(float64(sdl.TicksNS()-clientRenderer.t0sdl)/float64(clientRenderer.t1sdl-clientRenderer.t0sdl), 0), 1)
-		}
-	}()
-
-	/*
-		// TODO: do deformations in their own JobQueues
-		var wg gpu.WaitGroup
-		wg.Add(len(clientRenderer.privateScene.Pose))
-		for i, pose := range clientRenderer.privateScene.Pose {
-			if pose == nil {
-				continue
-			}
-
-			jq := jq.Fork()
-
-			dpose := gpu.MakeSliceUncached[geometry.Mat4x4](len(pose))
-			defer jq.Cleanup(func() { gpu.Free(gpu.UnsafePointer(gpu.SliceData(dpose))) })
-
-			dposehost := dpose.Value()
-			for i, xform := range pose {
-				// TODO: actually let the renderer interpolate
-				dposehost[i] = xform
-			}
-
-			clientRenderer.privateScene.MeshInstance[i].Mesh.EnqueueDeform(&jq, dpose)
-
-			wg.EnqueueDone(&jq)
-		}
-		wg.EnqueueWait(&jq)
-	*/
-
-	testSampler := gpu.NewSampler(&vk.SamplerCreateInfo{
-		SType:            vk.STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-		MinFilter:        vk.FILTER_LINEAR,
-		MagFilter:        vk.FILTER_LINEAR,
-		MipmapMode:       vk.SAMPLER_MIPMAP_MODE_LINEAR,
-		AddressModeU:     vk.SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-		AddressModeV:     vk.SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-		AddressModeW:     vk.SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-		MipLodBias:       0.0,
-		AnisotropyEnable: vk.FALSE,
-		MinLod:           0.0,
-		MaxLod:           vk.LOD_CLAMP_NONE,
-	})
-
-	clientRenderer.privateScene2.EnqueueUpdate(&jq, clientRenderer.privateScene, float32(t))
-
-	clientRenderer.privateScene2.Render(
+	clientRenderer.scene.Render(
 		&jq,
 		renderer.Film{
 			Extent: swapchainImage.Extent(),
@@ -307,7 +270,7 @@ func redrawLocked() bool {
 		},
 		float32(t),
 		fn,
-		&clientRenderer.privateScene.OurCamera)
+		&ourCamera)
 	fn++
 
 	// TODO: it would probably be a good idea to inject overlay rendering into
@@ -333,7 +296,7 @@ func redrawLocked() bool {
 						StoreOp: vk.ATTACHMENT_STORE_OP_STORE,
 					},
 				},
-				RenderArea: vk.Rect2D{Extent: vk.Extent2D{Width: uint32(currentExtent[0]), Height: uint32(currentExtent[1])}},
+				RenderArea: vk.Rect2D{Extent: vk.Extent2D{Width: uint32(swapchainImage.Extent()[0]), Height: uint32(swapchainImage.Extent()[1])}},
 				LayerCount: 1,
 			})
 		defer rp.End()
@@ -345,14 +308,14 @@ func redrawLocked() bool {
 			{
 				X:        0,
 				Y:        0,
-				Width:    float32(currentExtent[0]),
-				Height:   float32(currentExtent[1]),
+				Width:    float32(swapchainImage.Extent()[0]),
+				Height:   float32(swapchainImage.Extent()[1]),
 				MinDepth: 0,
 				MaxDepth: 1,
 			},
 		})
 		rp.SetScissors([]vk.Rect2D{
-			{Extent: vk.Extent2D{Width: uint32(currentExtent[0]), Height: uint32(currentExtent[1])}},
+			{Extent: vk.Extent2D{Width: uint32(swapchainImage.Extent()[0]), Height: uint32(swapchainImage.Extent()[1])}},
 		})
 
 		rp.SetRasterizerDiscardEnable(false)
@@ -384,8 +347,6 @@ func redrawLocked() bool {
 		rp.SetShader(vk.SHADER_STAGE_FRAGMENT_BIT, nil)
 	}()
 
-	jq.Cleanup(testSampler.Destroy)
-
 	var presentationOk bool
 	trace.WithRegion(context.Background(), "Presentation", func() {
 		presentationOk = swapchain.Present2(&jq, swapchainImage)
@@ -399,11 +360,13 @@ func redrawLocked() bool {
 }
 
 // TODO: should be created on demand
+// TODO: split into two parts
 var clientRenderer = &idk{
-	privateScene:  renderer.NewSceneDirty(10000),
-	privateScene2: renderer.NewScene(10000, 5),
+	transformT0: make([]geometry.TRS3, 10000),
 
-	scene: renderer.NewSceneDirty(10000),
+	sceneUpdates: make(chan *sceneUpdate, 1),
+
+	scene: renderer.NewScene(10000, 5),
 
 	sfxScene: &sfx.Scene{
 		Instance: make([]sfx.Instance, 10000),
@@ -446,60 +409,64 @@ func extractChannel(s []float32, channels, channel int) []float32 {
 	return s2
 }
 
-// TODO: rename to smth like rendererGlue? idk
+// TODO: split into two
 type idk struct {
-	// TODO: remove privateScen and only keep privateScene2. Enqueue updates to
-	// privateScene2 directly from scene.
+	transformT0 []geometry.TRS3
 
-	privateScene  *renderer.SceneDirty // TODO: remove
-	privateScene2 *renderer.Scene      // gpu's private copy of the scene; TODO: rename
+	// Update being filled out. This may persist between multiple game updates
+	// if sceneUpdates queue was full.
+	stagingUpdate *sceneUpdate
 
-	sceneMu        sync.Mutex // TODO: rename, embed or leave as is?
-	scene          *renderer.SceneDirty
+	// TODO: this should be a part of sceneUpdate. We also need the "currently
+	// being rendered time interval" so that we can map input back to that.
+	stuffMu        sync.Mutex
 	t0sdl, t1sdl   uint64 // TODO: special type to represent SDL ticks?
 	t0game, t1game game.Time
+	// TODO: what if we want to pass multiple cameras to the composition
+	// pipeline?
+	ourCamera renderer.Camera
 
+	// Queue of updates, consumed by redrawLocked.
+	sceneUpdates chan *sceneUpdate
+
+	// Only used by the redrawLocked
+	scene *renderer.Scene
+
+	// Uhh
 	sfxScene *sfx.Scene
 }
 
 func (sr *idk) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration) {
-	sr.sceneMu.Lock()
-	defer sr.sceneMu.Unlock()
-
 	conf := config.Load()
 
+	if sr.stagingUpdate == nil {
+		// TODO: pool this stuff
+		sr.stagingUpdate = &sceneUpdate{SceneUpdate: renderer.NewSceneDirty(10000)}
+	}
+	update := sr.stagingUpdate
+
 	{
-		sr.t0sdl = sdl.TicksNS()
-		sr.t1sdl = sr.t0sdl + uint64(frameDuration) // depends on timescale
-
-		sr.t0game = t0
-		sr.t1game = t1
-
-		for i := range sr.scene.Parent {
-			sr.scene.Parent[i] = 0
+		for i := range update.Parent {
+			update.Parent[i] = 0
 		}
 
-		sr.scene.TransformT0, sr.scene.TransformT1 = sr.scene.TransformT1, sr.scene.TransformT0
-		for i := range sr.scene.Instance {
-			sr.scene.Instance[i].Transform = 0
+		for i := range update.Instance {
+			update.Instance[i].Transform = 0
 		}
-		sr.scene.Sky = texture(w.Sky).Image
+
+		update.Sky = texture(w.Sky).Image
 
 		playerEntity, _ := w.Entity.Load(playerID)
 		fpsCharacter := playerEntity.(game.FPSCharacter)
 
 		for id, tr := range w.TranslationRotation.All() {
-			scale, ok := w.Scale.Load(id)
-			if !ok {
-				scale = geometry.Vec3Broadcast(1)
-			}
 			cosmeticOffset, _ := w.CosmeticOffset.Load(id)
 
 			i := id.Index()
 
 			parent, hasParent := w.Parent.Load(id)
 			if hasParent {
-				sr.scene.Parent[i] = parent.Index()
+				update.Parent[i] = parent.Index()
 			}
 
 			var offset geometry.Vec3
@@ -507,12 +474,21 @@ func (sr *idk) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDurat
 				offset = cosmeticOffset.Eval(w.Now)
 			}
 
-			sr.scene.TransformT1[i] = geometry.TRS3{
+			transformT0 := sr.transformT0[i]
+			transformT1 := geometry.TRS3{
 				Translation: tr.Translation.Add(geometry.DVec3FromVec3(offset)).Vec3(),
 				Rotation:    tr.Rotation,
-				Scale:       scale,
+				Scale:       w.GetScale(id),
 			}
+
+			update.TransformT0[i] = transformT0
+			update.TransformT1[i] = transformT1
+			sr.transformT0[i] = transformT1
 		}
+
+		// TODO: we need to split operations on caches into probe and fetch, so
+		// that when a probe fails, we spawn a new goroutine with fetch and
+		// everything that follows.
 
 		for id, v := range ecs.Join(w.RenderingGeometry, w.TranslationRotation) {
 			entity, hasEntity := w.Entity.Load(id)
@@ -532,16 +508,16 @@ func (sr *idk) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDurat
 				}
 			}
 
-			mesh := model(renderingGeometry)
+			mesh := getmesh(renderingGeometry)
 
-			sr.scene.Mesh[i] = mesh
+			update.Mesh[i] = mesh.re
 
 			// TODO: stop doing slices.Clone
-			sr.scene.Materials[i] = slices.Clone(mesh.DefaultMaterials)
+			update.Materials[i] = slices.Clone(mesh.re.DefaultMaterials)
 
 			if hasEntity {
-				for j := range sr.scene.Materials[i] {
-					m := &sr.scene.Materials[i][j]
+				for j := range update.Materials[i] {
+					m := &update.Materials[i][j]
 					// TODO: do we call this params or args?
 					args := reflect.NewAt(m.Material.ParamStruct, unsafe.Pointer(&m.Args)).Elem()
 					// TODO: precompile Gather
@@ -549,22 +525,36 @@ func (sr *idk) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDurat
 				}
 			}
 
-			sr.scene.Instance[i].Mask = mask
-			sr.scene.Instance[i].Transform = i
+			update.Instance[i].Mask = mask
+			update.Instance[i].Transform = i
 		}
 
+		// TODO: this should not exist and be part of sceneUpdate
+		sr.stuffMu.Lock()
+		sr.t0sdl = sdl.TicksNS()
+		sr.t1sdl = sr.t0sdl + uint64(frameDuration) // depends on timescale
+		sr.t0game = t0
+		sr.t1game = t1
 		// TODO: factor out into a function, this gets reused in Subtick
-		sr.scene.OurCamera = renderer.Camera{
-			Transform:     sr.scene.Transform(fpsCharacter.Camera.Index(), 0),
+		sr.ourCamera = renderer.Camera{
+			Transform:     update.Transform(fpsCharacter.Camera.Index(), 0),
 			FieldOfView:   float32(geometry.Radians(67.5)),
 			NearClipPlane: 0.01,
 		}
+		sr.stuffMu.Unlock()
 	}
 
+	select {
+	case sr.sceneUpdates <- update:
+		sr.stagingUpdate = nil
+	default:
+	}
+
+	// Ughhhhhhh
 	{
 		playerEntity, _ := w.Entity.Load(playerID)
 		fpsCharacter := playerEntity.(game.FPSCharacter)
-		camera := sr.scene.Transform(fpsCharacter.Camera.Index(), 0)
+		camera := update.Transform(fpsCharacter.Camera.Index(), 0)
 		cameraPos := geometry.Vec3{camera[0][3], camera[1][3], camera[2][3]}
 
 		scene := sr.sfxScene
@@ -628,26 +618,28 @@ func (sr *idk) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDurat
 }
 
 func (sr *idk) Subtick(w *game.Scene, playerID ecs.ID) {
-	sr.sceneMu.Lock()
-	defer sr.sceneMu.Unlock()
+	// re.stuffMu.Lock()
+	// defer re.stuffMu.Unlock()
 
-	playerEntity, _ := w.Entity.Load(playerID)
-	fpsCharacter := playerEntity.(game.FPSCharacter)
-	cameraID := fpsCharacter.Camera
-	tr, _ := w.TranslationRotation.Load(cameraID)
+	// TODO: we'll need to fix camera shenanigans first
 
-	rot := tr.Rotation
+	// playerEntity, _ := w.Entity.Load(playerID)
+	// fpsCharacter := playerEntity.(game.FPSCharacter)
+	// cameraID := fpsCharacter.Camera
+	// tr, _ := w.TranslationRotation.Load(cameraID)
 
-	// TODO: chase the entire parent chain and update that as well?
+	// rot := tr.Rotation
 
-	sr.scene.TransformT0[cameraID.Index()].Rotation = rot
-	sr.scene.TransformT1[cameraID.Index()].Rotation = rot
+	// // TODO: chase the entire parent chain and update that as well?
 
-	sr.scene.OurCamera = renderer.Camera{
-		Transform:     sr.scene.Transform(cameraID.Index(), 0),
-		FieldOfView:   float32(geometry.Radians(67.5)),
-		NearClipPlane: 0.01,
-	}
+	// clientRenderer.scene.TransformT0[cameraID.Index()].Rotation = rot
+	// clientRenderer.scene.TransformT1[cameraID.Index()].Rotation = rot
+
+	// clientRenderer.ourCamera = renderer.Camera{
+	// 	Transform:     clientRenderer.scene.Transform(cameraID.Index(), 0),
+	// 	FieldOfView:   float32(geometry.Radians(67.5)),
+	// 	NearClipPlane: 0.01,
+	// }
 }
 
 type flickStick struct {
@@ -659,8 +651,8 @@ type flickStick struct {
 var flickStickTest flickStick
 
 func sdlTimeToGameTime(ticks uint64) game.Time {
-	clientRenderer.sceneMu.Lock()
-	defer clientRenderer.sceneMu.Unlock()
+	clientRenderer.stuffMu.Lock()
+	defer clientRenderer.stuffMu.Unlock()
 
 	// If we have DontInterpolate set, we'll want t = 1
 	t := min(max(float64(ticks-clientRenderer.t0sdl)/float64(clientRenderer.t1sdl-clientRenderer.t0sdl), 0), 1)

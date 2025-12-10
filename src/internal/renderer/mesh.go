@@ -68,6 +68,9 @@ type Mesh struct {
 	// attributes map[string]int
 }
 
+// TODO: provide sizes up-front but fill with data later
+// func NewMesh()
+
 func divCeil(x, y int) int {
 	return (x + y - 1) / y
 }

@@ -80,6 +80,9 @@ func (w *World) Transform(id ecs.ID) (geometry.Mat4x4, bool) {
 */
 
 // TODO: rename?
+// TODO: it's annoying that this needs special handling. We can replace most of
+// these with just reading things from entity 1. The time would have to remain
+// special though.
 type SingletonComponents struct {
 	// TODO: document what this means when we're in the middle of an Update
 	Now Time
@@ -103,18 +106,6 @@ type Camera struct {
 // should also update it reactively when we add dirty tracking, to minimize the
 // amount of work we do.
 
-// TODO: or SetParent?
-func (scene *Scene) ParentTo(child, parent ecs.ID) {
-	scene.Parent.Store(child, parent)
-
-	// children, _ := scene.Children.Load(parent)
-	// children
-}
-
-// func (scene *Scene) GetScale(id ecs.ID, scale geometry.Vec3) {
-// }
-
-// TODO: rename to ObjectComponents?
 // TODO: introduce struct tags like compatibility names etc
 type Components struct {
 	// Name ecs.ComponentStore[string]
@@ -255,6 +246,21 @@ func (w *Scene) DeleteEntityImmediately(id ecs.ID) {
 	}
 	w.Delete.Delete(id)
 	w.IDAlloc.Free(id)
+}
+
+// TODO: or SetParent?
+func (scene *Scene) ParentTo(child, parent ecs.ID) {
+	scene.Parent.Store(child, parent)
+
+	// children, _ := scene.Children.Load(parent)
+	// children
+}
+
+func (scene *Scene) GetScale(id ecs.ID) geometry.Vec3 {
+	if scale, ok := scene.Scale.Load(id); ok {
+		return scale
+	}
+	return geometry.Vec3Broadcast(1)
 }
 
 // TODO: rename to User/Player/etc Input
@@ -469,6 +475,7 @@ func (w *Scene) Update(updateParams *UpdateParams) {
 	}
 }
 
+// TODO: fold into Update
 func ClearTransientComponents(w *Scene) {
 	// TODO: uncomment this when we find a good way to draw view models
 	// w.WeaponAim.Clear()
@@ -476,7 +483,7 @@ func ClearTransientComponents(w *Scene) {
 	w.ContactEvents.Clear()
 }
 
-// TODO: rename to assertEntityType or idk
+// TODO: make public
 func assertEntity[T any](w *Scene, id ecs.ID) (T, bool) {
 	entity, _ := w.Entity.Load(id)
 	entityT, ok := entity.(T)

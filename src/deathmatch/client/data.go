@@ -27,7 +27,7 @@ import (
 
 var texturecache = make(map[string]*renderer.Texture)
 var materialcache = make(map[string]renderer.MaterialInstance)
-var modelcache = make(map[game.GeometryPacked]*renderer.Mesh)
+var modelcache = make(map[game.GeometryPacked]*mymesh)
 
 // TODO: should support streaming etc.
 func texture(filename string) *renderer.Texture {
@@ -187,19 +187,27 @@ var errorMaterial = sync.OnceValue(func() *renderer.InterpretedMaterial {
 	return renderer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(nil, sea, program))
 })
 
-func model(geo game.GeometryPacked) *renderer.Mesh {
+type mymesh struct {
+	re *renderer.Mesh
+}
+
+func loadmesh(filename string) *mymesh {
+	f, err := game.Data.Open(filename)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+	tmp := new(renderer.Mesh)
+	if err := tmp.InitFromFile(f.(io.ReaderAt), filename, getmaterial); err != nil {
+		panic(err)
+	}
+	return &mymesh{tmp}
+}
+
+func getmesh(geo game.GeometryPacked) *mymesh {
 	m, ok := modelcache[geo]
 	if !ok {
-		unpacked := geo.Unpack()
-		f, err := game.Data.Open(unpacked.Filename)
-		if err != nil {
-			panic(err)
-		}
-		defer f.Close()
-		m = new(renderer.Mesh)
-		if err := m.InitFromFile(f.(io.ReaderAt), unpacked.Filename, getmaterial); err != nil {
-			panic(err)
-		}
+		m = loadmesh(geo.Unpack().Filename)
 		modelcache[geo] = m
 	}
 	return m

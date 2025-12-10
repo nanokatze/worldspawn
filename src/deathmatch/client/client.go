@@ -25,12 +25,11 @@ import (
 
 var _ = hex.Dump
 
-// TODO: make both calls usable for updating other state (notably action
-// sets/layers but also gamepad LEDs/rumble?) Actually LEDs/rumble would be figured out
-// TODO: shrink the interface so that we only pass the components that the
-// renderer cares about, or reformulate the interface in terms of renderer's
-// scene instead of worldspawn component stores?
+// TODO: only pass components that the renderer needs? Probably wouldn't be a
+// benefit
 type Renderer interface {
+	// TODO: we don't really need t0, t1?
+	// TODO: rename to Update and possibly merge with Subtick somehow?
 	Tick(w *game.Scene, camera ecs.ID, t0, t1 game.Time, frameDuration time.Duration)
 	Subtick(w *game.Scene, camera ecs.ID)
 }
