@@ -129,7 +129,7 @@ func main() {
 
 	game.Data = os.DirFS(*dataDir)
 
-	session, err := newClient(clientRenderer, raddr)
+	session, err := newClient(gameRenderer, raddr)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -232,7 +232,7 @@ func redrawLocked() bool {
 
 	swapchainImage.EnqueueInit(&jq)
 
-	clientRenderer.Render(&jq)
+	gameRenderer.Render(&jq)
 
 	// TODO: it would probably be a good idea to inject overlay rendering into
 	// Render so that we can avoid breaking the render pass.
@@ -365,13 +365,13 @@ type flickStick struct {
 var flickStickTest flickStick
 
 func sdlTimeToGameTime(ticks uint64) game.Time {
-	clientRenderer.stuffMu.Lock()
-	defer clientRenderer.stuffMu.Unlock()
+	gameRenderer.stuffMu.Lock()
+	defer gameRenderer.stuffMu.Unlock()
 
 	// If we have DontInterpolate set, we'll want t = 1
-	t := min(max(float64(ticks-clientRenderer.t0sdl)/float64(clientRenderer.t1sdl-clientRenderer.t0sdl), 0), 1)
+	t := min(max(float64(ticks-gameRenderer.t0sdl)/float64(gameRenderer.t1sdl-gameRenderer.t0sdl), 0), 1)
 
-	return clientRenderer.t0game.Add(time.Duration(float64(clientRenderer.t1game-clientRenderer.t0game) * t))
+	return gameRenderer.t0game.Add(time.Duration(float64(gameRenderer.t1game-gameRenderer.t0game) * t))
 }
 
 // https://github.com/libsdl-org/SDL/issues/4464 🥺

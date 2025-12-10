@@ -30,8 +30,7 @@ type sceneUpdate struct {
 	*pathtracer.SceneUpdate
 }
 
-// TODO: split into two
-type idk struct {
+type gameRendererImpl struct {
 	transformT0 []geometry.TRS3
 	// ownedMeshes []*mymesh
 
@@ -59,7 +58,7 @@ type idk struct {
 }
 
 // TODO: should be created as needed
-var clientRenderer = &idk{
+var gameRenderer = &gameRendererImpl{
 	transformT0: make([]geometry.TRS3, 10000),
 
 	sceneUpdates: make(chan *sceneUpdate, 1),
@@ -71,14 +70,14 @@ var clientRenderer = &idk{
 	},
 }
 
-func (sr *idk) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration) {
+func (re *gameRendererImpl) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration) {
 	conf := config.Load()
 
-	if sr.stagingUpdate == nil {
+	if re.stagingUpdate == nil {
 		// TODO: pool this stuff
-		sr.stagingUpdate = &sceneUpdate{SceneUpdate: pathtracer.NewSceneDirty(10000)}
+		re.stagingUpdate = &sceneUpdate{SceneUpdate: pathtracer.NewSceneDirty(10000)}
 	}
-	update := sr.stagingUpdate
+	update := re.stagingUpdate
 
 	{
 		for i := range update.Parent {
@@ -109,7 +108,7 @@ func (sr *idk) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDurat
 				offset = cosmeticOffset.Eval(w.Now)
 			}
 
-			transformT0 := sr.transformT0[i]
+			transformT0 := re.transformT0[i]
 			transformT1 := geometry.TRS3{
 				Translation: tr.Translation.Add(geometry.DVec3FromVec3(offset)).Vec3(),
 				Rotation:    tr.Rotation,
@@ -118,7 +117,7 @@ func (sr *idk) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDurat
 
 			update.TransformT0[i] = transformT0
 			update.TransformT1[i] = transformT1
-			sr.transformT0[i] = transformT1
+			re.transformT0[i] = transformT1
 		}
 
 		// TODO: we need to split operations on caches into probe and fetch, so
@@ -165,23 +164,23 @@ func (sr *idk) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDurat
 		}
 
 		// TODO: this should not exist and be part of sceneUpdate
-		sr.stuffMu.Lock()
-		sr.t0sdl = sdl.TicksNS()
-		sr.t1sdl = sr.t0sdl + uint64(frameDuration) // depends on timescale
-		sr.t0game = t0
-		sr.t1game = t1
+		re.stuffMu.Lock()
+		re.t0sdl = sdl.TicksNS()
+		re.t1sdl = re.t0sdl + uint64(frameDuration) // depends on timescale
+		re.t0game = t0
+		re.t1game = t1
 		// TODO: factor out into a function, this gets reused in Subtick
-		sr.ourCamera = pathtracer.Camera{
+		re.ourCamera = pathtracer.Camera{
 			Transform:     update.Transform(fpsCharacter.Camera.Index(), 0),
 			FieldOfView:   float32(geometry.Radians(67.5)),
 			NearClipPlane: 0.01,
 		}
-		sr.stuffMu.Unlock()
+		re.stuffMu.Unlock()
 	}
 
 	select {
-	case sr.sceneUpdates <- update:
-		sr.stagingUpdate = nil
+	case re.sceneUpdates <- update:
+		re.stagingUpdate = nil
 	default:
 	}
 
@@ -192,7 +191,7 @@ func (sr *idk) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDurat
 		camera := update.Transform(fpsCharacter.Camera.Index(), 0)
 		cameraPos := geometry.Vec3{camera[0][3], camera[1][3], camera[2][3]}
 
-		scene := sr.sfxScene
+		scene := re.sfxScene
 
 		a := int64(t1.Sub(t0) * 48000 / 1e9)
 
@@ -248,11 +247,11 @@ func (sr *idk) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDurat
 
 		// TODO: let us do multiple audio renders per frame. Should be nice for
 		// sessions with long ticks
-		renderAudio(sr.sfxScene, cameraPos, int64(t0.Sub(game.Time(0))*48000/1e9), a)
+		renderAudio(re.sfxScene, cameraPos, int64(t0.Sub(game.Time(0))*48000/1e9), a)
 	}
 }
 
-func (sr *idk) Subtick(w *game.Scene, playerID ecs.ID) {
+func (re *gameRendererImpl) Subtick(w *game.Scene, playerID ecs.ID) {
 	// re.stuffMu.Lock()
 	// defer re.stuffMu.Unlock()
 
@@ -280,24 +279,24 @@ func (sr *idk) Subtick(w *game.Scene, playerID ecs.ID) {
 // TODO: should not be global lmao
 var fn uint32
 
-func (sr *idk) Render(jq *gpu.JobQueue) {
+func (re *gameRendererImpl) Render(jq *gpu.JobQueue) {
 	select {
-	case update := <-sr.sceneUpdates:
-		sr.scene.EnqueueUpdate(jq, update.SceneUpdate, 0)
+	case update := <-re.sceneUpdates:
+		re.scene.EnqueueUpdate(jq, update.SceneUpdate, 0)
 	default:
 	}
 
-	sr.stuffMu.Lock()
+	re.stuffMu.Lock()
 	t := 1.0
 	if true /* !conf.DontInterpolate */ {
 		// TODO: we need to be able to lock sceneMu for this but we can't.
 		// We should make our own scene type with the timestamps and stuff.
-		t = min(max(float64(sdl.TicksNS()-sr.t0sdl)/float64(sr.t1sdl-sr.t0sdl), 0), 1)
+		t = min(max(float64(sdl.TicksNS()-re.t0sdl)/float64(re.t1sdl-re.t0sdl), 0), 1)
 	}
-	ourCamera := sr.ourCamera
-	sr.stuffMu.Unlock()
+	ourCamera := re.ourCamera
+	re.stuffMu.Unlock()
 
-	sr.scene.Render(
+	re.scene.Render(
 		jq,
 		pathtracer.Film{
 			Extent: swapchainImage.Extent(),
