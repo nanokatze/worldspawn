@@ -2,7 +2,7 @@ package matc
 
 import (
 	"worldspawn/internal/compiler"
-	"worldspawn/internal/renderer/internal/material"
+	"worldspawn/internal/pathtracer/internal/material"
 )
 
 type assembler struct {

@@ -1,4 +1,4 @@
-package renderer
+package pathtracer
 
 import (
 	"structs"
@@ -6,7 +6,7 @@ import (
 	"worldspawn/geometry-go"
 	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
-	"worldspawn/internal/renderer/internal/material"
+	"worldspawn/internal/pathtracer/internal/material"
 )
 
 // TODO: DVec3 baseOffset

@@ -1,11 +1,11 @@
-package renderer
+package pathtracer
 
 import (
 	"reflect"
 
 	"worldspawn/gpu"
-	"worldspawn/internal/renderer/internal/material"
-	"worldspawn/internal/renderer/matc"
+	"worldspawn/internal/pathtracer/internal/material"
+	"worldspawn/internal/pathtracer/matc"
 )
 
 /*

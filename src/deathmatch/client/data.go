@@ -15,8 +15,8 @@ import (
 	"worldspawn/internal/compiler"
 	"worldspawn/internal/compiler/core"
 	"worldspawn/internal/mtlj"
-	"worldspawn/internal/renderer"
-	"worldspawn/internal/renderer/matc"
+	"worldspawn/internal/pathtracer"
+	"worldspawn/internal/pathtracer/matc"
 
 	"github.com/go-json-experiment/json"
 	"github.com/go-json-experiment/json/jsontext"
@@ -25,12 +25,12 @@ import (
 // TODO: rename this file to something else
 // TODO: outline this into its own package
 
-var texturecache = make(map[string]*renderer.Texture)
-var materialcache = make(map[string]renderer.MaterialInstance)
+var texturecache = make(map[string]*pathtracer.Texture)
+var materialcache = make(map[string]pathtracer.MaterialInstance)
 var modelcache = make(map[game.GeometryPacked]*mymesh)
 
 // TODO: should support streaming etc.
-func texture(filename string) *renderer.Texture {
+func texture(filename string) *pathtracer.Texture {
 	t, ok := texturecache[filename]
 	if !ok {
 		// TODO: move this code into its own func + handle errors and everything.
@@ -53,7 +53,7 @@ func texture(filename string) *renderer.Texture {
 
 		layers := int(textureHeader.FaceCount) * int(max(textureHeader.LayerCount, 1))
 
-		t = renderer.NewTexture(
+		t = pathtracer.NewTexture(
 			viewType,
 			[3]int{
 				int(textureHeader.Width),
@@ -101,7 +101,7 @@ func texture(filename string) *renderer.Texture {
 	return t
 }
 
-func getmaterial(identifier string) renderer.MaterialInstance {
+func getmaterial(identifier string) pathtracer.MaterialInstance {
 	m, ok := materialcache[identifier]
 	if !ok {
 		log.Println("loading material", path.Clean(identifier))
@@ -145,7 +145,7 @@ func getmaterial(identifier string) renderer.MaterialInstance {
 			goto bail
 		}
 
-		m.Material = renderer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(paramOffsets, sea, ir))
+		m.Material = pathtracer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(paramOffsets, sea, ir))
 		m.Material.ParamStruct = paramStruct
 		m.Material.ParamNames = header.Host
 	}
@@ -160,7 +160,7 @@ bail:
 	return m
 }
 
-var errorMaterial = sync.OnceValue(func() *renderer.InterpretedMaterial {
+var errorMaterial = sync.OnceValue(func() *pathtracer.InterpretedMaterial {
 	sea := compiler.NewSea()
 	b := &compiler.Builder{
 		Sea:   sea,
@@ -184,11 +184,11 @@ var errorMaterial = sync.OnceValue(func() *renderer.InterpretedMaterial {
 		b.Value2(matc.OpDFWeightedSum, matc.EDFType{}, nil),
 	)
 
-	return renderer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(nil, sea, program))
+	return pathtracer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(nil, sea, program))
 })
 
 type mymesh struct {
-	re *renderer.Mesh
+	re *pathtracer.Mesh
 }
 
 func loadmesh(filename string) *mymesh {
@@ -197,7 +197,7 @@ func loadmesh(filename string) *mymesh {
 		panic(err)
 	}
 	defer f.Close()
-	tmp := new(renderer.Mesh)
+	tmp := new(pathtracer.Mesh)
 	if err := tmp.InitFromFile(f.(io.ReaderAt), filename, getmaterial); err != nil {
 		panic(err)
 	}

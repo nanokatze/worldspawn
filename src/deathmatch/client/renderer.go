@@ -2,7 +2,7 @@ package main
 
 import (
 	"worldspawn/deathmatch/internal/game"
-	"worldspawn/internal/renderer"
+	"worldspawn/internal/pathtracer"
 )
 
 type sceneUpdate struct {
@@ -10,5 +10,5 @@ type sceneUpdate struct {
 	t0game, t1game game.Time
 
 	// TODO: remove renderer.SceneUpdate entirely
-	*renderer.SceneUpdate
+	*pathtracer.SceneUpdate
 }

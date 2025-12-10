@@ -34,8 +34,8 @@ import (
 	sfx "worldspawn/internal/fuckwwise"
 	"worldspawn/internal/fuckwwise/opusfile"
 	"worldspawn/internal/fuckwwise/wav"
-	"worldspawn/internal/renderer"
-	"worldspawn/internal/renderer/matc"
+	"worldspawn/internal/pathtracer"
+	"worldspawn/internal/pathtracer/matc"
 	"worldspawn/sdl"
 )
 
@@ -264,7 +264,7 @@ func redrawLocked() bool {
 
 	clientRenderer.scene.Render(
 		&jq,
-		renderer.Film{
+		pathtracer.Film{
 			Extent: swapchainImage.Extent(),
 			Color:  swapchainImage,
 		},
@@ -366,7 +366,7 @@ var clientRenderer = &idk{
 
 	sceneUpdates: make(chan *sceneUpdate, 1),
 
-	scene: renderer.NewScene(10000, 5),
+	scene: pathtracer.NewScene(10000, 5),
 
 	sfxScene: &sfx.Scene{
 		Instance: make([]sfx.Instance, 10000),
@@ -424,13 +424,13 @@ type idk struct {
 	t0game, t1game game.Time
 	// TODO: what if we want to pass multiple cameras to the composition
 	// pipeline?
-	ourCamera renderer.Camera
+	ourCamera pathtracer.Camera
 
 	// Queue of updates, consumed by redrawLocked.
 	sceneUpdates chan *sceneUpdate
 
 	// Only used by the redrawLocked
-	scene *renderer.Scene
+	scene *pathtracer.Scene
 
 	// Uhh
 	sfxScene *sfx.Scene
@@ -441,7 +441,7 @@ func (sr *idk) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDurat
 
 	if sr.stagingUpdate == nil {
 		// TODO: pool this stuff
-		sr.stagingUpdate = &sceneUpdate{SceneUpdate: renderer.NewSceneDirty(10000)}
+		sr.stagingUpdate = &sceneUpdate{SceneUpdate: pathtracer.NewSceneDirty(10000)}
 	}
 	update := sr.stagingUpdate
 
@@ -536,7 +536,7 @@ func (sr *idk) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDurat
 		sr.t0game = t0
 		sr.t1game = t1
 		// TODO: factor out into a function, this gets reused in Subtick
-		sr.ourCamera = renderer.Camera{
+		sr.ourCamera = pathtracer.Camera{
 			Transform:     update.Transform(fpsCharacter.Camera.Index(), 0),
 			FieldOfView:   float32(geometry.Radians(67.5)),
 			NearClipPlane: 0.01,

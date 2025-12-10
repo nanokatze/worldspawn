@@ -5,7 +5,7 @@ import (
 
 	"worldspawn/internal/compiler"
 	"worldspawn/internal/compiler/core"
-	"worldspawn/internal/renderer/matc"
+	"worldspawn/internal/pathtracer/matc"
 )
 
 func TestXxx(t *testing.T) {
