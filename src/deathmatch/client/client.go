@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/binary"
-	"encoding/hex"
 	"io"
 	"log"
 	"log/slog"
@@ -23,12 +22,10 @@ import (
 	"worldspawn/internal/nice"
 )
 
-var _ = hex.Dump
+// TODO: move client to deathmatch/internal so we can create bot client that
+// way? This Renderer interface would be moved there as well.
 
-// TODO: only pass components that the renderer needs? Probably wouldn't be a
-// benefit
 type Renderer interface {
-	// TODO: we don't really need t0, t1?
 	// TODO: rename to Update and possibly merge with Subtick somehow?
 	Tick(w *game.Scene, camera ecs.ID, t0, t1 game.Time, frameDuration time.Duration)
 	Subtick(w *game.Scene, camera ecs.ID)
