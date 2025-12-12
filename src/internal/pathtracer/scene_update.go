@@ -128,7 +128,7 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneUpdate, t float3
 			// TODO: we should build an emissive blas and when instancing it
 			// we'll enable/disable geometries (by specifying emission power for
 			// those geometries)
-			if materialInstance.Material.emissive() {
+			if materialInstance.Material.emissive {
 				emissiveInstancesHost[emissiveInstanceCount] = emissiveInstance{
 					transform:             A,
 					originalInstanceIndex: uint32(instanceIdx),

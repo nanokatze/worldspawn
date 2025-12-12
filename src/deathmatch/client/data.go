@@ -29,7 +29,7 @@ import (
 // TODO: outline this into its own package
 
 var texturecache = make(map[string]*pathtracer.Texture)
-var materialcache = make(map[string]pathtracer.MaterialInstance)
+var materialcache = make(map[string]material)
 var modelcache = make(map[game.GeometryPacked]*fileBackedMesh)
 
 // TODO: should support streaming etc.
@@ -104,7 +104,14 @@ func texture(filename string) *pathtracer.Texture {
 	return t
 }
 
-func getmaterial(identifier string) pathtracer.MaterialInstance {
+type material struct {
+	paramStruct reflect.Type
+	paramNames  []string
+
+	material *pathtracer.InterpretedMaterial
+}
+
+func getmaterial(identifier string) material {
 	m, ok := materialcache[identifier]
 	if !ok {
 		log.Println("loading material", path.Clean(identifier))
@@ -145,17 +152,17 @@ func getmaterial(identifier string) pathtracer.MaterialInstance {
 		}
 
 		// TODO: probs actually move GatherArgs into the renderer? idk
-		m.Material = pathtracer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(paramOffsets, sea, ir))
-		m.Material.ParamStruct = paramStruct
-		m.Material.ParamNames = header.Host
+		m.material = pathtracer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(paramOffsets, sea, ir))
+		m.paramStruct = paramStruct
+		m.paramNames = header.Host
 	}
 	materialcache[identifier] = m
 	return m
 
 bail:
 	// TODO: stop using gotos lmao aaa
-	m.Material = errorMaterial()
-	m.Material.ParamStruct = reflect.StructOf(nil)
+	m.material = errorMaterial()
+	m.paramStruct = reflect.StructOf(nil)
 	materialcache[identifier] = m
 	return m
 }
@@ -188,6 +195,9 @@ var errorMaterial = sync.OnceValue(func() *pathtracer.InterpretedMaterial {
 })
 
 type fileBackedMesh struct {
+	defaultMaterials []material // TODO: should just be strings probably
+
+	// we could (should) just embed it tbh
 	re *pathtracer.Mesh
 }
 
@@ -214,8 +224,7 @@ func loadmesh(filename string) *fileBackedMesh {
 
 	ptmesh := new(pathtracer.Mesh)
 	ptmesh.Parts = make([]pathtracer.MeshPart, len(header2.Rendering.Parts))
-	// TODO: kill
-	ptmesh.DefaultMaterials = make([]pathtracer.MaterialInstance, len(header2.Rendering.Parts))
+	defaultMaterials := make([]material, len(header2.Rendering.Parts))
 	for i, serializedPart := range header2.Rendering.Parts {
 		part := &ptmesh.Parts[i]
 
@@ -240,7 +249,7 @@ func loadmesh(filename string) *fileBackedMesh {
 			panic(err)
 		}
 
-		ptmesh.DefaultMaterials[i] = getmaterial(header2.Materials[serializedPart.MaterialIndex])
+		defaultMaterials[i] = getmaterial(header2.Materials[serializedPart.MaterialIndex])
 	}
 
 	ptmesh.InitAccel()
@@ -249,12 +258,7 @@ func loadmesh(filename string) *fileBackedMesh {
 	ptmesh.BuildAccel(&jq)
 	jq.WaitForIdle()
 
-	return &fileBackedMesh{ptmesh}
-}
-
-func byteslice[T any](s []T) []byte {
-	sizeofT := int(unsafe.Sizeof(*new(T)))
-	return unsafe.Slice((*byte)(unsafe.Pointer(unsafe.SliceData(s))), len(s)*sizeofT)
+	return &fileBackedMesh{defaultMaterials, ptmesh}
 }
 
 func getmesh(geo game.GeometryPacked) *fileBackedMesh {
@@ -291,4 +295,9 @@ func enqueueHostCall(jq *gpu.JobQueue, f func()) {
 		wg2.Done()
 	}()
 	wg2.EnqueueWait(jq)
+}
+
+func byteslice[T any](s []T) []byte {
+	sizeofT := int(unsafe.Sizeof(*new(T)))
+	return unsafe.Slice((*byte)(unsafe.Pointer(unsafe.SliceData(s))), len(s)*sizeofT)
 }

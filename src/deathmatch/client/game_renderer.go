@@ -5,7 +5,6 @@ import (
 	"io"
 	"path"
 	"reflect"
-	"slices"
 	"sync"
 	"time"
 	"unsafe"
@@ -157,16 +156,19 @@ func (re *gameRendererImpl) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Tim
 
 				update.Mesh[i] = mesh.re
 
-				// TODO: stop doing slices.Clone
-				update.Materials[i] = slices.Clone(mesh.re.DefaultMaterials)
+				// TODO: stop doing slices.Clone. We can actually do that now
+				// that we sort of have a persistent struct...
+				update.Materials[i] = make([]pathtracer.MaterialInstance, len(mesh.defaultMaterials))
 
-				if hasEntity {
-					for j := range update.Materials[i] {
-						m := &update.Materials[i][j]
+				for j := range update.Materials[i] {
+					m2 := mesh.defaultMaterials[j]
+					materialInstance := &update.Materials[i][j]
+					materialInstance.Material = m2.material
+					if hasEntity {
 						// TODO: do we call this params or args?
-						args := reflect.NewAt(m.Material.ParamStruct, unsafe.Pointer(&m.Args)).Elem()
+						args := reflect.NewAt(m2.paramStruct, unsafe.Pointer(&materialInstance.Args)).Elem()
 						// TODO: precompile Gather
-						matc.GatherArgs(args, reflect.ValueOf(entity), m.Material.ParamNames)
+						matc.GatherArgs(args, reflect.ValueOf(entity), m2.paramNames)
 					}
 				}
 

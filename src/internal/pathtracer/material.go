@@ -1,8 +1,6 @@
 package pathtracer
 
 import (
-	"reflect"
-
 	"worldspawn/gpu"
 	"worldspawn/internal/pathtracer/internal/material"
 	"worldspawn/internal/pathtracer/matc"
@@ -15,23 +13,19 @@ type MaterialSet struct {
 }
 */
 
-// NOTE: This is almost like matc.InterpretedMaterial. I guess we should just
-// make InterpretedMaterial be an interface with two implementations. We'll have
-// to cook up InterpretedMaterial which will be basically
-// matc.InterpretedMaterial but with code being gpu.Slice[uint32].
-//
-// TODO: make this an implementation of Material interface, and return the interface, and make this private I guess.
+// TODO: rename Material interface to MaterialProgram? idk tbh it's a bit uhh
+// uhhhh
+
+// TODO: make this an implementation of Material interface, and return the
+// interface, and make this private I guess.
+// TODO: in addition to emissive flag, should we equip materials with a host
+// function to refine whether the material should be added to the light accel
+// based on what's in the args? This could also be made the user's
+// responsibility by introducing some way to control mesh part's inclusion into
+// the light accel.
 type InterpretedMaterial struct {
-	program material.InterpreterProgram
-
-	// TODO: kill this. Currently we can't, the user should wrap renderer.Mesh,
-	// but ...
-	ParamStruct reflect.Type
-	ParamNames  []string
-}
-
-func (m *InterpretedMaterial) emissive() bool {
-	return m.program.ABI.EDFCount > 0
+	emissive bool // TODO: replace with summary flags? possibly move into material.InterpreterProgram?
+	program  material.InterpreterProgram
 }
 
 // TODO: make blob some other type so that we drop dependency on matc. Maybe
@@ -43,6 +37,7 @@ func NewInterpretedMaterial(blob *matc.InterpretedMaterial) *InterpretedMaterial
 	copy(device.Value(), blob.Code)
 
 	return &InterpretedMaterial{
+		emissive: blob.ABI.EDFCount > 0,
 		program: material.InterpreterProgram{
 			ABI:  blob.ABI,
 			Code: gpu.SliceData(device),
