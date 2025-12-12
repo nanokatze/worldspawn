@@ -108,7 +108,7 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneUpdate, t float3
 
 		mesh := dirty.Mesh[instanceIdx]
 
-		for partIdx, part := range mesh.parts {
+		for partIdx, part := range mesh.Parts {
 			materialInstance := dirty.Materials[instanceIdx][partIdx]
 
 			materialParamsHost[instanceIdx*scene.maxPartsPerMesh+partIdx] = materialParams{
@@ -141,7 +141,7 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneUpdate, t float3
 		// TODO: is this necessary?
 		var accel gpu.UnsafePointer
 		if mesh != nil {
-			accel = mesh.Accel.Data
+			accel = mesh.accel.Data
 		}
 
 		accelInstancesHost[instanceIdx] = gpu.AccelInstance{

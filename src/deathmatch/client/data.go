@@ -1,12 +1,15 @@
 package main
 
 import (
+	"encoding/binary"
 	"io"
 	"io/fs"
 	"log"
+	"math"
 	"path"
 	"reflect"
 	"sync"
+	"unsafe"
 
 	"worldspawn/deathmatch/internal/game"
 	"worldspawn/gpu"
@@ -17,6 +20,7 @@ import (
 	"worldspawn/internal/mtlj"
 	"worldspawn/internal/pathtracer"
 	"worldspawn/internal/pathtracer/matc"
+	"worldspawn/internal/wmesh"
 
 	"github.com/go-json-experiment/json"
 	"github.com/go-json-experiment/json/jsontext"
@@ -27,7 +31,7 @@ import (
 
 var texturecache = make(map[string]*pathtracer.Texture)
 var materialcache = make(map[string]pathtracer.MaterialInstance)
-var modelcache = make(map[game.GeometryPacked]*mymesh)
+var modelcache = make(map[game.GeometryPacked]*fileBackedMesh)
 
 // TODO: should support streaming etc.
 func texture(filename string) *pathtracer.Texture {
@@ -187,24 +191,77 @@ var errorMaterial = sync.OnceValue(func() *pathtracer.InterpretedMaterial {
 	return pathtracer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(nil, sea, program))
 })
 
-type mymesh struct {
+type fileBackedMesh struct {
 	re *pathtracer.Mesh
 }
 
-func loadmesh(filename string) *mymesh {
+func loadmesh(filename string) *fileBackedMesh {
 	f, err := game.Data.Open(filename)
 	if err != nil {
 		panic(err)
 	}
 	defer f.Close()
-	tmp := new(pathtracer.Mesh)
-	if err := tmp.InitFromFile(f.(io.ReaderAt), filename, getmaterial); err != nil {
+
+	r := f.(io.ReaderAt)
+
+	var preamble wmesh.Preamble
+	if err := binary.Read(io.NewSectionReader(r, 0, math.MaxInt64), binary.LittleEndian, &preamble); err != nil {
 		panic(err)
 	}
-	return &mymesh{tmp}
+
+	var header2 wmesh.GeometryHeader
+	if err := json.UnmarshalRead(io.NewSectionReader(r, preamble.Header.Off, preamble.Header.Size), &header2, json.StringifyNumbers(true)); err != nil {
+		panic(err)
+	}
+
+	blob2 := io.NewSectionReader(r, preamble.Blob.Off, preamble.Blob.Size)
+
+	ptmesh := new(pathtracer.Mesh)
+	ptmesh.Parts = make([]pathtracer.MeshPart, len(header2.Rendering.Parts))
+	// TODO: kill
+	ptmesh.DefaultMaterials = make([]pathtracer.MaterialInstance, len(header2.Rendering.Parts))
+	for i, serializedPart := range header2.Rendering.Parts {
+		part := &ptmesh.Parts[i]
+
+		part.PosBuffer = gpu.MakeSliceUncached[[3]float32](serializedPart.VertexCount)
+		part.NormalBuffer = gpu.MakeSliceUncached[[3]float32](serializedPart.VertexCount)
+		part.AttribBuffers = []any{
+			gpu.MakeSliceUncached[[2]float32](serializedPart.VertexCount),
+		}
+		part.IndexBuffer = gpu.MakeSliceUncached[[3]uint16](serializedPart.TriangleCount)
+
+		if _, err := blob2.ReadAt(byteslice(part.PosBuffer.Value()), serializedPart.PosBuffer); err != nil {
+			panic(err)
+		}
+		if _, err := blob2.ReadAt(byteslice(part.NormalBuffer.Value()), serializedPart.NormalBuffer); err != nil {
+			panic(err)
+		}
+		if _, err := blob2.ReadAt(byteslice(part.AttribBuffers[0].(gpu.Slice[[2]float32]).Value()), serializedPart.AttribBuffers[0]); err != nil {
+			panic(err)
+		}
+
+		if _, err := blob2.ReadAt(byteslice(part.IndexBuffer.Value()), serializedPart.IndexBuffer); err != nil {
+			panic(err)
+		}
+
+		ptmesh.DefaultMaterials[i] = getmaterial(header2.Materials[serializedPart.MaterialIndex])
+	}
+
+	ptmesh.InitAccel()
+
+	var jq gpu.JobQueue
+	ptmesh.BuildAccel(&jq)
+	jq.WaitForIdle()
+
+	return &fileBackedMesh{ptmesh}
 }
 
-func getmesh(geo game.GeometryPacked) *mymesh {
+func byteslice[T any](s []T) []byte {
+	sizeofT := int(unsafe.Sizeof(*new(T)))
+	return unsafe.Slice((*byte)(unsafe.Pointer(unsafe.SliceData(s))), len(s)*sizeofT)
+}
+
+func getmesh(geo game.GeometryPacked) *fileBackedMesh {
 	m, ok := modelcache[geo]
 	if !ok {
 		m = loadmesh(geo.Unpack().Filename)
