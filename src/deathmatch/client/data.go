@@ -17,13 +17,12 @@ import (
 	"worldspawn/image/ktx2"
 	"worldspawn/internal/compiler"
 	"worldspawn/internal/compiler/core"
-	"worldspawn/internal/mtlj"
 	"worldspawn/internal/pathtracer"
 	"worldspawn/internal/pathtracer/matc"
+	"worldspawn/internal/wmat"
 	"worldspawn/internal/wmesh"
 
 	"github.com/go-json-experiment/json"
-	"github.com/go-json-experiment/json/jsontext"
 )
 
 // TODO: rename this file to something else
@@ -118,11 +117,7 @@ func getmaterial(identifier string) pathtracer.MaterialInstance {
 
 		// TODO: naming!!!!!!!!!!!!!!!!
 
-		var header struct {
-			ParamTypes []string
-			Host       []string
-			Program    jsontext.Value
-		}
+		var header wmat.Header
 		if err := json.Unmarshal(src, &header); err != nil {
 			log.Printf("getmaterial: %v", err)
 			goto bail
@@ -130,7 +125,7 @@ func getmaterial(identifier string) pathtracer.MaterialInstance {
 
 		paramTypes := make([]compiler.Type, len(header.ParamTypes))
 		for i := range paramTypes {
-			paramTypes[i] = mtlj.Type(header.ParamTypes[i])
+			paramTypes[i] = wmat.Type(header.ParamTypes[i])
 		}
 		paramStruct := matc.ParamStruct(paramTypes)
 		paramOffsets := make([]int64, paramStruct.NumField())
@@ -143,12 +138,13 @@ func getmaterial(identifier string) pathtracer.MaterialInstance {
 			Sea:   sea,
 			Rules: append(append([]compiler.RewriteRule(nil), core.Rules...), matc.InterpreterLowerings...),
 		}
-		ir, err := mtlj.Parse(b, header.Program)
+		ir, err := wmat.Parse(b, header.Program)
 		if err != nil {
 			log.Printf("getmaterial: %v", err)
 			goto bail
 		}
 
+		// TODO: probs actually move GatherArgs into the renderer? idk
 		m.Material = pathtracer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(paramOffsets, sea, ir))
 		m.Material.ParamStruct = paramStruct
 		m.Material.ParamNames = header.Host

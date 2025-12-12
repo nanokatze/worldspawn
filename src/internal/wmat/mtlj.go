@@ -1,15 +1,24 @@
-package mtlj
+package wmat
 
 import (
 	"fmt"
 	"strconv"
 
 	"github.com/go-json-experiment/json"
+	"github.com/go-json-experiment/json/jsontext"
 
 	"worldspawn/internal/compiler"
 	"worldspawn/internal/compiler/core"
 	"worldspawn/internal/pathtracer/matc"
 )
+
+type Header struct {
+	ParamTypes []string
+	Host       []string
+	Program    jsontext.Value
+}
+
+// TODO: rename to wmaterial?
 
 type stmt struct {
 	Bind string
