@@ -506,7 +506,7 @@ func (w *CountingWriter) Write(b []byte) (int, error) {
 // TODO: remove this function in favor of just having the caller use
 // nice directly?
 func readInputCmds(r io.Reader, cmds *[]game.TimestampedInputCmd) error {
-	dec := nice.NewDecoder(r, replication.InputCmdMarshalers)
+	dec := nice.NewDecoder(r, replication.NiceOptions)
 	return nice.UnmarshalDecode(dec, cmds)
 }
 

@@ -333,7 +333,7 @@ func (s *Client) tick(Δt time.Duration) {
 
 // TODO: remove this func in favor of the caller just using nice directly?
 func writeInputCmds(w io.Writer, cmds []game.TimestampedInputCmd) error {
-	enc := nice.NewEncoder(w, replication.InputCmdMarshalers)
+	enc := nice.NewEncoder(w, replication.NiceOptions)
 	return nice.MarshalEncode(enc, &cmds)
 }
 
