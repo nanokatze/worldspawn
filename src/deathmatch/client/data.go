@@ -105,8 +105,8 @@ func texture(filename string) *pathtracer.Texture {
 }
 
 type material struct {
-	paramStruct reflect.Type
-	paramNames  []string
+	// TODO: replace src with any?
+	gatherArgs func(dst []byte, src reflect.Value)
 
 	material *pathtracer.InterpretedMaterial
 }
@@ -151,18 +151,23 @@ func getmaterial(identifier string) material {
 			goto bail
 		}
 
-		// TODO: probs actually move GatherArgs into the renderer? idk
+		m.gatherArgs = func(dst []byte, src reflect.Value) {
+			if src.IsZero() {
+				return
+			}
+			args := reflect.NewAt(paramStruct, unsafe.Pointer(unsafe.SliceData(dst))).Elem()
+			// TODO: precompile this
+			matc.GatherArgs(args, src, header.Host)
+		}
 		m.material = pathtracer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(paramOffsets, sea, ir))
-		m.paramStruct = paramStruct
-		m.paramNames = header.Host
 	}
 	materialcache[identifier] = m
 	return m
 
 bail:
 	// TODO: stop using gotos lmao aaa
+	m.gatherArgs = func(dst []byte, src reflect.Value) {}
 	m.material = errorMaterial()
-	m.paramStruct = reflect.StructOf(nil)
 	materialcache[identifier] = m
 	return m
 }
@@ -195,7 +200,7 @@ var errorMaterial = sync.OnceValue(func() *pathtracer.InterpretedMaterial {
 })
 
 type fileBackedMesh struct {
-	defaultMaterials []material // TODO: should just be strings probably
+	defaultMaterials []string
 
 	// we could (should) just embed it tbh
 	re *pathtracer.Mesh
@@ -222,11 +227,11 @@ func loadmesh(filename string) *fileBackedMesh {
 
 	blob2 := io.NewSectionReader(r, preamble.Blob.Off, preamble.Blob.Size)
 
-	ptmesh := new(pathtracer.Mesh)
-	ptmesh.Parts = make([]pathtracer.MeshPart, len(header2.Rendering.Parts))
-	defaultMaterials := make([]material, len(header2.Rendering.Parts))
+	inner := new(pathtracer.Mesh)
+	inner.Parts = make([]pathtracer.MeshPart, len(header2.Rendering.Parts))
+	defaultMaterials := make([]string, len(header2.Rendering.Parts))
 	for i, serializedPart := range header2.Rendering.Parts {
-		part := &ptmesh.Parts[i]
+		part := &inner.Parts[i]
 
 		part.PosBuffer = gpu.MakeSliceUncached[[3]float32](serializedPart.VertexCount)
 		part.NormalBuffer = gpu.MakeSliceUncached[[3]float32](serializedPart.VertexCount)
@@ -249,16 +254,16 @@ func loadmesh(filename string) *fileBackedMesh {
 			panic(err)
 		}
 
-		defaultMaterials[i] = getmaterial(header2.Materials[serializedPart.MaterialIndex])
+		defaultMaterials[i] = header2.Materials[serializedPart.MaterialIndex]
 	}
 
-	ptmesh.InitAccel()
+	inner.InitAccel()
 
 	var jq gpu.JobQueue
-	ptmesh.BuildAccel(&jq)
+	inner.BuildAccel(&jq)
 	jq.WaitForIdle()
 
-	return &fileBackedMesh{defaultMaterials, ptmesh}
+	return &fileBackedMesh{defaultMaterials, inner}
 }
 
 func getmesh(geo game.GeometryPacked) *fileBackedMesh {

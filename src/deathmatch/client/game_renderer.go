@@ -7,7 +7,6 @@ import (
 	"reflect"
 	"sync"
 	"time"
-	"unsafe"
 
 	"worldspawn/deathmatch/internal/game"
 	"worldspawn/geometry-go"
@@ -17,7 +16,6 @@ import (
 	"worldspawn/internal/fuckwwise/opusfile"
 	"worldspawn/internal/fuckwwise/wav"
 	"worldspawn/internal/pathtracer"
-	"worldspawn/internal/pathtracer/matc"
 	"worldspawn/sdl"
 )
 
@@ -31,10 +29,6 @@ type sceneUpdate struct {
 
 type gameRendererImpl struct {
 	transformT0 []geometry.TRS3
-	// ownedMeshes []*mymesh
-
-	// The update that didn't make it into the queue
-	stagingUpdate *sceneUpdate
 
 	// TODO: this should be a part of sceneUpdate. We also need the "currently
 	// being rendered time interval" so that we can map input back to that.
@@ -45,8 +39,10 @@ type gameRendererImpl struct {
 	// pipeline?
 	ourCamera pathtracer.Camera
 
+	// The update that didn't fit into the queue
+	stagingUpdate *sceneUpdate
 	// Queue of updates, consumed by Render
-	sceneUpdates chan *sceneUpdate
+	updates chan *sceneUpdate
 
 	// Only used by Render
 	scene *pathtracer.Scene
@@ -59,7 +55,7 @@ type gameRendererImpl struct {
 var gameRenderer = &gameRendererImpl{
 	transformT0: make([]geometry.TRS3, 10000),
 
-	sceneUpdates: make(chan *sceneUpdate, 1),
+	updates: make(chan *sceneUpdate, 1),
 
 	scene: pathtracer.NewScene(10000, 5),
 
@@ -79,7 +75,7 @@ func (re *gameRendererImpl) updateInternal(f func(update *sceneUpdate)) {
 	f(re.stagingUpdate)
 
 	select {
-	case re.sceneUpdates <- re.stagingUpdate:
+	case re.updates <- re.stagingUpdate:
 		re.stagingUpdate = nil
 	default:
 	}
@@ -156,19 +152,16 @@ func (re *gameRendererImpl) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Tim
 
 				update.Mesh[i] = mesh.re
 
-				// TODO: stop doing slices.Clone. We can actually do that now
-				// that we sort of have a persistent struct...
+				// TODO: we'll be able to stop allocating a new slice every time
+				// when we pool scene updates themselves
 				update.Materials[i] = make([]pathtracer.MaterialInstance, len(mesh.defaultMaterials))
 
 				for j := range update.Materials[i] {
-					m2 := mesh.defaultMaterials[j]
+					m2 := getmaterial(mesh.defaultMaterials[j])
 					materialInstance := &update.Materials[i][j]
 					materialInstance.Material = m2.material
 					if hasEntity {
-						// TODO: do we call this params or args?
-						args := reflect.NewAt(m2.paramStruct, unsafe.Pointer(&materialInstance.Args)).Elem()
-						// TODO: precompile Gather
-						matc.GatherArgs(args, reflect.ValueOf(entity), m2.paramNames)
+						m2.gatherArgs(materialInstance.Args[:], reflect.ValueOf(entity))
 					}
 				}
 
@@ -291,7 +284,7 @@ var fn uint32
 
 func (re *gameRendererImpl) Render(jq *gpu.JobQueue) {
 	select {
-	case update := <-re.sceneUpdates:
+	case update := <-re.updates:
 		re.scene.EnqueueUpdate(jq, update.SceneUpdate, 0)
 	default:
 	}
