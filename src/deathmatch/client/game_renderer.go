@@ -171,8 +171,7 @@ func (re *gameRendererImpl) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Tim
 
 			// TODO: this should not exist and be part of sceneUpdate
 			re.stuffMu.Lock()
-			// TODO: make the caller responsible for passing real time to sync
-			// against?
+			// TODO: make the caller responsible for passing wall clock time?
 			re.t0sdl = sdl.TicksNS()
 			re.t1sdl = re.t0sdl + uint64(frameDuration) // depends on timescale
 			re.t0game = t0

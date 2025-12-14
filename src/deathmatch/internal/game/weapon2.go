@@ -33,6 +33,8 @@ func (weapon Weapon2GenericProjectileLauncher) CreateGeometry(scene *Scene) ecs.
 }
 
 // TODO: pass buttons but buttons should be weapon-specific
+// TODO: have UpdateSubtick return an object with functions to call on various
+// entities to e.g. apply animation etc?
 func (weapon Weapon2GenericProjectileLauncher) UpdateSubtick(scene *Scene, operatorID, weaponID ecs.ID, pos geometry.DVec3, rot geometry.Rot3) {
 
 }

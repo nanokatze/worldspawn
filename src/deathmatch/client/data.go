@@ -17,6 +17,7 @@ import (
 	"worldspawn/image/ktx2"
 	"worldspawn/internal/compiler"
 	"worldspawn/internal/compiler/core"
+	sfx "worldspawn/internal/fuckwwise"
 	"worldspawn/internal/pathtracer"
 	"worldspawn/internal/pathtracer/matc"
 	"worldspawn/internal/wmat"
@@ -26,7 +27,7 @@ import (
 )
 
 // TODO: rename this file to something else
-// TODO: outline this into its own package
+// TODO: outline this into its own package. pathtracerio?
 
 var texturecache = make(map[string]*pathtracer.Texture)
 var materialcache = make(map[string]material)
@@ -305,4 +306,40 @@ func enqueueHostCall(jq *gpu.JobQueue, f func()) {
 func byteslice[T any](s []T) []byte {
 	sizeofT := int(unsafe.Sizeof(*new(T)))
 	return unsafe.Slice((*byte)(unsafe.Pointer(unsafe.SliceData(s))), len(s)*sizeofT)
+}
+
+func readSamples(r io.Reader, format sfx.Format) ([]float32, error) {
+	buf, err := io.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+
+	switch format {
+	case sfx.FORMAT_S16:
+		bufSNORM16 := unsafe.Slice((*int16)(unsafe.Pointer(unsafe.SliceData(buf))), len(buf)/2)
+		bufFLOAT32 := make([]float32, len(bufSNORM16))
+		for i := range bufFLOAT32 {
+			bufFLOAT32[i] = max(float32(bufSNORM16[i])/32767.0, -1)
+		}
+		return bufFLOAT32, nil
+
+	case sfx.FORMAT_F32:
+		bufFLOAT32 := unsafe.Slice((*float32)(unsafe.Pointer(unsafe.SliceData(buf))), len(buf)/4)
+		return bufFLOAT32, nil
+
+	default:
+		panic("unsupported format")
+	}
+}
+
+func extractChannel(s []float32, channels, channel int) []float32 {
+	if channels == 1 {
+		return s
+	}
+
+	s2 := make([]float32, len(s)/channels)
+	for i := range s2 {
+		s2[i] = s[i*channels+channel]
+	}
+	return s2
 }

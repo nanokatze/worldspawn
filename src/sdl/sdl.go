@@ -365,11 +365,23 @@ const (
 	PROP_WINDOW_CREATE_WAYLAND_SURFACE_ROLE_CUSTOM_BOOLEAN = C.SDL_PROP_WINDOW_CREATE_WAYLAND_SURFACE_ROLE_CUSTOM_BOOLEAN
 )
 
-// TODO: introduce a wrapped CreateWindow with func vararg config with
-// properties (i.e. the thing would accept stuff like WithStringProperty,
-// WithNumberProperty, etc)
+func CreateWindow(props ...func(props PropertiesID) error) (*Window, error) {
+	sdlProps, err := CreateProperties()
+	if err != nil {
+		return nil, err
+	}
+	defer sdlProps.Destroy()
 
-func CreateWindowWithProperties(props PropertiesID) (*Window, error) {
+	for _, f := range props {
+		if err := f(sdlProps); err != nil {
+			return nil, err
+		}
+	}
+
+	return createWindowWithProperties(sdlProps)
+}
+
+func createWindowWithProperties(props PropertiesID) (*Window, error) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 

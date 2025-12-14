@@ -22,8 +22,8 @@ import (
 	"worldspawn/internal/nice"
 )
 
-// TODO: move client to deathmatch/internal so we can create bot client that
-// way? This Renderer interface would be moved there as well.
+// TODO: move client to deathmatch/internal so we can have a separate bot client
+// program that way? This Renderer interface would be moved there as well.
 
 type Renderer interface {
 	// TODO: rename to Update and possibly merge with Subtick somehow?
