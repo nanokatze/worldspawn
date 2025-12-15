@@ -28,8 +28,6 @@ type AttributeDesc struct {
 
 type PartHeader struct {
 	MaterialIndex int
-	PosBuffer     int64
-	NormalBuffer  int64
 	AttribBuffers []int64
 	VertexCount   int
 	IndexType     string

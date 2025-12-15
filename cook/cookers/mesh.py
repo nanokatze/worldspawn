@@ -13,9 +13,13 @@ import bpyutil
 
 @dataclasses.dataclass
 class Raw:
+    # TODO: also pass attribute desc map
     _materials: list[str]
     _tris: object
-    _tri_mat_idxs: object
+    _tri_mat_idxs: object # TODO: kill this and fold into tris instead
+
+
+# TODO: we can prefix the internal stuff that goes into the file, with "json"
 
 
 @dataclasses.dataclass
@@ -29,17 +33,25 @@ class _Collision:
 @dataclasses.dataclass
 class _Part:
     MaterialIndex: int
-    PosBuffer: int
-    NormalBuffer: int
+    # TODO: make AttribBuffers (and thus VertexCount) shared for all mesh parts?
     AttribBuffers: list[int]
     VertexCount: int
+    # TODO: factor it out to the top level, next to attribute descs
     IndexType: str
     IndexBuffer: int
     TriangleCount: int
 
 
 @dataclasses.dataclass
+class _AttributeDesc:
+    Name: str
+    # Type
+    # Domain
+
+
+@dataclasses.dataclass
 class _Rendering:
+    Attributes: list[_AttributeDesc]
     Parts: list[_Part]
 
 
@@ -77,6 +89,10 @@ def cook(raw, directory):
         )
 
     if True:
+        attributes = []
+        for name in raw._tris.dtype.fields:
+            attributes.append(_AttributeDesc(Name=name))
+
         parts = []
         for material_index in np.unique(raw._tri_mat_idxs):
             assert material_index < len(raw._materials)
@@ -98,21 +114,13 @@ def cook(raw, directory):
 
             verts = verts_indexed
 
-            pos_buffer = seek_align(blob, 4)
-            nputil.tofile(blob, verts['position'])
-
-            normal_buffer = seek_align(blob, 4)
-            nputil.tofile(blob, verts['normal'])
-
             attrib_buffers = []
-
-            attrib_buffers.append(seek_align(blob, 4))
-            nputil.tofile(blob, verts['UVMap'])
+            for name in raw._tris.dtype.fields:
+                attrib_buffers.append(seek_align(blob, 4))
+                nputil.tofile(blob, verts[name])
 
             parts.append(_Part(
                 MaterialIndex=int(material_index),
-                PosBuffer=pos_buffer,
-                NormalBuffer=normal_buffer,
                 AttribBuffers=attrib_buffers,
                 VertexCount=len(verts),
                 IndexType={2: 'UINT16', 4: 'UINT32'}[index_size], # TODO: factor this map out pls
@@ -120,7 +128,7 @@ def cook(raw, directory):
                 TriangleCount=len(tris),
             ))
 
-        rendering = _Rendering(Parts=parts)
+        rendering = _Rendering(Attributes=attributes, Parts=parts)
 
     with open(directory, 'wb') as f:
         f.write(b'Worldspawn')

@@ -65,10 +65,9 @@ def cook(context, obj):
     # fanning out material_index
     fields.append(('position', nputil.vec3))
     fields.append(('normal', nputil.vec3))
-    fields.append(('tangent', nputil.vec3)) # TODO: should be vec4 (x, y, z, sign)
+    # fields.append(('tangent', nputil.vec3)) # TODO: should be vec4 (x, y, z, sign)
     # group stuff here
     # user defined attrs here
-    # TODO: prefix user attrs? e.g. with "attributes."
     fields.append(('UVMap', nputil.vec2))
 
     loops = np.empty(len(mesh.loops), dtype=np.dtype(fields))
@@ -82,7 +81,7 @@ def cook(context, obj):
     # TODO: are these the tangents we need? Does this match cycles' tangents
     # derived from ATTR_STD_GENERATED? There's also tangent spaces necessary for
     # normal mapping, which are computed from UV.
-    loops['tangent'] = bpyutil.array_from_prop_collection(mesh.loops, 'tangent', dtype=nputil.vec3)
+    # loops['tangent'] = bpyutil.array_from_prop_collection(mesh.loops, 'tangent', dtype=nputil.vec3)
 
     # TODO: user attribs here
     loops['UVMap'] = bpyutil.array_from_prop_collection(mesh.uv_layers['UVMap'].uv, 'vector', dtype=nputil.vec2)

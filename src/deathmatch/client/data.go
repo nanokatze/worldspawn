@@ -8,8 +8,11 @@ import (
 	"math"
 	"path"
 	"reflect"
+	"slices"
 	"sync"
 	"unsafe"
+
+	"github.com/go-json-experiment/json"
 
 	"worldspawn/deathmatch/internal/game"
 	"worldspawn/gpu"
@@ -22,8 +25,6 @@ import (
 	"worldspawn/internal/pathtracer/matc"
 	"worldspawn/internal/wmat"
 	"worldspawn/internal/wmesh"
-
-	"github.com/go-json-experiment/json"
 )
 
 // TODO: rename this file to something else
@@ -234,20 +235,22 @@ func loadmesh(filename string) *fileBackedMesh {
 	for i, serializedPart := range header2.Rendering.Parts {
 		part := &inner.Parts[i]
 
+		// This is genuinely horrendous
+		posBuffer := slices.IndexFunc(header2.Rendering.Attributes, func(e wmesh.AttributeDesc) bool { return e.Name == "position" })
+		normalBuffer := slices.IndexFunc(header2.Rendering.Attributes, func(e wmesh.AttributeDesc) bool { return e.Name == "normal" })
+
 		part.PosBuffer = gpu.MakeSliceUncached[[3]float32](serializedPart.VertexCount)
 		part.NormalBuffer = gpu.MakeSliceUncached[[3]float32](serializedPart.VertexCount)
-		part.AttribBuffers = []any{
-			gpu.MakeSliceUncached[[2]float32](serializedPart.VertexCount),
-		}
+		part.AttribBuffers = []any{}
 		part.IndexBuffer = gpu.MakeSliceUncached[[3]uint16](serializedPart.TriangleCount)
 
-		if _, err := blob2.ReadAt(byteslice(part.PosBuffer.Value()), serializedPart.PosBuffer); err != nil {
+		// TODO: just upload all the buffers indiscriminately and let the
+		// pathtracer use the attribute map
+
+		if _, err := blob2.ReadAt(byteslice(part.PosBuffer.Value()), serializedPart.AttribBuffers[posBuffer]); err != nil {
 			panic(err)
 		}
-		if _, err := blob2.ReadAt(byteslice(part.NormalBuffer.Value()), serializedPart.NormalBuffer); err != nil {
-			panic(err)
-		}
-		if _, err := blob2.ReadAt(byteslice(part.AttribBuffers[0].(gpu.Slice[[2]float32]).Value()), serializedPart.AttribBuffers[0]); err != nil {
+		if _, err := blob2.ReadAt(byteslice(part.NormalBuffer.Value()), serializedPart.AttribBuffers[normalBuffer]); err != nil {
 			panic(err)
 		}
 
