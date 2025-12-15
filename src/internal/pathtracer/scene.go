@@ -205,8 +205,8 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneUpdate, t float3
 				MeshPart: meshPart2{
 					Triangles:    gpu.SliceData(part.IndexBuffer),
 					NumTriangles: uint32(gpu.SliceLen(part.IndexBuffer)),
-					PosBuffer:    gpu.SliceData(part.PosBuffer),
-					Normals:      gpu.SliceData(part.NormalBuffer),
+					PosBuffer:    gpu.SliceData(part.AttribBuffers[mesh.PosBuffer].(gpu.Slice[[3]float32])),
+					Normals:      gpu.SliceData(part.AttribBuffers[mesh.NormalBuffer].(gpu.Slice[[3]float32])),
 				},
 
 				Args: materialInstance.Args,

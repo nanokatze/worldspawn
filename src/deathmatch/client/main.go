@@ -17,7 +17,6 @@ import (
 	"golang.org/x/text/message"
 
 	"worldspawn/deathmatch/internal/game"
-	"worldspawn/gpu"
 	"worldspawn/sdl"
 )
 
@@ -25,14 +24,6 @@ var dataDir = flag.String("data", "data/cooked", "a")
 
 // TODO: should this be in worldspawn
 var messagePrinter = message.NewPrinter(language.English)
-
-// var window *sdl.Window
-
-// var redrawMu sync.Mutex
-// var resizeCond = sync.Cond{L: &redrawMu}
-
-var swapchain *gpu.Swapchain
-var swapchainImage *gpu.Image
 
 var currentSession atomic.Pointer[Client]
 
@@ -81,7 +72,7 @@ func main() {
 	slog.Info("gamepads", "gamepads", sdl.GetGamepads())
 
 	// TODO: open all gamepads we have here
-	gamepad, _ = sdl.OpenGamepad(sdl.GetGamepads()[0])
+	// gamepad, _ = sdl.OpenGamepad(sdl.GetGamepads()[0])
 
 	slog.Info("gamepad", "gamepad", gamepad)
 

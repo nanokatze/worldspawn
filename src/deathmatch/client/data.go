@@ -5,10 +5,10 @@ import (
 	"io"
 	"io/fs"
 	"log"
+	"maps"
 	"math"
 	"path"
 	"reflect"
-	"slices"
 	"sync"
 	"unsafe"
 
@@ -229,36 +229,49 @@ func loadmesh(filename string) *fileBackedMesh {
 
 	blob2 := io.NewSectionReader(r, preamble.Blob.Off, preamble.Blob.Size)
 
+	attributes := maps.Collect(func(yield func(string, int) bool) {
+		for i, attr := range header2.Rendering.Attributes {
+			yield(attr.Name, i)
+		}
+	})
+
 	inner := new(pathtracer.Mesh)
+
+	inner.PosBuffer = attributes["position"]
+	inner.NormalBuffer = attributes["normal"]
+
 	inner.Parts = make([]pathtracer.MeshPart, len(header2.Rendering.Parts))
 	defaultMaterials := make([]string, len(header2.Rendering.Parts))
-	for i, serializedPart := range header2.Rendering.Parts {
+	for i, partHeader := range header2.Rendering.Parts {
 		part := &inner.Parts[i]
 
-		// This is genuinely horrendous
-		posBuffer := slices.IndexFunc(header2.Rendering.Attributes, func(e wmesh.AttributeDesc) bool { return e.Name == "position" })
-		normalBuffer := slices.IndexFunc(header2.Rendering.Attributes, func(e wmesh.AttributeDesc) bool { return e.Name == "normal" })
+		part.AttribBuffers = make([]any, len(partHeader.AttribBuffers))
+		for j, attr := range header2.Rendering.Attributes {
+			var bytes []byte
+			switch attr.Type {
+			case "R32G32B32_SFLOAT":
+				guh := gpu.MakeSliceUncached[[3]float32](partHeader.VertexCount)
+				bytes = byteslice(guh.Value())
+				part.AttribBuffers[j] = guh
+			case "R32G32_SFLOAT":
+				guh := gpu.MakeSliceUncached[[2]float32](partHeader.VertexCount)
+				bytes = byteslice(guh.Value())
+				part.AttribBuffers[j] = guh
+			default:
+				panic("uhh")
+			}
 
-		part.PosBuffer = gpu.MakeSliceUncached[[3]float32](serializedPart.VertexCount)
-		part.NormalBuffer = gpu.MakeSliceUncached[[3]float32](serializedPart.VertexCount)
-		part.AttribBuffers = []any{}
-		part.IndexBuffer = gpu.MakeSliceUncached[[3]uint16](serializedPart.TriangleCount)
-
-		// TODO: just upload all the buffers indiscriminately and let the
-		// pathtracer use the attribute map
-
-		if _, err := blob2.ReadAt(byteslice(part.PosBuffer.Value()), serializedPart.AttribBuffers[posBuffer]); err != nil {
-			panic(err)
-		}
-		if _, err := blob2.ReadAt(byteslice(part.NormalBuffer.Value()), serializedPart.AttribBuffers[normalBuffer]); err != nil {
-			panic(err)
-		}
-
-		if _, err := blob2.ReadAt(byteslice(part.IndexBuffer.Value()), serializedPart.IndexBuffer); err != nil {
-			panic(err)
+			if _, err := blob2.ReadAt(bytes, partHeader.AttribBuffers[j]); err != nil {
+				panic(err)
+			}
 		}
 
-		defaultMaterials[i] = header2.Materials[serializedPart.MaterialIndex]
+		part.IndexBuffer = gpu.MakeSliceUncached[[3]uint16](partHeader.TriangleCount)
+		if _, err := blob2.ReadAt(byteslice(part.IndexBuffer.Value()), partHeader.IndexBuffer); err != nil {
+			panic(err)
+		}
+
+		defaultMaterials[i] = header2.Materials[partHeader.MaterialIndex]
 	}
 
 	inner.InitAccel()

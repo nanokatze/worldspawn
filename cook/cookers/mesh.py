@@ -33,7 +33,6 @@ class _Collision:
 @dataclasses.dataclass
 class _Part:
     MaterialIndex: int
-    # TODO: make AttribBuffers (and thus VertexCount) shared for all mesh parts?
     AttribBuffers: list[int]
     VertexCount: int
     # TODO: factor it out to the top level, next to attribute descs
@@ -45,8 +44,8 @@ class _Part:
 @dataclasses.dataclass
 class _AttributeDesc:
     Name: str
-    # Type
-    # Domain
+    Type: str
+    # Domain:
 
 
 @dataclasses.dataclass
@@ -90,8 +89,14 @@ def cook(raw, directory):
 
     if True:
         attributes = []
-        for name in raw._tris.dtype.fields:
-            attributes.append(_AttributeDesc(Name=name))
+        for name, (dtype, size) in raw._tris.dtype.fields.items():
+            # TODO: gross, we should just take the attribute desc map from the
+            # user
+            types = {
+                np.dtype(('<f4', (3,))): 'R32G32B32_SFLOAT',
+                np.dtype(('<f4', (2,))): 'R32G32_SFLOAT',
+            }
+            attributes.append(_AttributeDesc(Name=name, Type=types[dtype]))
 
         parts = []
         for material_index in np.unique(raw._tri_mat_idxs):

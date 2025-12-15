@@ -8,30 +8,26 @@ import (
 )
 
 // TODO: make this gpu-accessible
-// TODO: when we git gud don't have special PosBuffer, NormalBuffer etc slices?
 type MeshPart struct {
-	PosBuffer     gpu.Slice[[3]float32]
-	NormalBuffer  gpu.Slice[[3]float32]
-	AttribBuffers []any // TODO: rename to just Buffers eventually
-	VertexCount   int
+	AttribBuffers []any
 	IndexBuffer   gpu.Slice[[3]uint16]
 }
 
-// TODO: flatten our mesh representation, i.e. have a single long pool of
-// positions and other attributes, and have mesh parts (rename to make it clear
-// that it's just a bunch of tris with the same material index) just be offsets
-// into the index buffer.
 // TODO: come up with a solution to preserve authored material index? It would
 // be nice so that blender materials can use material_index attribute without
 // extra gymnastics...
 type Mesh struct {
-	// TODO: remove this when we move file format parsing and handling elsewhere
-	// VertexGroups []string
+	// TODO: attribute descs. We could then make MeshPart.AttributeBuffers be
+	// "just pointers". If we make attribute descs also specify strides we would
+	// let cookers interleave attributes as they please. The only gotcha is that
+	// if we allow multiple attributes to live in the same buffer they all would
+	// have to be in the same domain (per-vertex or per-triangle)
 
-	// We actually need this map once we stuff all attributes into a single
-	// array of attribute descriptors.
-	// attributes map[string]int
+	// TODO: rename these?
+	PosBuffer    int
+	NormalBuffer int
 
+	// TODO: deinterleave so that we have an array of attribute and index buffers
 	Parts []MeshPart
 
 	accelBuildConfig *gpu.AccelBuildConfig
@@ -42,11 +38,13 @@ type Mesh struct {
 func (m *Mesh) InitAccel() {
 	accelBuildInputs := make([]gpu.AccelBuildInput, len(m.Parts))
 	for i, part := range m.Parts {
+		posBuffer := part.AttribBuffers[m.PosBuffer].(gpu.Slice[[3]float32])
+
 		accelBuildInputs[i] = &gpu.AccelBuildInputTriangles{
 			VertexFormat:  vk.FORMAT_R32G32B32_SFLOAT,
-			VertexBuffer:  gpu.UnsafePointer(gpu.SliceData(part.PosBuffer)),
-			VertexCount:   gpu.SliceLen(part.PosBuffer),
-			VertexStride:  int(unsafe.Sizeof(part.PosBuffer.Value()[0])),
+			VertexBuffer:  gpu.UnsafePointer(gpu.SliceData(posBuffer)),
+			VertexCount:   gpu.SliceLen(posBuffer),
+			VertexStride:  int(unsafe.Sizeof(posBuffer.Value()[0])),
 			IndexType:     vk.INDEX_TYPE_UINT16, // TODO: infer from type of d.IndexBuffer
 			IndexBuffer:   gpu.UnsafePointer(gpu.SliceData(part.IndexBuffer)),
 			TriangleCount: gpu.SliceLen(part.IndexBuffer),

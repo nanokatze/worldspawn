@@ -281,7 +281,7 @@ func (re *gameRendererImpl) Subtick(w *game.Scene, playerID ecs.ID) {
 // TODO: should not be global lmao
 var fn uint32
 
-func (re *gameRendererImpl) Render(jq *gpu.JobQueue) {
+func (re *gameRendererImpl) Render(jq *gpu.JobQueue, dst *gpu.Image) {
 	select {
 	case update := <-re.updates:
 		re.scene.EnqueueUpdate(jq, update.SceneUpdate, 0)
@@ -301,8 +301,8 @@ func (re *gameRendererImpl) Render(jq *gpu.JobQueue) {
 	re.scene.Render(
 		jq,
 		pathtracer.Film{
-			Extent: swapchainImage.Extent(),
-			Color:  swapchainImage,
+			Extent: dst.Extent(),
+			Color:  dst,
 		},
 		float32(t),
 		fn,
