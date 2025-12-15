@@ -67,11 +67,21 @@ struct ShiftedBlueNoise<T_lds : LDS> {
         let blueNoise = push.camera->blueNoise;
         let extent = blueNoise.Extent2D();
 
-        let p = (pixel + int2(point * float2(extent))) & (extent - 1);
+        if (false) {
+            // This should be as good but currently produces worse results. This
+            // could be due to our light sampling being broken. TODO:
+            // investigate and fix
 
-        let value = blueNoise.At2D(p).xy;
+            let value = blueNoise.At2D(pixel & (extent - 1));
 
-        return fract(value); // make sure we never return 1
+            return fract(value.xy + point);
+        } else {
+            let p = (pixel + int2(point * float2(extent))) & (extent - 1);
+
+            let value = blueNoise.At2D(p).xy;
+
+            return fract(value); // make sure we never return 1
+        }
     }
 }
 
