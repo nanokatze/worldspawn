@@ -16,11 +16,15 @@ import (
 	"worldspawn/sdl"
 )
 
+// TODO: rename? though I guess this is the correct name for it
 type mainWindow struct {
 	sdlWindow *sdl.Window
 
 	resizeCond sync.Cond
 	redrawMu   sync.Mutex
+
+	swapchain      *gpu.Swapchain
+	swapchainImage *gpu.Image
 }
 
 func newMainWindow() *mainWindow {
@@ -56,7 +60,7 @@ func (w *mainWindow) resize(width, height int) {
 
 	currentExtent := [3]int{width, height, 1}
 
-	swapchain = gpu.NewSwapchain(&gpu.SwapchainConfig{
+	w.swapchain = gpu.NewSwapchain(&gpu.SwapchainConfig{
 		Window:     w.sdlWindow,
 		ColorSpace: vk.COLOR_SPACE_SRGB_NONLINEAR_KHR,
 		ImageConfig: &gpu.ImageConfig{
@@ -68,7 +72,7 @@ func (w *mainWindow) resize(width, height int) {
 			Format:    vk.FORMAT_R8G8B8A8_SRGB,
 			Usage:     gpu.ImageUsageAttachment,
 		},
-		OldSwapchain: swapchain,
+		OldSwapchain: w.swapchain,
 	})
 
 	gpu.NewPresentableImageTest(
@@ -83,7 +87,7 @@ func (w *mainWindow) resize(width, height int) {
 			Usage:     gpu.ImageUsageAttachment,
 		})
 
-	swapchainImage = gpu.NewImage(&gpu.ImageConfig{
+	w.swapchainImage = gpu.NewImage(&gpu.ImageConfig{
 		Dim:       gpu.ImageDim2D,
 		Extent:    currentExtent,
 		Layers:    1,
@@ -118,93 +122,22 @@ func (w *mainWindow) redraw() {
 func (w *mainWindow) redrawLocked() bool {
 	defer trace.StartRegion(context.Background(), "Redraw (redrawMu held)").End()
 
-	if swapchain == nil {
+	if w.swapchain == nil {
 		return false
 	}
 
 	var jq gpu.JobQueue
 
-	swapchainImage.EnqueueInit(&jq)
+	w.swapchainImage.EnqueueInit(&jq)
 
-	gameRenderer.Render(&jq)
+	gameRenderer.Render(&jq, w.swapchainImage)
 
 	// TODO: it would probably be a good idea to inject overlay rendering into
 	// Render so that we can avoid breaking the render pass.
 
-	// Menu
-
-	func() {
-		if true {
-			return
-		}
-
-		rp := gpu.BeginRendering(&jq,
-			&gpu.RenderingConfig{
-				ColorAttachments: []gpu.Attachment{
-					{
-						Image: swapchainImage.SubImage(
-							swapchainImage.Dim(),
-							vk.FORMAT_R8G8B8A8_SRGB,
-							0, 1,
-							0, 1),
-						LoadOp:  vk.ATTACHMENT_LOAD_OP_LOAD,
-						StoreOp: vk.ATTACHMENT_STORE_OP_STORE,
-					},
-				},
-				RenderArea: vk.Rect2D{Extent: vk.Extent2D{Width: uint32(swapchainImage.Extent()[0]), Height: uint32(swapchainImage.Extent()[1])}},
-				LayerCount: 1,
-			})
-		defer rp.End()
-
-		rp.SetPrimitiveTopology(vk.PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
-		rp.SetPrimitiveRestartEnable(false)
-
-		rp.SetViewports([]vk.Viewport{
-			{
-				X:        0,
-				Y:        0,
-				Width:    float32(swapchainImage.Extent()[0]),
-				Height:   float32(swapchainImage.Extent()[1]),
-				MinDepth: 0,
-				MaxDepth: 1,
-			},
-		})
-		rp.SetScissors([]vk.Rect2D{
-			{Extent: vk.Extent2D{Width: uint32(swapchainImage.Extent()[0]), Height: uint32(swapchainImage.Extent()[1])}},
-		})
-
-		rp.SetRasterizerDiscardEnable(false)
-		rp.SetPolygonMode(vk.POLYGON_MODE_FILL)
-		rp.SetCullMode(vk.CullModeFlags(vk.CULL_MODE_NONE))
-		rp.SetFrontFace(vk.FRONT_FACE_COUNTER_CLOCKWISE)
-		rp.SetDepthBiasEnable(false)
-
-		rp.SetRasterizationSamples(1)
-		rp.SetSampleMask(0b1)
-		rp.SetAlphaToCoverageEnable(false)
-
-		rp.SetDepthTestEnable(false)
-		rp.SetStencilTestEnable(false)
-
-		rp.SetColorBlendEnable(0, true)
-		rp.SetColorBlendEquation(0,
-			vk.ColorBlendEquationEXT{
-				SrcColorBlendFactor: vk.BLEND_FACTOR_SRC_ALPHA,
-				DstColorBlendFactor: vk.BLEND_FACTOR_ONE,
-				ColorBlendOp:        vk.BLEND_OP_ADD,
-				SrcAlphaBlendFactor: vk.BLEND_FACTOR_ZERO,
-				DstAlphaBlendFactor: vk.BLEND_FACTOR_ONE,
-				AlphaBlendOp:        vk.BLEND_OP_ADD,
-			})
-		rp.SetColorWriteMask(0, 0b1111)
-
-		rp.SetShader(vk.SHADER_STAGE_VERTEX_BIT, nil)
-		rp.SetShader(vk.SHADER_STAGE_FRAGMENT_BIT, nil)
-	}()
-
 	var presentationOk bool
 	trace.WithRegion(context.Background(), "Presentation", func() {
-		presentationOk = swapchain.Present2(&jq, swapchainImage)
+		presentationOk = w.swapchain.Present2(&jq, w.swapchainImage)
 	})
 
 	// TODO: frames-in-flight
@@ -235,6 +168,8 @@ func sdlTimeToGameTime(ticks uint64) game.Time {
 // https://github.com/libsdl-org/SDL/issues/4464 🥺
 
 var keyActions = map[sdl.Keycode]int{
+	sdl.K_W:     game.ActionSetMovementVelocityY,
+	sdl.K_D:     game.ActionSetMovementVelocityX,
 	sdl.K_SPACE: game.ActionJump,
 	sdl.K_LCTRL: game.ActionCrouch,
 }
