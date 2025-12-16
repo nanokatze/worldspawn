@@ -39,7 +39,21 @@ func main() {
 
 	log.SetFlags(0)
 
-	config.Store(&Config{})
+	config.Store(&Config{
+		Resolution: [2]int{1280, 800},
+		KeyActions: map[sdl.Keycode]int{
+			sdl.K_W:     game.ActionSetMovementVelocityY,
+			sdl.K_D:     game.ActionSetMovementVelocityX,
+			sdl.K_SPACE: game.ActionJump,
+			sdl.K_LCTRL: game.ActionCrouch,
+		},
+		GamepadButtonActions: map[sdl.GamepadButton]int{
+			sdl.GAMEPAD_BUTTON_DPAD_UP:    game.ActionSlot1,
+			sdl.GAMEPAD_BUTTON_DPAD_DOWN:  game.ActionSlot3,
+			sdl.GAMEPAD_BUTTON_DPAD_LEFT:  game.ActionSlot0,
+			sdl.GAMEPAD_BUTTON_DPAD_RIGHT: game.ActionSlot2,
+		},
+	})
 
 	// We don't use SDL event watcher to handle resizes as our redraw is too
 	// slow to provide responsive size changes.

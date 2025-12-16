@@ -28,13 +28,15 @@ type mainWindow struct {
 }
 
 func newMainWindow() *mainWindow {
+	conf := config.Load()
+
 	sdlWindow, err := sdl.CreateWindow(
 		sdl.WithStringProperty(sdl.PROP_WINDOW_CREATE_TITLE_STRING, "Wo̅r̅l̅d̅s̅p̅a̅w̅n̅"),
 		sdl.WithBooleanProperty(sdl.PROP_WINDOW_CREATE_VULKAN_BOOLEAN, true),
 		sdl.WithBooleanProperty(sdl.PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN, true),
 		sdl.WithBooleanProperty(sdl.PROP_WINDOW_CREATE_HIGH_PIXEL_DENSITY_BOOLEAN, true),
-		sdl.WithNumberProperty(sdl.PROP_WINDOW_CREATE_WIDTH_NUMBER, int64(1280)),
-		sdl.WithNumberProperty(sdl.PROP_WINDOW_CREATE_HEIGHT_NUMBER, int64(800)))
+		sdl.WithNumberProperty(sdl.PROP_WINDOW_CREATE_WIDTH_NUMBER, int64(conf.Resolution[0])),
+		sdl.WithNumberProperty(sdl.PROP_WINDOW_CREATE_HEIGHT_NUMBER, int64(conf.Resolution[1])))
 	if err != nil {
 		panic(fmt.Sprintf("sdl.CreateWindow: %v", err))
 	}
@@ -49,6 +51,9 @@ func newMainWindow() *mainWindow {
 }
 
 func (w *mainWindow) resize(extent [3]int) {
+	if extent[2] != 1 {
+		panic("bad")
+	}
 	if extent[0] <= 0 || extent[1] <= 0 {
 		return // minimized, do nothing
 	}
@@ -56,7 +61,7 @@ func (w *mainWindow) resize(extent [3]int) {
 	w.redrawMu.Lock()
 	defer w.redrawMu.Unlock()
 
-	slog.Info("resize", extent)
+	slog.Info("resize", "extent", extent)
 
 	w.swapchain = gpu.NewSwapchain(&gpu.SwapchainConfig{
 		Window:     w.sdlWindow,
@@ -163,22 +168,6 @@ func sdlTimeToGameTime(ticks uint64) game.Time {
 	return gameRenderer.t0game.Add(time.Duration(float64(gameRenderer.t1game-gameRenderer.t0game) * t))
 }
 
-// https://github.com/libsdl-org/SDL/issues/4464 🥺
-
-var keyActions = map[sdl.Keycode]int{
-	sdl.K_W:     game.ActionSetMovementVelocityY,
-	sdl.K_D:     game.ActionSetMovementVelocityX,
-	sdl.K_SPACE: game.ActionJump,
-	sdl.K_LCTRL: game.ActionCrouch,
-}
-
-var gamepadButtonActions = map[sdl.GamepadButton]int{
-	sdl.GAMEPAD_BUTTON_DPAD_UP:    game.ActionSlot1,
-	sdl.GAMEPAD_BUTTON_DPAD_DOWN:  game.ActionSlot3,
-	sdl.GAMEPAD_BUTTON_DPAD_LEFT:  game.ActionSlot0,
-	sdl.GAMEPAD_BUTTON_DPAD_RIGHT: game.ActionSlot2,
-}
-
 // GAMEPAD_BUTTON_START and K_ESC act as ways to switch between the menu and the
 // game
 //
@@ -189,6 +178,8 @@ var gamepadButtonActions = map[sdl.GamepadButton]int{
 func (w *mainWindow) handleInput(e any) {
 	var cmds []game.TimestampedInputCmd
 
+	conf := config.Load()
+
 	switch e := e.(type) {
 	case *sdl.WindowPixelSizeChangedEvent:
 		w.resize([3]int{int(e.Data1), int(e.Data2), 1})
@@ -196,14 +187,14 @@ func (w *mainWindow) handleInput(e any) {
 	case *sdl.KeyDownEvent:
 		etime := sdlTimeToGameTime(e.Timestamp)
 
-		if action, ok := keyActions[e.Key]; ok {
+		if action, ok := conf.KeyActions[e.Key]; ok {
 			cmds = game.AppendAction(cmds, etime, action, 1)
 		}
 
 	case *sdl.KeyUpEvent:
 		etime := sdlTimeToGameTime(e.Timestamp)
 
-		if action, ok := keyActions[e.Key]; ok {
+		if action, ok := conf.KeyActions[e.Key]; ok {
 			cmds = game.AppendAction(cmds, etime, action, 0)
 		}
 
@@ -250,14 +241,14 @@ func (w *mainWindow) handleInput(e any) {
 			return
 		}
 
-		if action, ok := gamepadButtonActions[sdl.GamepadButton(e.Button)]; ok {
+		if action, ok := conf.GamepadButtonActions[sdl.GamepadButton(e.Button)]; ok {
 			cmds = game.AppendAction(cmds, etime, action, 1)
 		}
 
 	case *sdl.GamepadButtonUpEvent:
 		etime := sdlTimeToGameTime(e.Timestamp)
 
-		if action, ok := gamepadButtonActions[sdl.GamepadButton(e.Button)]; ok {
+		if action, ok := conf.GamepadButtonActions[sdl.GamepadButton(e.Button)]; ok {
 			cmds = game.AppendAction(cmds, etime, action, 0)
 		}
 

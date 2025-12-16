@@ -3,11 +3,20 @@ package main
 import (
 	"sync"
 	"sync/atomic"
+
+	"worldspawn/sdl"
 )
 
 type Config struct {
+	Resolution [2]int // TODO: rename; make a Width Height struct?
+
 	DisableCosmeticOffset bool
 	DontInterpolate       bool
+
+	// https://github.com/libsdl-org/SDL/issues/4464 🥺
+
+	KeyActions           map[sdl.Keycode]int
+	GamepadButtonActions map[sdl.GamepadButton]int
 }
 
 var (
