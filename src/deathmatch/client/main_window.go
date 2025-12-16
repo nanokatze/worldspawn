@@ -48,24 +48,22 @@ func newMainWindow() *mainWindow {
 	return w
 }
 
-func (w *mainWindow) resize(width, height int) {
-	if width <= 0 || height <= 0 {
+func (w *mainWindow) resize(extent [3]int) {
+	if extent[0] <= 0 || extent[1] <= 0 {
 		return // minimized, do nothing
 	}
 
 	w.redrawMu.Lock()
 	defer w.redrawMu.Unlock()
 
-	slog.Info("resize", "width", width, "height", height)
-
-	currentExtent := [3]int{width, height, 1}
+	slog.Info("resize", extent)
 
 	w.swapchain = gpu.NewSwapchain(&gpu.SwapchainConfig{
 		Window:     w.sdlWindow,
 		ColorSpace: vk.COLOR_SPACE_SRGB_NONLINEAR_KHR,
 		ImageConfig: &gpu.ImageConfig{
 			Dim:       gpu.ImageDim2D,
-			Extent:    currentExtent,
+			Extent:    extent,
 			Layers:    1,
 			MipLevels: 1,
 			Samples:   1,
@@ -79,7 +77,7 @@ func (w *mainWindow) resize(width, height int) {
 		w.sdlWindow,
 		&gpu.ImageConfig{
 			Dim:       gpu.ImageDim2D,
-			Extent:    currentExtent,
+			Extent:    extent,
 			Layers:    1,
 			MipLevels: 1,
 			Samples:   1,
@@ -89,7 +87,7 @@ func (w *mainWindow) resize(width, height int) {
 
 	w.swapchainImage = gpu.NewImage(&gpu.ImageConfig{
 		Dim:       gpu.ImageDim2D,
-		Extent:    currentExtent,
+		Extent:    extent,
 		Layers:    1,
 		MipLevels: 1,
 		Samples:   1,
@@ -193,7 +191,7 @@ func (w *mainWindow) handleInput(e any) {
 
 	switch e := e.(type) {
 	case *sdl.WindowPixelSizeChangedEvent:
-		w.resize(int(e.Data1), int(e.Data2))
+		w.resize([3]int{int(e.Data1), int(e.Data2), 1})
 
 	case *sdl.KeyDownEvent:
 		etime := sdlTimeToGameTime(e.Timestamp)
