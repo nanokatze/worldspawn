@@ -6,7 +6,6 @@ import (
 	"os"
 	"slices"
 	"strings"
-	"time"
 
 	"worldspawn/internal/compiler"
 	"worldspawn/internal/compiler/core"
@@ -73,8 +72,8 @@ type InterpretedMaterial struct {
 // TODO: AOVs. Either the user can specify aov name -> offset mapping at compile
 // time, we can do the remapping later somehow
 func CompileInterpretedMaterial(paramOffsets []int64, sea *compiler.Sea, c *compiler.Class) *InterpretedMaterial {
-	t0 := time.Now()
-	defer func() { log.Println("Compile", time.Since(t0)) }()
+	// t0 := time.Now()
+	// defer func() { log.Println("Compile", time.Since(t0)) }()
 
 	if false {
 		log.Println("input")
@@ -85,7 +84,7 @@ func CompileInterpretedMaterial(paramOffsets []int64, sea *compiler.Sea, c *comp
 
 	x := extract2(&compiler.Builder{Sea: sea2}, c, make(map[*compiler.Class]*compiler.Class))
 
-	if true {
+	if false {
 		log.Println("extract2")
 		compiler.Dump(sea2, x, nil)
 	}
@@ -97,7 +96,7 @@ func CompileInterpretedMaterial(paramOffsets []int64, sea *compiler.Sea, c *comp
 
 	regm := regassign3(sched)
 
-	if true {
+	if false {
 		for _, c := range sched {
 			v := c.Value()
 			var sb strings.Builder
@@ -115,7 +114,7 @@ func CompileInterpretedMaterial(paramOffsets []int64, sea *compiler.Sea, c *comp
 	}
 
 	assembled := assemble(sched, regm, paramOffsets)
-	if true {
+	if false {
 		log.Println("disassembly")
 		for i := 0; i < len(assembled); {
 			w := assembled[i]
