@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"runtime"
 	"slices"
+	"structs"
 	"sync"
 	"unsafe"
 
@@ -227,6 +228,7 @@ func NewUncached[T any]() Pointer[T] {
 
 // TODO: remove in favor of just host []T eventually
 type Slice[T any] struct {
+	_    structs.HostLayout
 	data Pointer[T]
 	len  int
 	cap  int
