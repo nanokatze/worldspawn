@@ -11,30 +11,10 @@ import light;
 import scene;
 import transfer_functions;
 
-// Shifted blue noise shamelessly stolen from rtx remix, which is
-//
-// Copyright (c) 2023-2024, NVIDIA CORPORATION. All rights reserved.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the "Software"),
-// to deal in the Software without restriction, including without limitation
-// the rights to use, copy, modify, merge, publish, distribute, sublicense,
-// and/or sell copies of the Software, and to permit persons to whom the
-// Software is furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
-// THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-// DEALINGS IN THE SOFTWARE.
+// https://developer.nvidia.com/blog/rendering-in-real-time-with-spatiotemporal-blue-noise-textures-part-2/#getting_more_than_one_value_per_pixel
 //
 // TODO: can we somehow move this into internal/integration?
-struct ShiftedBlueNoise<T_lds : LDS> {
+struct BlueNoiseSampler<T_lds : LDS> {
     T_lds lds; // TODO: move this elsewhere in the struct?
     int2 pixel;
     int sampleIndex;
@@ -45,12 +25,8 @@ struct ShiftedBlueNoise<T_lds : LDS> {
         this.sampleIndex = sampleOffset;
     }
 
-    // TODO: blue noise is quantized so we only get like 256-1 values with
-    // R8_UNORM (65536-1 with R16_UNORM) which might lead to bias. In practice
-    // this already becomes a problem with light sampling, as we might have many
-    // more emissive polys. We could augment the values with pure randomness.
-    // For pure randomness we'd need to pull a per-frame random seed.
-
+    // TODO: most of our samples are 1D rather than 2D so we should make our
+    // blue noise "multiplanar", i.e. R and G be in different channels
     [[mutating]]
     float Get1D() {
         return Get2D().x;
@@ -62,26 +38,17 @@ struct ShiftedBlueNoise<T_lds : LDS> {
 
         let point = float2(lds.Get(sampleIndex, 0), lds.Get(sampleIndex, 1));
 
-        // TODO: make this a member on the ShiftedBlueNoise or an interface or
+        // TODO: make this a member on the BlueNoiseSampler or an interface or
         // idk.
         let blueNoise = push.camera->blueNoise;
         let extent = blueNoise.Extent2D();
 
-        if (false) {
-            // This should be as good but currently produces worse results. This
-            // could be due to our light sampling being broken. TODO:
-            // investigate and fix
+        let p = (pixel + int2(point * float2(extent))) & (extent - 1);
 
-            let value = blueNoise.At2D(pixel & (extent - 1));
-
-            return fract(value.xy + point);
-        } else {
-            let p = (pixel + int2(point * float2(extent))) & (extent - 1);
-
-            let value = blueNoise.At2D(p).xy;
-
-            return fract(value); // make sure we never return 1
-        }
+        // TODO: we could dither further down in-between samples. I guess we
+        // could also use UINT to get the raw value and do format conversion
+        // ourselves.
+        return fract(blueNoise.At2D(p).xy);
     }
 }
 
