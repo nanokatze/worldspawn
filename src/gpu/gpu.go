@@ -120,10 +120,14 @@ func gpuInit() {
 		for _, layer := range layers {
 			switch byteSliceToString(layer.LayerName[:]) {
 			case "VK_LAYER_KHRONOS_shader_object":
-				log.Println("VK_LAYER_KHRONOS_shader_object found, enabling")
-				instanceLayers = append(instanceLayers, "VK_LAYER_KHRONOS_shader_object")
+				// log.Println("VK_LAYER_KHRONOS_shader_object found, enabling")
+				// instanceLayers = append(instanceLayers, "VK_LAYER_KHRONOS_shader_object")
 			}
 		}
+
+		// TODO: we want to make additional extensions require-able by other
+		// components. Do we let external things register a callback and
+		// populate extensions here?
 
 		instanceExtensions := map[string]struct{}{
 			"VK_KHR_surface":         {},
@@ -247,6 +251,7 @@ func gpuInit() {
 			MinLod: vk.TRUE,
 		}
 
+		// TODO: gate on whether we have these features
 		if os.Getenv("SteamDeck") == "1" {
 			if false {
 				enabledDeviceExtensions["VK_EXT_mesh_shader"] = struct{}{}

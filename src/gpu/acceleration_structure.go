@@ -11,8 +11,7 @@ import (
 
 /*
 type TopLevelAccel struct {
-	Data UnsafePointer
-	size int
+	accel Accel
 }
 */
 

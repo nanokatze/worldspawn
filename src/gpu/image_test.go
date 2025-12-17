@@ -46,15 +46,13 @@ func TestImageCopy1(t *testing.T) {
 	defer b.Destroy()
 
 	var jq JobQueue
-	defer jq.WaitForIdle()
-
 	a.EnqueueInit(&jq)
 	b.EnqueueInit(&jq)
-
 	EnqueueCopyImage(&jq,
 		a, [3]int{0, 0, 0},
 		b, [3]int{0, 0, 0},
 		[3]int{1, 1, 1})
+	jq.WaitForIdle()
 }
 
 func TestImageCopy3(t *testing.T) {
@@ -79,15 +77,13 @@ func TestImageCopy3(t *testing.T) {
 	defer b.Destroy()
 
 	var jq JobQueue
-	defer jq.WaitForIdle()
-
 	a.EnqueueInit(&jq)
 	b.EnqueueInit(&jq)
-
 	EnqueueCopyImage(&jq,
 		a, [3]int{},
 		b, [3]int{},
 		[3]int{4, 4, 1})
+	jq.WaitForIdle()
 }
 
 func TestImageCopy2(t *testing.T) {
@@ -109,10 +105,7 @@ func TestImageCopy2(t *testing.T) {
 	clear(tmp.Value())
 
 	var jq JobQueue
-	defer jq.WaitForIdle()
-
 	img2.EnqueueInit(&jq)
-
 	EnqueueCopyMemoryToImage(&jq,
 		img, [3]int{0, 0, 0},
 		tmp, 0, 0,
@@ -121,6 +114,7 @@ func TestImageCopy2(t *testing.T) {
 		img2, [3]int{0, 0, 0},
 		tmp, 0, 0,
 		[3]int{2, 2, 1})
+	jq.WaitForIdle()
 }
 
 func completeMipChainLength(width, height, depth uint32) int {
