@@ -12,26 +12,46 @@ import (
 	"worldspawn/gpu/vk"
 )
 
-type _FrameData struct {
-	MaxBounces int32 // int8?
+// +Y forward +X right +Z up to -Z forward +X right -Y up
+//
+// TODO: move somewhere further up
+// TODO: improve naming?
+var toClipSpace = geometry.Mat4x4{
+	{1, 0, 0, 0},
+	{0, 0, -1, 0},
+	{0, -1, 0, 0},
+	{0, 0, 0, 1},
+}
+
+type Quality struct {
+	MaxBounces int32
 
 	RussianRouletteThreshold int32
+}
 
+type _FrameData struct {
+	Counter uint32 // TODO: rename and give it a better name
+
+	// TODO: would be nice to sneak it into a global thing somewhere somehow. It
+	// doesn't really belong here and we could just choose the layer in the
+	// shader after all tbh.
 	BlueNoise gpu.SamplingView
 
-	Proj        geometry.Mat4x4
+	// Outline these?
+	Proj geometry.Mat4x4
+	View geometry.Mat4x4
+
+	Quality Quality
+
+	// Precomputed
+
+	ViewProj    geometry.Mat4x4 // TODO: remove?
 	ProjInverse geometry.Mat4x4
-	View        geometry.Mat4x4
 	ViewInverse geometry.Mat4x4
-
-	// Precomputed intermediates
-
-	ViewProj geometry.Mat4x4 // TODO: remove?
 }
 
 var blueNoise = sync.OnceValue(func() *gpu.Image {
 	var wg gpu.WaitGroup
-	defer wg.Wait()
 
 	var jq gpu.JobQueue
 
@@ -87,6 +107,8 @@ var blueNoise = sync.OnceValue(func() *gpu.Image {
 		}()
 	}
 
+	wg.Wait()
+
 	return gpuImg
 })
 
@@ -102,27 +124,14 @@ func mustReadFile(filename string) []byte {
 	return data
 }
 
-// +Y forward +X right +Z up to -Z forward +X right -Y up
-//
-// TODO: move somewhere further up
-// TODO: improve naming?
-var toClipSpace = geometry.Mat4x4{
-	{1, 0, 0, 0},
-	{0, 0, -1, 0},
-	{0, -1, 0, 0},
-	{0, 0, 0, 1},
-}
-
-// TODO: struct for per-view stuff, with history for TAA, etc.
-
-// TODO: we need to pass other stuff like max aniso etc settings...
 // TODO: change fn to be an int?
 func (scene *Scene) Render(
 	jq *gpu.JobQueue,
 	film Film,
 	t float32,
 	fn uint32,
-	camera *Camera) {
+	camera *Camera,
+	quality *Quality) {
 	if film.Extent[2] != 1 {
 		panic("film.Extent[2] must be 1")
 	}
@@ -157,18 +166,21 @@ func (scene *Scene) Render(
 		view := viewInverse.Inverse()
 
 		*frameData.Value() = _FrameData{
-			MaxBounces: 2,
-
-			RussianRouletteThreshold: 1,
+			Counter: fn,
 
 			BlueNoise: bnLayer.SamplingDescriptor(),
 
-			Proj:        proj,
-			ProjInverse: proj.Inverse(),
-			View:        view,
-			ViewInverse: viewInverse,
+			Proj: proj,
+			View: view,
 
-			ViewProj: proj.Mul4x4(view),
+			Quality: *quality,
+			// MaxBounces: 2,
+
+			// RussianRouletteThreshold: 1,
+
+			ViewProj:    proj.Mul4x4(view),
+			ProjInverse: proj.Inverse(),
+			ViewInverse: viewInverse,
 		}
 	}
 

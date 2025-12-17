@@ -110,7 +110,7 @@ func (re *gameRendererImpl) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Tim
 				}
 
 				var offset geometry.Vec3
-				if !conf.DisableCosmeticOffset {
+				if !conf.Developer.DisableCosmeticOffset {
 					offset = cosmeticOffset.Eval(w.Now)
 				}
 
@@ -282,6 +282,8 @@ func (re *gameRendererImpl) Subtick(w *game.Scene, playerID ecs.ID) {
 var fn uint32
 
 func (re *gameRendererImpl) Render(jq *gpu.JobQueue, dst *gpu.Image) {
+	conf := config.Load()
+
 	select {
 	case update := <-re.updates:
 		re.scene.EnqueueUpdate(jq, update.SceneUpdate, 0)
@@ -306,6 +308,10 @@ func (re *gameRendererImpl) Render(jq *gpu.JobQueue, dst *gpu.Image) {
 		},
 		float32(t),
 		fn,
-		&ourCamera)
+		&ourCamera,
+		&pathtracer.Quality{
+			MaxBounces:               conf.Quality.MaxBounces,
+			RussianRouletteThreshold: conf.Quality.RussianRouletteThreshold,
+		})
 	fn++
 }

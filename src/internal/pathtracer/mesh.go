@@ -15,7 +15,7 @@ type MeshPart struct {
 
 // TODO: come up with a solution to preserve authored material index? It would
 // be nice so that blender materials can use material_index attribute without
-// extra gymnastics...
+// extra gymnastics... I guess there's nothing we can do except a remap table :/
 type Mesh struct {
 	// TODO: attribute descs. We could then make MeshPart.AttributeBuffers be
 	// "just pointers". If we make attribute descs also specify strides we would
@@ -29,6 +29,8 @@ type Mesh struct {
 
 	// TODO: deinterleave so that we have an array of attribute and index buffers
 	Parts []MeshPart
+
+	// TODO: outline the following fields into a separate struct
 
 	accelBuildConfig *gpu.AccelBuildConfig
 	accel            gpu.Accel

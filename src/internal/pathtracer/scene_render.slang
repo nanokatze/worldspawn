@@ -11,6 +11,8 @@ import light;
 import scene;
 import transfer_functions;
 
+#define SamplesPerBounce 10
+
 // https://developer.nvidia.com/blog/rendering-in-real-time-with-spatiotemporal-blue-noise-textures-part-2/#getting_more_than_one_value_per_pixel
 //
 // TODO: can we somehow move this into internal/integration?
@@ -18,12 +20,6 @@ struct BlueNoiseSampler<T_lds : LDS> {
     T_lds lds; // TODO: move this elsewhere in the struct?
     int2 pixel;
     int sampleIndex;
-
-    __init(T_lds lds, int2 pixel, int sampleOffset) {
-        this.lds = lds;
-        this.pixel = pixel;
-        this.sampleIndex = sampleOffset;
-    }
 
     // TODO: most of our samples are 1D rather than 2D so we should make our
     // blue noise "multiplanar", i.e. R and G be in different channels
@@ -52,6 +48,44 @@ struct BlueNoiseSampler<T_lds : LDS> {
     }
 }
 
+struct Quality {
+    int maxBounces;
+
+    int russianRouletteThreshold;
+};
+
+struct FrameData {
+    uint32_t counter;
+
+    SamplingView blueNoise;
+
+    matrix<float, 4, 4> proj;
+    matrix<float, 4, 4> view;
+
+    Quality quality;
+
+    // Some precomputed operations involving the above
+
+    matrix<float, 4, 4> viewProj; // precomputed extras should always go at the end
+    matrix<float, 4, 4> projInverse; // TODO: move into precomputed things
+    matrix<float, 4, 4> viewInverse;
+}
+
+// TODO: make things be methods on Push and rename Push to something else. Would
+// be nice to inline FrameData in here.
+struct Push {
+    Scene *scene;
+    FrameData *camera;
+    // TODO: buffers for normal, AOVs, etc
+    StorageView out; // irradiance
+}
+
+[[vk::push_constant]] Push push;
+
+RaytracingAccelerationStructure rtas(uint64_t bda) {
+    return spirv_asm { result:$$RaytracingAccelerationStructure = OpConvertUToAccelerationStructureKHR $bda };
+}
+
 struct Path {
     // Light transmitted along the path
     Spectrum L;
@@ -73,38 +107,6 @@ struct Path {
     float3 rayOrigin;
     float3 rayDir;
 };
-
-struct FrameData {
-    int maxBounces;
-
-    int russianRouletteThreshold;
-
-    SamplingView blueNoise;
-
-    matrix<float, 4, 4> proj;
-    matrix<float, 4, 4> projInverse;
-    matrix<float, 4, 4> view;
-    matrix<float, 4, 4> viewInverse;
-
-    // Precomputed stuff goes at the end
-
-    matrix<float, 4, 4> viewProj; // precomputed extras should always go at the end
-}
-
-// TODO: make things be methods on Push and rename Push to something else. Would
-// be nice to inline FrameData in here.
-struct Push {
-    Scene *scene;
-    FrameData *camera;
-    // TODO: buffers for normal, AOVs, etc
-    StorageView out; // irradiance
-}
-
-[[vk::push_constant]] Push push;
-
-RaytracingAccelerationStructure rtas(uint64_t bda) {
-    return spirv_asm { result:$$RaytracingAccelerationStructure = OpConvertUToAccelerationStructureKHR $bda };
-}
 
 void exportIrradiance(Spectrum L) {
     uint3 LaunchID = DispatchRaysIndex();
@@ -277,7 +279,12 @@ bool closesthit(
     // TODO: rename to something like "vampireInstance" or whatever
     bool vampire = ((push->scene->accelInstances[instanceIndex].instanceIDAndMask >> 24) & 0b11) == 0b01;
 
-    var sampler = ShiftedBlueNoise<R2LDS>(R2LDS(), dispatchRaysIndex.xy, 10 * path.depth);
+    BlueNoiseSampler<R2LDS> sampler = {
+        R2LDS(),
+        dispatchRaysIndex.xy,
+        // TODO: factor in push.camera->quality.maxBounces
+        push.camera->counter * 69 * SamplesPerBounce + path.depth * SamplesPerBounce,
+    };
 
     let materialParams = &push.scene->materialParams.data[instanceIndex * push.scene->maxPartsPerMesh + geometryIndex];
 
@@ -331,7 +338,7 @@ bool closesthit(
 
     path.depth++;
 
-    if (path.depth >= push.camera->maxBounces)
+    if (path.depth >= push.camera->quality.maxBounces)
         return false;
 
     // Direct light sampling
@@ -374,7 +381,7 @@ bool closesthit(
     //
     // TODO: I guess we could also use an ordinary RNG here. Should we?
     float rr = sampler.Get1D();
-    if (path.depth >= push.camera->russianRouletteThreshold) {
+    if (path.depth >= push.camera->quality.russianRouletteThreshold) {
         // TODO: introduce Spectrum.MaxComponentValue()
         float p = saturate(max(max(path.beta.x, path.beta.y), path.beta.z));
         if (!(rr < p))

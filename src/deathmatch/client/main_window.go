@@ -35,8 +35,10 @@ func newMainWindow() *mainWindow {
 		sdl.WithBooleanProperty(sdl.PROP_WINDOW_CREATE_VULKAN_BOOLEAN, true),
 		sdl.WithBooleanProperty(sdl.PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN, true),
 		sdl.WithBooleanProperty(sdl.PROP_WINDOW_CREATE_HIGH_PIXEL_DENSITY_BOOLEAN, true),
-		sdl.WithNumberProperty(sdl.PROP_WINDOW_CREATE_WIDTH_NUMBER, int64(conf.Resolution[0])),
-		sdl.WithNumberProperty(sdl.PROP_WINDOW_CREATE_HEIGHT_NUMBER, int64(conf.Resolution[1])))
+		// TODO: minimum window size?
+		sdl.WithNumberProperty(sdl.PROP_WINDOW_CREATE_WIDTH_NUMBER, int64(conf.Presentation.Resolution[0])),
+		sdl.WithNumberProperty(sdl.PROP_WINDOW_CREATE_HEIGHT_NUMBER, int64(conf.Presentation.Resolution[1])),
+	)
 	if err != nil {
 		panic(fmt.Sprintf("sdl.CreateWindow: %v", err))
 	}
@@ -187,14 +189,14 @@ func (w *mainWindow) handleInput(e any) {
 	case *sdl.KeyDownEvent:
 		etime := sdlTimeToGameTime(e.Timestamp)
 
-		if action, ok := conf.KeyActions[e.Key]; ok {
+		if action, ok := conf.Controls.KeyActions[e.Key]; ok {
 			cmds = game.AppendAction(cmds, etime, action, 1)
 		}
 
 	case *sdl.KeyUpEvent:
 		etime := sdlTimeToGameTime(e.Timestamp)
 
-		if action, ok := conf.KeyActions[e.Key]; ok {
+		if action, ok := conf.Controls.KeyActions[e.Key]; ok {
 			cmds = game.AppendAction(cmds, etime, action, 0)
 		}
 
@@ -241,14 +243,14 @@ func (w *mainWindow) handleInput(e any) {
 			return
 		}
 
-		if action, ok := conf.GamepadButtonActions[sdl.GamepadButton(e.Button)]; ok {
+		if action, ok := conf.Controls.GamepadButtonActions[sdl.GamepadButton(e.Button)]; ok {
 			cmds = game.AppendAction(cmds, etime, action, 1)
 		}
 
 	case *sdl.GamepadButtonUpEvent:
 		etime := sdlTimeToGameTime(e.Timestamp)
 
-		if action, ok := conf.GamepadButtonActions[sdl.GamepadButton(e.Button)]; ok {
+		if action, ok := conf.Controls.GamepadButtonActions[sdl.GamepadButton(e.Button)]; ok {
 			cmds = game.AppendAction(cmds, etime, action, 0)
 		}
 

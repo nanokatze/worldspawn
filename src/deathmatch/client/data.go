@@ -229,11 +229,12 @@ func loadmesh(filename string) *fileBackedMesh {
 
 	blob2 := io.NewSectionReader(r, preamble.Blob.Off, preamble.Blob.Size)
 
-	attributes := maps.Collect(func(yield func(string, int) bool) {
-		for i, attr := range header2.Rendering.Attributes {
-			yield(attr.Name, i)
-		}
-	})
+	attributes := maps.Collect(
+		func(yield func(string, int) bool) {
+			for i, attr := range header2.Rendering.Attributes {
+				yield(attr.Name, i)
+			}
+		})
 
 	inner := new(pathtracer.Mesh)
 

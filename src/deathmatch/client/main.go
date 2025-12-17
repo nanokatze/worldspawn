@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"sync/atomic"
 
+	"github.com/go-json-experiment/json"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 
@@ -37,33 +38,30 @@ func main() {
 
 	flag.Parse()
 
-	log.SetFlags(0)
+	log.SetFlags(0) // TODO: kill this line
 
-	config.Store(&Config{
-		Resolution: [2]int{1280, 800},
-		KeyActions: map[sdl.Keycode]int{
-			sdl.K_W:     game.ActionSetMovementVelocityY,
-			sdl.K_D:     game.ActionSetMovementVelocityX,
-			sdl.K_SPACE: game.ActionJump,
-			sdl.K_LCTRL: game.ActionCrouch,
-		},
-		GamepadButtonActions: map[sdl.GamepadButton]int{
-			sdl.GAMEPAD_BUTTON_DPAD_UP:    game.ActionSlot1,
-			sdl.GAMEPAD_BUTTON_DPAD_DOWN:  game.ActionSlot3,
-			sdl.GAMEPAD_BUTTON_DPAD_LEFT:  game.ActionSlot0,
-			sdl.GAMEPAD_BUTTON_DPAD_RIGHT: game.ActionSlot2,
-		},
-	})
+	config.Store(defaultConfig)
 
-	// We don't use SDL event watcher to handle resizes as our redraw is too
-	// slow to provide responsive size changes.
-	//
-	// For handling input, there appears to be marginal to no benefit over using
-	// WaitEvents.
+	// TODO: use xdg config path
+	// TODO: factor this out? this is very gross in its current state.
+	if f, err := os.Open("config.json"); err == nil {
+		configMu.Lock()
+		conf := config.Load().Clone()
+		if err := json.UnmarshalRead(f, conf); err != nil {
+			panic(err)
+		}
+		config.Store(conf)
+		configMu.Unlock()
+	}
 
 	initAudio()
 
-	initGamepad()
+	// TODO: check and report error
+	sdl.SetHint("SDL_JOYSTICK_HIDAPI_STEAMDECK", "1")
+
+	if err := sdl.InitSubSystem(sdl.INIT_GAMEPAD); err != nil {
+		panic(err)
+	}
 
 	if err := sdl.InitSubSystem(sdl.INIT_VIDEO); err != nil {
 		panic(fmt.Sprintf("failed to initialize SDL video subsystem: %v", err))
@@ -86,7 +84,9 @@ func main() {
 	slog.Info("gamepads", "gamepads", sdl.GetGamepads())
 
 	// TODO: open all gamepads we have here
-	// gamepad, _ = sdl.OpenGamepad(sdl.GetGamepads()[0])
+	if gamepads := sdl.GetGamepads(); len(gamepads) > 0 {
+		gamepad, _ = sdl.OpenGamepad(gamepads[0])
+	}
 
 	slog.Info("gamepad", "gamepad", gamepad)
 
@@ -102,6 +102,12 @@ func main() {
 	}
 
 	currentSession.Store(session)
+
+	// We don't use SDL event watcher to handle resizes as our redraw is too
+	// slow to provide responsive size changes.
+	//
+	// For handling input, there appears to be marginal to no benefit over using
+	// WaitEvents.
 
 eventLoop:
 	for {
