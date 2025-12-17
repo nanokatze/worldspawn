@@ -20,6 +20,8 @@ import (
 
 // Init
 
+//go:generate stringer -type InitFlags -trimprefix INIT_
+
 type InitFlags uint32
 
 const (
@@ -406,8 +408,6 @@ func (w *Window) DisplayScale() (float32, error) {
 	}
 	return scale, nil
 }
-
-// TODO: should be moved elsewhere
 
 // Keyboard
 
