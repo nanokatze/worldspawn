@@ -12,6 +12,7 @@ import (
 
 // TODO: rename this file pls
 
+// TODO: naming
 func asdasd(t compiler.Type) reflect.Type {
 	switch t := t.(type) {
 	case core.IntType:
@@ -27,6 +28,7 @@ func asdasd(t compiler.Type) reflect.Type {
 	panic("bad")
 }
 
+// TODO: naming
 func ParamStruct(paramTypes []compiler.Type) reflect.Type {
 	fields := make([]reflect.StructField, len(paramTypes))
 	for i, t := range paramTypes {
@@ -39,7 +41,8 @@ func ParamStruct(paramTypes []compiler.Type) reflect.Type {
 	return reflect.StructOf(fields)
 }
 
-// TODO: aaaaaaa grrrrr????
+// TODO: replace this with a function that takes paramTypes or paramStruct and a
+// program that gathers the args?
 // TODO: beside src this would also need renderer.Mesh (which we need to move
 // out of here) to pack attributes.
 // TODO: dst should really just be a byte bag tbh. Or idk.
