@@ -23,7 +23,7 @@ float Rn(float phi, int index, int dim) {
     assert(dim >= 0);
 
     let alpha = pow(1.0 / phi, dim + 1);
-    return fract(alpha * (index + 1));
+    return mulMod1(alpha, index + 1);
 }
 
 // Solves x^(d+1) - x - 1 = 0 for positive x
@@ -40,18 +40,9 @@ float generailizedGoldenRatio(int d) {
 }
 
 float mulMod1(float x, int y) {
-    return mulMod1FixedPoint(x, y);
-}
-
-float mulMod1Naive(float x, int y) {
+    if (true) {
+        let scale = 1ULL << 24;
+        return (float)((uint32_t)(x * scale) * (uint32_t)y) / scale;
+    }
     return fract(x * (float)y);
-}
-
-float mulMod1FixedPoint(float x, int y) {
-    assert(0 <= x);
-    assert(0 <= y);
-
-    let scale = 1ULL << 24;
-
-    return (float)((uint32_t)(x * scale) * (uint32_t)y) / scale;
 }
