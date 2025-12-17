@@ -161,7 +161,7 @@ func getmaterial(identifier string) material {
 			// TODO: precompile this
 			matc.GatherArgs(args, src, header.Host)
 		}
-		m.material = pathtracer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(paramOffsets, sea, ir))
+		m.material = pathtracer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(paramOffsets, sea, ir, nil))
 	}
 	materialcache[identifier] = m
 	return m
@@ -198,7 +198,7 @@ var errorMaterial = sync.OnceValue(func() *pathtracer.InterpretedMaterial {
 		b.Value2(matc.OpDFWeightedSum, matc.EDFType{}, nil),
 	)
 
-	return pathtracer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(nil, sea, program))
+	return pathtracer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(nil, sea, program, nil))
 })
 
 type fileBackedMesh struct {

@@ -2,10 +2,8 @@ package matc
 
 import (
 	"fmt"
-	"log"
-	"os"
+	"io"
 	"slices"
-	"strings"
 
 	"worldspawn/internal/compiler"
 	"worldspawn/internal/compiler/core"
@@ -67,55 +65,42 @@ type InterpretedMaterial struct {
 	Code []uint32
 }
 
-// TODO: the user should provide a function for mapping frame property names to
-// offsets
 // TODO: AOVs. Either the user can specify aov name -> offset mapping at compile
 // time, we can do the remapping later somehow
-func CompileInterpretedMaterial(paramOffsets []int64, sea *compiler.Sea, c *compiler.Class) *InterpretedMaterial {
-	// t0 := time.Now()
-	// defer func() { log.Println("Compile", time.Since(t0)) }()
-
-	if false {
-		log.Println("input")
-		compiler.Dump(sea, c, nil)
-	}
-
+// TODO: allow printing stuff for debugging somehow
+func CompileInterpretedMaterial(paramOffsets []int64, sea *compiler.Sea, c *compiler.Class, log io.Writer) *InterpretedMaterial {
 	sea2 := compiler.NewSea()
 
 	x := extract2(&compiler.Builder{Sea: sea2}, c, make(map[*compiler.Class]*compiler.Class))
 
-	if false {
-		log.Println("extract2")
-		compiler.Dump(sea2, x, nil)
-	}
-
-	// log.Println("extraction")
-	// compiler.Dump(sea2, x, nil)
+	// if log != nil {
+	// 	fmt.Fprintln(log, "extraction")
+	// 	compiler.Dump(sea2, x, nil)
+	// }
 
 	sched := schedule2(x)
 
 	regm := regassign3(sched)
 
-	if false {
+	if log != nil {
+		fmt.Fprintln(log, "schedule")
 		for _, c := range sched {
 			v := c.Value()
-			var sb strings.Builder
-			fmt.Fprintf(&sb, "%v", regm[c])
-			// fmt.Fprintf(&sb, " %v", v.Type)
-			fmt.Fprintf(&sb, " = %s", v.Op())
+			fmt.Fprintf(log, "%v", regm[c])
+			fmt.Fprintf(log, " = %s", v.Op())
 			if imm := v.Imm(); imm != nil {
-				fmt.Fprintf(&sb, " %v", imm)
+				fmt.Fprintf(log, " %v", imm)
 			}
 			for _, a := range v.Args() {
-				fmt.Fprintf(&sb, " %v", regm[a])
+				fmt.Fprintf(log, " %v", regm[a])
 			}
-			log.Print(sb.String())
+			fmt.Fprintln(log)
 		}
 	}
 
 	assembled := assemble(sched, regm, paramOffsets)
-	if false {
-		log.Println("disassembly")
+	if log != nil {
+		fmt.Fprintln(log, "disassembly")
 		for i := 0; i < len(assembled); {
 			w := assembled[i]
 			i++
@@ -125,18 +110,18 @@ func CompileInterpretedMaterial(paramOffsets []int64, sea *compiler.Sea, c *comp
 			src0 := (w >> 16) & 0xff
 			src1 := (w >> 24) & 0xff
 
-			fmt.Fprintf(os.Stderr, "%v r%v r%v r%v", material.A(op), dst, src0, src1)
+			fmt.Fprintf(log, "%v r%v r%v r%v", material.A(op), dst, src0, src1)
 			switch material.A(op) {
 			case material.AConst32, material.ALoadParam, material.ALoadAttr:
 				data := assembled[i]
 				i++
-				fmt.Fprintf(os.Stderr, " 0x%08x", data)
+				fmt.Fprintf(log, " 0x%08x", data)
 			case material.ACondSelect32:
 				r := assembled[i]
 				i++
-				fmt.Fprintf(os.Stderr, " r%v", r)
+				fmt.Fprintf(log, " r%v", r)
 			}
-			fmt.Fprintln(os.Stderr)
+			fmt.Fprintln(log)
 		}
 	}
 

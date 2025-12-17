@@ -85,7 +85,7 @@ func TestXxx(t *testing.T) {
 		b.Value2(OpDFWeightedSum, EDFType{}, nil),
 	)
 
-	compiled := CompileInterpretedMaterial(paramOffsets, sea, program)
+	compiled := CompileInterpretedMaterial(paramOffsets, sea, program, nil)
 
 	t.Log(compiled.ABI)
 }
