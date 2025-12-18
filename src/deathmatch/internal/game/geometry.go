@@ -4,10 +4,9 @@ package game
 
 import (
 	"errors"
-	"strings"
 
 	"worldspawn/geometry-go"
-	"worldspawn/internal/nice"
+	"worldspawn/internal/nice2"
 
 	"github.com/go-json-experiment/json"
 	"github.com/go-json-experiment/json/jsontext"
@@ -30,7 +29,7 @@ var collisionGeometryKindFromString = map[string]GeometryKind{
 	"FileBacked": GeometryFileBacked,
 }
 
-func (shapeKind GeometryKind) MarshalText() ([]byte, error) {
+func (shapeKind *GeometryKind) MarshalText() ([]byte, error) {
 	return []byte(shapeKind.String()), nil
 }
 
@@ -68,16 +67,16 @@ func PackGeometry(geo Geometry) GeometryPacked {
 		geo.Scale = geometry.Vec3Broadcast(1)
 	}
 
-	var buf strings.Builder
-	if err := nice.MarshalEncode(nice.NewEncoder(&buf), &geo); err != nil {
+	buf, err := nice2.Marshal(&geo, new(nice2.ArshalerMap).Get)
+	if err != nil {
 		panic(err)
 	}
-	return GeometryPacked(buf.String())
+	return GeometryPacked(buf)
 }
 
 func (geo GeometryPacked) Unpack() Geometry {
 	var unpacked Geometry
-	if err := nice.UnmarshalDecode(nice.NewDecoder(strings.NewReader(string(geo))), &unpacked); err != nil {
+	if err := nice2.Unmarshal([]byte(geo), &unpacked, new(nice2.ArshalerMap).Get); err != nil {
 		panic(err)
 	}
 	return unpacked
