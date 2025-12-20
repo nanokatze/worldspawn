@@ -6,7 +6,7 @@ import (
 	"errors"
 
 	"worldspawn/geometry-go"
-	"worldspawn/internal/nice2"
+	"worldspawn/internal/nice"
 
 	"github.com/go-json-experiment/json"
 	"github.com/go-json-experiment/json/jsontext"
@@ -67,7 +67,7 @@ func PackGeometry(geo Geometry) GeometryPacked {
 		geo.Scale = geometry.Vec3Broadcast(1)
 	}
 
-	buf, err := nice2.Marshal(&geo, nice2.DefaultArshalerCache)
+	buf, err := nice.Marshal(&geo)
 	if err != nil {
 		panic(err)
 	}
@@ -76,7 +76,7 @@ func PackGeometry(geo Geometry) GeometryPacked {
 
 func (geo GeometryPacked) Unpack() Geometry {
 	var unpacked Geometry
-	if err := nice2.Unmarshal([]byte(geo), &unpacked, nice2.DefaultArshalerCache); err != nil {
+	if err := nice.Unmarshal([]byte(geo), &unpacked); err != nil {
 		panic(err)
 	}
 	return unpacked

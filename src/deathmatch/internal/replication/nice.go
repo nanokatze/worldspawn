@@ -6,7 +6,6 @@ import (
 
 	"worldspawn/deathmatch/internal/game"
 	"worldspawn/internal/nice"
-	"worldspawn/internal/nice2"
 )
 
 var NiceOptions = nice.JoinOptions(
@@ -34,7 +33,3 @@ var NiceOptions = nice.JoinOptions(
 				yield(uint64(idx), typ)
 			}
 		}))))
-
-var Nice2Arshalers = nice2.MakeArshalerMap(
-	nice2.WithInterfaceArshaler[game.Entity](game.EntityTypes),
-	nice2.WithInterfaceArshaler[game.InputCmd](game.InputCmds))
