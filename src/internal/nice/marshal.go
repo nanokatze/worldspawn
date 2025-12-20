@@ -1,6 +1,7 @@
 package nice
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -21,6 +22,15 @@ func MarshalEncode(enc *Encoder, in any) error {
 
 	marshal := mapGetOrElse(enc.customMarshalers, t, func() marshaler { return defaultMarshaler(t) })
 	return marshal(enc, v)
+}
+
+func Marshal(in any, opts ...Option) ([]byte, error) {
+	buf := bytes.NewBuffer(nil)
+
+	if err := MarshalEncode(NewEncoder(buf, opts...), in); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 var defaultMarshalers sync.Map

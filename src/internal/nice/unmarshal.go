@@ -1,6 +1,7 @@
 package nice
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -23,6 +24,15 @@ func UnmarshalDecode(dec *Decoder, out any) error {
 
 	unmarshal := mapGetOrElse(dec.customUnmarshalers, t, func() unmarshaler { return defaultUnmarshaler(t) })
 	return unmarshal(dec, v)
+}
+
+func Unmarshal(in []byte, out any, opts ...Option) error {
+	buf := bytes.NewReader(in)
+
+	if err := UnmarshalDecode(NewDecoder(buf, opts...), out); err != nil {
+		return err
+	}
+	return nil
 }
 
 var defaultUnmarshalers sync.Map
