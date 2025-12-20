@@ -8,31 +8,35 @@ import (
 
 type myInterface interface{}
 
+func versionedStructArshaler(t reflect.Type, getArshaler Arshalers) Arshaler {
+	// version := t.NumField()
+
+	structArshaler := DefaultArshalers(t, getArshaler)
+
+	return Arshaler{
+		Size: 8 + structArshaler.Size,
+		Marshal: func(heap Heap, p Pointer, v reflect.Value) error {
+			panic("no")
+		},
+		Unmarshal: func(heap Heap, p Pointer, v reflect.Value) error {
+			panic("no")
+		},
+	}
+}
+
 func TestXxx(t *testing.T) {
 	// var arshalers ArshalerMap
 
-	arshalers := MakeArshalerMap(
-		WithTypedArshaler(func(getArshaler ArshalerGetter) TypedArshaler[myInterface] {
-			return TypedArshaler[myInterface]{
-				Size: 8,
-				Marshal: func(heap Heap, p Pointer, v *myInterface) error {
-					mfw := getArshaler(reflect.TypeFor[int]())
-					tmp := (*v).(int)
-					return mfw.Marshal(heap, p, reflect.ValueOf(&tmp).Elem())
-				},
-				Unmarshal: func(heap Heap, p Pointer, v *myInterface) error {
-					mfw := getArshaler(reflect.TypeFor[int]())
-					var tmp int
-					err := mfw.Unmarshal(heap, p, reflect.ValueOf(&tmp).Elem())
-					*v = myInterface(tmp)
-					return err
-				},
-			}
+	amap := MakeArshalerMap(
+		WithInterfaceArshaler[myInterface]([]reflect.Type{
+			reflect.TypeFor[int](),
 		}))
+
+	arshalers := amap
 
 	temst := myInterface(42)
 
-	buf, err := Marshal(&temst, arshalers.Get)
+	buf, err := Marshal(&temst, arshalers)
 
 	t.Log(err)
 	t.Log(hex.Dump(buf))
@@ -44,7 +48,7 @@ func TestXxx(t *testing.T) {
 	// buf = buf[:len(buf)-1]
 
 	var boofer myInterface
-	t.Log(Unmarshal(buf, &boofer, arshalers.Get))
+	t.Log(Unmarshal(buf, &boofer, arshalers))
 
 	t.Log(boofer)
 }

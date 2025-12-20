@@ -5,26 +5,11 @@ import (
 )
 
 type Arshaler struct {
-	Size int
-	// TODO: rename to Encode, Decode?
+	Size      int
 	Marshal   func(heap Heap, p Pointer, v reflect.Value) error
 	Unmarshal func(heap Heap, p Pointer, v reflect.Value) error
 }
 
-type TypedArshaler[T any] struct {
-	Size      int
-	Marshal   func(heap Heap, p Pointer, v *T) error
-	Unmarshal func(heap Heap, p Pointer, v *T) error
-}
+type Arshalers func(t reflect.Type, arshalers Arshalers) Arshaler
 
-func (typedArshaler TypedArshaler[T]) Arshaler() Arshaler {
-	return Arshaler{
-		Size: typedArshaler.Size,
-		Marshal: func(heap Heap, p Pointer, v reflect.Value) error {
-			return typedArshaler.Marshal(heap, p, v.Addr().Interface().(*T))
-		},
-		Unmarshal: func(heap Heap, p Pointer, v reflect.Value) error {
-			return typedArshaler.Unmarshal(heap, p, v.Addr().Interface().(*T))
-		},
-	}
-}
+func (arshalers Arshalers) Get(t reflect.Type) Arshaler { return arshalers(t, arshalers) }

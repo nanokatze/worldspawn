@@ -67,7 +67,7 @@ func PackGeometry(geo Geometry) GeometryPacked {
 		geo.Scale = geometry.Vec3Broadcast(1)
 	}
 
-	buf, err := nice2.Marshal(&geo, new(nice2.ArshalerMap).Get)
+	buf, err := nice2.Marshal(&geo, nice2.DefaultArshalerCache)
 	if err != nil {
 		panic(err)
 	}
@@ -76,7 +76,7 @@ func PackGeometry(geo Geometry) GeometryPacked {
 
 func (geo GeometryPacked) Unpack() Geometry {
 	var unpacked Geometry
-	if err := nice2.Unmarshal([]byte(geo), &unpacked, new(nice2.ArshalerMap).Get); err != nil {
+	if err := nice2.Unmarshal([]byte(geo), &unpacked, nice2.DefaultArshalerCache); err != nil {
 		panic(err)
 	}
 	return unpacked

@@ -4,46 +4,47 @@ import (
 	"reflect"
 )
 
-// TODO: keep track of where we are so we can produce very good quality
-// diagnostics?
-
-/*
-const (
-	_ = iota
-	accessLinkIndex
-	accessLinkKey
-	accessLinkField
-)
-
-type accessChain struct {
-	// chain []
-}
-*/
-
-type ArshalerGetter func(t reflect.Type) Arshaler
-
-func Marshal(in any, getArshaler ArshalerGetter) ([]byte, error) {
+func Marshal(in any, arshalers Arshalers) ([]byte, error) {
 	p := reflect.ValueOf(in)
 	// check that p is a pointer
 	v := p.Elem()
 	t := v.Type()
 
+	arshaler := arshalers.Get(t)
+
 	heap := InMemoryHeap{}
-	heap.buf = make([]byte, getArshaler(t).Size)
-	err := getArshaler(t).Marshal(&heap, startOfHeap, v)
+	heap.buf = make([]byte, arshaler.Size)
+	err := arshaler.Marshal(&heap, startOfHeap, v)
 
 	return heap.buf, err
 }
 
-func Unmarshal(b []byte, in any, getArshaler ArshalerGetter) error {
+func Marshal2(dst []byte, in any, arshalers Arshalers) ([]byte, error) {
 	p := reflect.ValueOf(in)
 	// check that p is a pointer
 	v := p.Elem()
 	t := v.Type()
 
+	arshaler := arshalers.Get(t)
+
+	heap := InMemoryHeap{}
+	heap.buf = append(dst[:0], make([]byte, arshaler.Size)...)
+	err := arshaler.Marshal(&heap, startOfHeap, v)
+
+	return heap.buf, err
+}
+
+func Unmarshal(b []byte, in any, arshalers Arshalers) error {
+	p := reflect.ValueOf(in)
+	// check that p is a pointer
+	v := p.Elem()
+	t := v.Type()
+
+	arshaler := arshalers.Get(t)
+
 	heap := &InMemoryHeap{b}
-	if err := validate(heap, startOfHeap, getArshaler(t).Size); err != nil {
+	if err := validate(heap, startOfHeap, arshaler.Size); err != nil {
 		return err
 	}
-	return getArshaler(t).Unmarshal(heap, startOfHeap, v)
+	return arshaler.Unmarshal(heap, startOfHeap, v)
 }
