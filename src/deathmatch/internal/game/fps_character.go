@@ -20,7 +20,7 @@ import (
 
 type FPSCharacter struct {
 	// TODO: move this into a separate component?
-	Camera ecs.ID
+	Camera ecs.Entity
 
 	// TODO: shape
 	StandingHeight float32
@@ -42,22 +42,22 @@ type FPSCharacter struct {
 
 	Supported bool
 
-	ActiveWeapon           ecs.ID
-	ActiveWeaponViewmodel  ecs.ID
-	ActiveWeaponWorldmodel ecs.ID
-	Weapons                []ecs.ID
+	ActiveWeapon           ecs.Entity
+	ActiveWeaponViewmodel  ecs.Entity
+	ActiveWeaponWorldmodel ecs.Entity
+	Weapons                []ecs.Entity
 }
 
 var _ Character = FPSCharacter{}
 
-func (entity FPSCharacter) CharacterUpdate(w *Scene, id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
+func (entity FPSCharacter) CharacterUpdate(w *Scene, id ecs.Entity, cmd TimestampedInputCmd, info *UpdateParams) {
 	// positionRotation, _ := w.TranslationRotation.Load(id)
 	inventory, _ := w.ArmedCharacter.Get(id)
 
 	// should this be subtick time?
 	// now := w.Now
 
-	var switchToWeapon ecs.ID
+	var switchToWeapon ecs.Entity
 
 	switch cmd := cmd.Cmd.(type) {
 	case InputCmdDLookX:
@@ -140,7 +140,7 @@ func (entity FPSCharacter) CharacterUpdate(w *Scene, id ecs.ID, cmd TimestampedI
 
 var _ UpdateBeforePhysics = FPSCharacter{}
 
-func (fpsCharacter FPSCharacter) UpdateBeforePhysics(w *Scene, id ecs.ID, info *UpdateParams) {
+func (fpsCharacter FPSCharacter) UpdateBeforePhysics(w *Scene, id ecs.Entity, info *UpdateParams) {
 	positionRotation, _ := w.TranslationRotation.Get(id)
 	velocity, _ := w.Velocity.Get(id)
 
@@ -174,7 +174,7 @@ func (fpsCharacter FPSCharacter) UpdateBeforePhysics(w *Scene, id ecs.ID, info *
 
 // TODO: rename to Inventory or something else
 type ArmedCharacter struct {
-	Slots []ecs.ID
+	Slots []ecs.Entity
 }
 
 func planeNormal(plane geometry.Vec4) geometry.Vec3 {
@@ -185,7 +185,7 @@ func planeSignedDistance(plane geometry.Vec4, point geometry.Vec3) float32 {
 	return point.Dot(planeNormal(plane)) + plane[3]
 }
 
-func (fpsCharacter *FPSCharacter) asdasd(w *Scene, id ecs.ID, velocity geometry.Vec3, Δt time.Duration) geometry.Vec3 {
+func (fpsCharacter *FPSCharacter) asdasd(w *Scene, id ecs.Entity, velocity geometry.Vec3, Δt time.Duration) geometry.Vec3 {
 	positionRotation, _ := w.TranslationRotation.Get(id)
 
 	up := geometry.Vec3{0, 0, 1}

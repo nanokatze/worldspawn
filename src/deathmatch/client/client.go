@@ -27,8 +27,8 @@ import (
 
 type Renderer interface {
 	// TODO: rename to Update and possibly merge with Subtick somehow?
-	Tick(w *game.Scene, camera ecs.ID, t0, t1 game.Time, frameDuration time.Duration)
-	Subtick(w *game.Scene, camera ecs.ID)
+	Tick(w *game.Scene, camera ecs.Entity, t0, t1 game.Time, frameDuration time.Duration)
+	Subtick(w *game.Scene, camera ecs.Entity)
 }
 
 type Client struct {
@@ -45,7 +45,7 @@ type Client struct {
 	world *game.Scene
 
 	// TODO: we could be in control of many player entities
-	player ecs.ID
+	player ecs.Entity
 
 	renderer Renderer
 }
@@ -124,7 +124,7 @@ func newClient(renderer Renderer, addr string) (*Client, error) {
 				// The renderer will resize its scene by itself
 
 			case replication.SetPlayer:
-				var player ecs.ID
+				var player ecs.Entity
 				binary.Read(deframer, binary.LittleEndian, &player)
 				s.mu.Lock()
 				s.player = player
@@ -217,15 +217,15 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 			}
 
 			if indexGen.Gen != ^uint32(0) {
-				id := ecs.MakeID(int(indexGen.Index), indexGen.Gen)
+				id := ecs.MakeEntity(int(indexGen.Index), indexGen.Gen)
 
-				idAtIndex := s.world.IDAlloc.Index(int(indexGen.Index))
+				idAtIndex := s.world.Entities.Index(int(indexGen.Index))
 				if idAtIndex != id {
 					if idAtIndex != 0 {
 						// TODO: log that we're deleting this
 						s.world.DeleteEntityImmediately(idAtIndex)
 					}
-					if err := s.world.IDAlloc.AllocAt(id); err != nil {
+					if err := s.world.Entities.AllocAt(id); err != nil {
 						panic(err) // TODO: handle properly
 					}
 					// TODO: not sure if slog.Info or slog.Debug?
@@ -233,7 +233,7 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 					logger.Debug("create entity", "index", indexGen.Index, "id", id, "replaces", idAtIndex)
 				}
 			} else {
-				id := s.world.IDAlloc.Index(int(indexGen.Index))
+				id := s.world.Entities.Index(int(indexGen.Index))
 				if id != 0 {
 					s.world.DeleteEntityImmediately(id)
 					logger.Debug("delete entity", "index", indexGen.Index, "id", id)
@@ -246,7 +246,7 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 	// TODO: clean this horrible mess up
 
 	for _, comp := range comps {
-		cs := ecs.Reflect(reflect.ValueOf(&s.world.Columns).Elem().FieldByName(comp).Addr().Interface())
+		cs := reflect.ValueOf(&s.world.Columns).Elem().FieldByName(comp).Addr().Interface().(ecs.AnyColumn).Reflect()
 
 		v := reflect.New(cs.ElemType())
 
@@ -268,7 +268,7 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 				}
 			}
 
-			id := s.world.IDAlloc.Index(int(index))
+			id := s.world.Entities.Index(int(index))
 			if id == 0 {
 				// This usually indicates a bug in the game code.
 				logger.Warn("entity does not exist at an index", "component", comp, "index", index)

@@ -9,7 +9,6 @@ import (
 
 	"worldspawn/geometry-go"
 	"worldspawn/internal/ecs"
-	"worldspawn/internal/ecs/bitset"
 	"worldspawn/physics"
 )
 
@@ -91,7 +90,7 @@ type Columns struct {
 
 	CreationTime ecs.Column[Time]
 
-	Parent ecs.Column[ecs.ID]
+	Parent ecs.Column[ecs.Entity]
 	// Children ecs.ComponentStore[map[ecs.ID] // map[ecs.ID]struct{} ?
 
 	TranslationRotation ecs.Column[TranslationRotation]
@@ -125,7 +124,7 @@ type Columns struct {
 
 	CollisionLayer         ecs.Column[CollisionLayer]
 	CollisionGeometry      ecs.Column[GeometryPacked]
-	PhysicsFilter          ecs.Column[[]ecs.ID] // TODO: rename to something like PairwiseFilters?
+	PhysicsFilter          ecs.Column[[]ecs.Entity] // TODO: rename to something like PairwiseFilters?
 	GravityFactor          ecs.Column[float32]
 	PhysicsMassOverride    ecs.Column[float32] // TODO: remove "Physics" prefix from these
 	PhysicsInertiaOverride ecs.Column[geometry.Mat4x4]
@@ -161,24 +160,23 @@ type Columns struct {
 type Scene struct {
 	SingletonComponents
 
-	IDAlloc *ecs.IDAlloc
+	Entities *ecs.Entities
 	Columns
 
-	physicsSystem      *physics.System
-	physicsBodyExists2 bitset.Bitset // TODO: rename
-	physicsBodyExists  ecs.Column[struct{}]
+	physicsSystem     *physics.System
+	physicsBodyExists ecs.Column[struct{}]
 }
 
 func NewScene(n int) *Scene {
 	w := new(Scene)
 
-	w.IDAlloc = ecs.NewIDAlloc(n)
+	w.Entities = ecs.NewEntities(n)
 
 	// TODO: make it clear that these are reflect references
 
-	components := reflect.ValueOf(&w.Columns).Elem()
-	for i := range components.Type().NumField() {
-		components.Field(i).Addr().Interface().(interface{ Init(idAlloc *ecs.IDAlloc) }).Init(w.IDAlloc)
+	columns := reflect.ValueOf(&w.Columns).Elem()
+	for i := range columns.Type().NumField() {
+		columns.Field(i).Addr().Interface().(interface{ Init(*ecs.Entities) }).Init(w.Entities)
 	}
 
 	w.physicsSystem = physics.NewSystem(
@@ -186,9 +184,7 @@ func NewScene(n int) *Scene {
 		int(NumPhysicsLayers),
 		PhysicsLayerToBroadPhaseLayer[:],
 		ShouldPhysicsLayersCollide)
-	// This will have to be a raw bitmap or just have its own IDAlloc
-	w.physicsBodyExists2 = bitset.Make(n)
-	w.physicsBodyExists.Init(w.IDAlloc)
+	w.physicsBodyExists.Init(w.Entities)
 
 	// TODO: we should expose an OptimizeBroadPhase call on physicsSystem which
 	// we'll (optionally) call after loading the world and perhaps every so
@@ -202,40 +198,41 @@ func (w *Scene) Destroy() {
 }
 
 // TODO: rename to EntityIsValid?
-func (w *Scene) IsEntityValid(id ecs.ID) bool {
-	return w.IDAlloc.Valid(id)
+func (w *Scene) IsEntityValid(id ecs.Entity) bool {
+	return w.Entities.Valid(id)
 }
 
-func (w *Scene) CreateEntity() ecs.ID {
-	return w.IDAlloc.Alloc()
+func (w *Scene) CreateEntity() ecs.Entity {
+	return w.Entities.Alloc()
 }
 
 // This is used by client networking to remove entities.
 //
 // TODO: is the way we use it correct (deleting entities in-between ticks?)
 // TODO: could we bulk delete things?
-func (w *Scene) DeleteEntityImmediately(id ecs.ID) {
-	components := reflect.ValueOf(w).Elem().FieldByName("Components")
-	for i := range components.NumField() {
-		components.Field(i).Addr().Interface().(interface{ Delete(ecs.ID) }).Delete(id)
+func (w *Scene) DeleteEntityImmediately(id ecs.Entity) {
+	columns := reflect.ValueOf(&w.Columns).Elem()
+	for i := range columns.NumField() {
+		column := columns.Field(i).Interface().(ecs.AnyColumn).Reflect()
+		column.Delete(id)
 	}
 	if _, ok := w.physicsBodyExists.Get(id); ok {
 		w.physicsSystem.RemoveBody(physics.BodyID(id))
 		w.physicsBodyExists.Delete(id)
 	}
 	w.Delete.Delete(id)
-	w.IDAlloc.Free(id)
+	w.Entities.Free(id)
 }
 
 // TODO: or SetParent?
-func (scene *Scene) ParentTo(child, parent ecs.ID) {
+func (scene *Scene) ParentTo(child, parent ecs.Entity) {
 	scene.Parent.Set(child, parent)
 
 	// children, _ := scene.Children.Load(parent)
 	// children
 }
 
-func (scene *Scene) GetScale(id ecs.ID) geometry.Vec3 {
+func (scene *Scene) GetScale(id ecs.Entity) geometry.Vec3 {
 	if scale, ok := scene.Scale.Get(id); ok {
 		return scale
 	}
@@ -243,7 +240,7 @@ func (scene *Scene) GetScale(id ecs.ID) geometry.Vec3 {
 }
 
 // TODO: rename to User/Player/etc Input
-func (w *Scene) HandleInput(id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
+func (w *Scene) HandleInput(id ecs.Entity, cmd TimestampedInputCmd, info *UpdateParams) {
 	if entity, ok := assertEntity[Character](w, id); ok {
 		entity.CharacterUpdate(w, id, cmd, info)
 	} else {
@@ -436,12 +433,13 @@ func (w *Scene) Update(updateParams *UpdateParams) {
 	// Remove entities that were scheduled for removal
 	{
 		// TODO: should we also clear transientComponents?
-		components := reflect.ValueOf(w).Elem().FieldByName("Components")
-		fields := components.Type().NumField()
+		columns := reflect.ValueOf(&w.Columns).Elem()
+		fields := columns.Type().NumField()
 
 		for id := range w.Delete.All() {
-			for i := 0; i < fields; i++ {
-				components.Field(i).Addr().Interface().(interface{ Delete(ecs.ID) }).Delete(id)
+			for i := range fields {
+				column := columns.Field(i).Interface().(ecs.AnyColumn).Reflect()
+				column.Delete(id)
 			}
 			// TODO: delete bodies in bulk
 			if _, ok := w.physicsBodyExists.Get(id); ok {
@@ -449,7 +447,7 @@ func (w *Scene) Update(updateParams *UpdateParams) {
 				w.physicsBodyExists.Delete(id)
 			}
 			w.Delete.Delete(id)
-			w.IDAlloc.Free(id)
+			w.Entities.Free(id)
 		}
 	}
 }
@@ -463,7 +461,7 @@ func ClearTransientComponents(w *Scene) {
 }
 
 // TODO: make public
-func assertEntity[T any](w *Scene, id ecs.ID) (T, bool) {
+func assertEntity[T any](w *Scene, id ecs.Entity) (T, bool) {
 	entity, _ := w.Entity.Get(id)
 	entityT, ok := entity.(T)
 	if !ok {

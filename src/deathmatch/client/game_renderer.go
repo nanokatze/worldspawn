@@ -81,7 +81,7 @@ func (re *gameRendererImpl) updateInternal(f func(update *sceneUpdate)) {
 	}
 }
 
-func (re *gameRendererImpl) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration) {
+func (re *gameRendererImpl) Tick(w *game.Scene, playerID ecs.Entity, t0, t1 game.Time, frameDuration time.Duration) {
 	conf := config.Load()
 
 	re.updateInternal(func(update *sceneUpdate) {
@@ -253,7 +253,7 @@ func (re *gameRendererImpl) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Tim
 	})
 }
 
-func (re *gameRendererImpl) Subtick(w *game.Scene, playerID ecs.ID) {
+func (re *gameRendererImpl) Subtick(w *game.Scene, playerID ecs.Entity) {
 	// re.stuffMu.Lock()
 	// defer re.stuffMu.Unlock()
 

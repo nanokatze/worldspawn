@@ -7,28 +7,28 @@ import (
 	"github.com/go-json-experiment/json"
 	"github.com/go-json-experiment/json/jsontext"
 
-	"worldspawn/internal/ecs/bitset"
+	"worldspawn/internal/ecs/internal/bitset"
 )
 
 type Column[V any] struct {
-	idAlloc *IDAlloc
-	valid   bitset.Bitset
-	data    []V
+	ents  *Entities
+	valid bitset.Bitset
+	data  []V
 }
 
 // TODO: replace this somehow with doing something using AnyComponentStore?
 // Actually there's no other way to autoinit stuff so we'll have to keep the
 // Init method.
-func (m *Column[V]) Init(idAlloc *IDAlloc) {
-	m.idAlloc = idAlloc
-	m.valid = bitset.Make(idAlloc.Cap())
-	m.data = make([]V, idAlloc.Cap())
+func (c *Column[V]) Init(ents *Entities) {
+	c.ents = ents
+	c.valid = bitset.Make(ents.Cap())
+	c.data = make([]V, ents.Cap())
 }
 
 // Compatibility; TODO: remove, worldspawn code should implement save/restore
 // and prefabs by itself
-func (m *Column[V]) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
-	var tmp map[ID]V
+func (c *Column[V]) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var tmp map[Entity]V
 	if err := json.UnmarshalDecode(dec, &tmp); err != nil {
 		return err
 	}
@@ -37,63 +37,62 @@ func (m *Column[V]) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 		for id := range tmp {
 			maxIndex = max(maxIndex, id.Index())
 		}
-		if maxIndex >= len(m.data) {
-			m.Init(NewIDAlloc(maxIndex + 1))
+		if maxIndex >= len(c.data) {
+			c.Init(NewEntities(maxIndex + 1))
 		}
 	}
 	for id, v := range tmp {
 		// if m.idAlloc
-		if err := m.idAlloc.AllocAt(id); err != nil {
+		if err := c.ents.AllocAt(id); err != nil {
 			return err
 		}
-		m.Set(id, v)
+		c.Set(id, v)
 	}
 	return nil
 }
 
-func (m Column[V]) All() iter.Seq2[ID, V] {
-	idAlloc := m.idAlloc
-
-	return func(yield func(k ID, v V) bool) {
-		bitset.And(m.valid)(func(i int) bool {
-			return yield(MakeID(i, idAlloc.gens[i]), m.data[i])
+func (c Column[V]) All() iter.Seq2[Entity, V] {
+	return func(yield func(k Entity, v V) bool) {
+		ents := c.ents
+		bitset.And(c.valid)(func(i int) bool {
+			return yield(MakeEntity(i, ents.gens[i]), c.data[i])
 		})
 	}
 }
 
 // TODO: there are many uses where Get is used without ok, should we make a separate method for that?
-func (m Column[V]) Get(id ID) (V, bool) {
+func (c Column[V]) Get(id Entity) (V, bool) {
 	// Prefabs will have some component stores be left uninitialized
-	if m.idAlloc == nil {
+	if c.ents == nil {
 		return *new(V), false
 	}
 	index := id.Index()
-	if !m.idAlloc.Valid(id) || !m.valid.Test(index) {
+	if !c.ents.Valid(id) || !c.valid.Test(index) {
 		return *new(V), false
 	}
-	return m.data[index], true
+	return c.data[index], true
 }
 
-func (m Column[V]) Set(id ID, v V) {
+func (c Column[V]) Set(id Entity, v V) {
 	index := id.Index()
-	if !m.idAlloc.Valid(id) {
+	if !c.ents.Valid(id) {
 		panic("bad")
 	}
-	m.data[index] = v
-	m.valid.Set(index)
+	c.data[index] = v
+	c.valid.Set(index)
 }
 
-func (m Column[V]) Delete(id ID) {
+func (c Column[V]) Delete(id Entity) {
 	index := id.Index()
-	if !m.idAlloc.Valid(id) {
+	if !c.ents.Valid(id) {
 		panic("bad")
 	}
-	if m.valid.Unset(index) {
-		m.data[index] = *new(V) // don't retain pointers
+	if c.valid.Unset(index) {
+		c.data[index] = *new(V) // don't retain pointers
 	}
 }
 
-func (m Column[V]) Clear() {
+func (c Column[V]) Clear() {
 	// Don't retain pointers.
 	//
 	// Most ComponentStores the game calls Clear on are pretty sparse, so this
@@ -102,11 +101,11 @@ func (m Column[V]) Clear() {
 	// TODO: we can peek inside hbitset to find non-zero counters and memzero
 	// the huge range. This should provide decent performance regardless whether
 	// ComponentStore is sparse or dense.
-	for i := range bitset.And(m.valid) {
-		m.data[i] = *new(V)
+	for i := range bitset.And(c.valid) {
+		c.data[i] = *new(V)
 	}
 
-	m.valid.Reset()
+	c.valid.Reset()
 }
 
 // TODO: make this a standalone function?
@@ -120,13 +119,42 @@ func (dst Column[V]) Copy(src Column[V]) {
 	copy(dst.data, src.data)
 }
 
-// TODO: this doesn't have any strong reason to be used by-pointer. Make this by-value?
-// TODO: make this a standalone function?
-func (m *Column[V]) reflect() ReflectedColumn {
-	return ReflectedColumn{
-		vtyp:    reflect.TypeFor[V](),
-		idAlloc: m.idAlloc,
-		valid:   m.valid,
-		data:    reflect.ValueOf(m.data),
+type reflectedColumn[V any] struct{ column *Column[V] }
+
+func (c *Column[V]) Reflect() ReflectedColumn { return reflectedColumn[V]{c} }
+
+func (c reflectedColumn[V]) ElemType() reflect.Type { return reflect.TypeFor[V]() }
+
+func (c reflectedColumn[V]) All() iter.Seq[Entity] {
+	column := *c.column
+	return func(yield func(Entity) bool) {
+		ents := column.ents
+		for i := range bitset.And(column.valid) {
+			if !yield(MakeEntity(i, ents.gens[i])) {
+				break
+			}
+		}
 	}
+}
+
+func (c reflectedColumn[V]) Get(id Entity, v reflect.Value) bool {
+	elem, ok := c.column.Get(id)
+	if ok {
+		v.Set(reflect.ValueOf(elem))
+	} else {
+		v.SetZero()
+	}
+	return ok
+}
+
+func (c reflectedColumn[V]) Set(id Entity, v reflect.Value) {
+	c.column.Set(id, v.Interface().(V))
+}
+
+func (c reflectedColumn[V]) Delete(id Entity) {
+	c.column.Delete(id)
+}
+
+func (dst reflectedColumn[V]) Copy(src ReflectedColumn) {
+	dst.column.Copy(*src.(reflectedColumn[V]).column)
 }

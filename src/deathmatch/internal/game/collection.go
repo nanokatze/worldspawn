@@ -55,8 +55,8 @@ type CollectionInstance struct {
 
 // TODO: rename this to something else, e.g. just Prefab?
 type PrefabRef struct {
-	Entity   ecs.ID // for prefabs constructed at runtime
-	Filename string // for on-disk prefabs
+	Entity   ecs.Entity // for prefabs constructed at runtime
+	Filename string     // for on-disk prefabs
 }
 
 // TODO: rename this to make it clear that we're instanting collections
@@ -90,7 +90,7 @@ func prefab(filename string) *Columns {
 }
 
 // TODO: rename to InstanceCollection
-func (w *Scene) SpawnPrefab(prefabRef PrefabRef) ecs.ID {
+func (w *Scene) SpawnPrefab(prefabRef PrefabRef) ecs.Entity {
 	e := w.CreateEntity()
 	w.CopyEntities(e, prefab(prefabRef.Filename))
 	return e
@@ -98,7 +98,7 @@ func (w *Scene) SpawnPrefab(prefabRef PrefabRef) ecs.ID {
 
 // TODO: make this a standalone method?
 // TODO: rename to InstantinateCollectionAt
-func (w *Scene) InstanceCollectionAt(id ecs.ID, prefabRef PrefabRef) {
+func (w *Scene) InstanceCollectionAt(id ecs.Entity, prefabRef PrefabRef) {
 	translationRotation, _ := w.TranslationRotation.Get(id)
 	scale, _ := w.Scale.Get(id)
 
@@ -111,7 +111,7 @@ func (w *Scene) InstanceCollectionAt(id ecs.ID, prefabRef PrefabRef) {
 }
 
 // TODO: reorganize collection instantination and remove this
-func (dst *Columns) CopyEntities(id ecs.ID, src *Columns) {
+func (dst *Columns) CopyEntities(id ecs.Entity, src *Columns) {
 	// TODO: rewrite using reflect
 
 	if v, ok := src.Entity.Get(1); ok {

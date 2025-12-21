@@ -3,31 +3,26 @@ package ecs
 import (
 	"fmt"
 
-	"worldspawn/internal/ecs/bitset"
+	"worldspawn/internal/ecs/internal/bitset"
 )
 
-// TODO: rename into something else, e.g. Entities?
-type IDAlloc struct {
+// TODO: rename to Entities?
+type Entities struct {
 	used bitset.Bitset
 	gens []uint32
 	next int // wack
 }
 
-func NewIDAlloc(n int) *IDAlloc {
-	return &IDAlloc{
+func NewEntities(n int) *Entities {
+	return &Entities{
 		used: bitset.Make(n),
 		gens: make([]uint32, n),
 		next: 1,
 	}
 }
 
-// TODO: rename
-func (a *IDAlloc) Reflect() (bitset.Bitset, []uint32) {
-	return a.used, a.gens
-}
-
 // TODO: make this a standalone func
-func (dst *IDAlloc) Copy(src *IDAlloc) {
+func (dst *Entities) Copy(src *Entities) {
 	// TODO: ensure sizes match and stuff
 	bitset.Copy(dst.used, src.used)
 	copy(dst.gens, src.gens)
@@ -37,7 +32,7 @@ func (dst *IDAlloc) Copy(src *IDAlloc) {
 // TODO: let the user control the ranges? the client needs to reserve IDs with
 // high indices for client-only entities
 // TODO: have this return error so it's up to the user to panic
-func (a *IDAlloc) Alloc() ID {
+func (a *Entities) Alloc() Entity {
 	index := a.next
 	for a.used.Set(index) {
 		// BUG: this doesn't wrap around
@@ -45,7 +40,7 @@ func (a *IDAlloc) Alloc() ID {
 	}
 	a.next = index + 1
 	gen := a.gens[index]
-	id := MakeID(index, gen)
+	id := MakeEntity(index, gen)
 	if id == 0 {
 		panic("unreachable")
 	}
@@ -53,7 +48,7 @@ func (a *IDAlloc) Alloc() ID {
 }
 
 // TODO: rename
-func (a *IDAlloc) AllocAt(id ID) error {
+func (a *Entities) AllocAt(id Entity) error {
 	// TODO: make sure this id is vacant
 	index, gen := id.Index(), id.Generation()
 	if a.used.Set(index) && a.gens[index] != gen {
@@ -63,7 +58,7 @@ func (a *IDAlloc) AllocAt(id ID) error {
 	return nil
 }
 
-func (a *IDAlloc) Free(id ID) {
+func (a *Entities) Free(id Entity) {
 	index, gen := id.Index(), id.Generation()
 	if tmp := a.gens[index]; tmp != gen {
 		panic(fmt.Sprintf("a %v", id))
@@ -74,19 +69,19 @@ func (a *IDAlloc) Free(id ID) {
 }
 
 // TODO: rename to IDIsValid, etc?
-func (a *IDAlloc) Valid(id ID) bool {
+func (a *Entities) Valid(id Entity) bool {
 	index := id.Index()
 	return a.used.Test(index) && a.gens[index] == id.Generation()
 }
 
 // TODO: rename?
-func (a *IDAlloc) Index(index int) ID {
+func (a *Entities) Index(index int) Entity {
 	if !a.used.Test(index) {
 		return 0
 	}
-	return MakeID(index, a.gens[index])
+	return MakeEntity(index, a.gens[index])
 }
 
-func (a *IDAlloc) Cap() int {
+func (a *Entities) Cap() int {
 	return len(a.gens)
 }

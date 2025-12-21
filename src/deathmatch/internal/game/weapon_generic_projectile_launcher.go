@@ -30,7 +30,7 @@ type WeaponGenericProjectileLauncher struct {
 
 var _ WeaponDeployedInterface = WeaponGenericProjectileLauncher{}
 
-func (weapon WeaponGenericProjectileLauncher) WeaponDeployed(w *Scene, weaponID, operatorID ecs.ID, now Time, Δt time.Duration) {
+func (weapon WeaponGenericProjectileLauncher) WeaponDeployed(w *Scene, weaponID, operatorID ecs.Entity, now Time, Δt time.Duration) {
 	weapon.NextAttack = now.Add(weapon.DeployDuration)
 
 	if weapon.DeployAnimation != "" {
@@ -54,7 +54,7 @@ func (weapon WeaponGenericProjectileLauncher) WeaponDeployed(w *Scene, weaponID,
 
 var _ Weapon = WeaponGenericProjectileLauncher{}
 
-func (weapon WeaponGenericProjectileLauncher) WeaponUpdateSubtick(w *Scene, id, playerID ecs.ID, now Time, info *UpdateParams) (recoil geometry.Vec3) {
+func (weapon WeaponGenericProjectileLauncher) WeaponUpdateSubtick(w *Scene, id, playerID ecs.Entity, now Time, info *UpdateParams) (recoil geometry.Vec3) {
 	if w.Now < weapon.NextAttack {
 		return
 	}
@@ -95,7 +95,7 @@ func (weapon WeaponGenericProjectileLauncher) WeaponUpdateSubtick(w *Scene, id, 
 		// TODO: which entities to ignore (players might be made out of many
 		// entities) and how (some entities are bounding boxes for physics, others
 		// can be e.g. hitboxes etc) should be specified through WeaponAim
-		w.PhysicsFilter.Set(projectile, []ecs.ID{playerID})
+		w.PhysicsFilter.Set(projectile, []ecs.Entity{playerID})
 		// w.PhysicsInertiaOverride.Store(projectile, geometry.Mat4x4Diagonal(geometry.Vec4Broadcast(1)))
 		w.DeleteCosmeticOffsetOnContact.Set(projectile, struct{}{})
 		w.CreationTime.Set(projectile, w.Now)

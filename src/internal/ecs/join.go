@@ -3,7 +3,7 @@ package ecs
 import (
 	"iter"
 
-	"worldspawn/internal/ecs/bitset"
+	"worldspawn/internal/ecs/internal/bitset"
 )
 
 type Tuple[V1, V2 any] struct {
@@ -21,22 +21,20 @@ type Tuple3[V1, V2, V3 any] struct {
 
 // TODO: generate these using a template?
 
-func Join[V1, V2 any](m1 Column[V1], m2 Column[V2]) iter.Seq2[ID, Tuple[V1, V2]] {
-	idAlloc := m1.idAlloc
-
-	return func(yield func(k ID, v Tuple[V1, V2]) bool) {
+func Join[V1, V2 any](m1 Column[V1], m2 Column[V2]) iter.Seq2[Entity, Tuple[V1, V2]] {
+	return func(yield func(k Entity, v Tuple[V1, V2]) bool) {
+		ents := m1.ents
 		bitset.And(m1.valid, m2.valid)(func(i int) bool {
-			return yield(MakeID(i, idAlloc.gens[i]), Tuple[V1, V2]{m1.data[i], m2.data[i]})
+			return yield(MakeEntity(i, ents.gens[i]), Tuple[V1, V2]{m1.data[i], m2.data[i]})
 		})
 	}
 }
 
-func Join3[V1, V2, V3 any](m1 Column[V1], m2 Column[V2], m3 Column[V3]) iter.Seq2[ID, Tuple3[V1, V2, V3]] {
-	idAlloc := m1.idAlloc
-
-	return func(yield func(k ID, v Tuple3[V1, V2, V3]) bool) {
+func Join3[V1, V2, V3 any](m1 Column[V1], m2 Column[V2], m3 Column[V3]) iter.Seq2[Entity, Tuple3[V1, V2, V3]] {
+	return func(yield func(k Entity, v Tuple3[V1, V2, V3]) bool) {
+		ents := m1.ents
 		bitset.And(m1.valid, m2.valid, m3.valid)(func(i int) bool {
-			return yield(MakeID(i, idAlloc.gens[i]), Tuple3[V1, V2, V3]{m1.data[i], m2.data[i], m3.data[i]})
+			return yield(MakeEntity(i, ents.gens[i]), Tuple3[V1, V2, V3]{m1.data[i], m2.data[i], m3.data[i]})
 		})
 	}
 }

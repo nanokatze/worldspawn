@@ -9,7 +9,7 @@ import (
 
 type Weapon2 interface {
 	// Only call this on the server
-	CreateGeometry(scene *Scene) ecs.ID
+	CreateGeometry(scene *Scene) ecs.Entity
 }
 
 type Weapon2GenericProjectileLauncher struct {
@@ -20,7 +20,7 @@ type Weapon2GenericProjectileLauncher struct {
 
 var _ Weapon2 = Weapon2GenericProjectileLauncher{}
 
-func (weapon Weapon2GenericProjectileLauncher) CreateGeometry(scene *Scene) ecs.ID {
+func (weapon Weapon2GenericProjectileLauncher) CreateGeometry(scene *Scene) ecs.Entity {
 	root := scene.CreateEntity()
 	scene.TranslationRotation.Set(root, TranslationRotation{
 		Translation: geometry.DVec3{0.2, 0.4, -0.275},
@@ -35,6 +35,6 @@ func (weapon Weapon2GenericProjectileLauncher) CreateGeometry(scene *Scene) ecs.
 // TODO: pass buttons but buttons should be weapon-specific
 // TODO: have UpdateSubtick return an object with functions to call on various
 // entities to e.g. apply animation etc?
-func (weapon Weapon2GenericProjectileLauncher) UpdateSubtick(scene *Scene, operatorID, weaponID ecs.ID, pos geometry.DVec3, rot geometry.Rot3) {
+func (weapon Weapon2GenericProjectileLauncher) UpdateSubtick(scene *Scene, operatorID, weaponID ecs.Entity, pos geometry.DVec3, rot geometry.Rot3) {
 
 }

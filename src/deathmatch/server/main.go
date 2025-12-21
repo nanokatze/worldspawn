@@ -79,7 +79,7 @@ type user struct {
 	// would be kinda inverse...)
 	//
 	// TODO: actually use this field
-	player ecs.ID
+	player ecs.Entity
 
 	// time is the latest timestamp (in game time) that we know the user
 	// has the state for
@@ -289,8 +289,8 @@ func (s *Server) tick(Δt time.Duration) {
 	// update s.dirty. TODO: move into its own code?
 
 	{
-		a := s.prevWorld.IDAlloc
-		b := s.scene.IDAlloc
+		a := s.prevWorld.Entities
+		b := s.scene.Entities
 
 		for i := range b.Cap() {
 			if a.Index(i) != b.Index(i) {
@@ -300,10 +300,10 @@ func (s *Server) tick(Δt time.Duration) {
 	}
 
 	for i, comp := range comps {
-		old := ecs.Reflect(reflect.ValueOf(&s.prevWorld.Columns).
-			Elem().FieldByName(comp).Addr().Interface())
-		cur := ecs.Reflect(reflect.ValueOf(&s.scene.Columns).
-			Elem().FieldByName(comp).Addr().Interface())
+		old := reflect.ValueOf(&s.prevWorld.Columns).
+			Elem().FieldByName(comp).Addr().Interface().(ecs.AnyColumn).Reflect()
+		cur := reflect.ValueOf(&s.scene.Columns).
+			Elem().FieldByName(comp).Addr().Interface().(ecs.AnyColumn).Reflect()
 
 		t := cur.ElemType()
 
@@ -340,11 +340,11 @@ func (s *Server) tick(Δt time.Duration) {
 
 	// TODO: move this into a method on the World
 	s.prevWorld.Now = s.scene.Now
-	s.prevWorld.IDAlloc.Copy(s.scene.IDAlloc)
+	s.prevWorld.Entities.Copy(s.scene.Entities)
 	for _, comp := range comps {
-		dst := ecs.Reflect(reflect.ValueOf(&s.prevWorld.Columns).Elem().FieldByName(comp).Addr().Interface())
-		src := ecs.Reflect(reflect.ValueOf(&s.scene.Columns).Elem().FieldByName(comp).Addr().Interface())
-		ecs.CopyColumn(dst, src)
+		dst := reflect.ValueOf(&s.prevWorld.Columns).Elem().FieldByName(comp).Addr().Interface().(ecs.AnyColumn).Reflect()
+		src := reflect.ValueOf(&s.scene.Columns).Elem().FieldByName(comp).Addr().Interface().(ecs.AnyColumn).Reflect()
+		dst.Copy(src)
 	}
 
 	s.scene.Now = s.scene.Now.Add(Δt)
@@ -407,7 +407,7 @@ func (s *Server) sendUpdates(u *user) {
 				continue
 			}
 
-			id := s.scene.IDAlloc.Index(i)
+			id := s.scene.Entities.Index(i)
 
 			gen := ^uint32(0)
 			if id != 0 {
@@ -434,7 +434,7 @@ func (s *Server) sendUpdates(u *user) {
 	// TODO: insert various canaries to make debugging easier
 
 	for idx, comp := range comps {
-		cs := ecs.Reflect(reflect.ValueOf(&s.scene.Columns).Elem().FieldByName(comp).Addr().Interface())
+		cs := reflect.ValueOf(&s.scene.Columns).Elem().FieldByName(comp).Addr().Interface().(ecs.AnyColumn).Reflect()
 
 		buf2 := new(bytes.Buffer)
 		enc2 := nice.NewEncoder(buf2, replication.NiceOptions)
@@ -446,7 +446,7 @@ func (s *Server) sendUpdates(u *user) {
 				continue
 			}
 
-			id := s.scene.IDAlloc.Index(i)
+			id := s.scene.Entities.Index(i)
 			if id == 0 {
 				continue
 			}
@@ -510,10 +510,10 @@ func readInputCmds(r io.Reader, cmds *[]game.TimestampedInputCmd) error {
 	return nice.UnmarshalDecode(dec, cmds)
 }
 
-func spawnplayer(w *game.Scene) ecs.ID {
+func spawnplayer(w *game.Scene) ecs.Entity {
 	player := w.CreateEntity()
 
-	var playerSpawns []ecs.ID
+	var playerSpawns []ecs.Entity
 	for id := range w.PlayerSpawn.All() {
 		playerSpawns = append(playerSpawns, id)
 	}
@@ -558,7 +558,7 @@ func spawnplayer(w *game.Scene) ecs.ID {
 		StandingViewHeight:          1.9 - 0.1,
 	})
 
-	slots := []ecs.ID{}
+	slots := []ecs.Entity{}
 
 	// TODO: really redo how we do weapons. We probably do not want literal
 	// entities attached to the player, but rather different data structures

@@ -60,7 +60,7 @@ func (a *LoopedSound) Init() {
 	a.LengthInSamples = off / int64(wr.Channels()*siz)
 }
 
-func (a LoopedSound) UpdateBeforePhysics(scene *Scene, id ecs.ID, info *UpdateParams) {
+func (a LoopedSound) UpdateBeforePhysics(scene *Scene, id ecs.Entity, info *UpdateParams) {
 	// TODO: make repeat sample-perfect
 
 	soundEffect, _ := scene.SoundEffect.Get(id)
