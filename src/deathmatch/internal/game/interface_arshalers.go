@@ -2,6 +2,7 @@ package game
 
 import (
 	"fmt"
+	"maps"
 	"reflect"
 
 	"github.com/go-json-experiment/json"
@@ -11,9 +12,9 @@ import (
 )
 
 // TODO: move interface arshalers to a different package entirely
-// TODO: use funcs instead of maps?
 
-func InterfaceJSONMarshaler[T any](m map[reflect.Type]string) func(*jsontext.Encoder, *T) error {
+/*
+func InterfaceJSONMarshaler[T any](types ...reflect.Type) func(*jsontext.Encoder, *T) error {
 	return func(enc *jsontext.Encoder, x *T) error {
 		v := reflect.ValueOf(*x)
 		t := v.Type()
@@ -41,8 +42,15 @@ func InterfaceJSONMarshaler[T any](m map[reflect.Type]string) func(*jsontext.Enc
 		return nil
 	}
 }
+*/
 
-func InterfaceJSONUnmarshaler[T any](m map[string]reflect.Type) func(*jsontext.Decoder, *T) error {
+func InterfaceJSONUnmarshaler[T any](types ...reflect.Type) func(*jsontext.Decoder, *T) error {
+	m := maps.Collect(func(yield func(string, reflect.Type) bool) {
+		for _, typ := range types {
+			yield(typ.Name(), typ)
+		}
+	})
+
 	return func(dec *jsontext.Decoder, x *T) error {
 		if _, err := dec.ReadToken(); err != nil {
 			return err
@@ -73,7 +81,13 @@ func InterfaceJSONUnmarshaler[T any](m map[string]reflect.Type) func(*jsontext.D
 	}
 }
 
-func InterfaceNiceMarshaler[T any, ID comparable](m map[reflect.Type]ID) func(*nice.Encoder, *T) error {
+func InterfaceNiceMarshaler[T any](types ...reflect.Type) func(*nice.Encoder, *T) error {
+	m := maps.Collect(func(yield func(reflect.Type, uint64) bool) {
+		for idx, typ := range types {
+			yield(typ, uint64(idx))
+		}
+	})
+
 	return func(enc *nice.Encoder, x *T) error {
 		data := reflect.ValueOf(*x)
 		typ := data.Type()
@@ -94,9 +108,15 @@ func InterfaceNiceMarshaler[T any, ID comparable](m map[reflect.Type]ID) func(*n
 	}
 }
 
-func InterfaceNiceUnmarshaler[T any, ID comparable](m map[ID]reflect.Type) func(*nice.Decoder, *T) error {
+func InterfaceNiceUnmarshaler[T any](types ...reflect.Type) func(*nice.Decoder, *T) error {
+	m := maps.Collect(func(yield func(uint64, reflect.Type) bool) {
+		for idx, typ := range types {
+			yield(uint64(idx), typ)
+		}
+	})
+
 	return func(dec *nice.Decoder, x *T) error {
-		var id ID
+		var id uint64
 		if err := nice.UnmarshalDecode(dec, &id); err != nil {
 			return err
 		}

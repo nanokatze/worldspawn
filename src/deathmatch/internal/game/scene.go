@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
-	"maps"
 	"reflect"
 	"time"
 
@@ -12,31 +11,11 @@ import (
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/ecs/bitset"
 	"worldspawn/physics"
-
-	"github.com/go-json-experiment/json"
 )
 
 // TODO: use "object" instead of "entity" throughout the code?
 
 // TODO: split this file up
-
-// TODO: make private and provide methods for de/serializing the scene
-var JSONOptions = json.JoinOptions(
-	json.StringifyNumbers(true),
-	json.WithMarshalers(json.JoinMarshalers(
-		json.MarshalToFunc(float32JSONMarshaler),
-		json.MarshalToFunc(float64JSONMarshaler),
-	)),
-	json.WithUnmarshalers(json.JoinUnmarshalers(
-		json.UnmarshalFromFunc(float32JSONUnmarshaler),
-		json.UnmarshalFromFunc(float64JSONUnmarshaler),
-		json.UnmarshalFromFunc(InterfaceJSONUnmarshaler[Entity](
-			maps.Collect(func(yield func(string, reflect.Type) bool) {
-				for _, typ := range EntityTypes {
-					yield(typ.Name(), typ)
-				}
-			}))),
-	)))
 
 type UpdateParams struct {
 	Δt          time.Duration
