@@ -86,32 +86,32 @@ type Camera struct {
 // amount of work we do.
 
 // TODO: introduce struct tags like compatibility names etc
-type Components struct {
+type Columns struct {
 	// Name ecs.ComponentStore[string]
 
-	CreationTime ecs.ComponentStore[Time]
+	CreationTime ecs.Column[Time]
 
-	Parent ecs.ComponentStore[ecs.ID]
+	Parent ecs.Column[ecs.ID]
 	// Children ecs.ComponentStore[map[ecs.ID] // map[ecs.ID]struct{} ?
 
-	TranslationRotation ecs.ComponentStore[TranslationRotation]
-	Scale               ecs.ComponentStore[geometry.Vec3] // TODO: default this to 1
+	TranslationRotation ecs.Column[TranslationRotation]
+	Scale               ecs.Column[geometry.Vec3] // TODO: default this to 1
 
-	Velocity ecs.ComponentStore[Velocity]
+	Velocity ecs.Column[Velocity]
 
-	RenderingGeometry ecs.ComponentStore[GeometryPacked]
+	RenderingGeometry ecs.Column[GeometryPacked]
 
 	// TODO: rename to SoundEmitter
-	SoundEffect ecs.ComponentStore[SoundEmitter]
+	SoundEffect ecs.Column[SoundEmitter]
 
-	Viewmodel2 ecs.ComponentStore[Viewmodel2]
+	Viewmodel2 ecs.Column[Viewmodel2]
 
-	CosmeticOffset                ecs.ComponentStore[CosmeticOffset]
-	DeleteCosmeticOffsetOnContact ecs.ComponentStore[struct{}]
+	CosmeticOffset                ecs.Column[CosmeticOffset]
+	DeleteCosmeticOffsetOnContact ecs.Column[struct{}]
 
 	// Posing test
-	Animation ecs.ComponentStore[Animation]
-	Pose      ecs.ComponentStore[map[string]geometry.Mat4x4]
+	Animation ecs.Column[Animation]
+	Pose      ecs.Column[map[string]geometry.Mat4x4]
 
 	// NOTE: constraints and pairwise filter
 	//
@@ -123,50 +123,50 @@ type Components struct {
 	//
 	// TODO: merge some of these components?
 
-	CollisionLayer         ecs.ComponentStore[CollisionLayer]
-	CollisionGeometry      ecs.ComponentStore[GeometryPacked]
-	PhysicsFilter          ecs.ComponentStore[[]ecs.ID] // TODO: rename to something like PairwiseFilters?
-	GravityFactor          ecs.ComponentStore[float32]
-	PhysicsMassOverride    ecs.ComponentStore[float32] // TODO: remove "Physics" prefix from these
-	PhysicsInertiaOverride ecs.ComponentStore[geometry.Mat4x4]
+	CollisionLayer         ecs.Column[CollisionLayer]
+	CollisionGeometry      ecs.Column[GeometryPacked]
+	PhysicsFilter          ecs.Column[[]ecs.ID] // TODO: rename to something like PairwiseFilters?
+	GravityFactor          ecs.Column[float32]
+	PhysicsMassOverride    ecs.Column[float32] // TODO: remove "Physics" prefix from these
+	PhysicsInertiaOverride ecs.Column[geometry.Mat4x4]
 
 	// TODO: remove this component
-	ArmedCharacter ecs.ComponentStore[ArmedCharacter]
+	ArmedCharacter ecs.Column[ArmedCharacter]
 
 	// TODO: unify these two components probably
-	ViewPunch         ecs.ComponentStore[geometry.Rot3]
-	ViewPunchVelocity ecs.ComponentStore[geometry.Vec3]
+	ViewPunch         ecs.Column[geometry.Rot3]
+	ViewPunchVelocity ecs.Column[geometry.Vec3]
 
-	PlayerSpawn ecs.ComponentStore[struct{}]
+	PlayerSpawn ecs.Column[struct{}]
 
-	DeleteAfter ecs.ComponentStore[Time]
+	DeleteAfter ecs.Column[Time]
 
 	// Timer ecs.ComponentStore[time.Duration]
 
 	// TODO: get rid of this component
-	WeaponAim ecs.ComponentStore[WeaponAim]
+	WeaponAim ecs.Column[WeaponAim]
 
 	// TODO: generalize to all events, including damage etc?
-	ContactEvents ecs.ComponentStore[[]ContactEvent]
+	ContactEvents ecs.Column[[]ContactEvent]
 
 	// TODO: rename to just Collection?
-	CollectionInstance ecs.ComponentStore[CollectionInstance]
+	CollectionInstance ecs.Column[CollectionInstance]
 
 	// TODO: rename, to e.g. Logic?
-	Entity ecs.ComponentStore[Entity]
+	Entity ecs.Column[Entity]
 
-	Delete ecs.ComponentStore[struct{}]
+	Delete ecs.Column[struct{}]
 }
 
 type Scene struct {
 	SingletonComponents
 
 	IDAlloc *ecs.IDAlloc
-	Components
+	Columns
 
 	physicsSystem      *physics.System
 	physicsBodyExists2 bitset.Bitset // TODO: rename
-	physicsBodyExists  ecs.ComponentStore[struct{}]
+	physicsBodyExists  ecs.Column[struct{}]
 }
 
 func NewScene(n int) *Scene {
@@ -176,7 +176,7 @@ func NewScene(n int) *Scene {
 
 	// TODO: make it clear that these are reflect references
 
-	components := reflect.ValueOf(&w.Components).Elem()
+	components := reflect.ValueOf(&w.Columns).Elem()
 	for i := range components.Type().NumField() {
 		components.Field(i).Addr().Interface().(interface{ Init(idAlloc *ecs.IDAlloc) }).Init(w.IDAlloc)
 	}
@@ -219,7 +219,7 @@ func (w *Scene) DeleteEntityImmediately(id ecs.ID) {
 	for i := range components.NumField() {
 		components.Field(i).Addr().Interface().(interface{ Delete(ecs.ID) }).Delete(id)
 	}
-	if _, ok := w.physicsBodyExists.Load(id); ok {
+	if _, ok := w.physicsBodyExists.Get(id); ok {
 		w.physicsSystem.RemoveBody(physics.BodyID(id))
 		w.physicsBodyExists.Delete(id)
 	}
@@ -229,14 +229,14 @@ func (w *Scene) DeleteEntityImmediately(id ecs.ID) {
 
 // TODO: or SetParent?
 func (scene *Scene) ParentTo(child, parent ecs.ID) {
-	scene.Parent.Store(child, parent)
+	scene.Parent.Set(child, parent)
 
 	// children, _ := scene.Children.Load(parent)
 	// children
 }
 
 func (scene *Scene) GetScale(id ecs.ID) geometry.Vec3 {
-	if scale, ok := scene.Scale.Load(id); ok {
+	if scale, ok := scene.Scale.Get(id); ok {
 		return scale
 	}
 	return geometry.Vec3Broadcast(1)
@@ -287,7 +287,7 @@ func (w *Scene) Update(updateParams *UpdateParams) {
 	// TODO: simulate viewpunch motion better. View punch is a sphere with
 	// inertia and damping which we should simulate.
 	for id, viewPunch := range w.ViewPunch.All() {
-		w.ViewPunch.Store(id, viewPunch.NLerp(geometry.Rot3One(), float32(durationToFloatSeconds(updateParams.Δt))))
+		w.ViewPunch.Set(id, viewPunch.NLerp(geometry.Rot3One(), float32(durationToFloatSeconds(updateParams.Δt))))
 	}
 
 	for id, animation := range w.Animation.All() {
@@ -313,7 +313,7 @@ func (w *Scene) Update(updateParams *UpdateParams) {
 			pose[channel] = action.Sample(t, channel).Mat4x4().Mul4x4(inverseBindTransform.Mat4x4())
 		}
 
-		w.Pose.Store(id, pose)
+		w.Pose.Set(id, pose)
 	}
 
 	/*
@@ -424,7 +424,7 @@ func (w *Scene) Update(updateParams *UpdateParams) {
 
 	for id, deleteAfter := range w.DeleteAfter.All() {
 		if deleteAfter.Before(w.Now) {
-			w.Delete.Store(id, struct{}{})
+			w.Delete.Set(id, struct{}{})
 		}
 	}
 
@@ -444,7 +444,7 @@ func (w *Scene) Update(updateParams *UpdateParams) {
 				components.Field(i).Addr().Interface().(interface{ Delete(ecs.ID) }).Delete(id)
 			}
 			// TODO: delete bodies in bulk
-			if _, ok := w.physicsBodyExists.Load(id); ok {
+			if _, ok := w.physicsBodyExists.Get(id); ok {
 				w.physicsSystem.RemoveBody(physics.BodyID(id))
 				w.physicsBodyExists.Delete(id)
 			}
@@ -464,7 +464,7 @@ func ClearTransientComponents(w *Scene) {
 
 // TODO: make public
 func assertEntity[T any](w *Scene, id ecs.ID) (T, bool) {
-	entity, _ := w.Entity.Load(id)
+	entity, _ := w.Entity.Get(id)
 	entityT, ok := entity.(T)
 	if !ok {
 		return *new(T), false

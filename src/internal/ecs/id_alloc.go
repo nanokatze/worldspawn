@@ -6,7 +6,7 @@ import (
 	"worldspawn/internal/ecs/bitset"
 )
 
-// TODO: rename into something else, e.g. IDManager
+// TODO: rename into something else, e.g. Entities?
 type IDAlloc struct {
 	used bitset.Bitset
 	gens []uint32

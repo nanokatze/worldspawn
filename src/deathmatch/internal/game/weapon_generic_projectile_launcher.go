@@ -42,14 +42,14 @@ func (weapon WeaponGenericProjectileLauncher) WeaponDeployed(w *Scene, weaponID,
 			panic(err)
 		}
 
-		w.Animation.Store(weaponID, Animation{
+		w.Animation.Set(weaponID, Animation{
 			Armature: armature,
 			Action:   weapon.DeployAnimation,
 			PlayTime: now,
 		})
 	}
 
-	w.Entity.Store(weaponID, weapon)
+	w.Entity.Set(weaponID, weapon)
 }
 
 var _ Weapon = WeaponGenericProjectileLauncher{}
@@ -59,7 +59,7 @@ func (weapon WeaponGenericProjectileLauncher) WeaponUpdateSubtick(w *Scene, id, 
 		return
 	}
 
-	aim, _ := w.WeaponAim.Load(id)
+	aim, _ := w.WeaponAim.Get(id)
 	if aim.Buttons&(1<<ButtonAttack) == 0 {
 		return
 	}
@@ -78,30 +78,30 @@ func (weapon WeaponGenericProjectileLauncher) WeaponUpdateSubtick(w *Scene, id, 
 		cosmeticPosition := aim.ShootPos.Add(geometry.DVec3FromVec3(rot.Rotate(geometry.Vec3{0.15, -0.5, -0.15}).Add(geometry.Vec3{0, 0, -0.1})))
 
 		projectile := w.SpawnPrefab(weapon.Projectile)
-		w.TranslationRotation.Store(projectile, TranslationRotation{
+		w.TranslationRotation.Set(projectile, TranslationRotation{
 			Translation: realPosition,
 			Rotation:    rot.Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, math.Pi/2)),
 		})
-		w.Scale.Store(projectile, geometry.Vec3Broadcast(1))
+		w.Scale.Set(projectile, geometry.Vec3Broadcast(1))
 		// TODO: new idea for cosmetic offset: we could trace a ray like TF2 does
 		// and make the decay time be how long it takes to reach the wall!
-		w.CosmeticOffset.Store(projectile, CosmeticOffset{
+		w.CosmeticOffset.Set(projectile, CosmeticOffset{
 			Offset:    cosmeticPosition.Sub(realPosition).Vec3(),
 			StartTime: w.Now,
 			EndTime:   w.Now.Add(300 * time.Millisecond),
 		})
-		w.Velocity.Store(projectile, Velocity{Linear: rot.Rotate(geometry.Vec3{0, weapon.MuzzleVelocity, 0})})
-		w.CollisionLayer.Store(projectile, PhysicsLayerProjectiles)
+		w.Velocity.Set(projectile, Velocity{Linear: rot.Rotate(geometry.Vec3{0, weapon.MuzzleVelocity, 0})})
+		w.CollisionLayer.Set(projectile, PhysicsLayerProjectiles)
 		// TODO: which entities to ignore (players might be made out of many
 		// entities) and how (some entities are bounding boxes for physics, others
 		// can be e.g. hitboxes etc) should be specified through WeaponAim
-		w.PhysicsFilter.Store(projectile, []ecs.ID{playerID})
+		w.PhysicsFilter.Set(projectile, []ecs.ID{playerID})
 		// w.PhysicsInertiaOverride.Store(projectile, geometry.Mat4x4Diagonal(geometry.Vec4Broadcast(1)))
-		w.DeleteCosmeticOffsetOnContact.Store(projectile, struct{}{})
-		w.CreationTime.Store(projectile, w.Now)
+		w.DeleteCosmeticOffsetOnContact.Set(projectile, struct{}{})
+		w.CreationTime.Set(projectile, w.Now)
 	}
 
-	w.SoundEffect.Store(id, SoundEmitter{
+	w.SoundEffect.Set(id, SoundEmitter{
 		Effect:   weapon.ShootSound,
 		PlayTime: w.Now, // + time.Duration(rng(w.Time, entityID, 0).Int63n(int64(1*time.Millisecond))),
 	})
@@ -112,7 +112,7 @@ func (weapon WeaponGenericProjectileLauncher) WeaponUpdateSubtick(w *Scene, id, 
 			panic(err)
 		}
 
-		w.Animation.Store(id, Animation{
+		w.Animation.Set(id, Animation{
 			Armature: armature,
 			Action:   weapon.ShootAnimation,
 			PlayTime: w.Now,
@@ -121,6 +121,6 @@ func (weapon WeaponGenericProjectileLauncher) WeaponUpdateSubtick(w *Scene, id, 
 
 	weapon.NextAttack = w.Now.Add(weapon.CycleDuration)
 
-	w.Entity.Store(id, weapon)
+	w.Entity.Set(id, weapon)
 	return geometry.Vec3{0.1, 0, 0}
 }

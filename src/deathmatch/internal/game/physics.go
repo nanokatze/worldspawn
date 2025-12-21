@@ -99,22 +99,22 @@ type ContactEvent struct {
 // TODO: a more descriptive name
 func worldToPhysics(w *Scene) {
 	for id := range w.physicsBodyExists.All() {
-		if _, ok := w.CollisionLayer.Load(id); !ok {
+		if _, ok := w.CollisionLayer.Get(id); !ok {
 			w.physicsSystem.RemoveBody(physics.BodyID(id))
 			w.physicsBodyExists.Delete(id)
 		}
 	}
 
 	for id, layer := range w.CollisionLayer.All() {
-		translationRotation, _ := w.TranslationRotation.Load(id)
-		velocity, _ := w.Velocity.Load(id)
-		filter, _ := w.PhysicsFilter.Load(id)
+		translationRotation, _ := w.TranslationRotation.Get(id)
+		velocity, _ := w.Velocity.Get(id)
+		filter, _ := w.PhysicsFilter.Get(id)
 
 		// TODO: pairwise filter should pass ecs.IDs as is and we should store
 		// it on the rigid bodies in the user data slot.
 		filter2 := []physics.BodyID{}
 		for _, e := range filter {
-			_, ok := w.physicsBodyExists.Load(e)
+			_, ok := w.physicsBodyExists.Get(e)
 			if !ok {
 				continue
 			}
@@ -123,14 +123,14 @@ func worldToPhysics(w *Scene) {
 
 		motionType2 := collisionLayerMotionType[layer]
 
-		gravityFactor, ok := w.GravityFactor.Load(id)
+		gravityFactor, ok := w.GravityFactor.Get(id)
 		if !ok {
 			gravityFactor = 1
 		}
 
 		shape2 := getShape(w, id)
 
-		mass, overrideMass := w.PhysicsMassOverride.Load(id)
+		mass, overrideMass := w.PhysicsMassOverride.Get(id)
 		if !overrideMass {
 			mass = shape2.Mass()
 		}
@@ -138,14 +138,14 @@ func worldToPhysics(w *Scene) {
 		// mass=0.
 		mass = max(mass, 0.001)
 
-		inertia, overrideInertia := w.PhysicsInertiaOverride.Load(id)
+		inertia, overrideInertia := w.PhysicsInertiaOverride.Get(id)
 		if !overrideInertia {
 			inertia = shape2.Inertia()
 		}
 
 		bodyID := physics.BodyID(id)
 
-		_, bodyExists := w.physicsBodyExists.Load(id)
+		_, bodyExists := w.physicsBodyExists.Get(id)
 		if !bodyExists {
 			w.physicsSystem.AddBody(
 				bodyID,
@@ -160,7 +160,7 @@ func worldToPhysics(w *Scene) {
 				gravityFactor,
 				mass,
 				inertia)
-			w.physicsBodyExists.Store(id, struct{}{})
+			w.physicsBodyExists.Set(id, struct{}{})
 		} else {
 			w.physicsSystem.UpdateBody(
 				bodyID,
@@ -180,8 +180,8 @@ func worldToPhysics(w *Scene) {
 }
 
 func getShape(w *Scene, id ecs.ID) *physics.Shape {
-	layer, _ := w.CollisionLayer.Load(id)
-	shape, _ := w.CollisionGeometry.Load(id)
+	layer, _ := w.CollisionLayer.Get(id)
+	shape, _ := w.CollisionGeometry.Get(id)
 
 	motionType2 := collisionLayerMotionType[layer]
 
@@ -205,10 +205,10 @@ func updatePhysics(w *Scene, Δt time.Duration) {
 
 		pos, rot, linVel, angVel := w.physicsSystem.WritebackBody(bodyID)
 
-		w.TranslationRotation.Store(entityID, TranslationRotation{Translation: pos, Rotation: rot})
+		w.TranslationRotation.Set(entityID, TranslationRotation{Translation: pos, Rotation: rot})
 
 		// TODO: don't store velocity back for kinematic bodies
-		w.Velocity.Store(entityID, Velocity{Linear: linVel, Angular: angVel})
+		w.Velocity.Set(entityID, Velocity{Linear: linVel, Angular: angVel})
 	}
 
 	for _, ce := range w.physicsSystem.ContactEvents() {
@@ -219,21 +219,21 @@ func updatePhysics(w *Scene, Δt time.Duration) {
 		// before the last Update
 
 		if w.IsEntityValid(entityID1) {
-			contactEvents, _ := w.ContactEvents.Load(entityID1)
+			contactEvents, _ := w.ContactEvents.Get(entityID1)
 			contactEvents = append(contactEvents, ContactEvent{
 				Type:      ce.Type,
 				EntityID2: entityID2,
 			})
-			w.ContactEvents.Store(entityID1, contactEvents)
+			w.ContactEvents.Set(entityID1, contactEvents)
 		}
 
 		if w.IsEntityValid(entityID2) {
-			contactEvents, _ := w.ContactEvents.Load(entityID2)
+			contactEvents, _ := w.ContactEvents.Get(entityID2)
 			contactEvents = append(contactEvents, ContactEvent{
 				Type:      ce.Type,
 				EntityID2: entityID1,
 			})
-			w.ContactEvents.Store(entityID2, contactEvents)
+			w.ContactEvents.Set(entityID2, contactEvents)
 		}
 	}
 }

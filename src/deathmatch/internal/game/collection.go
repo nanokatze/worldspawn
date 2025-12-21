@@ -71,7 +71,7 @@ func (w *Scene) InstantinateCollections() {
 
 // TODO: pass fs explicitly, etc. We'll make Data fs and caches per-World,
 // likely
-func prefab(filename string) *Components {
+func prefab(filename string) *Columns {
 	// TODO: we shouldn't need to be doing filepath.Clean here, the exporter should export stuff properly by itself
 	f, err := Data.Open(filepath.Clean(filename))
 	if err != nil {
@@ -81,7 +81,7 @@ func prefab(filename string) *Components {
 
 	// TODO: we'll want a rather very custom deserialization code here
 
-	w := new(Components)
+	w := new(Columns)
 	if err := json.UnmarshalRead(f, w, JSONOptions); err != nil {
 		log.Fatalf("prefab: %v", err)
 	}
@@ -99,46 +99,46 @@ func (w *Scene) SpawnPrefab(prefabRef PrefabRef) ecs.ID {
 // TODO: make this a standalone method?
 // TODO: rename to InstantinateCollectionAt
 func (w *Scene) InstanceCollectionAt(id ecs.ID, prefabRef PrefabRef) {
-	translationRotation, _ := w.TranslationRotation.Load(id)
-	scale, _ := w.Scale.Load(id)
+	translationRotation, _ := w.TranslationRotation.Get(id)
+	scale, _ := w.Scale.Get(id)
 
 	w.CopyEntities(id, prefab(prefabRef.Filename))
 	// TODO: actually compose these rather than override!
-	w.TranslationRotation.Store(id, translationRotation)
-	w.Scale.Store(id, scale)
+	w.TranslationRotation.Set(id, translationRotation)
+	w.Scale.Set(id, scale)
 
 	// TODO: we also need to take velocity into account
 }
 
 // TODO: reorganize collection instantination and remove this
-func (dst *Components) CopyEntities(id ecs.ID, src *Components) {
+func (dst *Columns) CopyEntities(id ecs.ID, src *Columns) {
 	// TODO: rewrite using reflect
 
-	if v, ok := src.Entity.Load(1); ok {
-		dst.Entity.Store(id, v)
+	if v, ok := src.Entity.Get(1); ok {
+		dst.Entity.Set(id, v)
 	}
-	if v, ok := src.TranslationRotation.Load(1); ok {
-		dst.TranslationRotation.Store(id, v)
+	if v, ok := src.TranslationRotation.Get(1); ok {
+		dst.TranslationRotation.Set(id, v)
 	}
-	if v, ok := src.Scale.Load(1); ok {
-		dst.Scale.Store(id, v)
+	if v, ok := src.Scale.Get(1); ok {
+		dst.Scale.Set(id, v)
 	}
-	if v, ok := src.RenderingGeometry.Load(1); ok {
-		dst.RenderingGeometry.Store(id, v)
+	if v, ok := src.RenderingGeometry.Get(1); ok {
+		dst.RenderingGeometry.Set(id, v)
 	}
-	if v, ok := src.CollisionGeometry.Load(1); ok {
-		dst.CollisionGeometry.Store(id, v)
+	if v, ok := src.CollisionGeometry.Get(1); ok {
+		dst.CollisionGeometry.Set(id, v)
 	}
-	if v, ok := src.PhysicsMassOverride.Load(1); ok {
-		dst.PhysicsMassOverride.Store(id, v)
+	if v, ok := src.PhysicsMassOverride.Get(1); ok {
+		dst.PhysicsMassOverride.Set(id, v)
 	}
-	if v, ok := src.PhysicsInertiaOverride.Load(1); ok {
-		dst.PhysicsInertiaOverride.Store(id, v)
+	if v, ok := src.PhysicsInertiaOverride.Get(1); ok {
+		dst.PhysicsInertiaOverride.Set(id, v)
 	}
-	if v, ok := src.GravityFactor.Load(1); ok {
-		dst.GravityFactor.Store(id, v)
+	if v, ok := src.GravityFactor.Get(1); ok {
+		dst.GravityFactor.Set(id, v)
 	}
-	if v, ok := src.PlayerSpawn.Load(1); ok {
-		dst.PlayerSpawn.Store(id, v)
+	if v, ok := src.PlayerSpawn.Get(1); ok {
+		dst.PlayerSpawn.Set(id, v)
 	}
 }

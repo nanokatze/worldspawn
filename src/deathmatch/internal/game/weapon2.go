@@ -22,12 +22,12 @@ var _ Weapon2 = Weapon2GenericProjectileLauncher{}
 
 func (weapon Weapon2GenericProjectileLauncher) CreateGeometry(scene *Scene) ecs.ID {
 	root := scene.CreateEntity()
-	scene.TranslationRotation.Store(root, TranslationRotation{
+	scene.TranslationRotation.Set(root, TranslationRotation{
 		Translation: geometry.DVec3{0.2, 0.4, -0.275},
 		Rotation:    geometry.Rot3One(),
 	})
-	scene.Scale.Store(root, geometry.Vec3Broadcast(1))
-	scene.RenderingGeometry.Store(root, PackGeometry(Geometry{Kind: GeometryFileBacked, Filename: "weapons/grenade_launcher/geometries/Grenade_Launcher"}))
+	scene.Scale.Set(root, geometry.Vec3Broadcast(1))
+	scene.RenderingGeometry.Set(root, PackGeometry(Geometry{Kind: GeometryFileBacked, Filename: "weapons/grenade_launcher/geometries/Grenade_Launcher"}))
 
 	return root
 }

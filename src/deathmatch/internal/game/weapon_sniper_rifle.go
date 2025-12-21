@@ -64,7 +64,7 @@ func (weapon WeaponSniperRifle) WeaponUpdateSubtick(w *Scene, weaponID, operator
 		return
 	}
 
-	aim, _ := w.WeaponAim.Load(weaponID)
+	aim, _ := w.WeaponAim.Get(weaponID)
 
 	switch {
 	case !weapon.Charging && aim.Buttons&(1<<ButtonAttack) != 0:
@@ -77,7 +77,7 @@ func (weapon WeaponSniperRifle) WeaponUpdateSubtick(w *Scene, weaponID, operator
 
 		chargeImpactMultiplier := 1 + 2*charge
 
-		w.SoundEffect.Store(weaponID, SoundEmitter{
+		w.SoundEffect.Set(weaponID, SoundEmitter{
 			Effect:   weapon.ShootSound,
 			PlayTime: w.Now,
 		})
@@ -95,16 +95,16 @@ func (weapon WeaponSniperRifle) WeaponUpdateSubtick(w *Scene, weaponID, operator
 		//
 		// TODO: plumb this through result so that we don't have to apply
 		// knockback directly, but can delegate it to the player movement code
-		playerVelocity, _ := w.Velocity.Load(operatorID)
+		playerVelocity, _ := w.Velocity.Get(operatorID)
 		playerVelocity.Linear = playerVelocity.Linear.Add(aim.ShootRotation.Rotate(geometry.Vec3{0, selfKnockback, 0}))
-		w.Velocity.Store(operatorID, playerVelocity)
+		w.Velocity.Set(operatorID, playerVelocity)
 
 		weapon.Charging = false
 		weapon.NextAttack = w.Now.Add(weapon.CycleDuration)
 
 	case weapon.Charging && w.Now.Sub(weapon.ChargeBeginTime) >= weapon.ChargeDuration && !weapon.NotifiedChargeReady:
 		if weapon.ChargeReadySound != "" {
-			w.SoundEffect.Store(weaponID, SoundEmitter{
+			w.SoundEffect.Set(weaponID, SoundEmitter{
 				Effect:   weapon.ChargeReadySound,
 				PlayTime: w.Now,
 			})
@@ -113,6 +113,6 @@ func (weapon WeaponSniperRifle) WeaponUpdateSubtick(w *Scene, weaponID, operator
 		weapon.NotifiedChargeReady = true
 	}
 
-	w.Entity.Store(weaponID, weapon)
+	w.Entity.Set(weaponID, weapon)
 	return
 }

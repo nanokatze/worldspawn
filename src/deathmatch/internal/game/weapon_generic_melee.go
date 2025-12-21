@@ -11,6 +11,6 @@ type WeaponGenericMelee struct {
 var _ Weapon = WeaponGenericMelee{}
 
 func (weapon WeaponGenericMelee) WeaponUpdateSubtick(w *Scene, weaponID, operatorID ecs.ID, now Time, info *UpdateParams) (recoil geometry.Vec3) {
-	w.Entity.Store(weaponID, weapon)
+	w.Entity.Set(weaponID, weapon)
 	return geometry.Vec3{}
 }

@@ -52,7 +52,7 @@ var _ Character = FPSCharacter{}
 
 func (entity FPSCharacter) CharacterUpdate(w *Scene, id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
 	// positionRotation, _ := w.TranslationRotation.Load(id)
-	inventory, _ := w.ArmedCharacter.Load(id)
+	inventory, _ := w.ArmedCharacter.Get(id)
 
 	// should this be subtick time?
 	// now := w.Now
@@ -90,7 +90,7 @@ func (entity FPSCharacter) CharacterUpdate(w *Scene, id ecs.ID, cmd TimestampedI
 		// TODO: don't delete the view and worldmodel entities but just hide
 		// them
 		if w.IsEntityValid(entity.ActiveWeaponViewmodel) {
-			w.Delete.Store(entity.ActiveWeaponViewmodel, struct{}{})
+			w.Delete.Set(entity.ActiveWeaponViewmodel, struct{}{})
 		}
 
 		// Now we can switch the weapons
@@ -102,7 +102,7 @@ func (entity FPSCharacter) CharacterUpdate(w *Scene, id ecs.ID, cmd TimestampedI
 		if ok {
 			entity.ActiveWeaponViewmodel = weapon.CreateGeometry(w)
 
-			w.Viewmodel2.Store(entity.ActiveWeaponViewmodel,
+			w.Viewmodel2.Set(entity.ActiveWeaponViewmodel,
 				Viewmodel2{
 					Camera: entity.Camera,
 					Mode:   1,
@@ -129,10 +129,10 @@ func (entity FPSCharacter) CharacterUpdate(w *Scene, id ecs.ID, cmd TimestampedI
 	*/
 
 	// TODO: avoid unnecessary updates
-	w.Entity.Store(id, entity)
+	w.Entity.Set(id, entity)
 
 	// TODO: factor this out
-	w.TranslationRotation.Store(entity.Camera, TranslationRotation{
+	w.TranslationRotation.Set(entity.Camera, TranslationRotation{
 		Translation: geometry.DVec3{0, 0, float64(entity.StandingViewHeight)},
 		Rotation:    geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, -1}, 2*math.Pi*entity.Look.X).Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, 2*math.Pi*entity.Look.Y)),
 	})
@@ -141,8 +141,8 @@ func (entity FPSCharacter) CharacterUpdate(w *Scene, id ecs.ID, cmd TimestampedI
 var _ UpdateBeforePhysics = FPSCharacter{}
 
 func (fpsCharacter FPSCharacter) UpdateBeforePhysics(w *Scene, id ecs.ID, info *UpdateParams) {
-	positionRotation, _ := w.TranslationRotation.Load(id)
-	velocity, _ := w.Velocity.Load(id)
+	positionRotation, _ := w.TranslationRotation.Get(id)
+	velocity, _ := w.Velocity.Get(id)
 
 	rotation := positionRotation.Rotation.
 		Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, -1}, 2*math.Pi*fpsCharacter.Look.X))
@@ -168,8 +168,8 @@ func (fpsCharacter FPSCharacter) UpdateBeforePhysics(w *Scene, id ecs.ID, info *
 
 	velocity.Linear = fpsCharacter.asdasd(w, id, velocity.Linear, info.Δt)
 
-	w.Entity.Store(id, fpsCharacter)
-	w.Velocity.Store(id, velocity)
+	w.Entity.Set(id, fpsCharacter)
+	w.Velocity.Set(id, velocity)
 }
 
 // TODO: rename to Inventory or something else
@@ -186,7 +186,7 @@ func planeSignedDistance(plane geometry.Vec4, point geometry.Vec3) float32 {
 }
 
 func (fpsCharacter *FPSCharacter) asdasd(w *Scene, id ecs.ID, velocity geometry.Vec3, Δt time.Duration) geometry.Vec3 {
-	positionRotation, _ := w.TranslationRotation.Load(id)
+	positionRotation, _ := w.TranslationRotation.Get(id)
 
 	up := geometry.Vec3{0, 0, 1}
 

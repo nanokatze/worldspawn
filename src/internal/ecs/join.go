@@ -21,7 +21,7 @@ type Tuple3[V1, V2, V3 any] struct {
 
 // TODO: generate these using a template?
 
-func Join[V1, V2 any](m1 ComponentStore[V1], m2 ComponentStore[V2]) iter.Seq2[ID, Tuple[V1, V2]] {
+func Join[V1, V2 any](m1 Column[V1], m2 Column[V2]) iter.Seq2[ID, Tuple[V1, V2]] {
 	idAlloc := m1.idAlloc
 
 	return func(yield func(k ID, v Tuple[V1, V2]) bool) {
@@ -31,7 +31,7 @@ func Join[V1, V2 any](m1 ComponentStore[V1], m2 ComponentStore[V2]) iter.Seq2[ID
 	}
 }
 
-func Join3[V1, V2, V3 any](m1 ComponentStore[V1], m2 ComponentStore[V2], m3 ComponentStore[V3]) iter.Seq2[ID, Tuple3[V1, V2, V3]] {
+func Join3[V1, V2, V3 any](m1 Column[V1], m2 Column[V2], m3 Column[V3]) iter.Seq2[ID, Tuple3[V1, V2, V3]] {
 	idAlloc := m1.idAlloc
 
 	return func(yield func(k ID, v Tuple3[V1, V2, V3]) bool) {

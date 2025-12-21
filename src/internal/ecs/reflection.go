@@ -11,7 +11,7 @@ import (
 // TODO: idk if I like the name "Reflect" or "Any". We'll want to think about it
 // a bit more.
 // TODO: move "Any" to be suffix?
-type AnyComponentStore struct {
+type ReflectedColumn struct {
 	vtyp    reflect.Type
 	idAlloc *IDAlloc
 	valid   bitset.Bitset
@@ -19,17 +19,16 @@ type AnyComponentStore struct {
 }
 
 // TODO: make this again a method on ComponentStore?
-func Reflect(v any) AnyComponentStore {
-	cs := v.(interface{ anyComponentStore() AnyComponentStore })
-
-	return cs.anyComponentStore()
+func Reflect(v any) ReflectedColumn {
+	cs := v.(interface{ reflect() ReflectedColumn })
+	return cs.reflect()
 }
 
-func (m AnyComponentStore) ElemType() reflect.Type {
+func (m ReflectedColumn) ElemType() reflect.Type {
 	return m.vtyp
 }
 
-func (m AnyComponentStore) All() iter.Seq[ID] {
+func (m ReflectedColumn) All() iter.Seq[ID] {
 	idAlloc := m.idAlloc
 
 	return func(yield func(ID) bool) {
@@ -41,7 +40,7 @@ func (m AnyComponentStore) All() iter.Seq[ID] {
 	}
 }
 
-func (m AnyComponentStore) Load(id ID, v reflect.Value) bool {
+func (m ReflectedColumn) Get(id ID, v reflect.Value) bool {
 	// TODO: assert v.Type() == m.vtyp?
 	// Prefabs will have some component stores be left uninitialized
 	if m.idAlloc == nil {
@@ -57,7 +56,7 @@ func (m AnyComponentStore) Load(id ID, v reflect.Value) bool {
 	return true
 }
 
-func (m AnyComponentStore) Store(id ID, v reflect.Value) {
+func (m ReflectedColumn) Set(id ID, v reflect.Value) {
 	// TODO: assert v.Type() == m.vtyp?
 	if !m.idAlloc.Valid(id) {
 		panic(fmt.Sprintf("bad %v", id))
@@ -67,7 +66,7 @@ func (m AnyComponentStore) Store(id ID, v reflect.Value) {
 	m.valid.Set(index)
 }
 
-func (m AnyComponentStore) Delete(id ID) {
+func (m ReflectedColumn) Delete(id ID) {
 	if !m.idAlloc.Valid(id) {
 		panic("bad")
 	}
@@ -78,7 +77,7 @@ func (m AnyComponentStore) Delete(id ID) {
 }
 
 // TODO: should be suffixed to make it clear that it's for "AnyComponentStore"
-func CopyComponentStore(dst, src AnyComponentStore) {
+func CopyColumn(dst, src ReflectedColumn) {
 	// TODO: vtyp and other checks here please
 	// TODO: checking idAlloc equivalence here would be expensive so we should
 	// annotate the semantics of this function requiring idAlloc equivalence

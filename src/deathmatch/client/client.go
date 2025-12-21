@@ -183,7 +183,7 @@ func newClient(renderer Renderer, addr string) (*Client, error) {
 
 // TODO: ugh!!
 var comps = func() []string {
-	typ := reflect.TypeFor[game.Components]()
+	typ := reflect.TypeFor[game.Columns]()
 
 	var fields []string
 	for i := range typ.NumField() {
@@ -246,7 +246,7 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 	// TODO: clean this horrible mess up
 
 	for _, comp := range comps {
-		cs := ecs.Reflect(reflect.ValueOf(&s.world.Components).Elem().FieldByName(comp).Addr().Interface())
+		cs := ecs.Reflect(reflect.ValueOf(&s.world.Columns).Elem().FieldByName(comp).Addr().Interface())
 
 		v := reflect.New(cs.ElemType())
 
@@ -276,7 +276,7 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 			}
 
 			if exists {
-				cs.Store(id, v.Elem())
+				cs.Set(id, v.Elem())
 			} else {
 				cs.Delete(id)
 			}

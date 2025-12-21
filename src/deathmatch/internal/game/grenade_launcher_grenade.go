@@ -15,7 +15,7 @@ type GrenadeLauncherGrenade struct {
 var _ UpdateAfterPhysics = GrenadeLauncherGrenade{}
 
 func (grenade GrenadeLauncherGrenade) UpdateAfterPhysics(w *Scene, id ecs.ID, info *UpdateParams) {
-	creationTime, _ := w.CreationTime.Load(id)
+	creationTime, _ := w.CreationTime.Get(id)
 	explosionTime := creationTime.Add(grenade.Fuse)
 	if w.Now.Before(explosionTime) {
 		return
@@ -23,14 +23,14 @@ func (grenade GrenadeLauncherGrenade) UpdateAfterPhysics(w *Scene, id ecs.ID, in
 
 	if !info.Speculating {
 		effect := w.CreateEntity()
-		positionRotation, _ := w.TranslationRotation.Load(id)
-		w.TranslationRotation.Store(effect, positionRotation)
-		w.SoundEffect.Store(effect, SoundEmitter{
+		positionRotation, _ := w.TranslationRotation.Get(id)
+		w.TranslationRotation.Set(effect, positionRotation)
+		w.SoundEffect.Set(effect, SoundEmitter{
 			Effect:   "later.wav",
 			PlayTime: w.Now.Add(info.Δt),
 		})
-		w.DeleteAfter.Store(effect, w.Now.Add(2*time.Second))
+		w.DeleteAfter.Set(effect, w.Now.Add(2*time.Second))
 	}
 
-	w.Delete.Store(id, struct{}{})
+	w.Delete.Set(id, struct{}{})
 }

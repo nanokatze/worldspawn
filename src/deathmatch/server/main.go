@@ -178,7 +178,7 @@ func (s *Server) serveConn(conn *quic.Conn, logger *slog.Logger) error {
 			// TODO: depending on the type of game, removing the entity is not
 			// necessarily what we want (e.g. we might want to let the AI take
 			// over the control, or put the character to sleep, or ...)
-			s.scene.Delete.Store(u.player, struct{}{})
+			s.scene.Delete.Set(u.player, struct{}{})
 		}()
 	}
 
@@ -300,9 +300,9 @@ func (s *Server) tick(Δt time.Duration) {
 	}
 
 	for i, comp := range comps {
-		old := ecs.Reflect(reflect.ValueOf(&s.prevWorld.Components).
+		old := ecs.Reflect(reflect.ValueOf(&s.prevWorld.Columns).
 			Elem().FieldByName(comp).Addr().Interface())
-		cur := ecs.Reflect(reflect.ValueOf(&s.scene.Components).
+		cur := ecs.Reflect(reflect.ValueOf(&s.scene.Columns).
 			Elem().FieldByName(comp).Addr().Interface())
 
 		t := cur.ElemType()
@@ -314,8 +314,8 @@ func (s *Server) tick(Δt time.Duration) {
 		curc := reflect.New(t)
 		for id := range cur.All() {
 			equal := false
-			if old.Load(id, oldc.Elem()) {
-				cur.Load(id, curc.Elem())
+			if old.Get(id, oldc.Elem()) {
+				cur.Get(id, curc.Elem())
 				equal = reflect.DeepEqual(oldc.Interface(), curc.Interface())
 			}
 			if !equal {
@@ -342,9 +342,9 @@ func (s *Server) tick(Δt time.Duration) {
 	s.prevWorld.Now = s.scene.Now
 	s.prevWorld.IDAlloc.Copy(s.scene.IDAlloc)
 	for _, comp := range comps {
-		dst := ecs.Reflect(reflect.ValueOf(&s.prevWorld.Components).Elem().FieldByName(comp).Addr().Interface())
-		src := ecs.Reflect(reflect.ValueOf(&s.scene.Components).Elem().FieldByName(comp).Addr().Interface())
-		ecs.CopyComponentStore(dst, src)
+		dst := ecs.Reflect(reflect.ValueOf(&s.prevWorld.Columns).Elem().FieldByName(comp).Addr().Interface())
+		src := ecs.Reflect(reflect.ValueOf(&s.scene.Columns).Elem().FieldByName(comp).Addr().Interface())
+		ecs.CopyColumn(dst, src)
 	}
 
 	s.scene.Now = s.scene.Now.Add(Δt)
@@ -360,7 +360,7 @@ func (s *Server) tick(Δt time.Duration) {
 //
 // TODO: ugh!!
 var comps = func() []string {
-	typ := reflect.TypeFor[game.Components]()
+	typ := reflect.TypeFor[game.Columns]()
 
 	var fields []string
 	for i := range typ.NumField() {
@@ -434,7 +434,7 @@ func (s *Server) sendUpdates(u *user) {
 	// TODO: insert various canaries to make debugging easier
 
 	for idx, comp := range comps {
-		cs := ecs.Reflect(reflect.ValueOf(&s.scene.Components).Elem().FieldByName(comp).Addr().Interface())
+		cs := ecs.Reflect(reflect.ValueOf(&s.scene.Columns).Elem().FieldByName(comp).Addr().Interface())
 
 		buf2 := new(bytes.Buffer)
 		enc2 := nice.NewEncoder(buf2, replication.NiceOptions)
@@ -451,7 +451,7 @@ func (s *Server) sendUpdates(u *user) {
 				continue
 			}
 
-			exists := cs.Load(id, v.Elem())
+			exists := cs.Get(id, v.Elem())
 
 			indexAndOk := uint32(i) // TODO: rename
 			if exists {
@@ -519,16 +519,16 @@ func spawnplayer(w *game.Scene) ecs.ID {
 	}
 
 	// meh
-	t, _ := w.TranslationRotation.Load(playerSpawns[rand.IntN(len(playerSpawns))])
-	w.TranslationRotation.Store(player, t)
+	t, _ := w.TranslationRotation.Get(playerSpawns[rand.IntN(len(playerSpawns))])
+	w.TranslationRotation.Set(player, t)
 
-	w.Scale.Store(player, geometry.Vec3Broadcast(1))
-	w.RenderingGeometry.Store(player, game.PackGeometry(game.Geometry{
+	w.Scale.Set(player, geometry.Vec3Broadcast(1))
+	w.RenderingGeometry.Set(player, game.PackGeometry(game.Geometry{
 		Kind:     game.GeometryFileBacked,
 		Filename: "testcharacter4/geometries/TestCharacter4",
 	}))
-	w.Viewmodel2.Store(player, game.Viewmodel2{Mode: 2})
-	w.CollisionGeometry.Store(player, game.PackGeometry(game.Geometry{
+	w.Viewmodel2.Set(player, game.Viewmodel2{Mode: 2})
+	w.CollisionGeometry.Set(player, game.PackGeometry(game.Geometry{
 		Translation: geometry.Vec3{0, 0, 1.9 / 2},
 		Rotation:    geometry.Rot3One(),
 		Scale:       geometry.Vec3Broadcast(1),
@@ -537,19 +537,19 @@ func spawnplayer(w *game.Scene) ecs.ID {
 		HalfExtent:   geometry.Vec3{1, 1, 0}.Scale(0.4).Add(geometry.Vec3{0, 0, 1.9 / 2}),
 		ConvexRadius: 0.0,
 	}))
-	w.CollisionLayer.Store(player, game.PhysicsLayerMovingKinematic)
-	w.PhysicsMassOverride.Store(player, 100)
+	w.CollisionLayer.Set(player, game.PhysicsLayerMovingKinematic)
+	w.PhysicsMassOverride.Set(player, 100)
 
 	camera := w.CreateEntity()
 	w.ParentTo(camera, player)
 	// TODO: poke a method on fpscharacter to perform this
-	w.TranslationRotation.Store(camera, game.TranslationRotation{
+	w.TranslationRotation.Set(camera, game.TranslationRotation{
 		Translation: geometry.DVec3{0, 0, 1.9 - 0.1}, // standing height
 		Rotation:    geometry.Rot3One(),
 	})
-	w.Scale.Store(camera, geometry.Vec3Broadcast(1))
+	w.Scale.Set(camera, geometry.Vec3Broadcast(1))
 
-	w.Entity.Store(player, game.FPSCharacter{
+	w.Entity.Set(player, game.FPSCharacter{
 		Camera:                      camera,
 		WalkVelocity:                21.6 / 3.6,
 		BackwardsWalkVelocityFactor: 0.8,
@@ -566,7 +566,7 @@ func spawnplayer(w *game.Scene) ecs.ID {
 
 	{
 		gun := w.CreateEntity()
-		w.Entity.Store(gun, game.Weapon2GenericProjectileLauncher{})
+		w.Entity.Set(gun, game.Weapon2GenericProjectileLauncher{})
 		w.ParentTo(gun, player)
 
 		slots = append(slots, gun)
@@ -598,7 +598,7 @@ func spawnplayer(w *game.Scene) ecs.ID {
 		}
 	*/
 
-	w.ArmedCharacter.Store(player, game.ArmedCharacter{Slots: slots})
+	w.ArmedCharacter.Set(player, game.ArmedCharacter{Slots: slots})
 
 	return player
 }
@@ -658,13 +658,13 @@ func main() {
 
 	{
 		obj := s.scene.CreateEntity()
-		s.scene.TranslationRotation.Store(obj, game.TranslationRotationOne())
-		s.scene.Scale.Store(obj, geometry.Vec3Broadcast(1))
+		s.scene.TranslationRotation.Set(obj, game.TranslationRotationOne())
+		s.scene.Scale.Set(obj, geometry.Vec3Broadcast(1))
 		tmp := game.LoopedSound{
 			Sound: "lamphum.wav",
 		}
 		tmp.Init()
-		s.scene.Entity.Store(obj, tmp)
+		s.scene.Entity.Set(obj, tmp)
 	}
 
 	s.scene.InstantinateCollections()

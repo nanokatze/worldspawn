@@ -96,15 +96,15 @@ func (re *gameRendererImpl) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Tim
 
 			update.Sky = texture(w.Sky).Image
 
-			playerEntity, _ := w.Entity.Load(playerID)
+			playerEntity, _ := w.Entity.Get(playerID)
 			fpsCharacter := playerEntity.(game.FPSCharacter)
 
 			for id, tr := range w.TranslationRotation.All() {
-				cosmeticOffset, _ := w.CosmeticOffset.Load(id)
+				cosmeticOffset, _ := w.CosmeticOffset.Get(id)
 
 				i := id.Index()
 
-				parent, hasParent := w.Parent.Load(id)
+				parent, hasParent := w.Parent.Get(id)
 				if hasParent {
 					update.Parent[i] = parent.Index()
 				}
@@ -131,14 +131,14 @@ func (re *gameRendererImpl) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Tim
 			// everything that follows.
 
 			for id, v := range ecs.Join(w.RenderingGeometry, w.TranslationRotation) {
-				entity, hasEntity := w.Entity.Load(id)
+				entity, hasEntity := w.Entity.Get(id)
 				renderingGeometry := v.V1
 
 				i := id.Index()
 
 				mask := uint8(0b11)
 
-				viewmodel, hasViewmodel := w.Viewmodel2.Load(id)
+				viewmodel, hasViewmodel := w.Viewmodel2.Get(id)
 				if hasViewmodel {
 					switch viewmodel.Mode {
 					case 1:
@@ -187,7 +187,7 @@ func (re *gameRendererImpl) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Tim
 
 		// Ughhhhhhh
 		{
-			playerEntity, _ := w.Entity.Load(playerID)
+			playerEntity, _ := w.Entity.Get(playerID)
 			fpsCharacter := playerEntity.(game.FPSCharacter)
 			camera := update.Transform(fpsCharacter.Camera.Index(), 0)
 			cameraPos := geometry.Vec3{camera[0][3], camera[1][3], camera[2][3]}
@@ -199,8 +199,8 @@ func (re *gameRendererImpl) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Tim
 			clear(scene.Instance)
 
 			for id, soundEffect := range w.SoundEffect.All() {
-				positionRotation, _ := w.TranslationRotation.Load(id)
-				scale, _ := w.Scale.Load(id)
+				positionRotation, _ := w.TranslationRotation.Get(id)
+				scale, _ := w.Scale.Get(id)
 
 				// TODO: take hierarchy into account
 				xform := geometry.TRS3{
@@ -259,10 +259,10 @@ func (re *gameRendererImpl) Subtick(w *game.Scene, playerID ecs.ID) {
 
 	// TODO: we'll need to fix camera shenanigans first
 
-	// playerEntity, _ := w.Entity.Load(playerID)
+	// playerEntity, _ := w.Entity.Get(playerID)
 	// fpsCharacter := playerEntity.(game.FPSCharacter)
 	// cameraID := fpsCharacter.Camera
-	// tr, _ := w.TranslationRotation.Load(cameraID)
+	// tr, _ := w.TranslationRotation.Get(cameraID)
 
 	// rot := tr.Rotation
 

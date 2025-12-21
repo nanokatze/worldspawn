@@ -63,12 +63,12 @@ func (a *LoopedSound) Init() {
 func (a LoopedSound) UpdateBeforePhysics(scene *Scene, id ecs.ID, info *UpdateParams) {
 	// TODO: make repeat sample-perfect
 
-	soundEffect, _ := scene.SoundEffect.Load(id)
+	soundEffect, _ := scene.SoundEffect.Get(id)
 	if soundEffect.PlayTime.Add(time.Duration(a.LengthInSamples * 1e9 / 48000)).After(scene.Now) {
 		return
 	}
 
 	soundEffect.Effect = a.Sound
 	soundEffect.PlayTime = scene.Now
-	scene.SoundEffect.Store(id, soundEffect)
+	scene.SoundEffect.Set(id, soundEffect)
 }
