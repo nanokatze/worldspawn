@@ -47,7 +47,7 @@ var codecs = []func() codec{
 	func() codec { return new(encodingBinaryCodec) },
 }
 
-var codecBenchmarks = []reflect.Type{
+var arshalingBenchmarks = []reflect.Type{
 	// Contrived cases for measuring overhead
 	reflect.TypeFor[struct{}](),
 	reflect.TypeFor[[100]struct{}](),
@@ -57,11 +57,11 @@ var codecBenchmarks = []reflect.Type{
 	reflect.TypeFor[[100]int32](),
 }
 
-func BenchmarkMarshalUnmarshal(b *testing.B) {
-	for _, newCodec := range codecs {
-		codec := newCodec()
-		for _, bench := range codecBenchmarks {
-			b.Run(fmt.Sprintf("%s/%v", codec, bench), func(b *testing.B) {
+func BenchmarkArshaling(b *testing.B) {
+	for _, bench := range arshalingBenchmarks {
+		for _, newCodec := range codecs {
+			codec := newCodec()
+			b.Run(fmt.Sprintf("%v/%s", bench, codec), func(b *testing.B) {
 				want := reflect.New(bench).Interface()
 				got := reflect.New(bench).Interface()
 

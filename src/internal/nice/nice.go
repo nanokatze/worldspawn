@@ -5,7 +5,7 @@ import (
 )
 
 // TODO: respect types implementing encoding.BinaryAppender and
-// encoding.BinaryMarshaler and their respective unmarshaling parts
+// encoding.BinaryMarshaler and their respective unmarshaling parts?
 
 // TODO: encoding/binary is currently faster than us in some cases. We should
 // analyze why and see where we can improve.
@@ -19,13 +19,15 @@ type (
 	unmarshaler func(dec *Decoder, v reflect.Value) error
 )
 
+type arshaler struct {
+	marshal   marshaler
+	unmarshal unmarshaler
+}
+
 // TODO: rename
 type fieldInfo struct {
 	Type  reflect.Type
 	Index int
-	// These should be put into their own arrays tbf...
-	DefaultMarshal   marshaler
-	DefaultUnmarshal unmarshaler
 }
 
 // TODO: rename
@@ -37,10 +39,8 @@ func structInfo(t reflect.Type) []fieldInfo {
 			continue
 		}
 		fs = append(fs, fieldInfo{
-			Type:             f.Type,
-			Index:            f.Index[0], // TODO: handle embedded structs etc
-			DefaultMarshal:   defaultMarshaler(f.Type),
-			DefaultUnmarshal: defaultUnmarshaler(f.Type),
+			Type:  f.Type,
+			Index: f.Index[0], // TODO: handle embedded structs etc
 		})
 	}
 	return fs

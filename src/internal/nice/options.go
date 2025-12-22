@@ -1,30 +1,28 @@
 package nice
 
-import "reflect"
-
-const defaultBudget = 1 << 30
+import (
+	"maps"
+	"reflect"
+)
 
 type options struct {
-	customMarshalers   map[reflect.Type]marshaler
-	customUnmarshalers map[reflect.Type]unmarshaler
-	budget             int
+	budget      int
+	getArshaler func(reflect.Type) arshaler
+}
+
+var defaultOptions = options{
+	budget:      1 << 30,
+	getArshaler: getDefaultArshaler,
 }
 
 type Option func(opts *options)
 
 func collectOptions(opts ...Option) options {
-	// ughhhhhhhhh
 	if len(opts) == 0 {
-		return options{budget: defaultBudget}
+		return defaultOptions
 	}
 
-	// TODO: this is kinda slow with small marshals and unmarshals because
-	// result leaks and causes an allocation. We can optimize certain happy
-	// cases by replacing Option with a private interface and handling certain
-	// cases in a special way.
-
-	var result options
-	result.budget = defaultBudget
+	result := defaultOptions
 	for _, o := range opts {
 		o(&result)
 	}
@@ -39,37 +37,52 @@ func JoinOptions(opts2 ...Option) Option {
 	}
 }
 
-func WithMarshaler[T any](fn func(enc *Encoder, v *T) error) Option {
-	// TODO: rename
-	fn2 := func(enc *Encoder, v reflect.Value) error {
-		return fn(enc, v.Addr().Interface().(*T))
-	}
-
-	return func(opts *options) {
-		if opts.customMarshalers == nil {
-			opts.customMarshalers = make(map[reflect.Type]marshaler)
-		}
-		opts.customMarshalers[reflect.TypeFor[T]()] = fn2
-	}
-}
-
-func WithUnmarshaler[T any](fn func(dec *Decoder, v *T) error) Option {
-	// TODO: rename
-	fn2 := func(dec *Decoder, v reflect.Value) error {
-		return fn(dec, v.Addr().Interface().(*T))
-	}
-
-	return func(opts *options) {
-		if opts.customUnmarshalers == nil {
-			opts.customUnmarshalers = make(map[reflect.Type]unmarshaler)
-		}
-		opts.customUnmarshalers[reflect.TypeFor[T]()] = fn2
-	}
-}
-
 func WithBudget(n int) Option {
 	if n <= 0 {
 		panic("bad")
 	}
 	return func(opts *options) { opts.budget = n }
+}
+
+// TODO: an option to override getDefaultArshaler as the function to poke for
+// "default"?
+
+type Arshalers struct {
+	m map[reflect.Type]arshaler
+}
+
+func MakeArshaler[T any](marshal func(enc *Encoder, v *T) error, unmarshal func(dec *Decoder, v *T) error) Arshalers {
+	t := reflect.TypeFor[T]()
+	return Arshalers{
+		m: map[reflect.Type]arshaler{
+			t: {
+				marshal: func(enc *Encoder, v reflect.Value) error {
+					return marshal(enc, v.Addr().Interface().(*T))
+				},
+				unmarshal: func(dec *Decoder, v reflect.Value) error {
+					return unmarshal(dec, v.Addr().Interface().(*T))
+				},
+			},
+		},
+	}
+}
+
+func JoinArshalers(arshalers ...Arshalers) Arshalers {
+	joinedArshalers := Arshalers{m: map[reflect.Type]arshaler{}}
+	for _, a := range arshalers {
+		maps.Insert(joinedArshalers.m, maps.All(a.m))
+	}
+	return joinedArshalers
+}
+
+func WithArshalers(arshalers Arshalers) Option {
+	return func(opts *options) {
+		opts.getArshaler = func(t reflect.Type) arshaler {
+			arshaler, ok := arshalers.m[t]
+			if !ok {
+				arshaler = getDefaultArshaler(t)
+			}
+			return arshaler
+		}
+	}
 }

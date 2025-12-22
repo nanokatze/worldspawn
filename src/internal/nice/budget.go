@@ -27,6 +27,12 @@ func (budget *Budget) Account(n int) error {
 	return nil
 }
 
-func accountForType(budget *Budget, t reflect.Type, n int) error {
+func accountForValues(budget *Budget, t reflect.Type, n int) error {
 	return budget.Account(n * int(t.Size()))
+}
+
+func accountForMap(budget *Budget, t reflect.Type, n int) error {
+	keyType := t.Key()
+	valueType := t.Elem()
+	return budget.Account(n * int(keyType.Size()+valueType.Size()))
 }

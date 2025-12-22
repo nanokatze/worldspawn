@@ -1,6 +1,8 @@
 package nice
 
 import (
+	"encoding/binary"
+	"fmt"
 	"io"
 	"reflect"
 )
@@ -11,7 +13,7 @@ type Decoder struct {
 	r      io.Reader
 	budget Budget
 
-	customUnmarshalers map[reflect.Type]unmarshaler
+	getArshaler func(reflect.Type) arshaler
 }
 
 func NewDecoder(r io.Reader, opts ...Option) *Decoder {
@@ -22,11 +24,11 @@ func NewDecoder(r io.Reader, opts ...Option) *Decoder {
 
 // Reset keeps the scratch buffer.
 func (d *Decoder) Reset(r io.Reader, opts ...Option) {
-	collectedOpts := collectOptions(opts...)
+	collectedOptions := collectOptions(opts...)
 
 	d.r = r
-	d.budget.reset(collectedOpts.budget)
-	d.customUnmarshalers = collectedOpts.customUnmarshalers
+	d.budget.reset(collectedOptions.budget)
+	d.getArshaler = collectedOptions.getArshaler
 }
 
 func (d *Decoder) Scratch(n int) []byte {
@@ -44,4 +46,43 @@ func (d *Decoder) Reader() io.Reader {
 
 func (d *Decoder) Budget() *Budget {
 	return &d.budget
+}
+
+func readBytes(dec *Decoder, b []byte) error {
+	_, err := io.ReadFull(dec.Reader(), b)
+	return err
+}
+
+func readUint(dec *Decoder, n int) (uint64, error) {
+	buf := dec.Scratch(8)
+	clear(buf)
+	if err := readBytes(dec, buf[:n]); err != nil {
+		return 0, nil
+	}
+	return binary.LittleEndian.Uint64(buf), nil
+}
+
+func readBool(dec *Decoder) (bool, error) {
+	x, err := readUint(dec, 1)
+	if err != nil {
+		return false, err
+	}
+	if x != 0 && x != 1 {
+		return false, fmt.Errorf("bad") // TODO: nicer error message
+	}
+	return x != 0, nil
+}
+
+func readLen(dec *Decoder) (int, error) {
+	x, err := readUint(dec, 8)
+	if err != nil {
+		return -1, err
+	}
+	if x != uint64(int(x)) {
+		return -1, fmt.Errorf("bad")
+	}
+	if int(x) < 0 {
+		return -1, fmt.Errorf("bad")
+	}
+	return int(x), nil
 }
