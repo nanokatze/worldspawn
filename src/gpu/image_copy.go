@@ -34,11 +34,11 @@ func EnqueueCopyImage(
 	extent [3]int) {
 	dstAspects := formatutil.Aspects(dst.format)
 	dstMipLevel := int(dst.baseMipLevel)
-	dstOffsetBlocks := divByBlockExtent(dstOffset, dst.format)
+	dstOffsetBlocks := int3(dstOffset).Div(formatBlockExtent(dst.format))
 	srcAspects := formatutil.Aspects(src.format)
 	srcMipLevel := int(src.baseMipLevel)
-	srcOffsetBlocks := divByBlockExtent(srcOffset, src.format)
-	extentBlocks := divByBlockExtentRoundUp(extent, src.format)
+	srcOffsetBlocks := int3(srcOffset).Div(formatBlockExtent(src.format))
+	extentBlocks := int3DivRoundUp(extent, formatBlockExtent(src.format))
 
 	dstOffsetBase, _ := copyRectInTexels(
 		dst.base.format, int3FromVkExtent3D(dst.base.extent),
@@ -65,14 +65,14 @@ func EnqueueCopyImage(
 		dstBaseLayer:  dst.baseLayer,
 		dstLayers:     dst.layers,
 		dstMipLevel:   uint8(dstMipLevel),
-		dstOffset:     int3ToVkOffset3D(dstOffsetBase),
+		dstOffset:     vkOffset3DFromInt3(dstOffsetBase),
 		src:           src.base,
 		srcAspects:    formatutil.Aspects(src.format),
 		srcBaseLayer:  src.baseLayer,
 		srcLayers:     src.layers,
 		srcMipLevel:   uint8(srcMipLevel),
-		srcOffset:     int3ToVkOffset3D(srcOffsetBase),
-		extent:        int3ToVkExtent3D(extentBase),
+		srcOffset:     vkOffset3DFromInt3(srcOffsetBase),
+		extent:        vkExtent3DFromInt3(extentBase),
 		queueFamilies: families,
 	})
 }
@@ -150,8 +150,8 @@ func EnqueueCopyMemoryToImage(
 
 	dstAspects := formatutil.Aspects(dst.format)
 	dstMipLevel := int(dst.baseMipLevel)
-	dstOffsetBlocks := divByBlockExtent(dstOffset, dst.format)
-	extentBlocks := divByBlockExtentRoundUp(extent, dst.format)
+	dstOffsetBlocks := int3(dstOffset).Div(formatBlockExtent(dst.format))
+	extentBlocks := int3DivRoundUp(extent, formatBlockExtent(dst.format))
 
 	dstOffsetBase, extentBase := copyRectInTexels(
 		dst.base.format, int3FromVkExtent3D(dst.base.extent),
@@ -172,11 +172,11 @@ func EnqueueCopyMemoryToImage(
 		dstBaseLayer:   dst.baseLayer,
 		dstLayers:      dst.layers,
 		dstMipLevel:    uint8(dstMipLevel),
-		dstOffset:      int3ToVkOffset3D(dstOffsetBase),
+		dstOffset:      vkOffset3DFromInt3(dstOffsetBase),
 		src:            UnsafePointer(SliceData(src)),
 		srcRowLength:   uint32(srcRowLength),
 		srcImageHeight: uint32(srcImageHeight),
-		extent:         int3ToVkExtent3D(extentBase),
+		extent:         vkExtent3DFromInt3(extentBase),
 		queueFamilies:  families,
 	})
 }
@@ -242,8 +242,8 @@ func EnqueueCopyImageToMemory(
 	extent [3]int) {
 	srcAspects := formatutil.Aspects(src.format)
 	srcMipLevel := int(src.baseMipLevel)
-	srcOffsetBlocks := divByBlockExtent(srcOffset, src.format)
-	extentBlocks := divByBlockExtentRoundUp(extent, src.format)
+	srcOffsetBlocks := int3(srcOffset).Div(formatBlockExtent(src.format))
+	extentBlocks := int3DivRoundUp(extent, formatBlockExtent(src.format))
 
 	srcOffsetBase, extentBase := copyRectInTexels(
 		src.base.format, int3FromVkExtent3D(src.base.extent),
@@ -267,8 +267,8 @@ func EnqueueCopyImageToMemory(
 		srcBaseLayer:   src.baseLayer,
 		srcLayers:      src.layers,
 		srcMipLevel:    uint8(srcMipLevel),
-		srcOffset:      int3ToVkOffset3D(srcOffsetBase),
-		extent:         int3ToVkExtent3D(extentBase),
+		srcOffset:      vkOffset3DFromInt3(srcOffsetBase),
+		extent:         vkExtent3DFromInt3(extentBase),
 		queueFamilies:  families,
 	})
 }
@@ -320,8 +320,8 @@ func chooseQueueFamiliesForImageCopy(
 	format Format, imageExtent [3]int,
 	aspects vk.ImageAspectFlags, level int,
 	offsetBlocks, extentBlocks [3]int) uint32 {
-	levelExtent := int3Minify(imageExtent, level)
-	levelExtentBlocks := divByBlockExtentRoundUp(levelExtent, format)
+	levelExtent := minify3(imageExtent, level)
+	levelExtentBlocks := int3DivRoundUp(levelExtent, formatBlockExtent(format))
 
 	families := queueFamilies.Mask(0b100)
 
@@ -355,8 +355,6 @@ func copyRectInTexels(
 	blockExtent := int3FromVkExtent3D(formatutil.Describe(format).BlockExtent)
 
 	offset := int3(offsetBlocks).Mul(blockExtent)
-	extent := int3Min(
-		int3(extentBlocks).Mul(blockExtent),
-		int3Minify(imageExtent, level).Sub(offset))
+	extent := int3(extentBlocks).Mul(blockExtent).Min(int3(minify3(imageExtent, level)).Sub(offset))
 	return offset, extent
 }

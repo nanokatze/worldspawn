@@ -189,7 +189,7 @@ func (config *ImageConfig) vkImageCreateInfo(queueFamilies []uint32, createInfo 
 		Flags:                 flags,
 		ImageType:             config.Dim.vkImageType(),
 		Format:                config.Format,
-		Extent:                int3ToVkExtent3D(config.Extent),
+		Extent:                vkExtent3DFromInt3(config.Extent),
 		MipLevels:             uint32(config.MipLevels),
 		ArrayLayers:           uint32(config.Layers),
 		Samples:               vk.SampleCountFlagBits(config.Samples),
@@ -268,7 +268,7 @@ func NewImage(config *ImageConfig) *Image {
 	}
 
 	base.dim = config.Dim
-	base.extent = int3ToVkExtent3D(config.Extent)
+	base.extent = vkExtent3DFromInt3(config.Extent)
 	base.layers = uint32(config.Layers)
 	base.mipLevels = uint32(config.MipLevels)
 	base.format = config.Format
@@ -298,7 +298,7 @@ func newImage(
 	format Format,
 	baseLayer, layers int,
 	baseMipLevel, mipLevels int) *Image {
-	extent := int3Minify(int3FromVkExtent3D(base.extent), baseMipLevel)
+	extent := minify3(int3FromVkExtent3D(base.extent), baseMipLevel)
 	formatClass := formatutil.Describe(format).Class
 	baseFormatClass := formatutil.Describe(base.format).Class
 	if formatClass != baseFormatClass {
@@ -307,10 +307,10 @@ func newImage(
 		// 1, 1, 1.
 		// TODO: check that formatClass is uncompressed, while baseFormatClass
 		// is compressed instead of this hack
-		if formatutil.Describe(format).BlockExtent != (vk.Extent3D{Width: 1, Height: 1, Depth: 1}) {
+		if formatBlockExtent(format) != splat3(1) {
 			panic(fmt.Sprintf("cannot create a %v view of a %v class image", format, baseFormatClass))
 		}
-		extent = divByBlockExtentRoundUp(extent, base.format)
+		extent = int3DivRoundUp(extent, formatBlockExtent(base.format))
 	}
 
 	img := &Image{
@@ -321,20 +321,13 @@ func newImage(
 		layers:       uint32(layers),
 		baseMipLevel: uint8(baseMipLevel),
 		mipLevels:    uint8(mipLevels),
-		extent:       int3ToVkExtent3D(extent),
+		extent:       vkExtent3DFromInt3(extent),
 	}
 
-	formatFeatures := getFormatProps(format).OptimalTilingFeatures
+	allowedUsages := getImageFormatAllowedShaderUsages(format)
 
-	const formatFeatureMaskImageSampling = vk.FormatFeatureFlags2(vk.FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT)
-	sampling := base.usage&ImageUsageSampling != 0 &&
-		formatFeatures&formatFeatureMaskImageSampling == formatFeatureMaskImageSampling
-
-	const formatFeatureMaskImageLoadStore = vk.FormatFeatureFlags2(vk.FORMAT_FEATURE_2_STORAGE_IMAGE_BIT) |
-		vk.FormatFeatureFlags2(vk.FORMAT_FEATURE_2_STORAGE_READ_WITHOUT_FORMAT_BIT) |
-		vk.FormatFeatureFlags2(vk.FORMAT_FEATURE_2_STORAGE_WRITE_WITHOUT_FORMAT_BIT)
-	loadStore := base.usage&ImageUsageLoadStore != 0 &&
-		formatFeatures&formatFeatureMaskImageLoadStore == formatFeatureMaskImageLoadStore
+	sampling := base.usage&ImageUsageSampling != 0 && allowedUsages.Sampling
+	loadStore := base.usage&ImageUsageLoadStore != 0 && allowedUsages.LoadStore
 
 	var imageViewCreateInfo *vk.ImageViewCreateInfo
 	if sampling || loadStore {

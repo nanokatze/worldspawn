@@ -132,7 +132,7 @@ func (swapchain *Swapchain) reconfigure(config *SwapchainConfig) *Swapchain {
 		imageData := new(imageData)
 		imageData.vkImage = vkImage
 		imageData.dim = ImageDim2D
-		imageData.extent = int3ToVkExtent3D(config.Extent)
+		imageData.extent = vkExtent3DFromInt3(config.Extent)
 		imageData.layers = uint32(config.Layers)
 		imageData.mipLevels = 1
 		imageData.format = config.Format
