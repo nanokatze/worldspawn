@@ -151,7 +151,7 @@ type Columns struct {
 	// TODO: rename to just Collection?
 	CollectionInstance ecs.Column[CollectionInstance]
 
-	// TODO: rename, to e.g. Logic?
+	// TODO: rename, to e.g. Logic? Or Any?
 	Entity ecs.Column[Entity]
 
 	Delete ecs.Column[struct{}]
@@ -162,7 +162,6 @@ type Scene struct {
 
 	Entities *ecs.Entities
 	Columns
-
 	physicsSystem     *physics.System
 	physicsBodyExists ecs.Column[struct{}]
 }
@@ -213,7 +212,7 @@ func (w *Scene) CreateEntity() ecs.Entity {
 func (w *Scene) DeleteEntityImmediately(id ecs.Entity) {
 	columns := reflect.ValueOf(&w.Columns).Elem()
 	for i := range columns.NumField() {
-		column := columns.Field(i).Interface().(ecs.AnyColumn).Reflect()
+		column := columns.Field(i).Addr().Interface().(ecs.AnyColumn).Reflect()
 		column.Delete(id)
 	}
 	if _, ok := w.physicsBodyExists.Get(id); ok {
@@ -438,7 +437,7 @@ func (w *Scene) Update(updateParams *UpdateParams) {
 
 		for id := range w.Delete.All() {
 			for i := range fields {
-				column := columns.Field(i).Interface().(ecs.AnyColumn).Reflect()
+				column := columns.Field(i).Addr().Interface().(ecs.AnyColumn).Reflect()
 				column.Delete(id)
 			}
 			// TODO: delete bodies in bulk

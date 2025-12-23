@@ -42,6 +42,8 @@ func main() {
 
 	config.Store(defaultConfig)
 
+	// log.Println(os.Hostname())
+
 	// TODO: use xdg config path
 	// TODO: factor this out? this is very gross in its current state.
 	if f, err := os.Open("config.json"); err == nil {

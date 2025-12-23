@@ -6,5 +6,5 @@ import (
 )
 
 var NiceOptions = nice.WithArshalers(nice.JoinArshalers(
-	nice.InterfaceArshaler[game.InputCmd](game.InputCmds...),
-	nice.InterfaceArshaler[game.Entity](game.EntityTypes...)))
+	nice.InterfaceArshaler[game.Entity](game.EntityTypes...),
+	nice.InterfaceArshaler[game.InputCmd](game.InputCmdTypes...)))

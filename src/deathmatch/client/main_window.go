@@ -1,11 +1,9 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"math"
-	"runtime/trace"
 	"sync"
 	"time"
 
@@ -109,8 +107,6 @@ func (w *mainWindow) resize(extent [3]int) {
 }
 
 func (w *mainWindow) redraw() {
-	defer trace.StartRegion(context.Background(), "Redraw").End()
-
 	w.redrawMu.Lock()
 	defer w.redrawMu.Unlock()
 
@@ -125,8 +121,6 @@ func (w *mainWindow) redraw() {
 
 // Must be called with redrawMu held.
 func (w *mainWindow) redrawLocked() bool {
-	defer trace.StartRegion(context.Background(), "Redraw (redrawMu held)").End()
-
 	if w.swapchain == nil {
 		return false
 	}
@@ -140,10 +134,7 @@ func (w *mainWindow) redrawLocked() bool {
 	// TODO: it would probably be a good idea to inject overlay rendering into
 	// Render so that we can avoid breaking the render pass.
 
-	var presentationOk bool
-	trace.WithRegion(context.Background(), "Presentation", func() {
-		presentationOk = w.swapchain.Present2(&jq, w.swapchainImage)
-	})
+	presentationOk := w.swapchain.Present2(&jq, w.swapchainImage)
 
 	// TODO: frames-in-flight
 

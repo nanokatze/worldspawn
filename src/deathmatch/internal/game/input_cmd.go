@@ -47,7 +47,7 @@ type (
 // dictated by the game.
 type Slot int8
 
-var InputCmds = []reflect.Type{
+var InputCmdTypes = []reflect.Type{
 	reflect.TypeFor[InputCmdDLookX](),
 	reflect.TypeFor[InputCmdDLookY](),
 	reflect.TypeFor[InputCmdSetMovementVelocityX](),

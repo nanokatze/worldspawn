@@ -18,7 +18,6 @@ import (
 	rand "math/rand/v2"
 	"os"
 	"reflect"
-	"runtime/trace"
 	"sync"
 	"time"
 
@@ -57,19 +56,18 @@ type Server struct {
 	// clear how that should be done exactly.
 	prevWorld *game.Scene
 
-	dirty dirty
+	mtimes mtimes
 
 	users sync.Map // TODO: demo recorder and relay clients would live here as well.
 }
 
 // TODO: inline into the Server
-type dirty struct {
+type mtimes struct {
 	// TODO: should we have a linked list of IDs and place newest updated IDs at
 	// the beginning of the list?
 
-	IDAlloc []game.Time
-
-	Components [][]game.Time
+	Entities []game.Time
+	Columns  [][]game.Time
 }
 
 // TODO: rename to conn?
@@ -277,14 +275,10 @@ func (s *Server) handleInputPackets(u *user, stream io.Reader) error {
 }
 
 func (s *Server) tick(Δt time.Duration) {
-	defer trace.StartRegion(context.Background(), "Tick").End()
-
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	trace.WithRegion(context.Background(), "World Update", func() {
-		s.scene.Update(&game.UpdateParams{Δt: s.Δt, Logger: slog.Default()})
-	})
+	s.scene.Update(&game.UpdateParams{Δt: s.Δt, Logger: slog.Default()})
 
 	// update s.dirty. TODO: move into its own code?
 
@@ -294,7 +288,7 @@ func (s *Server) tick(Δt time.Duration) {
 
 		for i := range b.Cap() {
 			if a.Index(i) != b.Index(i) {
-				s.dirty.IDAlloc[i] = s.scene.Now
+				s.mtimes.Entities[i] = s.scene.Now
 			}
 		}
 	}
@@ -319,7 +313,7 @@ func (s *Server) tick(Δt time.Duration) {
 				equal = reflect.DeepEqual(oldc.Interface(), curc.Interface())
 			}
 			if !equal {
-				s.dirty.Components[i][id.Index()] = s.scene.Now
+				s.mtimes.Columns[i][id.Index()] = s.scene.Now
 			}
 		}
 	}
@@ -402,8 +396,8 @@ func (s *Server) sendUpdates(u *user) {
 		enc2 := nice.NewEncoder(buf2, replication.NiceOptions)
 
 		n := 0
-		for i, dirtied := range s.dirty.IDAlloc {
-			if dirtied.Before(u.time) {
+		for i, mtime := range s.mtimes.Entities {
+			if mtime.Before(u.time) {
 				continue
 			}
 
@@ -441,8 +435,8 @@ func (s *Server) sendUpdates(u *user) {
 
 		n := 0
 		v := reflect.New(cs.ElemType())
-		for i, dirtied := range s.dirty.Components[idx] {
-			if dirtied.Before(u.time) {
+		for i, mtime := range s.mtimes.Columns[idx] {
+			if mtime.Before(u.time) {
 				continue
 			}
 
@@ -638,10 +632,10 @@ func main() {
 	s.maxEntities = 1000
 	s.scene = game.NewScene(s.maxEntities)
 	s.prevWorld = game.NewScene(s.maxEntities)
-	s.dirty.IDAlloc = make([]game.Time, s.maxEntities)
-	s.dirty.Components = make([][]game.Time, len(comps))
+	s.mtimes.Entities = make([]game.Time, s.maxEntities)
+	s.mtimes.Columns = make([][]game.Time, len(comps))
 	for i := range len(comps) {
-		s.dirty.Components[i] = make([]game.Time, s.maxEntities)
+		s.mtimes.Columns[i] = make([]game.Time, s.maxEntities)
 	}
 
 	// TODO: move loading into worldspawn? It needs to handle instancing
@@ -672,13 +666,13 @@ func main() {
 	s.scene.Now = max(s.scene.Now, 1)
 
 	// Reset dirty times
-	for _, comp := range s.dirty.Components {
+	for _, comp := range s.mtimes.Columns {
 		for j := range comp {
 			comp[j] = s.scene.Now
 		}
 	}
 
-	for _, comp := range s.dirty.Components {
+	for _, comp := range s.mtimes.Columns {
 		for _, dirtied := range comp {
 			if dirtied == 0 || dirtied.After(s.scene.Now) {
 				panic("dirtied should never be 0 nor in the future")

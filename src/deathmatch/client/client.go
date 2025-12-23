@@ -9,7 +9,6 @@ import (
 	"log"
 	"log/slog"
 	"reflect"
-	"runtime/trace"
 	"sync"
 	"time"
 
@@ -303,8 +302,6 @@ func (s *Client) HandleInput(cmds []game.TimestampedInputCmd) {
 }
 
 func (s *Client) tick(Δt time.Duration) {
-	defer trace.StartRegion(context.Background(), "Tick").End()
-
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
