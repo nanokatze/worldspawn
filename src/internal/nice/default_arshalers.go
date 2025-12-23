@@ -1,12 +1,23 @@
 package nice
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 	"math"
 	"reflect"
 	"sync"
 )
+
+// TODO: respect types implementing encoding.BinaryAppender and
+// encoding.BinaryMarshaler and their respective unmarshaling parts?
+
+// TODO: encoding/binary is currently faster than us in some cases. We should
+// analyze why and see where we can improve.
+
+// TODO: explore optimizing un/marshaling of certain structs with a memcpy
+
+const optimizedArshalers = false
 
 var defaultArshalers sync.Map
 
@@ -22,15 +33,20 @@ func getDefaultArshalerSlow(t reflect.Type) arshaler {
 	return a.(arshaler)
 }
 
+var emptyStructArshaler = arshaler{
+	marshal:   func(enc *Encoder, v reflect.Value) error { return nil },
+	unmarshal: func(dec *Decoder, v reflect.Value) error { return nil },
+}
+
 func makeDefaultArshaler(t reflect.Type) arshaler {
 	switch t.Kind() {
 	case reflect.Bool:
 		return arshaler{
 			marshal: func(enc *Encoder, v reflect.Value) error {
-				return writeBool(enc, v.Bool())
+				return marshalBool(enc, v.Bool())
 			},
 			unmarshal: func(dec *Decoder, v reflect.Value) error {
-				b, err := readBool(dec)
+				b, err := unmarshalBool(dec)
 				if err == nil {
 					v.SetBool(b)
 				}
@@ -45,10 +61,10 @@ func makeDefaultArshaler(t reflect.Type) arshaler {
 		}
 		return arshaler{
 			marshal: func(enc *Encoder, v reflect.Value) error {
-				return writeUint(enc, uint64(v.Int()), n)
+				return marshalUint(enc, uint64(v.Int()), n)
 			},
 			unmarshal: func(dec *Decoder, v reflect.Value) error {
-				x, err := readUint(dec, n)
+				x, err := unmarshalUint(dec, n)
 				if err == nil {
 					v.SetInt(int64(x))
 				}
@@ -63,10 +79,10 @@ func makeDefaultArshaler(t reflect.Type) arshaler {
 		}
 		return arshaler{
 			marshal: func(enc *Encoder, v reflect.Value) error {
-				return writeUint(enc, v.Uint(), n)
+				return marshalUint(enc, v.Uint(), n)
 			},
 			unmarshal: func(dec *Decoder, v reflect.Value) error {
-				x, err := readUint(dec, n)
+				x, err := unmarshalUint(dec, n)
 				if err == nil {
 					v.SetUint(x)
 				}
@@ -78,10 +94,10 @@ func makeDefaultArshaler(t reflect.Type) arshaler {
 		return arshaler{
 			marshal: func(enc *Encoder, v reflect.Value) error {
 				x := uint64(math.Float32bits(float32(v.Float())))
-				return writeUint(enc, x, 4)
+				return marshalUint(enc, x, 4)
 			},
 			unmarshal: func(dec *Decoder, v reflect.Value) error {
-				x, err := readUint(dec, 4)
+				x, err := unmarshalUint(dec, 4)
 				if err == nil {
 					v.SetFloat(float64(math.Float32frombits(uint32(x))))
 				}
@@ -93,10 +109,10 @@ func makeDefaultArshaler(t reflect.Type) arshaler {
 		return arshaler{
 			marshal: func(enc *Encoder, v reflect.Value) error {
 				x := math.Float64bits(v.Float())
-				return writeUint(enc, x, 8)
+				return marshalUint(enc, x, 8)
 			},
 			unmarshal: func(dec *Decoder, v reflect.Value) error {
-				x, err := readUint(dec, 8)
+				x, err := unmarshalUint(dec, 8)
 				if err == nil {
 					v.SetFloat(math.Float64frombits(x))
 				}
@@ -115,7 +131,7 @@ func makeDefaultArshaler(t reflect.Type) arshaler {
 				marshal := enc.getArshaler(t.Elem()).marshal
 				for i := range n {
 					if err := marshal(enc, v.Index(i)); err != nil {
-						return err
+						return ArshalingError{fmt.Sprintf("[%#v]", i), err}
 					}
 				}
 				return nil
@@ -124,7 +140,7 @@ func makeDefaultArshaler(t reflect.Type) arshaler {
 				unmarshal := dec.getArshaler(t.Elem()).unmarshal
 				for i := range n {
 					if err := unmarshal(dec, v.Index(i)); err != nil {
-						return err
+						return ArshalingError{fmt.Sprintf("[%#v]", i), err}
 					}
 				}
 				return nil
@@ -135,7 +151,7 @@ func makeDefaultArshaler(t reflect.Type) arshaler {
 		return arshaler{
 			marshal: func(enc *Encoder, m reflect.Value) error {
 				n := m.Len()
-				if err := writeLen(enc, n); err != nil {
+				if err := marshalLen(enc, n); err != nil {
 					return err
 				}
 				if n == 0 {
@@ -159,13 +175,13 @@ func makeDefaultArshaler(t reflect.Type) arshaler {
 						return err
 					}
 					if err := marshalVal(enc, v); err != nil {
-						return err
+						return ArshalingError{fmt.Sprintf("[%#v]", k.Interface()), err}
 					}
 				}
 				return nil
 			},
 			unmarshal: func(dec *Decoder, m reflect.Value) error {
-				n, err := readLen(dec)
+				n, err := unmarshalLen(dec)
 				if err != nil {
 					return err
 				}
@@ -174,7 +190,7 @@ func makeDefaultArshaler(t reflect.Type) arshaler {
 					return nil
 				}
 
-				if err := accountForMap(dec.Budget(), t, n); err != nil {
+				if err := budgetDrawMap(dec.Budget(), t, n); err != nil {
 					return err
 				}
 
@@ -190,7 +206,7 @@ func makeDefaultArshaler(t reflect.Type) arshaler {
 						return err
 					}
 					if err := unmarshalVal(dec, v); err != nil {
-						return err
+						return ArshalingError{fmt.Sprintf("[%#v]", k.Interface()), err}
 					}
 					m.SetMapIndex(k, v)
 				}
@@ -204,7 +220,7 @@ func makeDefaultArshaler(t reflect.Type) arshaler {
 		return arshaler{
 			marshal: func(enc *Encoder, v reflect.Value) error {
 				isNonNil := !v.IsNil()
-				if err := writeBool(enc, isNonNil); err != nil {
+				if err := marshalBool(enc, isNonNil); err != nil {
 					return err
 				}
 				if !isNonNil {
@@ -215,7 +231,7 @@ func makeDefaultArshaler(t reflect.Type) arshaler {
 				return marshal(enc, v.Elem())
 			},
 			unmarshal: func(dec *Decoder, v reflect.Value) error {
-				isNonNil, err := readBool(dec)
+				isNonNil, err := unmarshalBool(dec)
 				if err != nil {
 					return err
 				}
@@ -224,7 +240,7 @@ func makeDefaultArshaler(t reflect.Type) arshaler {
 					return nil
 				}
 
-				if err := accountForValues(dec.Budget(), t.Elem(), 1); err != nil {
+				if err := budgetDrawValues(dec.Budget(), t.Elem(), 1); err != nil {
 					return err
 				}
 
@@ -240,7 +256,7 @@ func makeDefaultArshaler(t reflect.Type) arshaler {
 		return arshaler{
 			marshal: func(enc *Encoder, v reflect.Value) error {
 				n := v.Len()
-				if err := writeLen(enc, n); err != nil {
+				if err := marshalLen(enc, n); err != nil {
 					return err
 				}
 				if n == 0 {
@@ -252,13 +268,13 @@ func makeDefaultArshaler(t reflect.Type) arshaler {
 				marshal := enc.getArshaler(t.Elem()).marshal
 				for i := range n {
 					if err := marshal(enc, v.Index(i)); err != nil {
-						return err
+						return ArshalingError{fmt.Sprintf("[%#v]", i), err}
 					}
 				}
 				return nil
 			},
 			unmarshal: func(dec *Decoder, v reflect.Value) error {
-				n, err := readLen(dec)
+				n, err := unmarshalLen(dec)
 				if err != nil {
 					return err
 				}
@@ -267,7 +283,7 @@ func makeDefaultArshaler(t reflect.Type) arshaler {
 					return nil
 				}
 
-				if err := accountForValues(dec.Budget(), t.Elem(), n); err != nil {
+				if err := budgetDrawValues(dec.Budget(), t.Elem(), n); err != nil {
 					return err
 				}
 
@@ -276,7 +292,7 @@ func makeDefaultArshaler(t reflect.Type) arshaler {
 				unmarshal := dec.getArshaler(t.Elem()).unmarshal
 				for i := range n {
 					if err := unmarshal(dec, v.Index(i)); err != nil {
-						return err
+						return ArshalingError{fmt.Sprintf("[%#v]", i), err}
 					}
 				}
 				return nil
@@ -291,7 +307,7 @@ func makeDefaultArshaler(t reflect.Type) arshaler {
 				// writes
 				s := v.String()
 				// TODO: enforce size limit
-				if err := writeLen(enc, len(s)); err != nil {
+				if err := marshalLen(enc, len(s)); err != nil {
 					return err
 				}
 				if _, err := io.WriteString(enc.Writer(), s); err != nil {
@@ -300,17 +316,17 @@ func makeDefaultArshaler(t reflect.Type) arshaler {
 				return nil
 			},
 			unmarshal: func(dec *Decoder, v reflect.Value) error {
-				n, err := readLen(dec)
+				n, err := unmarshalLen(dec)
 				if err != nil {
 					return err
 				}
 
-				if err := dec.Budget().Account(n); err != nil {
+				if err := dec.Budget().Draw(n); err != nil {
 					return err
 				}
 
 				buf := dec.Scratch(n)
-				if err := readBytes(dec, buf); err != nil {
+				if err := decodeBytes(dec, buf); err != nil {
 					return err
 				}
 				// TODO: is this optimization worth it?
@@ -322,31 +338,7 @@ func makeDefaultArshaler(t reflect.Type) arshaler {
 		}
 
 	case reflect.Struct:
-		fs := structInfo(t)
-		if len(fs) == 0 {
-			return emptyStructArshaler
-		}
-
-		return arshaler{
-			marshal: func(enc *Encoder, v reflect.Value) error {
-				for _, f := range fs {
-					marshal := enc.getArshaler(f.Type).marshal
-					if err := marshal(enc, v.Field(f.Index)); err != nil {
-						return err
-					}
-				}
-				return nil
-			},
-			unmarshal: func(dec *Decoder, v reflect.Value) error {
-				for _, f := range fs {
-					unmarshal := dec.getArshaler(f.Type).unmarshal
-					if err := unmarshal(dec, v.Field(f.Index)); err != nil {
-						return err
-					}
-				}
-				return nil
-			},
-		}
+		return makeDefaultStructArshaler(t)
 
 	default:
 		// TODO: make a type for this?
@@ -358,7 +350,113 @@ func makeDefaultArshaler(t reflect.Type) arshaler {
 	}
 }
 
-var emptyStructArshaler = arshaler{
-	marshal:   func(enc *Encoder, v reflect.Value) error { return nil },
-	unmarshal: func(dec *Decoder, v reflect.Value) error { return nil },
+// TODO: rename
+type structField struct {
+	index int
+	typ   reflect.Type
+}
+
+// TODO: rename
+func structFields(t reflect.Type) []structField {
+	var fields []structField
+	for i := range t.NumField() {
+		f := t.Field(i)
+		if !f.IsExported() {
+			continue
+		}
+		// TODO: handle embedded fields
+		fields = append(fields, structField{
+			index: i,
+			typ:   f.Type,
+		})
+	}
+	return fields
+}
+
+func makeDefaultStructArshaler(t reflect.Type) arshaler {
+	fields := structFields(t)
+	if len(fields) == 0 {
+		return emptyStructArshaler
+	}
+
+	return arshaler{
+		marshal: func(enc *Encoder, v reflect.Value) error {
+			for _, f := range fields {
+				marshal := enc.getArshaler(f.typ).marshal
+				if err := marshal(enc, v.Field(f.index)); err != nil {
+					return ArshalingError{"." + t.Field(f.index).Name, err}
+				}
+			}
+			return nil
+		},
+		unmarshal: func(dec *Decoder, v reflect.Value) error {
+			for _, f := range fields {
+				unmarshal := dec.getArshaler(f.typ).unmarshal
+				if err := unmarshal(dec, v.Field(f.index)); err != nil {
+					return ArshalingError{"." + t.Field(f.index).Name, err}
+				}
+			}
+			return nil
+		},
+	}
+}
+
+func marshalBool(enc *Encoder, x bool) error {
+	b := byte(0)
+	if x {
+		b = 1
+	}
+	enc.Scratch = append(enc.Scratch[:0], b)
+	return encodeBytes(enc, enc.Scratch)
+}
+
+func unmarshalBool(dec *Decoder) (bool, error) {
+	buf := dec.Scratch(1)
+	if err := decodeBytes(dec, buf); err != nil {
+		return false, err
+	}
+	b := buf[0]
+	if b != 0 && b != 1 {
+		return false, fmt.Errorf("bad") // TODO: nicer error message
+	}
+	return b != 0, nil
+}
+
+// TODO: change n to be in number of bits?
+func marshalUint(enc *Encoder, x uint64, n int) error {
+	enc.Scratch = binary.LittleEndian.AppendUint64(enc.Scratch[:0], x)
+	return encodeBytes(enc, enc.Scratch[:n])
+}
+
+func unmarshalUint(dec *Decoder, n int) (uint64, error) {
+	buf := dec.Scratch(8)
+	clear(buf)
+	if err := decodeBytes(dec, buf[:n]); err != nil {
+		return 0, nil
+	}
+	return binary.LittleEndian.Uint64(buf), nil
+}
+
+// TODO: let the user specify whether ints (and thus lengths) should be
+// marshaled as 32 or 64 bits? Or we could encode ints as varints but that's
+// ass.
+func marshalLen(enc *Encoder, x int) error {
+	if x < 0 {
+		panic("bad")
+	}
+	return marshalUint(enc, uint64(x), 8)
+}
+
+func unmarshalLen(dec *Decoder) (int, error) {
+	x, err := unmarshalUint(dec, 8)
+	if err != nil {
+		return -1, err
+	}
+	if x != uint64(int(x)) {
+		return -1, fmt.Errorf("bad")
+	}
+	if int(x) < 0 {
+		return -1, fmt.Errorf("bad")
+	}
+	return int(x), nil
 }

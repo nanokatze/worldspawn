@@ -3,6 +3,7 @@ package nice
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"reflect"
 	"testing"
@@ -106,7 +107,7 @@ func BenchmarkArshaling(b *testing.B) {
 }
 
 func TestUnmarshalAllocationAccounting(t *testing.T) {
-	budget := 1 << 20
+	budget := 1021
 
 	for _, test := range []struct {
 		name string
@@ -139,7 +140,7 @@ func TestUnmarshalAllocationAccounting(t *testing.T) {
 		{"string", func(n int) any { return string(make([]byte, n)) }},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			for n := 1; ; n *= 2 {
+			for n := 1; ; n = max(n+n/5, 5) {
 				v := test.make(n)
 
 				rv := reflect.ValueOf(v)
@@ -156,7 +157,8 @@ func TestUnmarshalAllocationAccounting(t *testing.T) {
 				}
 
 				if err := UnmarshalDecode(NewDecoder(buf, WithBudget(budget)), q.Addr().Interface()); err != nil {
-					if oob, ok := err.(*outOfBudgetError); ok {
+					var oob outOfBudgetError
+					if errors.As(err, &oob) {
 						t.Logf("%d causes out of budget error (%d needed %d left)", n, oob.n, oob.budget)
 
 						break
