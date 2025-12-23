@@ -12,7 +12,12 @@ import bpyutil
 
 
 def deps(context, obj, dset):
+    from blender_cookers import material as material_cooker
+
     dset.add_product((context.path_for_datablock(obj), 'Object', obj.name))
+
+    for material_slot in obj.material_slots:
+        material_cooker.deps(context, material_slot.material, dset)
 
 
 def __triangulate(mesh):

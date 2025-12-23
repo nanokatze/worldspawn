@@ -1,5 +1,3 @@
-# Here we use our own terminology, rather than Blender's
-
 import dataclasses
 import numpy as np
 import json
@@ -9,6 +7,9 @@ import struct
 import numpyutil as nputil
 import util
 import bpyutil
+
+
+# TODO: switch wmesh and other things to use nice (i.e. basically struct.pack)
 
 
 @dataclasses.dataclass

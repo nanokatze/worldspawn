@@ -6,9 +6,23 @@ import click
 # migrating.) Note that the build.ninja generator should remain as a single
 # program and it should be able to generate rules using all of the cookers.
 
+# TODO: redo dependency collectcion
+
 # TODO: give the vars proper names
 
-# TODO: we'll want a context of sorts
+# class BlendDependencyCollector:
+
+
+#     def __init__(self):
+#         pass
+
+
+#     def add_product(self, datablock, dependencies):
+#         pass
+
+
+#     # def
+
 
 class Dependencies:
 
@@ -16,10 +30,12 @@ class Dependencies:
         self.produces = dict()
         self.depends = set()
 
+
     def add_product(self, what):
         if what[0] is None:
             return
         self.produces[what[0]] = (what[1], what[2], self.depends)
+
 
     def add_dependency(self, d):
         self.depends.add(d)
@@ -84,8 +100,12 @@ def main(m, o, blend, datablock_type, datablock_name):
 
             depsgraph = bpy_context.evaluated_depsgraph_get()
 
+            # TODO: swap datablock and dset. Also we should have different
+            # contexts for gathering deps and cooking so that we can fold ctx +
+            # dset into one.
             from blender_cookers import collection as collection_cooker
             for datablock in bpy_context.blend_data.collections:
+                # TODO: should be handled inside deps itself
                 if datablock.library:
                     continue
                 settings = datablock.get('worldspawn', {})

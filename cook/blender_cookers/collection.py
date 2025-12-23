@@ -19,7 +19,7 @@ def __should_cook_object_data(obj):
 
 
 def deps(context, collection, dset):
-    import mesh_cooker
+    from blender_cookers import mesh as mesh_cooker
 
     for child in collection.children:
         if collection.hide_render:

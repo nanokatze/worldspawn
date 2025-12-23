@@ -1,187 +1,130 @@
 import bpy
 import struct
+import json
+import dataclasses
+
+import util
+import compiler
+from cookers import material as material_cooker
 
 
 def deps(context, datablock, dset):
+    # TODO: should be handled in common code
+    if datablock.library:
+        return
     dset.add_product((context.path_for_datablock(datablock), 'Material', datablock.name))
 
 
-# # TODO: rename
-# class Builder:
 
-
-#     def __init__(self, node_tree):
-#         self.__inedges = {}
-#         # TODO: there might be a more convenient way to write this
-#         for l in node_tree.links:
-#             self.__inedges[l.to_socket] = [l.from_socket]
-
-#         self.__instrs = {}
-
-#         # TODO: we'll want to collect images with a separate pass, so that after
-#         # we do various transformations we can avoid including images that
-#         # aren't used.
-#         self.__images = []
-
-
-#     def handle_input_socket(self, s, default=None):
-#         assert not s.is_output
-#         # TODO: links can be empty, in which case we need to pick the value
-#         # that's set directly in the socket
-#         if len(s.links) == 0:
-#             if default:
-#                 return default()
-#             return material_compiler.Instr('Constant', [], aux=s.default_value)
-#         return self.handle_output_socket(self.__inedges[s][0])
-
-
-#     def handle_output_socket(self, s):
-#         assert s.is_output
-#         i = self.__instrs.get(s)
-#         if i is None:
-#             i = self.__build_instr_for_output_socket(s)
-#             self.__instrs[s] = i
-#         return i
-
-
-#     # TODO: rename
-#     def __build_instr_for_output_socket(self, s):
-#         n = s.node
-
-#         if n.mute:
-#             for l in n.internal_links:
-#                 if l.to_socket == s:
-#                     return self.handle_input_socket(l.from_socket)
-#             assert False, 'unreachable'
-
-#         match n:
-#             case bpy.types.ShaderNodeTexImage():
-#                 assert s.name == 'Color'
-#                 self.__images.append(n.image)
-#                 default_uv = lambda: material_compiler.Instr('Attrib', [])
-#                 return material_compiler.Instr('Image', [
-#                     self.handle_input_socket(n.inputs[0], default_uv)
-#                 ])
-#             case bpy.types.ShaderNodeAttribute():
-#                 return material_compiler.Instr('Attrib', [])
-#             case bpy.types.ShaderNodeVectorMath():
-#                 assert s.name == 'Vector'
-#                 return material_compiler.Instr('Add', [
-#                     self.handle_input_socket(n.inputs[0]),
-#                     self.handle_input_socket(n.inputs[1]),
-#                 ])
-#             case bpy.types.ShaderNodeBsdfPrincipled():
-#                 assert s.name == 'BSDF'
-#                 inputs = {input.name: input for input in n.inputs}
-#                 print(inputs.keys())
-#                 return material_compiler.BSDFPrincipled(
-#                     BaseColor=self.handle_input_socket(inputs['Base Color']),
-#                     Metallic=self.handle_input_socket(inputs['Metallic']),
-#                     Roughness=self.handle_input_socket(inputs['Roughness']),
-#                     IOR=self.handle_input_socket(inputs['IOR']),
-#                     Alpha=self.handle_input_socket(inputs['Alpha']),
-#                 )
-#             case bpy.types.ShaderNodeEmission():
-#                 assert s.name == 'Emission'
-#             case _:
-#                 assert False, 'unhandled node {}'.format(n)
-
-
-#     def get_images(self):
-#         return self.__images
-
-
-# def print_program(instr, instr_map):
-#     index = instr_map.get(instr)
-#     if index is None:
-#         args = " ".join("%{}".format(print_program(a, instr_map)) for a in instr.args)
-#         index = len(instr_map) + 1
-#         print("%{} = {} {}{}".format(index, instr.op, args, instr.aux if instr.aux is not None else ""))
-#         instr_map[instr] = index
-#     return index
-
-
-class __Arcs:
-
-
-    def __init__(self, node_tree):
-        self.__in = {}
-
-        for l in node_tree.links:
-            # TODO: support multiple
-            self.__in[l.to_socket] = [l.from_socket]
-
-
-    def get_in(self, socket):
-        return self.__in[socket]
-
-
-# class __Compiled:
-
-
-
-register = 0
-
-def __compile(s, arcs):
-    global register
-
-    assert s.is_output
-
-    n = s.node
-
-    match n:
-        case bpy.types.ShaderNodeEmission():
-            assert s.name == 'Emission'
-            named_inputs = {input.name: input for input in n.inputs}
-            __compile(arcs.get_in(named_inputs['Color'])[0], arcs)
-        case bpy.types.ShaderNodeCombineColor():
-            named_inputs = {input.name: input for input in n.inputs}
-            for x in [
-                named_inputs['Red'].default_value,
-                named_inputs['Green'].default_value,
-                named_inputs['Blue'].default_value,
-            ]:
-                print('OpMovk,')
-                print(register, ',')
-                print(struct.unpack('i', struct.pack('f', x))[0], ',')
-                register += 1
-            # print(','.join(['OpMovk'] + [f'math.Float32frombits({x})' for x in n.color]))
-        case _:
-            assert False, f'unsupported node type {type(n)}'
-
-
-def cook(context, material):
-    # TODO: if this is not a node-based material, print a nice error and bail,
-    # or translate it to node-based material.
+def cook(ctx, material):
     assert material.use_nodes
 
     node_tree = material.node_tree
 
-    arcs = __Arcs(node_tree)
-
-    # b = Builder(node_tree)
-
-    # out = None
-    # aovs = {}
+    material_output = None
+    # aovs = []
     for n in node_tree.nodes:
         match n:
             case bpy.types.ShaderNodeOutputMaterial():
-                named_inputs = {input.name: input for input in n.inputs}
-                surface = named_inputs['Surface']
-                volume = named_inputs['Volume']
-                if n.is_active_output:
-                    __compile(arcs.get_in(surface)[0], arcs)
-            case bpy.types.ShaderNodeOutputAOV():
-                pass
-                # TODO: we'll want to have a predefined table of AOVs in the
-                # exporter, similar to View Layer/Shader AOVs in blender
-                # aovs[n.aov_name] = b.handle_input_socket(n.inputs[0])
+                material_output = n
+    assert material_output is not None
 
-    print('OpStop,')
+    c = Context(node_tree)
 
-    # print(b.get_images())
+    v_material_output = c.get((material_output, None))
 
-    # instr_map = {}
-    # print('Material Output:', print_program(out, instr_map))
-    # for aov_name, aov in aovs.items():
-    #     print(aov_name + ':', print_program(aov, instr_map))
+    program = []
+    for instr in c.builder.instructions:
+        guh = material_cooker.Instruction(Bind=c.builder.names[instr.id],
+                                          Type=instr.type,
+                                          Op=instr.op,
+                                          Imm=str(instr.imm) if instr.imm is not None else None,
+                                          Args=[c.builder.names[a.id] for a in instr.args])
+        program.append(dataclasses.asdict(guh))
+
+    with open(ctx.path_for_datablock(material), 'wb') as f:
+        json.dump({'Program': program}, util.UTF8Writer(f), indent='\t')
+
+
+def _float32_bits(x):
+    return struct.unpack('<I', struct.pack('<f', x))[0]
+
+
+# TODO: rename this to something else pls
+class Context:
+
+
+    def __init__(self, node_tree):
+        self.__links = _Links(node_tree)
+        self.__node_values = dict()
+        self.builder = compiler.Sea()
+
+
+    # TODO: s should be the socket. I guess it could be the socket index?
+    def get(self, x):
+        v = self.__node_values.get(x) # TODO: should be hashed by the (node, output_name) pair
+        if v is None:
+            v = self.__translate(*x)
+            self.__node_values[x] = v
+        return v
+
+
+    # This should be a user-provided lambda
+    def __translate(self, node, output_name):
+        inputs = _sockets_by_name(node.inputs)
+
+        match node:
+            case bpy.types.ShaderNodeOutputMaterial():
+                assert output_name is None
+                # TODO: return NullDF if surface is nil
+                surface_df = self.__translate_output_socket(self.__links.to(inputs['Surface'])[0])
+                # TODO: introduce an op that extracts BSDF and EDF from a surface
+                surface_bsdf = surface_df
+                surface_edf = self.builder.value('EDF', 'DFWeightedSum', None)
+                surface = self.builder.value('Empty', 'MakeSurface', None, surface_bsdf, surface_edf)
+                return surface
+
+            case bpy.types.ShaderNodeBsdfPrincipled():
+                assert output_name == 'BSDF'
+
+                # TODO: properly translate from inputs['Normal']
+                normal = self.builder.value('Array[3, Int[32]]', 'LoadShadingNormal', None)
+
+                r = self.builder.value('Int[32]', 'IConst', _float32_bits(inputs['Base Color'].default_value[0]))
+                g = self.builder.value('Int[32]', 'IConst', _float32_bits(inputs['Base Color'].default_value[1]))
+                b = self.builder.value('Int[32]', 'IConst', _float32_bits(inputs['Base Color'].default_value[2]))
+                base_color = self.builder.value('Array[3, Int[32]]', 'MakeArray', None, r, g, b)
+
+                diffuse_bsdf = self.builder.value('BSDF', 'DiffuseBSDF', None, normal)
+                diffuse_tinted = self.builder.value('BSDF', 'DFWeightedSum', None, base_color, diffuse_bsdf)
+
+                return diffuse_tinted
+
+            case _:
+                assert False, 'unsupported node type {}'.format(type(node))
+
+
+    def __translate_output_socket(self, socket):
+        assert socket.is_output
+        return self.get((socket.node, socket.name))
+
+
+def _sockets_by_name(sockets):
+    return {s.name: s for s in sockets}
+
+
+# TODO: move to node_tree or w/e
+class _Links:
+
+
+    def __init__(self, node_tree):
+        self.__to = {}
+
+        for l in node_tree.links:
+            # TODO: accumulate so that we support multiple
+            self.__to[l.to_socket] = [l.from_socket]
+
+
+    def to(self, socket):
+        return self.__to.get(socket, [])
+
