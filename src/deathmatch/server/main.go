@@ -638,8 +638,6 @@ func main() {
 
 	s.scene.InstantinateCollections()
 
-	// s.scene.Now = max(s.scene.Now, game.Time(0).Add(s.Δt))
-
 	// Reset dirty times
 	for _, comp := range s.mtimes.Columns {
 		for j := range comp {
