@@ -319,13 +319,11 @@ func (s *Client) tick(Δt time.Duration) {
 		msg.Next()
 	}
 
+	t0 := s.world.Now
 	s.world.Update(&game.UpdateParams{Δt: Δt, Speculating: true, Logger: slog.Default()})
-
-	s.renderer.Tick(s.world, s.player, s.world.Now, s.world.Now.Add(Δt), Δt)
+	s.renderer.Tick(s.world, s.player, t0, s.world.Now, Δt)
 
 	game.ClearTransientComponents(s.world)
-
-	s.world.Now = s.world.Now.Add(Δt)
 }
 
 // TODO: remove this func in favor of the caller just using nice directly?

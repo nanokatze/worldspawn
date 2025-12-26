@@ -251,9 +251,7 @@ func (w *Scene) HandleInput(id ecs.Entity, cmd TimestampedInputCmd, info *Update
 // we might want to do the same.
 
 func (w *Scene) Update(updateParams *UpdateParams) {
-	if w.Now == 0 {
-		panic("Now must never be zero")
-	}
+	w.Now = w.Now.Add(updateParams.Δt)
 
 	// TODO: optimize loops over entities implementing particular interface by
 	// having shadow component stores.

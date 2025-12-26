@@ -340,8 +340,6 @@ func (s *Server) tick(Δt time.Duration) {
 		src := reflect.ValueOf(&s.scene.Columns).Elem().FieldByName(comp).Addr().Interface().(ecs.AnyColumn).Reflect()
 		dst.Copy(src)
 	}
-
-	s.scene.Now = s.scene.Now.Add(Δt)
 }
 
 // TODO: remove in favor of struct tags
