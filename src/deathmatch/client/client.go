@@ -180,18 +180,6 @@ func newClient(renderer Renderer, addr string) (*Client, error) {
 	return s, nil
 }
 
-// TODO: ugh!!
-var comps = func() []string {
-	typ := reflect.TypeFor[game.Columns]()
-
-	var fields []string
-	for i := range typ.NumField() {
-		fields = append(fields, typ.Field(i).Name)
-	}
-
-	return fields
-}()
-
 func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -244,10 +232,10 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 
 	// TODO: clean this horrible mess up
 
-	for _, comp := range comps {
-		cs := reflect.ValueOf(&s.world.Columns).Elem().FieldByName(comp).Addr().Interface().(ecs.AnyColumn).Reflect()
+	for columnIndex := range replication.Columns.NumField() {
+		column := reflect.ValueOf(&s.world.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
 
-		v := reflect.New(cs.ElemType())
+		v := reflect.New(column.ElemType())
 
 		var n int
 		if err := nice.UnmarshalDecode(dec, &n); err != nil {
@@ -269,15 +257,14 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 
 			id := s.world.Entities.Index(int(index))
 			if id == 0 {
-				// This usually indicates a bug in the game code.
-				logger.Warn("entity does not exist at an index", "component", comp, "index", index)
+				logger.Warn("entity does not exist at an index (likely a bug in the game code)", "component", replication.Columns.Field(columnIndex).Name, "index", index)
 				continue
 			}
 
 			if exists {
-				cs.Set(id, v.Elem())
+				column.Set(id, v.Elem())
 			} else {
-				cs.Delete(id)
+				column.Delete(id)
 			}
 		}
 	}

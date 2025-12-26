@@ -61,11 +61,8 @@ type Server struct {
 	users sync.Map // TODO: demo recorder and relay clients would live here as well.
 }
 
-// TODO: inline into the Server
+// TODO: could we make it ignorant of game.Scene and game.Columns?
 type mtimes struct {
-	// TODO: should we have a linked list of IDs and place newest updated IDs at
-	// the beginning of the list?
-
 	Entities []game.Time
 	Columns  [][]game.Time
 }
@@ -274,30 +271,21 @@ func (s *Server) handleInputPackets(u *user, stream io.Reader) error {
 	}
 }
 
-func (s *Server) tick(Δt time.Duration) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.scene.Update(&game.UpdateParams{Δt: s.Δt, Logger: slog.Default()})
-
-	// update s.dirty. TODO: move into its own code?
-
+func (mtimes *mtimes) update(prevWorld, scene *game.Scene) {
 	{
-		a := s.prevWorld.Entities
-		b := s.scene.Entities
+		a := prevWorld.Entities
+		b := scene.Entities
 
 		for i := range b.Cap() {
 			if a.Index(i) != b.Index(i) {
-				s.mtimes.Entities[i] = s.scene.Now
+				mtimes.Entities[i] = scene.Now
 			}
 		}
 	}
 
-	for i, comp := range comps {
-		old := reflect.ValueOf(&s.prevWorld.Columns).
-			Elem().FieldByName(comp).Addr().Interface().(ecs.AnyColumn).Reflect()
-		cur := reflect.ValueOf(&s.scene.Columns).
-			Elem().FieldByName(comp).Addr().Interface().(ecs.AnyColumn).Reflect()
+	for columnIndex := range replication.Columns.NumField() {
+		old := reflect.ValueOf(&prevWorld.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
+		cur := reflect.ValueOf(&scene.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
 
 		t := cur.ElemType()
 
@@ -313,10 +301,19 @@ func (s *Server) tick(Δt time.Duration) {
 				equal = reflect.DeepEqual(oldc.Interface(), curc.Interface())
 			}
 			if !equal {
-				s.mtimes.Columns[i][id.Index()] = s.scene.Now
+				mtimes.Columns[columnIndex][id.Index()] = scene.Now
 			}
 		}
 	}
+}
+
+func (s *Server) tick(Δt time.Duration) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.scene.Update(&game.UpdateParams{Δt: Δt, Logger: slog.Default()})
+
+	s.mtimes.update(s.prevWorld, s.scene)
 
 	// TODO: run SendUpdates in parallel
 	s.users.Range(func(u, _ any) bool {
@@ -335,32 +332,12 @@ func (s *Server) tick(Δt time.Duration) {
 	// TODO: move this into a method on the World
 	s.prevWorld.Now = s.scene.Now
 	s.prevWorld.Entities.Copy(s.scene.Entities)
-	for _, comp := range comps {
-		dst := reflect.ValueOf(&s.prevWorld.Columns).Elem().FieldByName(comp).Addr().Interface().(ecs.AnyColumn).Reflect()
-		src := reflect.ValueOf(&s.scene.Columns).Elem().FieldByName(comp).Addr().Interface().(ecs.AnyColumn).Reflect()
+	for columnIndex := range replication.Columns.NumField() {
+		dst := reflect.ValueOf(&s.prevWorld.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
+		src := reflect.ValueOf(&s.scene.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
 		dst.Copy(src)
 	}
 }
-
-// TODO: remove in favor of struct tags
-//
-// So imo what we should actually do is have a table of *AnyComponentStores or
-// w/e, e.g. the World could implement some kind of interface which we could to
-// use to get AnyComponentStore for each component store that needs to be
-// de/serialized in that manner. This code should not assume anything about the
-// struct layout.
-//
-// TODO: ugh!!
-var comps = func() []string {
-	typ := reflect.TypeFor[game.Columns]()
-
-	var fields []string
-	for i := range typ.NumField() {
-		fields = append(fields, typ.Field(i).Name)
-	}
-
-	return fields
-}()
 
 // Must be called with u.server.WorldMu held
 func (s *Server) sendUpdates(u *user) {
@@ -425,15 +402,15 @@ func (s *Server) sendUpdates(u *user) {
 
 	// TODO: insert various canaries to make debugging easier
 
-	for idx, comp := range comps {
-		cs := reflect.ValueOf(&s.scene.Columns).Elem().FieldByName(comp).Addr().Interface().(ecs.AnyColumn).Reflect()
+	for columnIndex := range replication.Columns.NumField() {
+		column := reflect.ValueOf(&s.scene.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
 
 		buf2 := new(bytes.Buffer)
 		enc2 := nice.NewEncoder(buf2, replication.NiceOptions)
 
 		n := 0
-		v := reflect.New(cs.ElemType())
-		for i, mtime := range s.mtimes.Columns[idx] {
+		v := reflect.New(column.ElemType())
+		for i, mtime := range s.mtimes.Columns[columnIndex] {
 			if mtime.Before(u.time) {
 				continue
 			}
@@ -443,7 +420,7 @@ func (s *Server) sendUpdates(u *user) {
 				continue
 			}
 
-			exists := cs.Get(id, v.Elem())
+			exists := column.Get(id, v.Elem())
 
 			indexAndOk := uint32(i) // TODO: rename
 			if exists {
@@ -631,8 +608,8 @@ func main() {
 	s.scene = game.NewScene(s.maxEntities)
 	s.prevWorld = game.NewScene(s.maxEntities)
 	s.mtimes.Entities = make([]game.Time, s.maxEntities)
-	s.mtimes.Columns = make([][]game.Time, len(comps))
-	for i := range len(comps) {
+	s.mtimes.Columns = make([][]game.Time, replication.Columns.NumField())
+	for i := range s.mtimes.Columns {
 		s.mtimes.Columns[i] = make([]game.Time, s.maxEntities)
 	}
 
@@ -661,20 +638,12 @@ func main() {
 
 	s.scene.InstantinateCollections()
 
-	s.scene.Now = max(s.scene.Now, 1)
+	// s.scene.Now = max(s.scene.Now, game.Time(0).Add(s.Δt))
 
 	// Reset dirty times
 	for _, comp := range s.mtimes.Columns {
 		for j := range comp {
 			comp[j] = s.scene.Now
-		}
-	}
-
-	for _, comp := range s.mtimes.Columns {
-		for _, dirtied := range comp {
-			if dirtied == 0 || dirtied.After(s.scene.Now) {
-				panic("dirtied should never be 0 nor in the future")
-			}
 		}
 	}
 
