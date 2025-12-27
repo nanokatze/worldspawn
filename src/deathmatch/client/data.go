@@ -23,7 +23,7 @@ import (
 	sfx "worldspawn/internal/fuckwwise"
 	"worldspawn/internal/pathtracer"
 	"worldspawn/internal/pathtracer/matc"
-	"worldspawn/internal/wmat"
+	"worldspawn/internal/wmaterial"
 	"worldspawn/internal/wmesh"
 )
 
@@ -126,7 +126,7 @@ func getmaterial(identifier string) material {
 
 		// TODO: naming!!!!!!!!!!!!!!!!
 
-		var header wmat.Header
+		var header wmaterial.Header
 		if err := json.Unmarshal(src, &header); err != nil {
 			log.Printf("getmaterial: %v", err)
 			goto bail
@@ -134,7 +134,7 @@ func getmaterial(identifier string) material {
 
 		paramTypes := make([]compiler.Type, len(header.ParamTypes))
 		for i := range paramTypes {
-			paramTypes[i] = wmat.Type(header.ParamTypes[i])
+			paramTypes[i] = wmaterial.Type(header.ParamTypes[i])
 		}
 		paramStruct := matc.ParamStruct(paramTypes)
 		paramOffsets := make([]int64, paramStruct.NumField())
@@ -147,7 +147,7 @@ func getmaterial(identifier string) material {
 			Sea:   sea,
 			Rules: append(append([]compiler.RewriteRule(nil), core.Rules...), matc.InterpreterLowerings...),
 		}
-		ir, err := wmat.Parse(b, header.Program)
+		ir, err := wmaterial.Parse(b, header.Program)
 		if err != nil {
 			log.Printf("getmaterial: %v", err)
 			goto bail
@@ -159,7 +159,7 @@ func getmaterial(identifier string) material {
 			}
 			args := reflect.NewAt(paramStruct, unsafe.Pointer(unsafe.SliceData(dst))).Elem()
 			// TODO: precompile this
-			matc.GatherArgs(args, src, header.Host)
+			matc.GatherArgs(args, src, header.Preamble)
 		}
 		m.material = pathtracer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(paramOffsets, sea, ir, nil))
 	}

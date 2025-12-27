@@ -11,7 +11,11 @@ func defOp(name string, validate compiler.Validator) compiler.Op {
 	return compiler.DefOp("matc."+name, validate)
 }
 
-var OpLoadMaterialParameter = defOp("LoadParameter", nil)
+// TODO: try to eliminate this in favor of LoadAttribute. NV MDL doesn't let the
+// users choose where to get the attribute from so it can come either from
+// geometry or object (entity) or scene, so we should really try and make
+// everything go through LoadAttribute.
+var OpLoadMaterialParameter = defOp("LoadMaterialParameter", nil)
 
 func LoadMaterialParameter(b *compiler.Builder, typ compiler.Type, index int32) *compiler.Class {
 	return b.Value2(OpLoadMaterialParameter, typ, index)
@@ -83,10 +87,12 @@ var (
 )
 
 var (
-	OpDFAdd = defOp("DFAdd", nil) // T : DF, (T, T) -> T
+	// TODO: kill these DFAdd and DFTint? ugh
+
+	// OpDFAdd = defOp("DFAdd", nil) // T : DF, (T, T) -> T
 
 	// TODO: swap parameters so that tint is first and df is second
-	OpDFTint = defOp("DFTint", nil) // T : DF, (Vec[3, Float], T) -> T
+	// OpDFTint = defOp("DFTint", nil) // T : DF, (Vec[3, Float], T) -> T
 
 	// Even args are tints (weights), odd args are DFs (TODO: swap?)
 	OpDFWeightedSum = defOp("DFWeightedSum", nil)

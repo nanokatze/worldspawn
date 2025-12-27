@@ -1,4 +1,4 @@
-package wmat
+package wmaterial
 
 import (
 	"fmt"
@@ -13,12 +13,10 @@ import (
 )
 
 type Header struct {
-	ParamTypes []string
-	Host       []string
+	ParamTypes []string // rename to just Params? ProgramParams?
+	Preamble   []string
 	Program    jsontext.Value
 }
-
-// TODO: rename to wmaterial?
 
 type stmt struct {
 	Bind string
@@ -38,6 +36,8 @@ func Type(typ string) compiler.Type {
 		return core.ArrayType{2, core.Int32}
 	case "Array[3, Int[32]]":
 		return core.ArrayType{3, core.Int32}
+	case "Array[4, Int[32]]":
+		return core.ArrayType{4, core.Int32}
 	case "BSDF":
 		return matc.BSDFType{}
 	case "EDF":

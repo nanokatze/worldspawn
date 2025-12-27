@@ -1,4 +1,4 @@
-package wmat
+package wmaterial
 
 import (
 	"testing"

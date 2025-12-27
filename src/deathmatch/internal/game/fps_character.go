@@ -111,22 +111,12 @@ func (entity FPSCharacter) CharacterUpdate(w *Scene, id ecs.Entity, cmd Timestam
 		}
 	}
 
-	/*
-		if w.IsEntityValid(entity.ActiveWeapon) {
-			if weapon, ok := assertEntity[Weapon](w, entity.ActiveWeapon); ok {
-				recoil := weapon.WeaponUpdateSubtick(w, entity.ActiveWeapon, id, now, info)
-
-				if recoil.LengthSq() > 0 {
-					viewPunch, ok := w.ViewPunch.Load(id)
-					if !ok {
-						viewPunch = geometry.Rot3One()
-					}
-					viewPunch = viewPunch.Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, -recoil[0]))
-					w.ViewPunch.Store(id, viewPunch)
-				}
-			}
+	if w.IsEntityValid(entity.ActiveWeapon) {
+		if weapon, ok := assertEntity[Weapon2](w, entity.ActiveWeapon); ok {
+			updateVisual := weapon.UpdateSubtick(w, entity.ActiveWeapon, id, info)
+			updateVisual(entity.ActiveWeaponViewmodel)
 		}
-	*/
+	}
 
 	// TODO: avoid unnecessary updates
 	w.Entity.Set(id, entity)

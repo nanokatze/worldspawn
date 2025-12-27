@@ -3,6 +3,26 @@ import idprop
 from mathutils import Vector, Quaternion
 
 
+class Links:
+
+
+    def __init__(self, node_tree):
+        self.__to = {}
+
+        for l in node_tree.links:
+            # TODO: accumulate so that we support multiple
+            self.__to[l.to_socket] = [l.from_socket]
+
+
+    def to(self, socket):
+        return self.__to.get(socket, [])
+
+
+# TODO: ig we could move this into node_tree.py
+def sockets_by_name(sockets):
+    return {s.name: s for s in sockets}
+
+
 def array_from_prop_collection(collection, attr, dtype):
     array = np.empty(len(collection), dtype=dtype)
     array_flat = array.view()
