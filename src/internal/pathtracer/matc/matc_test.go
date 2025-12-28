@@ -76,7 +76,7 @@ func TestXxx(t *testing.T) {
 
 	program := b.Value2(
 		OpMakeSurface,
-		core.EmptyType{},
+		core.NothingType{},
 		nil,
 		// bsdf
 		b.Value2(OpDFWeightedSum, BSDFType{}, nil,
@@ -104,7 +104,7 @@ func TestXxx2(t *testing.T) {
 	emissionSpectrum := core.MakeArray(b, core.Int32, emission_r, emission_g, emission_b)
 	program := b.Value2(
 		OpMakeSurface,
-		core.EmptyType{},
+		core.NothingType{},
 		nil,
 		// bsdf,
 		b.Value2(OpDFWeightedSum, BSDFType{}, nil),

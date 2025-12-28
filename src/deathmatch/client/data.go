@@ -190,7 +190,7 @@ var errorMaterial = sync.OnceValue(func() *pathtracer.InterpretedMaterial {
 	*/
 	program := b.Value2(
 		matc.OpMakeSurface,
-		core.EmptyType{},
+		core.NothingType{},
 		nil,
 		// bsdf,
 		b.Value2(matc.OpDFWeightedSum, matc.BSDFType{}, nil),

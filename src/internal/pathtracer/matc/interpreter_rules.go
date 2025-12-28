@@ -138,7 +138,7 @@ var InterpreterLowerings = []compiler.RewriteRule{
 			args = append(args, args2...)
 			args2 = args[:0]
 
-			rr.Add2(OpInterpPseudoOutput, core.EmptyType{}, &abi, args...)
+			rr.Add2(OpInterpPseudoOutput, core.NothingType{}, &abi, args...)
 		},
 	},
 }

@@ -157,7 +157,7 @@ func CompileInterpretedMaterial(paramOffsets []int64, sea *compiler.Sea, c *comp
 }
 
 func regs(t compiler.Type) int {
-	if _, ok := t.(core.EmptyType); ok {
+	if _, ok := t.(core.NothingType); ok {
 		return 0
 	}
 

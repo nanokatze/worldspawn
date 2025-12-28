@@ -28,8 +28,8 @@ type stmt struct {
 
 func Type(typ string) compiler.Type {
 	switch typ {
-	case "Empty":
-		return core.EmptyType{}
+	case "Nothing":
+		return core.NothingType{}
 	case "Int[32]":
 		return core.Int32
 	case "Array[2, Int[32]]":

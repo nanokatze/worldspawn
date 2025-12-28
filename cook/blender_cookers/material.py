@@ -124,7 +124,7 @@ class Compiler:
                 # TODO: introduce an op that extracts BSDF and EDF from a surface
                 surface_bsdf = surface_df
                 surface_edf = self.__builder.value('DFWeightedSum', 'EDF', None)
-                surface = self.__builder.value('MakeSurface', 'Empty', None, surface_bsdf, surface_edf)
+                surface = self.__builder.value('MakeSurface', 'Nothing', None, surface_bsdf, surface_edf)
                 return surface
 
             case _:
