@@ -4,7 +4,6 @@ import (
 	"reflect"
 
 	"worldspawn/gpu/vk"
-	"worldspawn/gpu/vk/stype"
 )
 
 // TODO: generate features and properties to include all of the features? Also
@@ -33,7 +32,7 @@ func (features *features) init() {
 	rfeatures := reflect.ValueOf(features).Elem()
 	for i, j := 0, -1; i < rfeatures.Type().NumField(); i++ {
 		f := rfeatures.Field(i)
-		f.Field(1 /* .SType */).SetInt(int64(stype.SType(f.Interface())))
+		f.Field(1 /* .SType */).SetInt(int64(vk.SType(f.Interface())))
 		if j >= 0 {
 			g := rfeatures.Field(j)
 			g.Field(2 /* .Next */).SetPointer(f.Addr().UnsafePointer())
@@ -46,7 +45,7 @@ func (features *features) prepareForDeviceCreate() {
 	rfeatures := reflect.ValueOf(features).Elem()
 	for i, j := 0, -1; i < rfeatures.Type().NumField(); i++ {
 		f := rfeatures.Field(i)
-		f.Field(1 /* .SType */).SetInt(int64(stype.SType(f.Interface())))
+		f.Field(1 /* .SType */).SetInt(int64(vk.SType(f.Interface())))
 		tmp := reflect.New(f.Type()).Elem()
 		tmp.Set(f)
 		tmp.Field(1 /* .SType */).SetZero()
@@ -73,7 +72,7 @@ func (props *properties) init() {
 	rprops := reflect.ValueOf(props).Elem()
 	for i, j := 0, -1; i < rprops.Type().NumField(); i++ {
 		f := rprops.Field(i)
-		f.Field(1 /* .SType */).SetInt(int64(stype.SType(f.Interface())))
+		f.Field(1 /* .SType */).SetInt(int64(vk.SType(f.Interface())))
 		if j >= 0 {
 			g := rprops.Field(j)
 			g.Field(2 /* .Next */).SetPointer(f.Addr().UnsafePointer())

@@ -20,7 +20,7 @@ import (
 
 var api = flag.String("api", "vulkan", "API")
 var platforms = flag.String("platforms", "", "Platforms")
-var output = flag.String("o", "stype_table.go", "b")
+var output = flag.String("o", "stypetab.go", "b")
 
 func main() {
 	log.SetFlags(0)
@@ -74,17 +74,13 @@ func main() {
 
 	out := new(bytes.Buffer)
 
-	fmt.Fprintln(out, "package stypeutil")
+	fmt.Fprintln(out, "package vk")
 
 	fmt.Fprintln(out)
-	fmt.Fprintln(out, "import (")
-	fmt.Fprintln(out, "\"reflect\"")
-	fmt.Fprintln(out)
-	fmt.Fprintln(out, "\"worldspawn/gpu/vk\"")
-	fmt.Fprintln(out, ")")
+	fmt.Fprintln(out, "import \"reflect\"")
 
 	fmt.Fprintln(out)
-	fmt.Fprintln(out, "var sTypeTable = map[reflect.Type]vk.StructureType{")
+	fmt.Fprintln(out, "var sTypeTable = map[reflect.Type]StructureType{")
 
 	for _, ty := range reg.Types {
 		// TODO: build typeMap and emit from typemap instead of emitting here
@@ -115,7 +111,7 @@ func main() {
 			if len(member0.Values) > 1 {
 				log.Fatalf("%s::sType has multiple legal values", *ty.Name)
 			}
-			fmt.Fprintf(out, "reflect.TypeFor[vk.%s](): vk.%s,\n", trimNamespacePrefix(*ty.Name), trimNamespacePrefix(member0.Values[0]))
+			fmt.Fprintf(out, "reflect.TypeFor[%s](): %s,\n", trimNamespacePrefix(*ty.Name), trimNamespacePrefix(member0.Values[0]))
 		}
 	}
 

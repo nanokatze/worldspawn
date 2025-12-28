@@ -17,6 +17,8 @@ const (
 	CLASS_12BIT_3PLANE_422
 	CLASS_12BIT_3PLANE_444
 	CLASS_128BIT
+	CLASS_14BIT_2PLANE_420
+	CLASS_14BIT_2PLANE_422
 	CLASS_16BIT
 	CLASS_16BIT_2PLANE_420
 	CLASS_16BIT_2PLANE_422
@@ -40,6 +42,7 @@ const (
 	CLASS_64BIT_G16B16G16R16
 	CLASS_64BIT_R10G10B10A10
 	CLASS_64BIT_R12G12B12A12
+	CLASS_64BIT_R14G14B14A14
 	CLASS_8BIT
 	CLASS_8BIT_2PLANE_420
 	CLASS_8BIT_2PLANE_422
@@ -1333,6 +1336,81 @@ var formatTable = map[vk.Format]Description{
 	vk.FORMAT_R16G16_SFIXED5_NV: {
 		Class:       CLASS_32BIT,
 		BlockSize:   4,
+		BlockExtent: vk.Extent3D{Width: 1, Height: 1, Depth: 1},
+	},
+	vk.FORMAT_R10X6_UINT_PACK16_ARM: {
+		Class:       CLASS_16BIT,
+		BlockSize:   2,
+		BlockExtent: vk.Extent3D{Width: 1, Height: 1, Depth: 1},
+	},
+	vk.FORMAT_R10X6G10X6_UINT_2PACK16_ARM: {
+		Class:       CLASS_32BIT,
+		BlockSize:   4,
+		BlockExtent: vk.Extent3D{Width: 1, Height: 1, Depth: 1},
+	},
+	vk.FORMAT_R10X6G10X6B10X6A10X6_UINT_4PACK16_ARM: {
+		Class:       CLASS_64BIT_R10G10B10A10,
+		BlockSize:   8,
+		BlockExtent: vk.Extent3D{Width: 1, Height: 1, Depth: 1},
+	},
+	vk.FORMAT_R12X4_UINT_PACK16_ARM: {
+		Class:       CLASS_16BIT,
+		BlockSize:   2,
+		BlockExtent: vk.Extent3D{Width: 1, Height: 1, Depth: 1},
+	},
+	vk.FORMAT_R12X4G12X4_UINT_2PACK16_ARM: {
+		Class:       CLASS_32BIT,
+		BlockSize:   4,
+		BlockExtent: vk.Extent3D{Width: 1, Height: 1, Depth: 1},
+	},
+	vk.FORMAT_R12X4G12X4B12X4A12X4_UINT_4PACK16_ARM: {
+		Class:       CLASS_64BIT_R12G12B12A12,
+		BlockSize:   8,
+		BlockExtent: vk.Extent3D{Width: 1, Height: 1, Depth: 1},
+	},
+	vk.FORMAT_R14X2_UINT_PACK16_ARM: {
+		Class:       CLASS_16BIT,
+		BlockSize:   2,
+		BlockExtent: vk.Extent3D{Width: 1, Height: 1, Depth: 1},
+	},
+	vk.FORMAT_R14X2G14X2_UINT_2PACK16_ARM: {
+		Class:       CLASS_32BIT,
+		BlockSize:   4,
+		BlockExtent: vk.Extent3D{Width: 1, Height: 1, Depth: 1},
+	},
+	vk.FORMAT_R14X2G14X2B14X2A14X2_UINT_4PACK16_ARM: {
+		Class:       CLASS_64BIT_R14G14B14A14,
+		BlockSize:   8,
+		BlockExtent: vk.Extent3D{Width: 1, Height: 1, Depth: 1},
+	},
+	vk.FORMAT_R14X2_UNORM_PACK16_ARM: {
+		Class:       CLASS_16BIT,
+		BlockSize:   2,
+		BlockExtent: vk.Extent3D{Width: 1, Height: 1, Depth: 1},
+	},
+	vk.FORMAT_R14X2G14X2_UNORM_2PACK16_ARM: {
+		Class:       CLASS_32BIT,
+		BlockSize:   4,
+		BlockExtent: vk.Extent3D{Width: 1, Height: 1, Depth: 1},
+	},
+	vk.FORMAT_R14X2G14X2B14X2A14X2_UNORM_4PACK16_ARM: {
+		Class:       CLASS_64BIT_R14G14B14A14,
+		BlockSize:   8,
+		BlockExtent: vk.Extent3D{Width: 1, Height: 1, Depth: 1},
+	},
+	vk.FORMAT_G14X2_B14X2R14X2_2PLANE_420_UNORM_3PACK16_ARM: {
+		Class:       CLASS_14BIT_2PLANE_420,
+		BlockSize:   6,
+		BlockExtent: vk.Extent3D{Width: 1, Height: 1, Depth: 1},
+	},
+	vk.FORMAT_G14X2_B14X2R14X2_2PLANE_422_UNORM_3PACK16_ARM: {
+		Class:       CLASS_14BIT_2PLANE_422,
+		BlockSize:   6,
+		BlockExtent: vk.Extent3D{Width: 1, Height: 1, Depth: 1},
+	},
+	vk.FORMAT_R8_BOOL_ARM: {
+		Class:       CLASS_8BIT,
+		BlockSize:   1,
 		BlockExtent: vk.Extent3D{Width: 1, Height: 1, Depth: 1},
 	},
 }

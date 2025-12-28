@@ -1,15 +1,13 @@
-//go:generate go run gen.go -o stype_table.go /usr/share/vulkan/registry/vk.xml
+//go:generate go run mkstypetab.go -o stypetab.go /usr/share/vulkan/registry/vk.xml
 
-package stype
+package vk
 
 import (
 	"fmt"
 	"reflect"
-
-	"worldspawn/gpu/vk"
 )
 
-func SType(v any) vk.StructureType {
+func SType(v any) StructureType {
 	t := reflect.TypeOf(v)
 
 	sType, ok := sTypeTable[t]

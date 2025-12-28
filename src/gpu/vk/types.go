@@ -5,6 +5,8 @@ package vk
 import "unsafe"
 import "structs"
 
+const ERROR_VALIDATION_FAILED Result = -1000011001
+
 const STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES StructureType = 1000094000
 
 const STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO StructureType = 1000157000
@@ -817,7 +819,7 @@ const STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT StructureType = 10000
 
 const STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT StructureType = STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT
 
-const ERROR_VALIDATION_FAILED_EXT Result = -1000011001
+const ERROR_VALIDATION_FAILED_EXT Result = ERROR_VALIDATION_FAILED
 
 const OBJECT_TYPE_DEBUG_REPORT_CALLBACK_EXT ObjectType = 1000011000
 
@@ -1097,7 +1099,9 @@ const MEMORY_ALLOCATE_DEVICE_MASK_BIT_KHR MemoryAllocateFlagBits = MEMORY_ALLOCA
 
 const PIPELINE_CREATE_VIEW_INDEX_FROM_DEVICE_INDEX_BIT_KHR PipelineCreateFlagBits = PIPELINE_CREATE_VIEW_INDEX_FROM_DEVICE_INDEX_BIT
 
-const PIPELINE_CREATE_DISPATCH_BASE_KHR PipelineCreateFlagBits = PIPELINE_CREATE_DISPATCH_BASE
+const PIPELINE_CREATE_DISPATCH_BASE_BIT_KHR PipelineCreateFlagBits = PIPELINE_CREATE_DISPATCH_BASE_BIT
+
+const PIPELINE_CREATE_DISPATCH_BASE_KHR PipelineCreateFlagBits = PIPELINE_CREATE_DISPATCH_BASE_BIT
 
 const DEPENDENCY_DEVICE_GROUP_BIT_KHR DependencyFlagBits = DEPENDENCY_DEVICE_GROUP_BIT
 
@@ -3299,7 +3303,9 @@ const IMAGE_USAGE_HOST_TRANSFER_BIT_EXT ImageUsageFlagBits = IMAGE_USAGE_HOST_TR
 
 const FORMAT_FEATURE_2_HOST_IMAGE_TRANSFER_BIT_EXT FormatFeatureFlagBits2 = FORMAT_FEATURE_2_HOST_IMAGE_TRANSFER_BIT
 
-const HOST_IMAGE_COPY_MEMCPY_EXT HostImageCopyFlagBits = HOST_IMAGE_COPY_MEMCPY
+const HOST_IMAGE_COPY_MEMCPY_BIT_EXT HostImageCopyFlagBits = HOST_IMAGE_COPY_MEMCPY_BIT
+
+const HOST_IMAGE_COPY_MEMCPY_EXT HostImageCopyFlagBits = HOST_IMAGE_COPY_MEMCPY_BIT
 
 const KHR_MAP_MEMORY_2_SPEC_VERSION = 1
 
@@ -3333,29 +3339,29 @@ const EXT_SURFACE_MAINTENANCE_1_SPEC_VERSION = 1
 
 const EXT_SURFACE_MAINTENANCE_1_EXTENSION_NAME = "VK_EXT_surface_maintenance1"
 
-const STRUCTURE_TYPE_SURFACE_PRESENT_MODE_EXT StructureType = 1000274000
+const STRUCTURE_TYPE_SURFACE_PRESENT_MODE_EXT StructureType = STRUCTURE_TYPE_SURFACE_PRESENT_MODE_KHR
 
-const STRUCTURE_TYPE_SURFACE_PRESENT_SCALING_CAPABILITIES_EXT StructureType = 1000274001
+const STRUCTURE_TYPE_SURFACE_PRESENT_SCALING_CAPABILITIES_EXT StructureType = STRUCTURE_TYPE_SURFACE_PRESENT_SCALING_CAPABILITIES_KHR
 
-const STRUCTURE_TYPE_SURFACE_PRESENT_MODE_COMPATIBILITY_EXT StructureType = 1000274002
+const STRUCTURE_TYPE_SURFACE_PRESENT_MODE_COMPATIBILITY_EXT StructureType = STRUCTURE_TYPE_SURFACE_PRESENT_MODE_COMPATIBILITY_KHR
 
 const EXT_SWAPCHAIN_MAINTENANCE_1_SPEC_VERSION = 1
 
 const EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME = "VK_EXT_swapchain_maintenance1"
 
-const STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_EXT StructureType = 1000275000
+const STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_EXT StructureType = STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_KHR
 
-const STRUCTURE_TYPE_SWAPCHAIN_PRESENT_FENCE_INFO_EXT StructureType = 1000275001
+const STRUCTURE_TYPE_SWAPCHAIN_PRESENT_FENCE_INFO_EXT StructureType = STRUCTURE_TYPE_SWAPCHAIN_PRESENT_FENCE_INFO_KHR
 
-const STRUCTURE_TYPE_SWAPCHAIN_PRESENT_MODES_CREATE_INFO_EXT StructureType = 1000275002
+const STRUCTURE_TYPE_SWAPCHAIN_PRESENT_MODES_CREATE_INFO_EXT StructureType = STRUCTURE_TYPE_SWAPCHAIN_PRESENT_MODES_CREATE_INFO_KHR
 
-const STRUCTURE_TYPE_SWAPCHAIN_PRESENT_MODE_INFO_EXT StructureType = 1000275003
+const STRUCTURE_TYPE_SWAPCHAIN_PRESENT_MODE_INFO_EXT StructureType = STRUCTURE_TYPE_SWAPCHAIN_PRESENT_MODE_INFO_KHR
 
-const STRUCTURE_TYPE_SWAPCHAIN_PRESENT_SCALING_CREATE_INFO_EXT StructureType = 1000275004
+const STRUCTURE_TYPE_SWAPCHAIN_PRESENT_SCALING_CREATE_INFO_EXT StructureType = STRUCTURE_TYPE_SWAPCHAIN_PRESENT_SCALING_CREATE_INFO_KHR
 
-const STRUCTURE_TYPE_RELEASE_SWAPCHAIN_IMAGES_INFO_EXT StructureType = 1000275005
+const STRUCTURE_TYPE_RELEASE_SWAPCHAIN_IMAGES_INFO_EXT StructureType = STRUCTURE_TYPE_RELEASE_SWAPCHAIN_IMAGES_INFO_KHR
 
-const SWAPCHAIN_CREATE_DEFERRED_MEMORY_ALLOCATION_BIT_EXT SwapchainCreateFlagBitsKHR = 1 << 3
+const SWAPCHAIN_CREATE_DEFERRED_MEMORY_ALLOCATION_BIT_EXT SwapchainCreateFlagBitsKHR = SWAPCHAIN_CREATE_DEFERRED_MEMORY_ALLOCATION_BIT_KHR
 
 const EXT_SHADER_DEMOTE_TO_HELPER_INVOCATION_SPEC_VERSION = 1
 
@@ -3417,7 +3423,7 @@ const STRUCTURE_TYPE_PHYSICAL_DEVICE_TEXEL_BUFFER_ALIGNMENT_FEATURES_EXT Structu
 
 const STRUCTURE_TYPE_PHYSICAL_DEVICE_TEXEL_BUFFER_ALIGNMENT_PROPERTIES_EXT StructureType = STRUCTURE_TYPE_PHYSICAL_DEVICE_TEXEL_BUFFER_ALIGNMENT_PROPERTIES
 
-const QCOM_RENDER_PASS_TRANSFORM_SPEC_VERSION = 4
+const QCOM_RENDER_PASS_TRANSFORM_SPEC_VERSION = 5
 
 const QCOM_RENDER_PASS_TRANSFORM_EXTENSION_NAME = "VK_QCOM_render_pass_transform"
 
@@ -3455,9 +3461,9 @@ const EXT_ROBUSTNESS_2_SPEC_VERSION = 1
 
 const EXT_ROBUSTNESS_2_EXTENSION_NAME = "VK_EXT_robustness2"
 
-const STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_EXT StructureType = 1000286000
+const STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_EXT StructureType = STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_KHR
 
-const STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_PROPERTIES_EXT StructureType = 1000286001
+const STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_PROPERTIES_EXT StructureType = STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_PROPERTIES_KHR
 
 const EXT_CUSTOM_BORDER_COLOR_SPEC_VERSION = 12
 
@@ -3555,7 +3561,7 @@ const KHR_OBJECT_REFRESH_EXTENSION_NAME = "VK_KHR_object_refresh"
 
 const STRUCTURE_TYPE_REFRESH_OBJECT_LIST_KHR StructureType = 1000308000
 
-const QCOM_TILE_SHADING_SPEC_VERSION = 1
+const QCOM_TILE_SHADING_SPEC_VERSION = 2
 
 const QCOM_TILE_SHADING_EXTENSION_NAME = "VK_QCOM_tile_shading"
 
@@ -4185,9 +4191,9 @@ const EXT_PRESENT_MODE_FIFO_LATEST_READY_SPEC_VERSION = 1
 
 const EXT_PRESENT_MODE_FIFO_LATEST_READY_EXTENSION_NAME = "VK_EXT_present_mode_fifo_latest_ready"
 
-const STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_MODE_FIFO_LATEST_READY_FEATURES_EXT StructureType = 1000361000
+const STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_MODE_FIFO_LATEST_READY_FEATURES_EXT StructureType = STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_MODE_FIFO_LATEST_READY_FEATURES_KHR
 
-const PRESENT_MODE_FIFO_LATEST_READY_EXT PresentModeKHR = 1000361000
+const PRESENT_MODE_FIFO_LATEST_READY_EXT PresentModeKHR = PRESENT_MODE_FIFO_LATEST_READY_KHR
 
 const HUAWEI_SUBPASS_SHADING_SPEC_VERSION = 3
 
@@ -4311,6 +4317,12 @@ const ACCESS_2_SHADER_BINDING_TABLE_READ_BIT_KHR AccessFlagBits2 = 1 << 40
 
 const INDIRECT_COMMANDS_TOKEN_TYPE_TRACE_RAYS2_EXT IndirectCommandsTokenTypeEXT = 1000386004
 
+const KHR_SHADER_UNTYPED_POINTERS_SPEC_VERSION = 1
+
+const KHR_SHADER_UNTYPED_POINTERS_EXTENSION_NAME = "VK_KHR_shader_untyped_pointers"
+
+const STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_UNTYPED_POINTERS_FEATURES_KHR StructureType = 1000387000
+
 const EXT_GLOBAL_PRIORITY_QUERY_SPEC_VERSION = 1
 
 const EXT_GLOBAL_PRIORITY_QUERY_EXTENSION_NAME = "VK_EXT_global_priority_query"
@@ -4401,15 +4413,25 @@ const BUFFER_USAGE_MICROMAP_STORAGE_BIT_EXT BufferUsageFlagBits = 1 << 24
 
 const PIPELINE_CREATE_RAY_TRACING_OPACITY_MICROMAP_BIT_EXT PipelineCreateFlagBits = 1 << 24
 
-const GEOMETRY_INSTANCE_FORCE_OPACITY_MICROMAP_2_STATE_EXT GeometryInstanceFlagBitsKHR = 1 << 4
+const GEOMETRY_INSTANCE_FORCE_OPACITY_MICROMAP_2_STATE_BIT_EXT GeometryInstanceFlagBitsKHR = 1 << 4
 
-const GEOMETRY_INSTANCE_DISABLE_OPACITY_MICROMAPS_EXT GeometryInstanceFlagBitsKHR = 1 << 5
+const GEOMETRY_INSTANCE_FORCE_OPACITY_MICROMAP_2_STATE_EXT GeometryInstanceFlagBitsKHR = GEOMETRY_INSTANCE_FORCE_OPACITY_MICROMAP_2_STATE_BIT_EXT
 
-const BUILD_ACCELERATION_STRUCTURE_ALLOW_OPACITY_MICROMAP_UPDATE_EXT BuildAccelerationStructureFlagBitsKHR = 1 << 6
+const GEOMETRY_INSTANCE_DISABLE_OPACITY_MICROMAPS_BIT_EXT GeometryInstanceFlagBitsKHR = 1 << 5
 
-const BUILD_ACCELERATION_STRUCTURE_ALLOW_DISABLE_OPACITY_MICROMAPS_EXT BuildAccelerationStructureFlagBitsKHR = 1 << 7
+const GEOMETRY_INSTANCE_DISABLE_OPACITY_MICROMAPS_EXT GeometryInstanceFlagBitsKHR = GEOMETRY_INSTANCE_DISABLE_OPACITY_MICROMAPS_BIT_EXT
 
-const BUILD_ACCELERATION_STRUCTURE_ALLOW_OPACITY_MICROMAP_DATA_UPDATE_EXT BuildAccelerationStructureFlagBitsKHR = 1 << 8
+const BUILD_ACCELERATION_STRUCTURE_ALLOW_OPACITY_MICROMAP_UPDATE_BIT_EXT BuildAccelerationStructureFlagBitsKHR = 1 << 6
+
+const BUILD_ACCELERATION_STRUCTURE_ALLOW_OPACITY_MICROMAP_UPDATE_EXT BuildAccelerationStructureFlagBitsKHR = BUILD_ACCELERATION_STRUCTURE_ALLOW_OPACITY_MICROMAP_UPDATE_BIT_EXT
+
+const BUILD_ACCELERATION_STRUCTURE_ALLOW_DISABLE_OPACITY_MICROMAPS_BIT_EXT BuildAccelerationStructureFlagBitsKHR = 1 << 7
+
+const BUILD_ACCELERATION_STRUCTURE_ALLOW_DISABLE_OPACITY_MICROMAPS_EXT BuildAccelerationStructureFlagBitsKHR = BUILD_ACCELERATION_STRUCTURE_ALLOW_DISABLE_OPACITY_MICROMAPS_BIT_EXT
+
+const BUILD_ACCELERATION_STRUCTURE_ALLOW_OPACITY_MICROMAP_DATA_UPDATE_BIT_EXT BuildAccelerationStructureFlagBitsKHR = 1 << 8
+
+const BUILD_ACCELERATION_STRUCTURE_ALLOW_OPACITY_MICROMAP_DATA_UPDATE_EXT BuildAccelerationStructureFlagBitsKHR = BUILD_ACCELERATION_STRUCTURE_ALLOW_OPACITY_MICROMAP_DATA_UPDATE_BIT_EXT
 
 const EXT_LOAD_STORE_OP_NONE_SPEC_VERSION = 1
 
@@ -4553,7 +4575,7 @@ const NV_COPY_MEMORY_INDIRECT_EXTENSION_NAME = "VK_NV_copy_memory_indirect"
 
 const STRUCTURE_TYPE_PHYSICAL_DEVICE_COPY_MEMORY_INDIRECT_FEATURES_NV StructureType = 1000426000
 
-const STRUCTURE_TYPE_PHYSICAL_DEVICE_COPY_MEMORY_INDIRECT_PROPERTIES_NV StructureType = 1000426001
+const STRUCTURE_TYPE_PHYSICAL_DEVICE_COPY_MEMORY_INDIRECT_PROPERTIES_NV StructureType = STRUCTURE_TYPE_PHYSICAL_DEVICE_COPY_MEMORY_INDIRECT_PROPERTIES_KHR
 
 const NV_MEMORY_DECOMPRESSION_SPEC_VERSION = 1
 
@@ -4762,6 +4784,78 @@ const LUNARG_DIRECT_DRIVER_LOADING_EXTENSION_NAME = "VK_LUNARG_direct_driver_loa
 const STRUCTURE_TYPE_DIRECT_DRIVER_LOADING_INFO_LUNARG StructureType = 1000459000
 
 const STRUCTURE_TYPE_DIRECT_DRIVER_LOADING_LIST_LUNARG StructureType = 1000459001
+
+const ARM_TENSORS_SPEC_VERSION = 1
+
+const ARM_TENSORS_EXTENSION_NAME = "VK_ARM_tensors"
+
+const STRUCTURE_TYPE_TENSOR_CREATE_INFO_ARM StructureType = 1000460000
+
+const STRUCTURE_TYPE_TENSOR_VIEW_CREATE_INFO_ARM StructureType = 1000460001
+
+const STRUCTURE_TYPE_BIND_TENSOR_MEMORY_INFO_ARM StructureType = 1000460002
+
+const STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_TENSOR_ARM StructureType = 1000460003
+
+const STRUCTURE_TYPE_PHYSICAL_DEVICE_TENSOR_PROPERTIES_ARM StructureType = 1000460004
+
+const STRUCTURE_TYPE_TENSOR_FORMAT_PROPERTIES_ARM StructureType = 1000460005
+
+const STRUCTURE_TYPE_TENSOR_DESCRIPTION_ARM StructureType = 1000460006
+
+const STRUCTURE_TYPE_TENSOR_MEMORY_REQUIREMENTS_INFO_ARM StructureType = 1000460007
+
+const STRUCTURE_TYPE_TENSOR_MEMORY_BARRIER_ARM StructureType = 1000460008
+
+const STRUCTURE_TYPE_PHYSICAL_DEVICE_TENSOR_FEATURES_ARM StructureType = 1000460009
+
+const STRUCTURE_TYPE_DEVICE_TENSOR_MEMORY_REQUIREMENTS_ARM StructureType = 1000460010
+
+const STRUCTURE_TYPE_COPY_TENSOR_INFO_ARM StructureType = 1000460011
+
+const STRUCTURE_TYPE_TENSOR_COPY_ARM StructureType = 1000460012
+
+const STRUCTURE_TYPE_TENSOR_DEPENDENCY_INFO_ARM StructureType = 1000460013
+
+const STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_TENSOR_ARM StructureType = 1000460014
+
+const STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_TENSOR_INFO_ARM StructureType = 1000460015
+
+const STRUCTURE_TYPE_EXTERNAL_TENSOR_PROPERTIES_ARM StructureType = 1000460016
+
+const STRUCTURE_TYPE_EXTERNAL_MEMORY_TENSOR_CREATE_INFO_ARM StructureType = 1000460017
+
+const OBJECT_TYPE_TENSOR_ARM ObjectType = 1000460000
+
+const OBJECT_TYPE_TENSOR_VIEW_ARM ObjectType = 1000460001
+
+const DESCRIPTOR_TYPE_TENSOR_ARM DescriptorType = 1000460000
+
+const FORMAT_FEATURE_2_TENSOR_SHADER_BIT_ARM FormatFeatureFlagBits2 = 1 << 39
+
+const FORMAT_FEATURE_2_TENSOR_IMAGE_ALIASING_BIT_ARM FormatFeatureFlagBits2 = 1 << 43
+
+const IMAGE_USAGE_TENSOR_ALIASING_BIT_ARM ImageUsageFlagBits = 1 << 23
+
+const IMAGE_LAYOUT_TENSOR_ALIASING_ARM ImageLayout = 1000460000
+
+const FORMAT_R8_BOOL_ARM Format = 1000460000
+
+const STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_TENSOR_FEATURES_ARM StructureType = 1000460018
+
+const STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_TENSOR_PROPERTIES_ARM StructureType = 1000460019
+
+const STRUCTURE_TYPE_DESCRIPTOR_GET_TENSOR_INFO_ARM StructureType = 1000460020
+
+const STRUCTURE_TYPE_TENSOR_CAPTURE_DESCRIPTOR_DATA_INFO_ARM StructureType = 1000460021
+
+const STRUCTURE_TYPE_TENSOR_VIEW_CAPTURE_DESCRIPTOR_DATA_INFO_ARM StructureType = 1000460022
+
+const TENSOR_CREATE_DESCRIPTOR_BUFFER_CAPTURE_REPLAY_BIT_ARM TensorCreateFlagBitsARM = 1 << 2
+
+const TENSOR_VIEW_CREATE_DESCRIPTOR_BUFFER_CAPTURE_REPLAY_BIT_ARM TensorViewCreateFlagBitsARM = 1 << 0
+
+const STRUCTURE_TYPE_FRAME_BOUNDARY_TENSORS_ARM StructureType = 1000460023
 
 const EXT_SHADER_MODULE_IDENTIFIER_SPEC_VERSION = 1
 
@@ -5003,13 +5097,39 @@ const STRUCTURE_TYPE_ANTI_LAG_DATA_AMD StructureType = 1000476001
 
 const STRUCTURE_TYPE_ANTI_LAG_PRESENTATION_INFO_AMD StructureType = 1000476002
 
+const KHR_PRESENT_ID_2_SPEC_VERSION = 1
+
+const KHR_PRESENT_ID_2_EXTENSION_NAME = "VK_KHR_present_id2"
+
+const SWAPCHAIN_CREATE_PRESENT_ID_2_BIT_KHR SwapchainCreateFlagBitsKHR = 1 << 6
+
+const STRUCTURE_TYPE_SURFACE_CAPABILITIES_PRESENT_ID_2_KHR StructureType = 1000479000
+
+const STRUCTURE_TYPE_PRESENT_ID_2_KHR StructureType = 1000479001
+
+const STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_ID_2_FEATURES_KHR StructureType = 1000479002
+
+const KHR_PRESENT_WAIT_2_SPEC_VERSION = 1
+
+const KHR_PRESENT_WAIT_2_EXTENSION_NAME = "VK_KHR_present_wait2"
+
+const SWAPCHAIN_CREATE_PRESENT_WAIT_2_BIT_KHR SwapchainCreateFlagBitsKHR = 1 << 7
+
+const STRUCTURE_TYPE_SURFACE_CAPABILITIES_PRESENT_WAIT_2_KHR StructureType = 1000480000
+
+const STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_WAIT_2_FEATURES_KHR StructureType = 1000480001
+
+const STRUCTURE_TYPE_PRESENT_WAIT_2_INFO_KHR StructureType = 1000480002
+
 const KHR_RAY_TRACING_POSITION_FETCH_SPEC_VERSION = 1
 
 const KHR_RAY_TRACING_POSITION_FETCH_EXTENSION_NAME = "VK_KHR_ray_tracing_position_fetch"
 
 const STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_POSITION_FETCH_FEATURES_KHR StructureType = 1000481000
 
-const BUILD_ACCELERATION_STRUCTURE_ALLOW_DATA_ACCESS_KHR BuildAccelerationStructureFlagBitsKHR = 1 << 11
+const BUILD_ACCELERATION_STRUCTURE_ALLOW_DATA_ACCESS_BIT_KHR BuildAccelerationStructureFlagBitsKHR = 1 << 11
+
+const BUILD_ACCELERATION_STRUCTURE_ALLOW_DATA_ACCESS_KHR BuildAccelerationStructureFlagBitsKHR = BUILD_ACCELERATION_STRUCTURE_ALLOW_DATA_ACCESS_BIT_KHR
 
 const EXT_SHADER_OBJECT_SPEC_VERSION = 1
 
@@ -5089,6 +5209,34 @@ const STRUCTURE_TYPE_PHYSICAL_DEVICE_AMIGO_PROFILING_FEATURES_SEC StructureType 
 
 const STRUCTURE_TYPE_AMIGO_PROFILING_SUBMIT_INFO_SEC StructureType = 1000485001
 
+const KHR_SURFACE_MAINTENANCE_1_SPEC_VERSION = 1
+
+const KHR_SURFACE_MAINTENANCE_1_EXTENSION_NAME = "VK_KHR_surface_maintenance1"
+
+const STRUCTURE_TYPE_SURFACE_PRESENT_MODE_KHR StructureType = 1000274000
+
+const STRUCTURE_TYPE_SURFACE_PRESENT_SCALING_CAPABILITIES_KHR StructureType = 1000274001
+
+const STRUCTURE_TYPE_SURFACE_PRESENT_MODE_COMPATIBILITY_KHR StructureType = 1000274002
+
+const KHR_SWAPCHAIN_MAINTENANCE_1_SPEC_VERSION = 1
+
+const KHR_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME = "VK_KHR_swapchain_maintenance1"
+
+const STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_KHR StructureType = 1000275000
+
+const STRUCTURE_TYPE_SWAPCHAIN_PRESENT_FENCE_INFO_KHR StructureType = 1000275001
+
+const STRUCTURE_TYPE_SWAPCHAIN_PRESENT_MODES_CREATE_INFO_KHR StructureType = 1000275002
+
+const STRUCTURE_TYPE_SWAPCHAIN_PRESENT_MODE_INFO_KHR StructureType = 1000275003
+
+const STRUCTURE_TYPE_SWAPCHAIN_PRESENT_SCALING_CREATE_INFO_KHR StructureType = 1000275004
+
+const STRUCTURE_TYPE_RELEASE_SWAPCHAIN_IMAGES_INFO_KHR StructureType = 1000275005
+
+const SWAPCHAIN_CREATE_DEFERRED_MEMORY_ALLOCATION_BIT_KHR SwapchainCreateFlagBitsKHR = 1 << 3
+
 const QCOM_MULTIVIEW_PER_VIEW_VIEWPORTS_SPEC_VERSION = 1
 
 const QCOM_MULTIVIEW_PER_VIEW_VIEWPORTS_EXTENSION_NAME = "VK_QCOM_multiview_per_view_viewports"
@@ -5119,9 +5267,9 @@ const COMPONENT_TYPE_SINT8_PACKED_NV ComponentTypeKHR = 1000491000
 
 const COMPONENT_TYPE_UINT8_PACKED_NV ComponentTypeKHR = 1000491001
 
-const COMPONENT_TYPE_FLOAT_E4M3_NV ComponentTypeKHR = 1000491002
+const COMPONENT_TYPE_FLOAT_E4M3_NV ComponentTypeKHR = COMPONENT_TYPE_FLOAT8_E4M3_EXT
 
-const COMPONENT_TYPE_FLOAT_E5M2_NV ComponentTypeKHR = 1000491003
+const COMPONENT_TYPE_FLOAT_E5M2_NV ComponentTypeKHR = COMPONENT_TYPE_FLOAT8_E5M2_EXT
 
 const PIPELINE_STAGE_2_CONVERT_COOPERATIVE_VECTOR_MATRIX_BIT_NV PipelineStageFlagBits2 = 1 << 44
 
@@ -5213,6 +5361,68 @@ const STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_KHR StructureType = 100050600
 
 const STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_PROPERTIES_KHR StructureType = 1000506002
 
+const ARM_DATA_GRAPH_SPEC_VERSION = 1
+
+const ARM_DATA_GRAPH_EXTENSION_NAME = "VK_ARM_data_graph"
+
+const STRUCTURE_TYPE_DATA_GRAPH_PIPELINE_CREATE_INFO_ARM StructureType = 1000507000
+
+const STRUCTURE_TYPE_DATA_GRAPH_PIPELINE_SESSION_CREATE_INFO_ARM StructureType = 1000507001
+
+const STRUCTURE_TYPE_DATA_GRAPH_PIPELINE_RESOURCE_INFO_ARM StructureType = 1000507002
+
+const STRUCTURE_TYPE_DATA_GRAPH_PIPELINE_CONSTANT_ARM StructureType = 1000507003
+
+const STRUCTURE_TYPE_DATA_GRAPH_PIPELINE_SESSION_MEMORY_REQUIREMENTS_INFO_ARM StructureType = 1000507004
+
+const STRUCTURE_TYPE_BIND_DATA_GRAPH_PIPELINE_SESSION_MEMORY_INFO_ARM StructureType = 1000507005
+
+const STRUCTURE_TYPE_PHYSICAL_DEVICE_DATA_GRAPH_FEATURES_ARM StructureType = 1000507006
+
+const STRUCTURE_TYPE_DATA_GRAPH_PIPELINE_SHADER_MODULE_CREATE_INFO_ARM StructureType = 1000507007
+
+const STRUCTURE_TYPE_DATA_GRAPH_PIPELINE_PROPERTY_QUERY_RESULT_ARM StructureType = 1000507008
+
+const STRUCTURE_TYPE_DATA_GRAPH_PIPELINE_INFO_ARM StructureType = 1000507009
+
+const STRUCTURE_TYPE_DATA_GRAPH_PIPELINE_COMPILER_CONTROL_CREATE_INFO_ARM StructureType = 1000507010
+
+const STRUCTURE_TYPE_DATA_GRAPH_PIPELINE_SESSION_BIND_POINT_REQUIREMENTS_INFO_ARM StructureType = 1000507011
+
+const STRUCTURE_TYPE_DATA_GRAPH_PIPELINE_SESSION_BIND_POINT_REQUIREMENT_ARM StructureType = 1000507012
+
+const STRUCTURE_TYPE_DATA_GRAPH_PIPELINE_IDENTIFIER_CREATE_INFO_ARM StructureType = 1000507013
+
+const STRUCTURE_TYPE_DATA_GRAPH_PIPELINE_DISPATCH_INFO_ARM StructureType = 1000507014
+
+const STRUCTURE_TYPE_DATA_GRAPH_PROCESSING_ENGINE_CREATE_INFO_ARM StructureType = 1000507016
+
+const STRUCTURE_TYPE_QUEUE_FAMILY_DATA_GRAPH_PROCESSING_ENGINE_PROPERTIES_ARM StructureType = 1000507017
+
+const STRUCTURE_TYPE_QUEUE_FAMILY_DATA_GRAPH_PROPERTIES_ARM StructureType = 1000507018
+
+const STRUCTURE_TYPE_PHYSICAL_DEVICE_QUEUE_FAMILY_DATA_GRAPH_PROCESSING_ENGINE_INFO_ARM StructureType = 1000507019
+
+const OBJECT_TYPE_DATA_GRAPH_PIPELINE_SESSION_ARM ObjectType = 1000507000
+
+const PIPELINE_BIND_POINT_DATA_GRAPH_ARM PipelineBindPoint = 1000507000
+
+const QUEUE_DATA_GRAPH_BIT_ARM QueueFlagBits = 1 << 10
+
+const PIPELINE_STAGE_2_DATA_GRAPH_BIT_ARM PipelineStageFlagBits2 = 1 << 42
+
+const ACCESS_2_DATA_GRAPH_READ_BIT_ARM AccessFlagBits2 = 1 << 47
+
+const ACCESS_2_DATA_GRAPH_WRITE_BIT_ARM AccessFlagBits2 = 1 << 48
+
+const TENSOR_USAGE_DATA_GRAPH_BIT_ARM TensorUsageFlagBitsARM = 1 << 5
+
+const FORMAT_FEATURE_2_TENSOR_DATA_GRAPH_BIT_ARM FormatFeatureFlagBits2 = 1 << 48
+
+const BUFFER_USAGE_2_DATA_GRAPH_FOREIGN_DESCRIPTOR_BIT_ARM BufferUsageFlagBits2 = 1 << 29
+
+const STRUCTURE_TYPE_DATA_GRAPH_PIPELINE_CONSTANT_TENSOR_SEMI_STRUCTURED_SPARSITY_INFO_ARM StructureType = 1000507015
+
 const QCOM_MULTIVIEW_PER_VIEW_RENDER_AREAS_SPEC_VERSION = 1
 
 const QCOM_MULTIVIEW_PER_VIEW_RENDER_AREAS_EXTENSION_NAME = "VK_QCOM_multiview_per_view_render_areas"
@@ -5296,6 +5506,14 @@ const KHR_LOAD_STORE_OP_NONE_SPEC_VERSION = 1
 const KHR_LOAD_STORE_OP_NONE_EXTENSION_NAME = "VK_KHR_load_store_op_none"
 
 const ATTACHMENT_LOAD_OP_NONE_KHR AttachmentLoadOp = ATTACHMENT_LOAD_OP_NONE
+
+const KHR_UNIFIED_IMAGE_LAYOUTS_SPEC_VERSION = 1
+
+const KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME = "VK_KHR_unified_image_layouts"
+
+const STRUCTURE_TYPE_PHYSICAL_DEVICE_UNIFIED_IMAGE_LAYOUTS_FEATURES_KHR StructureType = 1000527000
+
+const STRUCTURE_TYPE_ATTACHMENT_FEEDBACK_LOOP_INFO_EXT StructureType = 1000527001
 
 const KHR_SHADER_FLOAT_CONTROLS_2_SPEC_VERSION = 1
 
@@ -5387,11 +5605,11 @@ const QCOM_TILE_MEMORY_HEAP_EXTENSION_NAME = "VK_QCOM_tile_memory_heap"
 
 const MEMORY_HEAP_TILE_MEMORY_BIT_QCOM MemoryHeapFlagBits = 1 << 3
 
-const BUFFER_USAGE_TILE_MEMORY_QCOM BufferUsageFlagBits = 1 << 27
+const BUFFER_USAGE_TILE_MEMORY_BIT_QCOM BufferUsageFlagBits = 1 << 27
 
-const BUFFER_USAGE_2_TILE_MEMORY_QCOM BufferUsageFlagBits2 = 1 << 27
+const BUFFER_USAGE_2_TILE_MEMORY_BIT_QCOM BufferUsageFlagBits2 = 1 << 27
 
-const IMAGE_USAGE_TILE_MEMORY_QCOM ImageUsageFlagBits = 1 << 27
+const IMAGE_USAGE_TILE_MEMORY_BIT_QCOM ImageUsageFlagBits = 1 << 27
 
 const STRUCTURE_TYPE_PHYSICAL_DEVICE_TILE_MEMORY_HEAP_FEATURES_QCOM StructureType = 1000547000
 
@@ -5402,6 +5620,22 @@ const STRUCTURE_TYPE_TILE_MEMORY_REQUIREMENTS_QCOM StructureType = 1000547002
 const STRUCTURE_TYPE_TILE_MEMORY_BIND_INFO_QCOM StructureType = 1000547003
 
 const STRUCTURE_TYPE_TILE_MEMORY_SIZE_INFO_QCOM StructureType = 1000547004
+
+const KHR_COPY_MEMORY_INDIRECT_SPEC_VERSION = 1
+
+const KHR_COPY_MEMORY_INDIRECT_EXTENSION_NAME = "VK_KHR_copy_memory_indirect"
+
+const STRUCTURE_TYPE_PHYSICAL_DEVICE_COPY_MEMORY_INDIRECT_FEATURES_KHR StructureType = 1000549000
+
+const STRUCTURE_TYPE_PHYSICAL_DEVICE_COPY_MEMORY_INDIRECT_PROPERTIES_KHR StructureType = 1000426001
+
+const STRUCTURE_TYPE_COPY_MEMORY_INDIRECT_INFO_KHR StructureType = 1000549002
+
+const STRUCTURE_TYPE_COPY_MEMORY_TO_IMAGE_INDIRECT_INFO_KHR StructureType = 1000549003
+
+const PIPELINE_STAGE_2_COPY_INDIRECT_BIT_KHR PipelineStageFlagBits2 = 1 << 46
+
+const FORMAT_FEATURE_2_COPY_IMAGE_INDIRECT_DST_BIT_KHR FormatFeatureFlagBits2 = 1 << 59
 
 const NV_DISPLAY_STEREO_SPEC_VERSION = 1
 
@@ -5473,13 +5707,23 @@ const EXT_SHADER_REPLICATED_COMPOSITES_EXTENSION_NAME = "VK_EXT_shader_replicate
 
 const STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_REPLICATED_COMPOSITES_FEATURES_EXT StructureType = 1000564000
 
+const EXT_SHADER_FLOAT8_SPEC_VERSION = 1
+
+const EXT_SHADER_FLOAT8_EXTENSION_NAME = "VK_EXT_shader_float8"
+
+const STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT8_FEATURES_EXT StructureType = 1000567000
+
+const COMPONENT_TYPE_FLOAT8_E4M3_EXT ComponentTypeKHR = 1000491002
+
+const COMPONENT_TYPE_FLOAT8_E5M2_EXT ComponentTypeKHR = 1000491003
+
 const NV_RAY_TRACING_VALIDATION_SPEC_VERSION = 1
 
 const NV_RAY_TRACING_VALIDATION_EXTENSION_NAME = "VK_NV_ray_tracing_validation"
 
 const STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_VALIDATION_FEATURES_NV StructureType = 1000568000
 
-const NV_CLUSTER_ACCELERATION_STRUCTURE_SPEC_VERSION = 2
+const NV_CLUSTER_ACCELERATION_STRUCTURE_SPEC_VERSION = 4
 
 const NV_CLUSTER_ACCELERATION_STRUCTURE_EXTENSION_NAME = "VK_NV_cluster_acceleration_structure"
 
@@ -5498,6 +5742,8 @@ const STRUCTURE_TYPE_CLUSTER_ACCELERATION_STRUCTURE_INPUT_INFO_NV StructureType 
 const STRUCTURE_TYPE_CLUSTER_ACCELERATION_STRUCTURE_COMMANDS_INFO_NV StructureType = 1000569006
 
 const STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CLUSTER_ACCELERATION_STRUCTURE_CREATE_INFO_NV StructureType = 1000569007
+
+const BUILD_ACCELERATION_STRUCTURE_ALLOW_CLUSTER_OPACITY_MICROMAPS_BIT_NV BuildAccelerationStructureFlagBitsKHR = 1 << 12
 
 const OPACITY_MICROMAP_SPECIAL_INDEX_CLUSTER_GEOMETRY_DISABLE_OPACITY_MICROMAP_NV OpacityMicromapSpecialIndexEXT = -5
 
@@ -5599,6 +5845,20 @@ const STRUCTURE_TYPE_PIPELINE_VIEWPORT_DEPTH_CLAMP_CONTROL_CREATE_INFO_EXT Struc
 
 const DYNAMIC_STATE_DEPTH_CLAMP_RANGE_EXT DynamicState = 1000582000
 
+const KHR_MAINTENANCE_9_SPEC_VERSION = 1
+
+const KHR_MAINTENANCE_9_EXTENSION_NAME = "VK_KHR_maintenance9"
+
+const STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_9_FEATURES_KHR StructureType = 1000584000
+
+const STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_9_PROPERTIES_KHR StructureType = 1000584001
+
+const STRUCTURE_TYPE_QUEUE_FAMILY_OWNERSHIP_TRANSFER_PROPERTIES_KHR StructureType = 1000584002
+
+const DEPENDENCY_ASYMMETRIC_EVENT_BIT_KHR DependencyFlagBits = 1 << 6
+
+const QUERY_POOL_CREATE_RESET_BIT_KHR QueryPoolCreateFlagBits = 1 << 0
+
 const HUAWEI_HDR_VIVID_SPEC_VERSION = 1
 
 const HUAWEI_HDR_VIVID_EXTENSION_NAME = "VK_HUAWEI_hdr_vivid"
@@ -5635,6 +5895,64 @@ const EXT_VERTEX_ATTRIBUTE_ROBUSTNESS_EXTENSION_NAME = "VK_EXT_vertex_attribute_
 
 const STRUCTURE_TYPE_PHYSICAL_DEVICE_VERTEX_ATTRIBUTE_ROBUSTNESS_FEATURES_EXT StructureType = 1000608000
 
+const ARM_FORMAT_PACK_SPEC_VERSION = 1
+
+const ARM_FORMAT_PACK_EXTENSION_NAME = "VK_ARM_format_pack"
+
+const STRUCTURE_TYPE_PHYSICAL_DEVICE_FORMAT_PACK_FEATURES_ARM StructureType = 1000609000
+
+const FORMAT_R10X6_UINT_PACK16_ARM Format = 1000609000
+
+const FORMAT_R10X6G10X6_UINT_2PACK16_ARM Format = 1000609001
+
+const FORMAT_R10X6G10X6B10X6A10X6_UINT_4PACK16_ARM Format = 1000609002
+
+const FORMAT_R12X4_UINT_PACK16_ARM Format = 1000609003
+
+const FORMAT_R12X4G12X4_UINT_2PACK16_ARM Format = 1000609004
+
+const FORMAT_R12X4G12X4B12X4A12X4_UINT_4PACK16_ARM Format = 1000609005
+
+const FORMAT_R14X2_UINT_PACK16_ARM Format = 1000609006
+
+const FORMAT_R14X2G14X2_UINT_2PACK16_ARM Format = 1000609007
+
+const FORMAT_R14X2G14X2B14X2A14X2_UINT_4PACK16_ARM Format = 1000609008
+
+const FORMAT_R14X2_UNORM_PACK16_ARM Format = 1000609009
+
+const FORMAT_R14X2G14X2_UNORM_2PACK16_ARM Format = 1000609010
+
+const FORMAT_R14X2G14X2B14X2A14X2_UNORM_4PACK16_ARM Format = 1000609011
+
+const FORMAT_G14X2_B14X2R14X2_2PLANE_420_UNORM_3PACK16_ARM Format = 1000609012
+
+const FORMAT_G14X2_B14X2R14X2_2PLANE_422_UNORM_3PACK16_ARM Format = 1000609013
+
+const VALVE_FRAGMENT_DENSITY_MAP_LAYERED_SPEC_VERSION = 1
+
+const VALVE_FRAGMENT_DENSITY_MAP_LAYERED_EXTENSION_NAME = "VK_VALVE_fragment_density_map_layered"
+
+const STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_DENSITY_MAP_LAYERED_FEATURES_VALVE StructureType = 1000611000
+
+const STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_DENSITY_MAP_LAYERED_PROPERTIES_VALVE StructureType = 1000611001
+
+const STRUCTURE_TYPE_PIPELINE_FRAGMENT_DENSITY_MAP_LAYERED_CREATE_INFO_VALVE StructureType = 1000611002
+
+const RENDER_PASS_CREATE_PER_LAYER_FRAGMENT_DENSITY_BIT_VALVE RenderPassCreateFlagBits = 1 << 2
+
+const RENDERING_PER_LAYER_FRAGMENT_DENSITY_BIT_VALVE RenderingFlagBits = 1 << 5
+
+const PIPELINE_CREATE_2_PER_LAYER_FRAGMENT_DENSITY_BIT_VALVE PipelineCreateFlagBits2 = 1 << 40
+
+const KHR_ROBUSTNESS_2_SPEC_VERSION = 1
+
+const KHR_ROBUSTNESS_2_EXTENSION_NAME = "VK_KHR_robustness2"
+
+const STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_KHR StructureType = 1000286000
+
+const STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_PROPERTIES_KHR StructureType = 1000286001
+
 const EXT_FRAGMENT_DENSITY_MAP_OFFSET_SPEC_VERSION = 1
 
 const EXT_FRAGMENT_DENSITY_MAP_OFFSET_EXTENSION_NAME = "VK_EXT_fragment_density_map_offset"
@@ -5648,6 +5966,30 @@ const STRUCTURE_TYPE_RENDER_PASS_FRAGMENT_DENSITY_MAP_OFFSET_END_INFO_EXT Struct
 const STRUCTURE_TYPE_RENDERING_END_INFO_EXT StructureType = 1000619003
 
 const IMAGE_CREATE_FRAGMENT_DENSITY_MAP_OFFSET_BIT_EXT ImageCreateFlagBits = 1 << 15
+
+const EXT_ZERO_INITIALIZE_DEVICE_MEMORY_SPEC_VERSION = 1
+
+const EXT_ZERO_INITIALIZE_DEVICE_MEMORY_EXTENSION_NAME = "VK_EXT_zero_initialize_device_memory"
+
+const STRUCTURE_TYPE_PHYSICAL_DEVICE_ZERO_INITIALIZE_DEVICE_MEMORY_FEATURES_EXT StructureType = 1000620000
+
+const MEMORY_ALLOCATE_ZERO_INITIALIZE_BIT_EXT MemoryAllocateFlagBits = 1 << 3
+
+const IMAGE_LAYOUT_ZERO_INITIALIZED_EXT ImageLayout = 1000620000
+
+const KHR_PRESENT_MODE_FIFO_LATEST_READY_SPEC_VERSION = 1
+
+const KHR_PRESENT_MODE_FIFO_LATEST_READY_EXTENSION_NAME = "VK_KHR_present_mode_fifo_latest_ready"
+
+const STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_MODE_FIFO_LATEST_READY_FEATURES_KHR StructureType = 1000361000
+
+const PRESENT_MODE_FIFO_LATEST_READY_KHR PresentModeKHR = 1000361000
+
+const SEC_PIPELINE_CACHE_INCREMENTAL_MODE_SPEC_VERSION = 1
+
+const SEC_PIPELINE_CACHE_INCREMENTAL_MODE_EXTENSION_NAME = "VK_SEC_pipeline_cache_incremental_mode"
+
+const STRUCTURE_TYPE_PHYSICAL_DEVICE_PIPELINE_CACHE_INCREMENTAL_MODE_FEATURES_SEC StructureType = 1000637000
 
 type FramebufferCreateFlags uint32
 
@@ -5863,6 +6205,18 @@ type BufferUsageFlags2 uint64
 
 type BufferUsageFlags2KHR = BufferUsageFlags2
 
+type AddressCopyFlagsKHR uint32
+
+type TensorCreateFlagsARM uint64
+
+type TensorUsageFlagsARM uint64
+
+type TensorViewCreateFlagsARM uint64
+
+type DataGraphPipelineSessionCreateFlagsARM uint64
+
+type DataGraphPipelineDispatchFlagsARM uint64
+
 type CompositeAlphaFlagsKHR uint32
 
 type DisplayPlaneAlphaFlagsKHR uint32
@@ -6003,9 +6357,13 @@ type OpticalFlowExecuteFlagsNV uint32
 
 type FrameBoundaryFlagsEXT uint32
 
-type PresentScalingFlagsEXT uint32
+type PresentScalingFlagsKHR uint32
 
-type PresentGravityFlagsEXT uint32
+type PresentScalingFlagsEXT = PresentScalingFlagsKHR
+
+type PresentGravityFlagsKHR uint32
+
+type PresentGravityFlagsEXT = PresentGravityFlagsKHR
 
 type ShaderCreateFlagsEXT uint32
 
@@ -6104,6 +6462,12 @@ type OpticalFlowSessionNV uint64
 type MicromapEXT uint64
 
 type ShaderEXT uint64
+
+type TensorARM uint64
+
+type TensorViewARM uint64
+
+type DataGraphPipelineSessionARM uint64
 
 type DisplayKHR uint64
 
@@ -6212,6 +6576,10 @@ type SamplerReductionModeEXT = SamplerReductionMode
 type ShaderFloatControlsIndependenceKHR = ShaderFloatControlsIndependence
 
 type SubmitFlagBitsKHR = SubmitFlagBits
+
+type PresentScalingFlagBitsEXT = PresentScalingFlagBitsKHR
+
+type PresentGravityFlagBitsEXT = PresentGravityFlagBitsKHR
 
 type MemoryUnmapFlagBitsKHR = MemoryUnmapFlagBits
 
@@ -6716,14 +7084,33 @@ type BufferImageCopy struct {
 	ImageExtent       Extent3D
 }
 
-type CopyMemoryIndirectCommandNV struct {
+type StridedDeviceAddressRangeKHR struct {
+	_       structs.HostLayout
+	Address DeviceAddress
+	Size    DeviceSize
+	Stride  DeviceSize
+}
+
+type CopyMemoryIndirectCommandKHR struct {
 	_          structs.HostLayout
 	SrcAddress DeviceAddress
 	DstAddress DeviceAddress
 	Size       DeviceSize
 }
 
-type CopyMemoryToImageIndirectCommandNV struct {
+type CopyMemoryIndirectCommandNV = CopyMemoryIndirectCommandKHR
+
+type CopyMemoryIndirectInfoKHR struct {
+	_                structs.HostLayout
+	SType            StructureType
+	PNext            unsafe.Pointer
+	SrcCopyFlags     AddressCopyFlagsKHR
+	DstCopyFlags     AddressCopyFlagsKHR
+	CopyCount        uint32
+	CopyAddressRange StridedDeviceAddressRangeKHR
+}
+
+type CopyMemoryToImageIndirectCommandKHR struct {
 	_                 structs.HostLayout
 	SrcAddress        DeviceAddress
 	BufferRowLength   uint32
@@ -6731,6 +7118,20 @@ type CopyMemoryToImageIndirectCommandNV struct {
 	ImageSubresource  ImageSubresourceLayers
 	ImageOffset       Offset3D
 	ImageExtent       Extent3D
+}
+
+type CopyMemoryToImageIndirectCommandNV = CopyMemoryToImageIndirectCommandKHR
+
+type CopyMemoryToImageIndirectInfoKHR struct {
+	_                  structs.HostLayout
+	SType              StructureType
+	PNext              unsafe.Pointer
+	SrcCopyFlags       AddressCopyFlagsKHR
+	CopyCount          uint32
+	CopyAddressRange   StridedDeviceAddressRangeKHR
+	DstImage           Image
+	DstImageLayout     ImageLayout
+	PImageSubresources *ImageSubresourceLayers
 }
 
 type ImageResolve struct {
@@ -7908,6 +8309,11 @@ type ClusterAccelerationStructureBuildClustersBottomLevelInfoNV struct {
 	ClusterReferences       DeviceAddress
 }
 
+type ClusterAccelerationStructureGetTemplateIndicesInfoNV struct {
+	_                      structs.HostLayout
+	ClusterTemplateAddress DeviceAddress
+}
+
 type ClusterAccelerationStructureBuildTriangleClusterInfoNV struct {
 	_                                 structs.HostLayout
 	ClusterID                         uint32
@@ -8803,11 +9209,41 @@ type PresentIdKHR struct {
 	PPresentIds    *uint64
 }
 
+type PhysicalDevicePresentId2FeaturesKHR struct {
+	_          structs.HostLayout
+	SType      StructureType
+	PNext      unsafe.Pointer
+	PresentId2 Bool32
+}
+
+type PresentId2KHR struct {
+	_              structs.HostLayout
+	SType          StructureType
+	PNext          unsafe.Pointer
+	SwapchainCount uint32
+	PPresentIds    *uint64
+}
+
+type PresentWait2InfoKHR struct {
+	_         structs.HostLayout
+	SType     StructureType
+	PNext     unsafe.Pointer
+	PresentId uint64
+	Timeout   uint64
+}
+
 type PhysicalDevicePresentWaitFeaturesKHR struct {
 	_           structs.HostLayout
 	SType       StructureType
 	PNext       unsafe.Pointer
 	PresentWait Bool32
+}
+
+type PhysicalDevicePresentWait2FeaturesKHR struct {
+	_            structs.HostLayout
+	SType        StructureType
+	PNext        unsafe.Pointer
+	PresentWait2 Bool32
 }
 
 type HdrMetadataEXT struct {
@@ -9605,6 +10041,28 @@ type PhysicalDeviceMaintenance8FeaturesKHR struct {
 	SType        StructureType
 	PNext        unsafe.Pointer
 	Maintenance8 Bool32
+}
+
+type PhysicalDeviceMaintenance9FeaturesKHR struct {
+	_            structs.HostLayout
+	SType        StructureType
+	PNext        unsafe.Pointer
+	Maintenance9 Bool32
+}
+
+type PhysicalDeviceMaintenance9PropertiesKHR struct {
+	_                           structs.HostLayout
+	SType                       StructureType
+	PNext                       unsafe.Pointer
+	Image2DViewOf3DSparse       Bool32
+	DefaultVertexAttributeValue DefaultVertexAttributeValueKHR
+}
+
+type QueueFamilyOwnershipTransferPropertiesKHR struct {
+	_                                   structs.HostLayout
+	SType                               StructureType
+	PNext                               unsafe.Pointer
+	OptimalImageTransferToQueueFamilies uint32
 }
 
 type RenderingAreaInfo struct {
@@ -10449,6 +10907,14 @@ type PhysicalDeviceDedicatedAllocationImageAliasingFeaturesNV struct {
 	DedicatedAllocationImageAliasing Bool32
 }
 
+type PhysicalDeviceCopyMemoryIndirectFeaturesKHR struct {
+	_                         structs.HostLayout
+	SType                     StructureType
+	PNext                     unsafe.Pointer
+	IndirectMemoryCopy        Bool32
+	IndirectMemoryToImageCopy Bool32
+}
+
 type PhysicalDeviceCopyMemoryIndirectFeaturesNV struct {
 	_            structs.HostLayout
 	SType        StructureType
@@ -10456,12 +10922,14 @@ type PhysicalDeviceCopyMemoryIndirectFeaturesNV struct {
 	IndirectCopy Bool32
 }
 
-type PhysicalDeviceCopyMemoryIndirectPropertiesNV struct {
+type PhysicalDeviceCopyMemoryIndirectPropertiesKHR struct {
 	_               structs.HostLayout
 	SType           StructureType
 	PNext           unsafe.Pointer
 	SupportedQueues QueueFlags
 }
+
+type PhysicalDeviceCopyMemoryIndirectPropertiesNV = PhysicalDeviceCopyMemoryIndirectPropertiesKHR
 
 type PhysicalDeviceMemoryDecompressionFeaturesNV struct {
 	_                   structs.HostLayout
@@ -12518,7 +12986,7 @@ type PhysicalDeviceShaderSubgroupUniformControlFlowFeaturesKHR struct {
 	ShaderSubgroupUniformControlFlow Bool32
 }
 
-type PhysicalDeviceRobustness2FeaturesEXT struct {
+type PhysicalDeviceRobustness2FeaturesKHR struct {
 	_                   structs.HostLayout
 	SType               StructureType
 	PNext               unsafe.Pointer
@@ -12527,13 +12995,17 @@ type PhysicalDeviceRobustness2FeaturesEXT struct {
 	NullDescriptor      Bool32
 }
 
-type PhysicalDeviceRobustness2PropertiesEXT struct {
+type PhysicalDeviceRobustness2FeaturesEXT = PhysicalDeviceRobustness2FeaturesKHR
+
+type PhysicalDeviceRobustness2PropertiesKHR struct {
 	_                                      structs.HostLayout
 	SType                                  StructureType
 	PNext                                  unsafe.Pointer
 	RobustStorageBufferAccessSizeAlignment DeviceSize
 	RobustUniformBufferAccessSizeAlignment DeviceSize
 }
+
+type PhysicalDeviceRobustness2PropertiesEXT = PhysicalDeviceRobustness2PropertiesKHR
 
 type PhysicalDeviceImageRobustnessFeatures struct {
 	_                 structs.HostLayout
@@ -12903,6 +13375,13 @@ type PhysicalDeviceDepthClipControlFeaturesEXT struct {
 	SType            StructureType
 	PNext            unsafe.Pointer
 	DepthClipControl Bool32
+}
+
+type PhysicalDeviceZeroInitializeDeviceMemoryFeaturesEXT struct {
+	_                          structs.HostLayout
+	SType                      StructureType
+	PNext                      unsafe.Pointer
+	ZeroInitializeDeviceMemory Bool32
 }
 
 type PhysicalDeviceDeviceGeneratedCommandsFeaturesEXT struct {
@@ -13296,6 +13775,14 @@ type PhysicalDeviceSynchronization2Features struct {
 
 type PhysicalDeviceSynchronization2FeaturesKHR = PhysicalDeviceSynchronization2Features
 
+type PhysicalDeviceUnifiedImageLayoutsFeaturesKHR struct {
+	_                        structs.HostLayout
+	SType                    StructureType
+	PNext                    unsafe.Pointer
+	UnifiedImageLayouts      Bool32
+	UnifiedImageLayoutsVideo Bool32
+}
+
 type PhysicalDeviceHostImageCopyFeatures struct {
 	_             structs.HostLayout
 	SType         StructureType
@@ -13440,6 +13927,20 @@ type PhysicalDeviceMultisampledRenderToSingleSampledFeaturesEXT struct {
 	SType                             StructureType
 	PNext                             unsafe.Pointer
 	MultisampledRenderToSingleSampled Bool32
+}
+
+type SurfaceCapabilitiesPresentId2KHR struct {
+	_                   structs.HostLayout
+	SType               StructureType
+	PNext               unsafe.Pointer
+	PresentId2Supported Bool32
+}
+
+type SurfaceCapabilitiesPresentWait2KHR struct {
+	_                     structs.HostLayout
+	SType                 StructureType
+	PNext                 unsafe.Pointer
+	PresentWait2Supported Bool32
 }
 
 type SubpassResolvePerformanceQueryEXT struct {
@@ -14497,6 +14998,13 @@ type PhysicalDeviceAttachmentFeedbackLoopLayoutFeaturesEXT struct {
 
 type PhysicalDeviceDepthClampZeroOneFeaturesEXT = PhysicalDeviceDepthClampZeroOneFeaturesKHR
 
+type AttachmentFeedbackLoopInfoEXT struct {
+	_                  structs.HostLayout
+	SType              StructureType
+	PNext              unsafe.Pointer
+	FeedbackLoopEnable Bool32
+}
+
 type PhysicalDeviceAddressBindingReportFeaturesEXT struct {
 	_                    structs.HostLayout
 	SType                StructureType
@@ -14719,25 +15227,29 @@ type PhysicalDeviceDynamicRenderingUnusedAttachmentsFeaturesEXT struct {
 	DynamicRenderingUnusedAttachments Bool32
 }
 
-type SurfacePresentModeEXT struct {
+type SurfacePresentModeKHR struct {
 	_           structs.HostLayout
 	SType       StructureType
 	PNext       unsafe.Pointer
 	PresentMode PresentModeKHR
 }
 
-type SurfacePresentScalingCapabilitiesEXT struct {
+type SurfacePresentModeEXT = SurfacePresentModeKHR
+
+type SurfacePresentScalingCapabilitiesKHR struct {
 	_                        structs.HostLayout
 	SType                    StructureType
 	PNext                    unsafe.Pointer
-	SupportedPresentScaling  PresentScalingFlagsEXT
-	SupportedPresentGravityX PresentGravityFlagsEXT
-	SupportedPresentGravityY PresentGravityFlagsEXT
+	SupportedPresentScaling  PresentScalingFlagsKHR
+	SupportedPresentGravityX PresentGravityFlagsKHR
+	SupportedPresentGravityY PresentGravityFlagsKHR
 	MinScaledImageExtent     Extent2D
 	MaxScaledImageExtent     Extent2D
 }
 
-type SurfacePresentModeCompatibilityEXT struct {
+type SurfacePresentScalingCapabilitiesEXT = SurfacePresentScalingCapabilitiesKHR
+
+type SurfacePresentModeCompatibilityKHR struct {
 	_                structs.HostLayout
 	SType            StructureType
 	PNext            unsafe.Pointer
@@ -14745,14 +15257,18 @@ type SurfacePresentModeCompatibilityEXT struct {
 	PPresentModes    *PresentModeKHR
 }
 
-type PhysicalDeviceSwapchainMaintenance1FeaturesEXT struct {
+type SurfacePresentModeCompatibilityEXT = SurfacePresentModeCompatibilityKHR
+
+type PhysicalDeviceSwapchainMaintenance1FeaturesKHR struct {
 	_                     structs.HostLayout
 	SType                 StructureType
 	PNext                 unsafe.Pointer
 	SwapchainMaintenance1 Bool32
 }
 
-type SwapchainPresentFenceInfoEXT struct {
+type PhysicalDeviceSwapchainMaintenance1FeaturesEXT = PhysicalDeviceSwapchainMaintenance1FeaturesKHR
+
+type SwapchainPresentFenceInfoKHR struct {
 	_              structs.HostLayout
 	SType          StructureType
 	PNext          unsafe.Pointer
@@ -14760,7 +15276,9 @@ type SwapchainPresentFenceInfoEXT struct {
 	PFences        *Fence
 }
 
-type SwapchainPresentModesCreateInfoEXT struct {
+type SwapchainPresentFenceInfoEXT = SwapchainPresentFenceInfoKHR
+
+type SwapchainPresentModesCreateInfoKHR struct {
 	_                structs.HostLayout
 	SType            StructureType
 	PNext            unsafe.Pointer
@@ -14768,7 +15286,9 @@ type SwapchainPresentModesCreateInfoEXT struct {
 	PPresentModes    *PresentModeKHR
 }
 
-type SwapchainPresentModeInfoEXT struct {
+type SwapchainPresentModesCreateInfoEXT = SwapchainPresentModesCreateInfoKHR
+
+type SwapchainPresentModeInfoKHR struct {
 	_              structs.HostLayout
 	SType          StructureType
 	PNext          unsafe.Pointer
@@ -14776,16 +15296,20 @@ type SwapchainPresentModeInfoEXT struct {
 	PPresentModes  *PresentModeKHR
 }
 
-type SwapchainPresentScalingCreateInfoEXT struct {
+type SwapchainPresentModeInfoEXT = SwapchainPresentModeInfoKHR
+
+type SwapchainPresentScalingCreateInfoKHR struct {
 	_               structs.HostLayout
 	SType           StructureType
 	PNext           unsafe.Pointer
-	ScalingBehavior PresentScalingFlagsEXT
-	PresentGravityX PresentGravityFlagsEXT
-	PresentGravityY PresentGravityFlagsEXT
+	ScalingBehavior PresentScalingFlagsKHR
+	PresentGravityX PresentGravityFlagsKHR
+	PresentGravityY PresentGravityFlagsKHR
 }
 
-type ReleaseSwapchainImagesInfoEXT struct {
+type SwapchainPresentScalingCreateInfoEXT = SwapchainPresentScalingCreateInfoKHR
+
+type ReleaseSwapchainImagesInfoKHR struct {
 	_               structs.HostLayout
 	SType           StructureType
 	PNext           unsafe.Pointer
@@ -14793,6 +15317,8 @@ type ReleaseSwapchainImagesInfoEXT struct {
 	ImageIndexCount uint32
 	PImageIndices   *uint32
 }
+
+type ReleaseSwapchainImagesInfoEXT = ReleaseSwapchainImagesInfoKHR
 
 type PhysicalDeviceDepthBiasControlFeaturesEXT struct {
 	_                                               structs.HostLayout
@@ -15542,7 +16068,9 @@ type PhysicalDeviceShaderReplicatedCompositesFeaturesEXT struct {
 	ShaderReplicatedComposites Bool32
 }
 
-type PhysicalDevicePresentModeFifoLatestReadyFeaturesEXT struct {
+type PhysicalDevicePresentModeFifoLatestReadyFeaturesEXT = PhysicalDevicePresentModeFifoLatestReadyFeaturesKHR
+
+type PhysicalDevicePresentModeFifoLatestReadyFeaturesKHR struct {
 	_                          structs.HostLayout
 	SType                      StructureType
 	PNext                      unsafe.Pointer
@@ -15718,6 +16246,27 @@ type DispatchTileInfoQCOM struct {
 	PNext unsafe.Pointer
 }
 
+type PhysicalDeviceFragmentDensityMapLayeredPropertiesVALVE struct {
+	_                           structs.HostLayout
+	SType                       StructureType
+	PNext                       unsafe.Pointer
+	MaxFragmentDensityMapLayers uint32
+}
+
+type PhysicalDeviceFragmentDensityMapLayeredFeaturesVALVE struct {
+	_                         structs.HostLayout
+	SType                     StructureType
+	PNext                     unsafe.Pointer
+	FragmentDensityMapLayered Bool32
+}
+
+type PipelineFragmentDensityMapLayeredCreateInfoVALVE struct {
+	_                           structs.HostLayout
+	SType                       StructureType
+	PNext                       unsafe.Pointer
+	MaxFragmentDensityMapLayers uint32
+}
+
 type ExternalComputeQueueDeviceCreateInfoNV struct {
 	_                      structs.HostLayout
 	SType                  StructureType
@@ -15748,6 +16297,439 @@ type PhysicalDeviceExternalComputeQueuePropertiesNV struct {
 }
 
 type ExternalComputeQueueNV uintptr
+
+type PhysicalDeviceFormatPackFeaturesARM struct {
+	_          structs.HostLayout
+	SType      StructureType
+	PNext      unsafe.Pointer
+	FormatPack Bool32
+}
+
+type TensorDescriptionARM struct {
+	_              structs.HostLayout
+	SType          StructureType
+	PNext          unsafe.Pointer
+	Tiling         TensorTilingARM
+	Format         Format
+	DimensionCount uint32
+	PDimensions    *int64
+	PStrides       *int64
+	Usage          TensorUsageFlagsARM
+}
+
+type TensorCreateInfoARM struct {
+	_                     structs.HostLayout
+	SType                 StructureType
+	PNext                 unsafe.Pointer
+	Flags                 TensorCreateFlagsARM
+	PDescription          *TensorDescriptionARM
+	SharingMode           SharingMode
+	QueueFamilyIndexCount uint32
+	PQueueFamilyIndices   *uint32
+}
+
+type TensorViewCreateInfoARM struct {
+	_      structs.HostLayout
+	SType  StructureType
+	PNext  unsafe.Pointer
+	Flags  TensorViewCreateFlagsARM
+	Tensor TensorARM
+	Format Format
+}
+
+type TensorMemoryRequirementsInfoARM struct {
+	_      structs.HostLayout
+	SType  StructureType
+	PNext  unsafe.Pointer
+	Tensor TensorARM
+}
+
+type BindTensorMemoryInfoARM struct {
+	_            structs.HostLayout
+	SType        StructureType
+	PNext        unsafe.Pointer
+	Tensor       TensorARM
+	Memory       DeviceMemory
+	MemoryOffset DeviceSize
+}
+
+type WriteDescriptorSetTensorARM struct {
+	_               structs.HostLayout
+	SType           StructureType
+	PNext           unsafe.Pointer
+	TensorViewCount uint32
+	PTensorViews    *TensorViewARM
+}
+
+type TensorFormatPropertiesARM struct {
+	_                           structs.HostLayout
+	SType                       StructureType
+	PNext                       unsafe.Pointer
+	OptimalTilingTensorFeatures FormatFeatureFlags2
+	LinearTilingTensorFeatures  FormatFeatureFlags2
+}
+
+type PhysicalDeviceTensorPropertiesARM struct {
+	_                                                  structs.HostLayout
+	SType                                              StructureType
+	PNext                                              unsafe.Pointer
+	MaxTensorDimensionCount                            uint32
+	MaxTensorElements                                  uint64
+	MaxPerDimensionTensorElements                      uint64
+	MaxTensorStride                                    int64
+	MaxTensorSize                                      uint64
+	MaxTensorShaderAccessArrayLength                   uint32
+	MaxTensorShaderAccessSize                          uint32
+	MaxDescriptorSetStorageTensors                     uint32
+	MaxPerStageDescriptorSetStorageTensors             uint32
+	MaxDescriptorSetUpdateAfterBindStorageTensors      uint32
+	MaxPerStageDescriptorUpdateAfterBindStorageTensors uint32
+	ShaderStorageTensorArrayNonUniformIndexingNative   Bool32
+	ShaderTensorSupportedStages                        ShaderStageFlags
+}
+
+type TensorMemoryBarrierARM struct {
+	_                   structs.HostLayout
+	SType               StructureType
+	PNext               unsafe.Pointer
+	SrcStageMask        PipelineStageFlags2
+	SrcAccessMask       AccessFlags2
+	DstStageMask        PipelineStageFlags2
+	DstAccessMask       AccessFlags2
+	SrcQueueFamilyIndex uint32
+	DstQueueFamilyIndex uint32
+	Tensor              TensorARM
+}
+
+type TensorDependencyInfoARM struct {
+	_                        structs.HostLayout
+	SType                    StructureType
+	PNext                    unsafe.Pointer
+	TensorMemoryBarrierCount uint32
+	PTensorMemoryBarriers    *TensorMemoryBarrierARM
+}
+
+type PhysicalDeviceTensorFeaturesARM struct {
+	_                                             structs.HostLayout
+	SType                                         StructureType
+	PNext                                         unsafe.Pointer
+	TensorNonPacked                               Bool32
+	ShaderTensorAccess                            Bool32
+	ShaderStorageTensorArrayDynamicIndexing       Bool32
+	ShaderStorageTensorArrayNonUniformIndexing    Bool32
+	DescriptorBindingStorageTensorUpdateAfterBind Bool32
+	Tensors                                       Bool32
+}
+
+type DeviceTensorMemoryRequirementsARM struct {
+	_           structs.HostLayout
+	SType       StructureType
+	PNext       unsafe.Pointer
+	PCreateInfo *TensorCreateInfoARM
+}
+
+type CopyTensorInfoARM struct {
+	_           structs.HostLayout
+	SType       StructureType
+	PNext       unsafe.Pointer
+	SrcTensor   TensorARM
+	DstTensor   TensorARM
+	RegionCount uint32
+	PRegions    *TensorCopyARM
+}
+
+type TensorCopyARM struct {
+	_              structs.HostLayout
+	SType          StructureType
+	PNext          unsafe.Pointer
+	DimensionCount uint32
+	PSrcOffset     *uint64
+	PDstOffset     *uint64
+	PExtent        *uint64
+}
+
+type MemoryDedicatedAllocateInfoTensorARM struct {
+	_      structs.HostLayout
+	SType  StructureType
+	PNext  unsafe.Pointer
+	Tensor TensorARM
+}
+
+type PhysicalDeviceDescriptorBufferTensorPropertiesARM struct {
+	_                                         structs.HostLayout
+	SType                                     StructureType
+	PNext                                     unsafe.Pointer
+	TensorCaptureReplayDescriptorDataSize     int
+	TensorViewCaptureReplayDescriptorDataSize int
+	TensorDescriptorSize                      int
+}
+
+type PhysicalDeviceDescriptorBufferTensorFeaturesARM struct {
+	_                                 structs.HostLayout
+	SType                             StructureType
+	PNext                             unsafe.Pointer
+	DescriptorBufferTensorDescriptors Bool32
+}
+
+type TensorCaptureDescriptorDataInfoARM struct {
+	_      structs.HostLayout
+	SType  StructureType
+	PNext  unsafe.Pointer
+	Tensor TensorARM
+}
+
+type TensorViewCaptureDescriptorDataInfoARM struct {
+	_          structs.HostLayout
+	SType      StructureType
+	PNext      unsafe.Pointer
+	TensorView TensorViewARM
+}
+
+type DescriptorGetTensorInfoARM struct {
+	_          structs.HostLayout
+	SType      StructureType
+	PNext      unsafe.Pointer
+	TensorView TensorViewARM
+}
+
+type FrameBoundaryTensorsARM struct {
+	_           structs.HostLayout
+	SType       StructureType
+	PNext       unsafe.Pointer
+	TensorCount uint32
+	PTensors    *TensorARM
+}
+
+type PhysicalDeviceExternalTensorInfoARM struct {
+	_            structs.HostLayout
+	SType        StructureType
+	PNext        unsafe.Pointer
+	Flags        TensorCreateFlagsARM
+	PDescription *TensorDescriptionARM
+	HandleType   ExternalMemoryHandleTypeFlagBits
+}
+
+type ExternalTensorPropertiesARM struct {
+	_                        structs.HostLayout
+	SType                    StructureType
+	PNext                    unsafe.Pointer
+	ExternalMemoryProperties ExternalMemoryProperties
+}
+
+type ExternalMemoryTensorCreateInfoARM struct {
+	_           structs.HostLayout
+	SType       StructureType
+	PNext       unsafe.Pointer
+	HandleTypes ExternalMemoryHandleTypeFlags
+}
+
+type PhysicalDeviceShaderFloat8FeaturesEXT struct {
+	_                             structs.HostLayout
+	SType                         StructureType
+	PNext                         unsafe.Pointer
+	ShaderFloat8                  Bool32
+	ShaderFloat8CooperativeMatrix Bool32
+}
+
+type PhysicalDeviceDataGraphFeaturesARM struct {
+	_                                structs.HostLayout
+	SType                            StructureType
+	PNext                            unsafe.Pointer
+	DataGraph                        Bool32
+	DataGraphUpdateAfterBind         Bool32
+	DataGraphSpecializationConstants Bool32
+	DataGraphDescriptorBuffer        Bool32
+	DataGraphShaderModule            Bool32
+}
+
+type DataGraphPipelineConstantTensorSemiStructuredSparsityInfoARM struct {
+	_         structs.HostLayout
+	SType     StructureType
+	PNext     unsafe.Pointer
+	Dimension uint32
+	ZeroCount uint32
+	GroupSize uint32
+}
+
+type DataGraphPipelineConstantARM struct {
+	_             structs.HostLayout
+	SType         StructureType
+	PNext         unsafe.Pointer
+	Id            uint32
+	PConstantData unsafe.Pointer
+}
+
+type DataGraphPipelineResourceInfoARM struct {
+	_             structs.HostLayout
+	SType         StructureType
+	PNext         unsafe.Pointer
+	DescriptorSet uint32
+	Binding       uint32
+	ArrayElement  uint32
+}
+
+type DataGraphPipelineCompilerControlCreateInfoARM struct {
+	_              structs.HostLayout
+	SType          StructureType
+	PNext          unsafe.Pointer
+	PVendorOptions *byte
+}
+
+type DataGraphPipelineCreateInfoARM struct {
+	_                 structs.HostLayout
+	SType             StructureType
+	PNext             unsafe.Pointer
+	Flags             PipelineCreateFlags2KHR
+	Layout            PipelineLayout
+	ResourceInfoCount uint32
+	PResourceInfos    *DataGraphPipelineResourceInfoARM
+}
+
+type DataGraphPipelineShaderModuleCreateInfoARM struct {
+	_                   structs.HostLayout
+	SType               StructureType
+	PNext               unsafe.Pointer
+	Module              ShaderModule
+	PName               *byte
+	PSpecializationInfo *SpecializationInfo
+	ConstantCount       uint32
+	PConstants          *DataGraphPipelineConstantARM
+}
+
+type DataGraphPipelineSessionCreateInfoARM struct {
+	_                 structs.HostLayout
+	SType             StructureType
+	PNext             unsafe.Pointer
+	Flags             DataGraphPipelineSessionCreateFlagsARM
+	DataGraphPipeline Pipeline
+}
+
+type DataGraphPipelineSessionBindPointRequirementsInfoARM struct {
+	_       structs.HostLayout
+	SType   StructureType
+	PNext   unsafe.Pointer
+	Session DataGraphPipelineSessionARM
+}
+
+type DataGraphPipelineSessionBindPointRequirementARM struct {
+	_             structs.HostLayout
+	SType         StructureType
+	PNext         unsafe.Pointer
+	BindPoint     DataGraphPipelineSessionBindPointARM
+	BindPointType DataGraphPipelineSessionBindPointTypeARM
+	NumObjects    uint32
+}
+
+type DataGraphPipelineSessionMemoryRequirementsInfoARM struct {
+	_           structs.HostLayout
+	SType       StructureType
+	PNext       unsafe.Pointer
+	Session     DataGraphPipelineSessionARM
+	BindPoint   DataGraphPipelineSessionBindPointARM
+	ObjectIndex uint32
+}
+
+type BindDataGraphPipelineSessionMemoryInfoARM struct {
+	_            structs.HostLayout
+	SType        StructureType
+	PNext        unsafe.Pointer
+	Session      DataGraphPipelineSessionARM
+	BindPoint    DataGraphPipelineSessionBindPointARM
+	ObjectIndex  uint32
+	Memory       DeviceMemory
+	MemoryOffset DeviceSize
+}
+
+type DataGraphPipelineInfoARM struct {
+	_                 structs.HostLayout
+	SType             StructureType
+	PNext             unsafe.Pointer
+	DataGraphPipeline Pipeline
+}
+
+type DataGraphPipelinePropertyQueryResultARM struct {
+	_        structs.HostLayout
+	SType    StructureType
+	PNext    unsafe.Pointer
+	Property DataGraphPipelinePropertyARM
+	IsText   Bool32
+	DataSize int
+	PData    unsafe.Pointer
+}
+
+type DataGraphPipelineIdentifierCreateInfoARM struct {
+	_              structs.HostLayout
+	SType          StructureType
+	PNext          unsafe.Pointer
+	IdentifierSize uint32
+	PIdentifier    *uint8
+}
+
+type DataGraphPipelineDispatchInfoARM struct {
+	_     structs.HostLayout
+	SType StructureType
+	PNext unsafe.Pointer
+	Flags DataGraphPipelineDispatchFlagsARM
+}
+
+type PhysicalDeviceDataGraphProcessingEngineARM struct {
+	_         structs.HostLayout
+	Type      PhysicalDeviceDataGraphProcessingEngineTypeARM
+	IsForeign Bool32
+}
+
+type PhysicalDeviceDataGraphOperationSupportARM struct {
+	_             structs.HostLayout
+	OperationType PhysicalDeviceDataGraphOperationTypeARM
+	Name          [MAX_PHYSICAL_DEVICE_DATA_GRAPH_OPERATION_SET_NAME_SIZE_ARM]byte
+	Version       uint32
+}
+
+type QueueFamilyDataGraphPropertiesARM struct {
+	_         structs.HostLayout
+	SType     StructureType
+	PNext     unsafe.Pointer
+	Engine    PhysicalDeviceDataGraphProcessingEngineARM
+	Operation PhysicalDeviceDataGraphOperationSupportARM
+}
+
+type PhysicalDeviceQueueFamilyDataGraphProcessingEngineInfoARM struct {
+	_                structs.HostLayout
+	SType            StructureType
+	PNext            unsafe.Pointer
+	QueueFamilyIndex uint32
+	EngineType       PhysicalDeviceDataGraphProcessingEngineTypeARM
+}
+
+type QueueFamilyDataGraphProcessingEnginePropertiesARM struct {
+	_                           structs.HostLayout
+	SType                       StructureType
+	PNext                       unsafe.Pointer
+	ForeignSemaphoreHandleTypes ExternalSemaphoreHandleTypeFlags
+	ForeignMemoryHandleTypes    ExternalMemoryHandleTypeFlags
+}
+
+type DataGraphProcessingEngineCreateInfoARM struct {
+	_                     structs.HostLayout
+	SType                 StructureType
+	PNext                 unsafe.Pointer
+	ProcessingEngineCount uint32
+	PProcessingEngines    *PhysicalDeviceDataGraphProcessingEngineARM
+}
+
+type PhysicalDevicePipelineCacheIncrementalModeFeaturesSEC struct {
+	_                            structs.HostLayout
+	SType                        StructureType
+	PNext                        unsafe.Pointer
+	PipelineCacheIncrementalMode Bool32
+}
+
+type PhysicalDeviceShaderUntypedPointersFeaturesKHR struct {
+	_                     structs.HostLayout
+	SType                 StructureType
+	PNext                 unsafe.Pointer
+	ShaderUntypedPointers Bool32
+}
 
 type ImageLayout int32
 
@@ -17393,6 +18375,8 @@ const CLUSTER_ACCELERATION_STRUCTURE_OP_TYPE_BUILD_TRIANGLE_CLUSTER_TEMPLATE_NV 
 
 const CLUSTER_ACCELERATION_STRUCTURE_OP_TYPE_INSTANTIATE_TRIANGLE_CLUSTER_NV ClusterAccelerationStructureOpTypeNV = 4
 
+const CLUSTER_ACCELERATION_STRUCTURE_OP_TYPE_GET_CLUSTER_TEMPLATE_INDICES_NV ClusterAccelerationStructureOpTypeNV = 5
+
 type ClusterAccelerationStructureOpModeNV int32
 
 const CLUSTER_ACCELERATION_STRUCTURE_OP_MODE_IMPLICIT_DESTINATIONS_NV ClusterAccelerationStructureOpModeNV = 0
@@ -17414,6 +18398,8 @@ const CLUSTER_ACCELERATION_STRUCTURE_GEOMETRY_NO_DUPLICATE_ANYHIT_INVOCATION_BIT
 const CLUSTER_ACCELERATION_STRUCTURE_GEOMETRY_OPAQUE_BIT_NV ClusterAccelerationStructureGeometryFlagBitsNV = 1 << 2
 
 type ClusterAccelerationStructureAddressResolutionFlagBitsNV int32
+
+const CLUSTER_ACCELERATION_STRUCTURE_ADDRESS_RESOLUTION_NONE_NV ClusterAccelerationStructureAddressResolutionFlagBitsNV = 0
 
 const CLUSTER_ACCELERATION_STRUCTURE_ADDRESS_RESOLUTION_INDIRECTED_DST_IMPLICIT_DATA_BIT_NV ClusterAccelerationStructureAddressResolutionFlagBitsNV = 1 << 0
 
@@ -18037,6 +19023,8 @@ const MEMORY_OVERALLOCATION_BEHAVIOR_DISALLOWED_AMD MemoryOverallocationBehavior
 
 type FramebufferCreateFlagBits int32
 
+type QueryPoolCreateFlagBits int32
+
 type DeviceDiagnosticsConfigFlagBitsNV int32
 
 const DEVICE_DIAGNOSTICS_CONFIG_ENABLE_SHADER_DEBUG_INFO_BIT_NV DeviceDiagnosticsConfigFlagBitsNV = 1 << 0
@@ -18423,21 +19411,33 @@ type FrameBoundaryFlagBitsEXT int32
 
 const FRAME_BOUNDARY_FRAME_END_BIT_EXT FrameBoundaryFlagBitsEXT = 1 << 0
 
-type PresentScalingFlagBitsEXT int32
+type PresentScalingFlagBitsKHR int32
 
-const PRESENT_SCALING_ONE_TO_ONE_BIT_EXT PresentScalingFlagBitsEXT = 1 << 0
+const PRESENT_SCALING_ONE_TO_ONE_BIT_KHR PresentScalingFlagBitsKHR = 1 << 0
 
-const PRESENT_SCALING_ASPECT_RATIO_STRETCH_BIT_EXT PresentScalingFlagBitsEXT = 1 << 1
+const PRESENT_SCALING_ONE_TO_ONE_BIT_EXT PresentScalingFlagBitsKHR = PRESENT_SCALING_ONE_TO_ONE_BIT_KHR
 
-const PRESENT_SCALING_STRETCH_BIT_EXT PresentScalingFlagBitsEXT = 1 << 2
+const PRESENT_SCALING_ASPECT_RATIO_STRETCH_BIT_KHR PresentScalingFlagBitsKHR = 1 << 1
 
-type PresentGravityFlagBitsEXT int32
+const PRESENT_SCALING_ASPECT_RATIO_STRETCH_BIT_EXT PresentScalingFlagBitsKHR = PRESENT_SCALING_ASPECT_RATIO_STRETCH_BIT_KHR
 
-const PRESENT_GRAVITY_MIN_BIT_EXT PresentGravityFlagBitsEXT = 1 << 0
+const PRESENT_SCALING_STRETCH_BIT_KHR PresentScalingFlagBitsKHR = 1 << 2
 
-const PRESENT_GRAVITY_MAX_BIT_EXT PresentGravityFlagBitsEXT = 1 << 1
+const PRESENT_SCALING_STRETCH_BIT_EXT PresentScalingFlagBitsKHR = PRESENT_SCALING_STRETCH_BIT_KHR
 
-const PRESENT_GRAVITY_CENTERED_BIT_EXT PresentGravityFlagBitsEXT = 1 << 2
+type PresentGravityFlagBitsKHR int32
+
+const PRESENT_GRAVITY_MIN_BIT_KHR PresentGravityFlagBitsKHR = 1 << 0
+
+const PRESENT_GRAVITY_MIN_BIT_EXT PresentGravityFlagBitsKHR = PRESENT_GRAVITY_MIN_BIT_KHR
+
+const PRESENT_GRAVITY_MAX_BIT_KHR PresentGravityFlagBitsKHR = 1 << 1
+
+const PRESENT_GRAVITY_MAX_BIT_EXT PresentGravityFlagBitsKHR = PRESENT_GRAVITY_MAX_BIT_KHR
+
+const PRESENT_GRAVITY_CENTERED_BIT_KHR PresentGravityFlagBitsKHR = 1 << 2
+
+const PRESENT_GRAVITY_CENTERED_BIT_EXT PresentGravityFlagBitsKHR = PRESENT_GRAVITY_CENTERED_BIT_KHR
 
 type PhysicalDeviceSchedulingControlsFlagBitsARM int64
 
@@ -18445,7 +19445,9 @@ const PHYSICAL_DEVICE_SCHEDULING_CONTROLS_SHADER_CORE_COUNT_ARM PhysicalDeviceSc
 
 type HostImageCopyFlagBits int32
 
-const HOST_IMAGE_COPY_MEMCPY HostImageCopyFlagBits = 1 << 0
+const HOST_IMAGE_COPY_MEMCPY_BIT HostImageCopyFlagBits = 1 << 0
+
+const HOST_IMAGE_COPY_MEMCPY HostImageCopyFlagBits = HOST_IMAGE_COPY_MEMCPY_BIT
 
 type PartitionedAccelerationStructureOpTypeNV int32
 
@@ -18936,3 +19938,69 @@ const COOPERATIVE_VECTOR_MATRIX_LAYOUT_COLUMN_MAJOR_NV CooperativeVectorMatrixLa
 const COOPERATIVE_VECTOR_MATRIX_LAYOUT_INFERENCING_OPTIMAL_NV CooperativeVectorMatrixLayoutNV = 2
 
 const COOPERATIVE_VECTOR_MATRIX_LAYOUT_TRAINING_OPTIMAL_NV CooperativeVectorMatrixLayoutNV = 3
+
+type AddressCopyFlagBitsKHR int32
+
+const ADDRESS_COPY_DEVICE_LOCAL_BIT_KHR AddressCopyFlagBitsKHR = 1 << 0
+
+const ADDRESS_COPY_SPARSE_BIT_KHR AddressCopyFlagBitsKHR = 1 << 1
+
+const ADDRESS_COPY_PROTECTED_BIT_KHR AddressCopyFlagBitsKHR = 1 << 2
+
+type TensorCreateFlagBitsARM int64
+
+const TENSOR_CREATE_MUTABLE_FORMAT_BIT_ARM TensorCreateFlagBitsARM = 1 << 0
+
+const TENSOR_CREATE_PROTECTED_BIT_ARM TensorCreateFlagBitsARM = 1 << 1
+
+type TensorUsageFlagBitsARM int64
+
+const TENSOR_USAGE_SHADER_BIT_ARM TensorUsageFlagBitsARM = 1 << 1
+
+const TENSOR_USAGE_TRANSFER_SRC_BIT_ARM TensorUsageFlagBitsARM = 1 << 2
+
+const TENSOR_USAGE_TRANSFER_DST_BIT_ARM TensorUsageFlagBitsARM = 1 << 3
+
+const TENSOR_USAGE_IMAGE_ALIASING_BIT_ARM TensorUsageFlagBitsARM = 1 << 4
+
+type TensorTilingARM int32
+
+const TENSOR_TILING_OPTIMAL_ARM TensorTilingARM = 0
+
+const TENSOR_TILING_LINEAR_ARM TensorTilingARM = 1
+
+type TensorViewCreateFlagBitsARM int64
+
+type DefaultVertexAttributeValueKHR int32
+
+const DEFAULT_VERTEX_ATTRIBUTE_VALUE_ZERO_ZERO_ZERO_ZERO_KHR DefaultVertexAttributeValueKHR = 0
+
+const DEFAULT_VERTEX_ATTRIBUTE_VALUE_ZERO_ZERO_ZERO_ONE_KHR DefaultVertexAttributeValueKHR = 1
+
+type DataGraphPipelineSessionCreateFlagBitsARM int64
+
+const DATA_GRAPH_PIPELINE_SESSION_CREATE_PROTECTED_BIT_ARM DataGraphPipelineSessionCreateFlagBitsARM = 1 << 0
+
+type DataGraphPipelineSessionBindPointARM int32
+
+const DATA_GRAPH_PIPELINE_SESSION_BIND_POINT_TRANSIENT_ARM DataGraphPipelineSessionBindPointARM = 0
+
+type DataGraphPipelineSessionBindPointTypeARM int32
+
+const DATA_GRAPH_PIPELINE_SESSION_BIND_POINT_TYPE_MEMORY_ARM DataGraphPipelineSessionBindPointTypeARM = 0
+
+type DataGraphPipelinePropertyARM int32
+
+const DATA_GRAPH_PIPELINE_PROPERTY_CREATION_LOG_ARM DataGraphPipelinePropertyARM = 0
+
+const DATA_GRAPH_PIPELINE_PROPERTY_IDENTIFIER_ARM DataGraphPipelinePropertyARM = 1
+
+type DataGraphPipelineDispatchFlagBitsARM int64
+
+type PhysicalDeviceDataGraphProcessingEngineTypeARM int32
+
+const PHYSICAL_DEVICE_DATA_GRAPH_PROCESSING_ENGINE_TYPE_DEFAULT_ARM PhysicalDeviceDataGraphProcessingEngineTypeARM = 0
+
+type PhysicalDeviceDataGraphOperationTypeARM int32
+
+const PHYSICAL_DEVICE_DATA_GRAPH_OPERATION_TYPE_SPIRV_EXTENDED_INSTRUCTION_SET_ARM PhysicalDeviceDataGraphOperationTypeARM = 0
