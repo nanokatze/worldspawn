@@ -36,11 +36,6 @@ public struct interpreterABI {
     public uint32_t outputsReg;
 }
 
-// TODO: move interpolators into their own file!!!
-
-// TODO: review whether we want to do something more clever (numerically) in the
-// interpolators, e.g. do we need to tinker with rounding modes or whatever?
-
 public enum Op {
     Stop,
 
@@ -63,8 +58,7 @@ public enum Op {
 
     CondSelect32,
 
-    LoadParam,
-    LoadAttr,
+    LoadAttribute,
 
     LoadShadingNormal,
 };
@@ -173,24 +167,14 @@ evalLoop:
             break;
         }
 
-        case Op::LoadParam: {
-            uint32_t off = fetcher.fetch();
-            regs[dst] = *(uint32_t*)((uint8_t*)args + off);
-            break;
-        }
-        case Op::LoadAttr: {
-            uint32_t off = fetcher.fetch();
-            float2 *attrbuf = *(float2**)((uint8_t*)args + off);
-            float2 attr0 = attrbuf[triIdxs[0]];
-            float2 attr1 = attrbuf[triIdxs[1]];
-            float2 attr2 = attrbuf[triIdxs[2]];
-            // TODO: make a dedicated interpolation function which will take care of the
-            // edge cases
-            float2 attr = interpolate2(float2[3](attr0, attr1, attr2), barys_yz);
-            regs[dst+0] = reinterpret<uint32_t>(attr.x);
-            regs[dst+1] = reinterpret<uint32_t>(attr.y);
-            // TODO: we'll probs be loading the entire vec3 or vec4 at all times
-            // I guess?
+        case Op::LoadAttribute: {
+            let off = fetcher.fetch();
+            // TODO: make an AttributeDescriptor struct
+            let attr = *(uint4*)((uint8_t*)args + off);
+            regs[dst+0] = attr.x;
+            regs[dst+1] = attr.y;
+            regs[dst+2] = attr.z;
+            regs[dst+3] = attr.w;
             break;
         }
         case Op::LoadShadingNormal: {

@@ -24,9 +24,7 @@ type Weapon2GenericProjectileLauncher struct {
 }
 
 type Testburger struct {
-	BaseColorR float32
-	BaseColorG float32
-	BaseColorB float32
+	BaseColor [4]float32
 }
 
 func hsv2rgb(hsv [3]float32) [3]float32 {
@@ -75,15 +73,10 @@ func (weapon Weapon2GenericProjectileLauncher) CreateGeometry(scene *Scene) ecs.
 
 func (weapon Weapon2GenericProjectileLauncher) UpdateSubtick(scene *Scene, weaponID, operatorID ecs.Entity, info *UpdateParams) func(ecs.Entity) {
 	return func(id ecs.Entity) {
-		rgb := hsv2rgb([3]float32{
-			float32(math.Mod(float64(scene.Now)/1e9*60, 360)),
-			1,
-			1,
-		})
+		rgb := hsv2rgb([3]float32{float32(math.Mod(float64(scene.Now)/1e9*60, 360)), 1, 1})
+
 		scene.Entity.Set(id, Testburger{
-			BaseColorR: rgb[0],
-			BaseColorG: rgb[1],
-			BaseColorB: rgb[2],
+			BaseColor: [4]float32{rgb[0], rgb[1], rgb[2], 1},
 		})
 	}
 }

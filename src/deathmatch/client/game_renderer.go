@@ -131,7 +131,6 @@ func (re *gameRendererImpl) Tick(w *game.Scene, playerID ecs.Entity, t0, t1 game
 			// everything that follows.
 
 			for id, v := range ecs.Join(w.RenderingGeometry, w.TranslationRotation) {
-				entity, hasEntity := w.Entity.Get(id)
 				renderingGeometry := v.V1
 
 				i := id.Index()
@@ -160,9 +159,7 @@ func (re *gameRendererImpl) Tick(w *game.Scene, playerID ecs.Entity, t0, t1 game
 					m2 := getmaterial(mesh.defaultMaterials[j])
 					materialInstance := &update.Materials[i][j]
 					materialInstance.Material = m2.material
-					if hasEntity {
-						m2.gatherArgs(materialInstance.Args[:], reflect.ValueOf(entity))
-					}
+					m2.preamble(materialInstance.Args[:], &matPropReader{w, id})
 				}
 
 				update.Instance[i].Mask = mask
@@ -314,4 +311,26 @@ func (re *gameRendererImpl) Render(jq *gpu.JobQueue, dst *gpu.Image) {
 			RussianRouletteThreshold: conf.Quality.RussianRouletteThreshold,
 		})
 	fn++
+}
+
+type matPropReader struct {
+	scene  *game.Scene
+	object ecs.Entity
+}
+
+func (sr *matPropReader) UniformAttribute(name string, out *[4]float32) bool {
+	objectData, ok := sr.scene.Entity.Get(sr.object)
+	if !ok {
+		return false
+	}
+	*out = getv(reflect.ValueOf(objectData).FieldByName(name))
+	return true
+}
+
+func getv(v reflect.Value) [4]float32 {
+	// TODO: allow types to implement a thing to get the value with
+	if v.Type() == reflect.TypeFor[[4]float32]() {
+		return v.Interface().([4]float32)
+	}
+	return [4]float32{}
 }

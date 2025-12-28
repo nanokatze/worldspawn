@@ -6,7 +6,7 @@ import (
 )
 
 type assembler struct {
-	paramOffsets []int64
+	paramsLayout ParamsLayout
 	code         []uint32
 }
 
@@ -15,10 +15,9 @@ func packinstr(op material.A, dst, src0, src1 uint32) uint32 {
 	return uint32(op) | uint32(dst)<<8 | uint32(src0)<<16 | uint32(src1)<<24
 }
 
-func assemble(schedule []*compiler.Class, regm map[*compiler.Class]regRange, paramOffsets []int64) []uint32 {
+func assemble(schedule []*compiler.Class, regm map[*compiler.Class]regRange, paramsLayout ParamsLayout) []uint32 {
 	as := assembler{}
-
-	as.paramOffsets = paramOffsets
+	as.paramsLayout = paramsLayout
 
 	for _, class := range schedule {
 		v := class.Value()

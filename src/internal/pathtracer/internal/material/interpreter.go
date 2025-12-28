@@ -80,8 +80,7 @@ const (
 
 	ACondSelect32
 
-	ALoadParam
-	ALoadAttr
+	ALoadAttribute
 	ALoadShadingNormal
 
 	// ABSDFAlbedo

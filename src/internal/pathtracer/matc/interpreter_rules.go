@@ -52,23 +52,13 @@ var InterpreterLowerings = []compiler.RewriteRule{
 
 	{
 		Comment: "interpreter lowering",
-		Pattern: &compiler.Pattern{Op: OpLoadMaterialParameter},
+		Pattern: &compiler.Pattern{Op: OpLoadAttribute, Args: []*compiler.Pattern{{Op: OpLoadParameter}}},
 		Rewrite: func(rr *compiler.RewriteResult, b *compiler.Builder, v *compiler.Value) {
-			if _, ok := v.Type().(core.IntType); !ok {
-				return
-			}
-			rr.Add2(opInterpLoadArgument, v.Type(), v.Imm())
-		},
-	},
-	{
-		Comment: "interpreter lowering",
-		Pattern: &compiler.Pattern{Op: OpLoadAttribute, Args: []*compiler.Pattern{{Op: OpLoadMaterialParameter}}},
-		Rewrite: func(rr *compiler.RewriteResult, b *compiler.Builder, v *compiler.Value) {
-			_ = v.Arg(0).Type().(AttributeDescriptor)
+			_ = v.Arg(0).Type().(AttributeDescriptorType)
 
 			for w := range v.Arg(0).Values() {
-				if w.Op() == OpLoadMaterialParameter {
-					rr.Add2(opInterpLoadAttribute, v.Type(), w.Imm().(int32))
+				if w.Op() == OpLoadParameter {
+					rr.Add2(opInterpLoadAttribute, v.Type(), w.Imm().(int64))
 				}
 			}
 		},

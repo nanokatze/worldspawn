@@ -5,41 +5,49 @@ import (
 	"worldspawn/internal/compiler/core"
 )
 
+// TODO: we could move matc out of pathtracer and into internal/, but we would
+// need to move pathtracer/material out of there too. It would make sense to do
+// that if we e.g. wanna have multiple targets for matc, or multiple compilers
+// for renderer's materials. We could also consider taking some kind of portable
+// subset of material instructions and moving them somewhere to common code.
+
 // TODO: split this file?
+
+// TODO: we need compiler.DefType tbhonestly
 
 func defOp(name string, validate compiler.Validator) compiler.Op {
 	return compiler.DefOp("matc."+name, validate)
 }
 
-// TODO: try to eliminate this in favor of LoadAttribute. NV MDL doesn't let the
-// users choose where to get the attribute from so it can come either from
-// geometry or object (entity) or scene, so we should really try and make
-// everything go through LoadAttribute.
-var OpLoadMaterialParameter = defOp("LoadMaterialParameter", nil)
+var OpLoadParameter = defOp("LoadParameter", nil)
 
-func LoadMaterialParameter(b *compiler.Builder, typ compiler.Type, index int32) *compiler.Class {
-	return b.Value2(OpLoadMaterialParameter, typ, index)
+func LoadParameter(b *compiler.Builder, typ compiler.Type, index int64) *compiler.Class {
+	return b.Value2(OpLoadParameter, typ, index)
 }
 
-// TODO: put other fields into AttributeDescriptor (e.g. the set of domains it
-// can be pulled from etc)
-type AttributeDescriptor struct{}
+// TODO: put other fields into AttributeDescriptorType (e.g. the set of domains
+// it can be pulled from etc)
+type AttributeDescriptorType struct{}
 
-func (AttributeDescriptor) String() string { return "AttributeDescriptor" }
+func (AttributeDescriptorType) String() string { return "AttributeDescriptor" }
 
 // TODO: should we have a version of LoadAttribute that, if attribute is
 // per-vertex, returns uninterpolated attribute chosen randomly instead of
 // interpolating? This would be useful for basically advanced vertex colors.
 var OpLoadAttribute = defOp("LoadAttribute", nil)
 
-// TODO: should be a vec4
 func LoadAttribute(b *compiler.Builder, arg *compiler.Class) *compiler.Class {
-	return b.Value2(OpLoadAttribute, core.ArrayType{2, core.Int32}, nil, arg)
+	return b.Value2(OpLoadAttribute, core.ArrayType{4, core.Int32}, nil, arg)
 }
+
+type TextureDescriptorType struct{}
+
+func (TextureDescriptorType) String() string { return "TextureDescriptor" }
 
 // TODO: unify these into a single type? We have some ops that are defined for
 // either BSDF or EDF.
 type (
+	// DistributionFunctionType struct{}
 	BSDFType struct{}
 	EDFType  struct{}
 )

@@ -60,8 +60,7 @@ var (
 
 	opInterpCondSelect32 = defInterpOp("CondSelect32", aaa{op: material.ACondSelect32, dst: true, arity: 3})
 
-	opInterpLoadArgument  = defInterpOp("LoadArgument", aparam(material.ALoadParam))
-	opInterpLoadAttribute = defInterpOp("LoadAttribute", aparam(material.ALoadAttr))
+	opInterpLoadAttribute = defInterpOp("LoadAttribute", aparam(material.ALoadAttribute))
 
 	// TODO: kill in favor of LoadAttribute
 	OpInterpLoadShadingNormal = defInterpOp("GetShadingNormal", aaa{op: material.ALoadShadingNormal, dst: true})
@@ -75,7 +74,7 @@ func (d aparam) Validate(typ compiler.Type, imm any, args ...*compiler.Class) {
 
 func (d aparam) Assemble(as *assembler, c *compiler.Class, v *compiler.Value, regm map[*compiler.Class]regRange) {
 	dst := uint32(regm[c].I)
-	off := as.paramOffsets[v.Imm().(int64)]
+	off := as.paramsLayout.Offset(int(v.Imm().(int64)))
 
 	as.code = append(as.code, packinstr(material.A(d), dst, 0, 0), uint32(off))
 }

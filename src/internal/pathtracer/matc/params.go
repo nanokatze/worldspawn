@@ -1,35 +1,19 @@
 package matc
 
 import (
-	"math"
 	"reflect"
 	"strconv"
 
-	"worldspawn/gpu"
 	"worldspawn/internal/compiler"
-	"worldspawn/internal/compiler/core"
+	"worldspawn/internal/pathtracer/internal/material"
 )
 
-// TODO: rename this file pls
-
-// TODO: naming
-func asdasd(t compiler.Type) reflect.Type {
-	switch t := t.(type) {
-	case core.IntType:
-		switch t.N {
-		case 32:
-			return reflect.TypeFor[int32]()
-		}
-
-	case AttributeDescriptor:
-		return reflect.TypeFor[gpu.UnsafePointer]()
-	}
-
-	panic("bad")
+// TODO: should this be called paramLayout?
+type ParamsLayout struct {
+	structType reflect.Type
 }
 
-// TODO: naming
-func ParamStruct(paramTypes []compiler.Type) reflect.Type {
+func LayoutParams(paramTypes []compiler.Type) ParamsLayout {
 	fields := make([]reflect.StructField, len(paramTypes))
 	for i, t := range paramTypes {
 		fields[i] = reflect.StructField{
@@ -37,21 +21,34 @@ func ParamStruct(paramTypes []compiler.Type) reflect.Type {
 			Type: asdasd(t),
 		}
 	}
-
-	return reflect.StructOf(fields)
+	return ParamsLayout{structType: reflect.StructOf(fields)}
 }
 
-// TODO: replace this with a function that takes paramTypes or paramStruct and a
-// program that gathers the args?
-// TODO: beside src this would also need renderer.Mesh (which we need to move
-// out of here) to pack attributes.
-// TODO: dst should really just be a byte bag tbh. Or idk.
-func GatherArgs(dst, src reflect.Value, m []string) {
-	for i, f := range m {
-		v := src.FieldByName(f)
-		if v.Type().Kind() == reflect.Float32 {
-			v = reflect.ValueOf(int32(math.Float32bits(float32(v.Float()))))
-		}
-		dst.Field(i).Set(v)
+// TODO: naming
+func asdasd(t compiler.Type) reflect.Type {
+	switch t.(type) {
+	case AttributeDescriptorType:
+		return reflect.TypeFor[material.AttributeDescriptor]()
 	}
+
+	panic("bad")
+}
+
+func (layout ParamsLayout) Num() int {
+	if layout.structType == nil {
+		return 0
+	}
+	return layout.structType.NumField()
+}
+
+// TODO: make these use int as well?
+func (layout ParamsLayout) Size() int {
+	if layout.structType == nil {
+		return 0
+	}
+	return int(layout.structType.Size())
+}
+
+func (layout ParamsLayout) Offset(i int) int {
+	return int(layout.structType.Field(int(i)).Offset)
 }

@@ -8,7 +8,6 @@ import (
 	"maps"
 	"math"
 	"path"
-	"reflect"
 	"sync"
 	"unsafe"
 
@@ -107,9 +106,7 @@ func texture(filename string) *pathtracer.Texture {
 }
 
 type material struct {
-	// TODO: replace src with any?
-	gatherArgs func(dst []byte, src reflect.Value)
-
+	preamble matc.Preamble
 	material *pathtracer.InterpretedMaterial
 }
 
@@ -132,15 +129,12 @@ func getmaterial(identifier string) material {
 			goto bail
 		}
 
-		paramTypes := make([]compiler.Type, len(header.ParamTypes))
-		for i := range paramTypes {
-			paramTypes[i] = wmaterial.Type(header.ParamTypes[i])
+		params := make([]compiler.Type, len(header.Params))
+		for i := range params {
+			params[i] = wmaterial.Type(header.Params[i])
 		}
-		paramStruct := matc.ParamStruct(paramTypes)
-		paramOffsets := make([]int64, paramStruct.NumField())
-		for i := range paramOffsets {
-			paramOffsets[i] = int64(paramStruct.Field(i).Offset)
-		}
+
+		paramsLayout := matc.LayoutParams(params)
 
 		sea := compiler.NewSea()
 		b := &compiler.Builder{
@@ -153,22 +147,15 @@ func getmaterial(identifier string) material {
 			goto bail
 		}
 
-		m.gatherArgs = func(dst []byte, src reflect.Value) {
-			if src.IsZero() {
-				return
-			}
-			args := reflect.NewAt(paramStruct, unsafe.Pointer(unsafe.SliceData(dst))).Elem()
-			// TODO: precompile this
-			matc.GatherArgs(args, src, header.Preamble)
-		}
-		m.material = pathtracer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(paramOffsets, sea, ir, nil))
+		m.preamble = matc.CompilePreamble(paramsLayout, header.Preamble)
+		m.material = pathtracer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(paramsLayout, sea, ir, nil))
 	}
 	materialcache[identifier] = m
 	return m
 
 bail:
 	// TODO: stop using gotos lmao aaa
-	m.gatherArgs = func(dst []byte, src reflect.Value) {}
+	m.preamble = func(dst []byte, props matc.PropertyBag) {}
 	m.material = errorMaterial()
 	materialcache[identifier] = m
 	return m
@@ -198,7 +185,7 @@ var errorMaterial = sync.OnceValue(func() *pathtracer.InterpretedMaterial {
 		b.Value2(matc.OpDFWeightedSum, matc.EDFType{}, nil),
 	)
 
-	return pathtracer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(nil, sea, program, nil))
+	return pathtracer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(matc.ParamsLayout{}, sea, program, nil))
 })
 
 type fileBackedMesh struct {

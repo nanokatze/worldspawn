@@ -19,25 +19,15 @@ func TestXxx(t *testing.T) {
 	}
 
 	paramTypes := []compiler.Type{
-		AttributeDescriptor{},
-		core.Int32,
-		core.Int32,
-		core.Int32,
+		AttributeDescriptorType{}, // uv
+		AttributeDescriptorType{}, // color
 	}
 
-	paramStruct := ParamStruct(paramTypes)
-
-	paramOffsets := make([]int64, len(paramTypes))
-	for i := range paramOffsets {
-		paramOffsets[i] = int64(paramStruct.Field(i).Offset)
-	}
+	paramStruct := LayoutParams(paramTypes)
 
 	normal := b.Value2(OpInterpLoadShadingNormal, core.ArrayType{3, core.Int32}, nil)
-	// normal_x := core.ArrayExtract(b, normal, 0)
-	// normal_y := core.ArrayExtract(b, normal, 1)
-	// normal_z := core.ArrayExtract(b, normal, 2)
 
-	uv := LoadAttribute(b, LoadMaterialParameter(b, AttributeDescriptor{}, 0))
+	uv := LoadAttribute(b, LoadParameter(b, AttributeDescriptorType{}, 0))
 	u := core.ArrayExtract(b, uv, 0)
 	v := core.ArrayExtract(b, uv, 1)
 
@@ -60,19 +50,11 @@ func TestXxx(t *testing.T) {
 		idk3,
 		core.IConst(b, core.Int32, int64(math.Float32bits(0.025))))
 
-	color := core.MakeArray(
-		b,
-		core.Int32,
-		LoadMaterialParameter(b, core.Int32, 1),
-		LoadMaterialParameter(b, core.Int32, 2),
-		LoadMaterialParameter(b, core.Int32, 3))
+	color := LoadAttribute(b, LoadParameter(b, AttributeDescriptorType{}, 1))
 
-	white := core.MakeArray(b, core.Int32, one, one, one)
+	white := core.MakeArray(b, core.Int32, one, one, one, one)
 
 	final := core.CondSelect(b, white, color, selector)
-	// final_x := core.ArrayExtract(b, final, 0)
-	// final_y := core.ArrayExtract(b, final, 1)
-	// final_z := core.ArrayExtract(b, final, 2)
 
 	program := b.Value2(
 		OpMakeSurface,
@@ -85,7 +67,7 @@ func TestXxx(t *testing.T) {
 		b.Value2(OpDFWeightedSum, EDFType{}, nil),
 	)
 
-	compiled := CompileInterpretedMaterial(paramOffsets, sea, program, nil)
+	compiled := CompileInterpretedMaterial(paramStruct, sea, program, nil)
 
 	t.Log(compiled.ABI)
 }

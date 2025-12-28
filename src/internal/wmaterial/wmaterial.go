@@ -13,9 +13,11 @@ import (
 )
 
 type Header struct {
-	ParamTypes []string // rename to just Params? ProgramParams?
-	Preamble   []string
-	Program    jsontext.Value
+	// TODO: params probs should be folded into both program and preamble, or
+	// alternatively preamble could be made unaware of param types.
+	Params   []string
+	Preamble []string
+	Program  jsontext.Value
 }
 
 type stmt struct {
@@ -30,6 +32,8 @@ func Type(typ string) compiler.Type {
 	switch typ {
 	case "Nothing":
 		return core.NothingType{}
+	case "AttributeDescriptor":
+		return matc.AttributeDescriptorType{}
 	case "Int[32]":
 		return core.Int32
 	case "Array[2, Int[32]]":
@@ -48,21 +52,22 @@ func Type(typ string) compiler.Type {
 }
 
 var opByName = map[string]compiler.Op{
-	"IConst":                core.OpIConst,
-	"MakeArray":             core.OpMakeArray,
-	"ArrayExtract":          core.OpArrayExtract,
-	"LoadMaterialParameter": matc.OpLoadMaterialParameter,
-	"LoadShadingNormal":     matc.OpInterpLoadShadingNormal,
-	"DiffuseBSDF":           matc.OpDiffuseBSDF,
-	"UniformEDF":            matc.OpUniformEDF,
-	"DFWeightedSum":         matc.OpDFWeightedSum,
-	"MakeSurface":           matc.OpMakeSurface,
+	"ArrayExtract":      core.OpArrayExtract,
+	"DFWeightedSum":     matc.OpDFWeightedSum,
+	"DiffuseBSDF":       matc.OpDiffuseBSDF,
+	"IConst":            core.OpIConst,
+	"LoadAttribute":     matc.OpLoadAttribute,
+	"LoadParameter":     matc.OpLoadParameter,
+	"LoadShadingNormal": matc.OpInterpLoadShadingNormal,
+	"MakeArray":         core.OpMakeArray,
+	"MakeSurface":       matc.OpMakeSurface,
+	"UniformEDF":        matc.OpUniformEDF,
 }
 
 var opImmParser = map[compiler.Op]func(imm string) (any, error){
-	core.OpIConst:                func(imm string) (any, error) { return strconv.ParseInt(imm, 10, 64) },
-	core.OpArrayExtract:          func(imm string) (any, error) { return strconv.ParseInt(imm, 10, 64) },
-	matc.OpLoadMaterialParameter: func(imm string) (any, error) { return strconv.ParseInt(imm, 10, 64) },
+	core.OpIConst:        func(imm string) (any, error) { return strconv.ParseInt(imm, 10, 64) },
+	core.OpArrayExtract:  func(imm string) (any, error) { return strconv.ParseInt(imm, 10, 64) },
+	matc.OpLoadParameter: func(imm string) (any, error) { return strconv.ParseInt(imm, 10, 64) },
 }
 
 // TODO: a proper syntax?

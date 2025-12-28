@@ -68,15 +68,12 @@ type InterpretedMaterial struct {
 // TODO: AOVs. Either the user can specify aov name -> offset mapping at compile
 // time, we can do the remapping later somehow
 // TODO: allow printing stuff for debugging somehow
-func CompileInterpretedMaterial(paramOffsets []int64, sea *compiler.Sea, c *compiler.Class, log io.Writer) *InterpretedMaterial {
+func CompileInterpretedMaterial(paramsLayout ParamsLayout, sea *compiler.Sea, c *compiler.Class, log io.Writer) *InterpretedMaterial {
 	sea2 := compiler.NewSea()
 
-	x := extract2(&compiler.Builder{Sea: sea2}, c, make(map[*compiler.Class]*compiler.Class))
+	// TODO: dump representation to log if we have log
 
-	// if log != nil {
-	// 	fmt.Fprintln(log, "extraction")
-	// 	compiler.Dump(sea2, x, nil)
-	// }
+	x := extract2(&compiler.Builder{Sea: sea2}, c, make(map[*compiler.Class]*compiler.Class))
 
 	sched := schedule2(x)
 
@@ -98,7 +95,7 @@ func CompileInterpretedMaterial(paramOffsets []int64, sea *compiler.Sea, c *comp
 		}
 	}
 
-	assembled := assemble(sched, regm, paramOffsets)
+	assembled := assemble(sched, regm, paramsLayout)
 	if log != nil {
 		fmt.Fprintln(log, "disassembly")
 		for i := 0; i < len(assembled); {
@@ -112,7 +109,7 @@ func CompileInterpretedMaterial(paramOffsets []int64, sea *compiler.Sea, c *comp
 
 			fmt.Fprintf(log, "%v r%v r%v r%v", material.A(op), dst, src0, src1)
 			switch material.A(op) {
-			case material.AConst32, material.ALoadParam, material.ALoadAttr:
+			case material.AConst32, material.ALoadAttribute:
 				data := assembled[i]
 				i++
 				fmt.Fprintf(log, " 0x%08x", data)

@@ -21,14 +21,13 @@ func _() {
 	_ = x[AFEqualE8M23-10]
 	_ = x[AFLessOrEqualE8M23-11]
 	_ = x[ACondSelect32-12]
-	_ = x[ALoadParam-13]
-	_ = x[ALoadAttr-14]
-	_ = x[ALoadShadingNormal-15]
+	_ = x[ALoadAttribute-13]
+	_ = x[ALoadShadingNormal-14]
 }
 
-const _A_name = "StopCopy32Const32FAddE8M23FSubE8M23FMulE8M23FDivE8M23FMinE8M23FMaxE8M23FFloorE8M23FEqualE8M23FLessOrEqualE8M23CondSelect32LoadParamLoadAttrLoadShadingNormal"
+const _A_name = "StopCopy32Const32FAddE8M23FSubE8M23FMulE8M23FDivE8M23FMinE8M23FMaxE8M23FFloorE8M23FEqualE8M23FLessOrEqualE8M23CondSelect32LoadAttributeLoadShadingNormal"
 
-var _A_index = [...]uint8{0, 4, 10, 17, 26, 35, 44, 53, 62, 71, 82, 93, 110, 122, 131, 139, 156}
+var _A_index = [...]uint8{0, 4, 10, 17, 26, 35, 44, 53, 62, 71, 82, 93, 110, 122, 135, 152}
 
 func (i A) String() string {
 	if i >= A(len(_A_index)-1) {

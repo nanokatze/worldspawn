@@ -45,7 +45,7 @@ def cook(ctx, material):
         program.append(dataclasses.asdict(guh))
 
     with open(ctx.path_for_datablock(material), 'wb') as f:
-        json.dump({'ParamTypes': c.param_types, 'Preamble': c.preamble, 'Program': program}, util.UTF8Writer(f), indent='\t')
+        json.dump({'Params': c.params, 'Preamble': c.preamble, 'Program': program}, util.UTF8Writer(f), indent='\t')
 
 
 # TODO: split the material-specific parts out into a separate class and move
@@ -56,7 +56,7 @@ class Compiler:
     # TODO: should this get the entire builder? I guess yeah
     def __init__(self, builder, node_tree):
         self.__links = bpyutil.Links(node_tree)
-        self.param_types = [] # TODO: delet
+        self.params = [] # TODO: delet
         self.preamble = [] # TODO: delet
         self.__builder = builder
         self.__compiled_nodes = dict()
@@ -66,8 +66,8 @@ class Compiler:
     # representation. We should have the compiler figure out preamble for us
     # later.
     def __add_param(self, type, attribute):
-        idx = len(self.param_types)
-        self.param_types.append(type)
+        idx = len(self.params)
+        self.params.append(type)
         # TODO: preamble will at one point become an actual program that will run on host
         self.preamble.append(attribute)
         return idx
@@ -85,10 +85,13 @@ class Compiler:
 
         match node:
             case bpy.types.ShaderNodeAttribute():
+                param_idx = self.__add_param('AttributeDescriptor', node.attribute_name)
+                descriptor = self.__builder.value('LoadParameter', 'AttributeDescriptor', param_idx)
+                value = self.__builder.value('LoadAttribute', 'Array[4, Int[32]]', None, descriptor)
+
                 match output_name:
-                    case 'Factor':
-                        param_idx = self.__add_param('Int[32]', node.attribute_name)
-                        return self.__builder.value('LoadMaterialParameter', 'Int[32]', param_idx)
+                    case 'Color':
+                        return value
 
                     case _:
                         assert False, 'not implemented ({})'.format(output_name)
@@ -142,7 +145,7 @@ class Compiler:
             case 1:
                 return self.__compile_output_socket(links[0])
             case _:
-                assert False, 'socket has {} inputs'.format(len(links))
+                assert False, 'socket has multiple inputs ({})'.format(len(links))
 
 
     def __compile_output_socket(self, socket):
