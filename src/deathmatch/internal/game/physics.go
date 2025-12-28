@@ -249,7 +249,7 @@ func getConvexShape(key2 GeometryPacked) *physics.Shape {
 		return shape
 	}
 
-	key := key2.Unpack()
+	key := UnpackGeometry(key2)
 
 	var err error
 	switch key.Kind {
@@ -287,7 +287,7 @@ func getConcaveShape(key2 GeometryPacked) *physics.Shape {
 		return shape
 	}
 
-	key := key2.Unpack()
+	key := UnpackGeometry(key2)
 
 	var err error
 	switch key.Kind {

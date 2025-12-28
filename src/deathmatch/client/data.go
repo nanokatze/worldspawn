@@ -287,7 +287,7 @@ func loadmesh(filename string) *fileBackedMesh {
 func getmesh(geo game.GeometryPacked) *fileBackedMesh {
 	m, ok := modelcache[geo]
 	if !ok {
-		m = loadmesh(geo.Unpack().Filename)
+		m = loadmesh(game.UnpackGeometry(geo).Filename)
 		modelcache[geo] = m
 	}
 	return m

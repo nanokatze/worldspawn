@@ -74,9 +74,9 @@ func PackGeometry(geo Geometry) GeometryPacked {
 	return GeometryPacked(buf)
 }
 
-func (geo GeometryPacked) Unpack() Geometry {
+func UnpackGeometry(packed GeometryPacked) Geometry {
 	var unpacked Geometry
-	if err := nice.Unmarshal([]byte(geo), &unpacked); err != nil {
+	if err := nice.Unmarshal([]byte(packed), &unpacked); err != nil {
 		panic(err)
 	}
 	return unpacked
