@@ -12,6 +12,7 @@ import "C"
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"runtime"
 	"structs"
@@ -332,23 +333,31 @@ func WaitEvent() (Event, error) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	var event C.SDL_Event
-	if !C.SDL_WaitEvent(&event) {
-		return nil, getError()
+	for {
+		var cEvent C.SDL_Event
+		if !C.SDL_WaitEvent(&cEvent) {
+			return nil, getError()
+		}
+
+		event := translateEvent(&cEvent)
+		if event != nil {
+			return event, nil
+		}
 	}
-	return translateEvent(&event), nil
 }
 
-func translateEvent(p *C.SDL_Event) Event {
-	eventType := *(*EventType)(unsafe.Pointer(p))
+// TODO: rename
+func translateEvent(cEvent *C.SDL_Event) Event {
+	eventType := *(*EventType)(unsafe.Pointer(cEvent))
 
 	typ := eventTypes[eventType]
 	if typ == nil {
+		if false {
+			println(fmt.Sprintf("sdl: event type 0x%x not implemented", uint32(eventType)))
+		}
 		return nil
 	}
-
-	pTyped, _ := reflect.TypeAssert[Event](reflect.NewAt(typ.Elem(), unsafe.Pointer(p)))
-	return pTyped
+	return reflect.NewAt(typ.Elem(), unsafe.Pointer(cEvent)).Interface().(Event)
 }
 
 // Video
