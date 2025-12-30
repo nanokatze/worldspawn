@@ -83,7 +83,11 @@ var defaultConfig = func() *Config {
 	return &conf
 }()
 
-var (
-	configMu sync.Mutex // only locked when modifying
-	config   atomic.Pointer[Config]
-)
+var config rcu[Config]
+
+type rcu[T any] struct {
+	P    atomic.Pointer[T]
+	WrMu sync.Mutex // only locked when modifying the value
+}
+
+func (rcu *rcu[T]) Load() *T { return rcu.P.Load() }

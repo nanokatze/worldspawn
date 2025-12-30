@@ -17,12 +17,12 @@ var _ UpdateAfterPhysics = GrenadeLauncherGrenade{}
 func (grenade GrenadeLauncherGrenade) UpdateAfterPhysics(w *Scene, id ecs.Entity, info *UpdateParams) {
 	creationTime, _ := w.CreationTime.Get(id)
 	explosionTime := creationTime.Add(grenade.Fuse)
-	if w.Now.Before(explosionTime) {
+	if explosionTime.After(w.Now) {
 		return
 	}
 
 	if !info.Speculating {
-		effect := w.CreateEntity()
+		effect := w.CreateEntity(info)
 		positionRotation, _ := w.TranslationRotation.Get(id)
 		w.TranslationRotation.Set(effect, positionRotation)
 		w.SoundEffect.Set(effect, SoundEmitter{

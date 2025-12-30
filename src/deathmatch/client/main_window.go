@@ -1,9 +1,12 @@
 package main
 
 import (
+	"flag"
 	"fmt"
+	"log"
 	"log/slog"
 	"math"
+	"os"
 	"sync"
 	"time"
 
@@ -12,9 +15,10 @@ import (
 	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
 	"worldspawn/sdl"
+	"worldspawn/sdlapp"
 )
 
-// TODO: rename? though I guess this is the correct name for it
+// TODO: kill
 type mainWindow struct {
 	sdlWindow *sdl.Window
 
@@ -25,15 +29,56 @@ type mainWindow struct {
 	swapchainImage *gpu.Image
 }
 
+func runMainWindow() {
+	w := newMainWindow()
+
+	if err := w.sdlWindow.SetWindowRelativeMouseMode(true); err != nil {
+		slog.Warn("failed to set relative mouse mode", "err", err)
+	}
+
+	slog.Info("gamepads", "gamepads", sdl.GetGamepads())
+
+	// TODO: open all gamepads we have here
+	if gamepads := sdl.GetGamepads(); len(gamepads) > 0 {
+		gamepad, _ = sdl.OpenGamepad(gamepads[0])
+	}
+
+	slog.Info("gamepad", "gamepad", gamepad)
+
+	raddr := flag.Arg(0)
+
+	// TODO: should newRemoteSession do the logging instead? Yes.
+
+	game.Data = os.DirFS(*dataDir)
+
+	session, err := newClient(gameRenderer, raddr)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	currentSession.Store(session)
+
+	go func() {
+		for {
+			w.redraw()
+		}
+	}()
+
+	for {
+		event := sdlapp.Event(w.sdlWindow)
+		w.handleInput(event)
+	}
+}
+
 func newMainWindow() *mainWindow {
 	conf := config.Load()
 
-	sdlWindow, err := sdl.CreateWindow(
+	sdlWindow, err := sdlapp.CreateWindow(
 		sdl.WithStringProperty(sdl.PROP_WINDOW_CREATE_TITLE_STRING, "Wo̅r̅l̅d̅s̅p̅a̅w̅n̅"),
 		sdl.WithBooleanProperty(sdl.PROP_WINDOW_CREATE_VULKAN_BOOLEAN, true),
 		sdl.WithBooleanProperty(sdl.PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN, true),
 		sdl.WithBooleanProperty(sdl.PROP_WINDOW_CREATE_HIGH_PIXEL_DENSITY_BOOLEAN, true),
-		// TODO: minimum window size?
+		// TODO: minimum window size as a safeguard?
 		sdl.WithNumberProperty(sdl.PROP_WINDOW_CREATE_WIDTH_NUMBER, int64(conf.Presentation.Resolution[0])),
 		sdl.WithNumberProperty(sdl.PROP_WINDOW_CREATE_HEIGHT_NUMBER, int64(conf.Presentation.Resolution[1])),
 	)
@@ -104,9 +149,6 @@ func (w *mainWindow) redraw() {
 	}
 }
 
-// TODO: factor window-specific code into a type (mainWindow or gameWindow or
-// whatever)
-
 // Must be called with redrawMu held.
 func (w *mainWindow) redrawLocked() bool {
 	if w.swapchain == nil {
@@ -156,11 +198,10 @@ func sdlTimeToGameTime(ticks uint64) game.Time {
 // nothing otherwise
 
 // TODO: we can filter out unchanging actions here
-func (w *mainWindow) handleInput(e any) {
-	var cmds []game.TimestampedInputCmd
-
+func (w *mainWindow) handleInput(e sdl.Event) {
 	conf := config.Load()
 
+	var cmds []game.TimestampedInputCmd
 	switch e := e.(type) {
 	case *sdl.WindowPixelSizeChangedEvent:
 		w.resize([3]int{int(e.Data1), int(e.Data2), 1})

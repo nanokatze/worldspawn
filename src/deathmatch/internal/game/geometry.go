@@ -90,3 +90,45 @@ func (geo *GeometryPacked) UnmarshalJSONFrom(d *jsontext.Decoder) error {
 	*geo = PackGeometry(tmp)
 	return nil
 }
+
+/*
+
+type Geometry2 any
+
+// Or call it MeshFileGeometry? Or GeometryFile
+type FileBackedGeometry string
+
+type CylinderGeometry struct {
+	Radius     float32
+	HalfHeight float32
+}
+
+// We could also use mat4 in its stead
+type TransformedGeometry struct {
+	Translation geometry.Vec3
+	Rotation    geometry.Rot3
+	Scale       geometry.Vec3
+	Geometry    Geometry2
+}
+
+func PackGeometry2(geo Geometry2) GeometryPacked {
+	buf, err := nice.Marshal(&geo, nice.WithArshalers(niceGeometryArshaler))
+	if err != nil {
+		panic(err)
+	}
+	return GeometryPacked(buf)
+}
+
+func UnpackGeometry2(geo GeometryPacked) Geometry2 {
+	var unpacked Geometry2
+	if err := nice.Unmarshal([]byte(geo), &unpacked, nice.WithArshalers(niceGeometryArshaler)); err != nil {
+		panic(err)
+	}
+	return unpacked
+}
+
+var niceGeometryArshaler = nice.InterfaceArshaler[Geometry2](
+	reflect.TypeFor[CylinderGeometry](),
+	reflect.TypeFor[FileBackedGeometry]())
+
+*/

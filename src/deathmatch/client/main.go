@@ -8,7 +8,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"log/slog"
 	"os"
 	"runtime"
 	"sync/atomic"
@@ -17,8 +16,8 @@ import (
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 
-	"worldspawn/deathmatch/internal/game"
 	"worldspawn/sdl"
+	"worldspawn/sdlapp"
 )
 
 var dataDir = flag.String("data", "data/cooked", "a")
@@ -40,20 +39,20 @@ func main() {
 
 	log.SetFlags(0) // TODO: kill this line
 
-	config.Store(defaultConfig)
+	config.P.Store(defaultConfig)
 
 	// log.Println(os.Hostname())
 
 	// TODO: use xdg config path
 	// TODO: factor this out? this is very gross in its current state.
 	if f, err := os.Open("config.json"); err == nil {
-		configMu.Lock()
+		config.WrMu.Lock()
 		conf := config.Load().Clone()
 		if err := json.UnmarshalRead(f, conf); err != nil {
 			panic(err)
 		}
-		config.Store(conf)
-		configMu.Unlock()
+		config.P.Store(conf)
+		config.WrMu.Unlock()
 	}
 
 	initAudio()
@@ -71,59 +70,9 @@ func main() {
 
 	// TODO: factor stuff into mainWindow constructor
 
-	mainWindow := newMainWindow()
+	go runMainWindow()
 
-	go func() {
-		for {
-			mainWindow.redraw()
-		}
-	}()
-
-	if err := mainWindow.sdlWindow.SetWindowRelativeMouseMode(true); err != nil {
-		slog.Warn("failed to set relative mouse mode", "err", err)
-	}
-
-	slog.Info("gamepads", "gamepads", sdl.GetGamepads())
-
-	// TODO: open all gamepads we have here
-	if gamepads := sdl.GetGamepads(); len(gamepads) > 0 {
-		gamepad, _ = sdl.OpenGamepad(gamepads[0])
-	}
-
-	slog.Info("gamepad", "gamepad", gamepad)
-
-	raddr := flag.Arg(0)
-
-	// TODO: should newRemoteSession do the logging instead? Yes.
-
-	game.Data = os.DirFS(*dataDir)
-
-	session, err := newClient(gameRenderer, raddr)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	currentSession.Store(session)
-
-	// We don't use SDL event watcher to handle resizes as our redraw is too
-	// slow to provide responsive size changes.
-	//
-	// For handling input, there appears to be marginal to no benefit over using
-	// WaitEvents.
-
-eventLoop:
-	for {
-		e, err := sdl.WaitEvent()
-		if err != nil {
-			panic(fmt.Sprintf("sdl.WaitEvent: %v", err))
-		}
-
-		switch e := e.(type) {
-		case *sdl.QuitEvent:
-			break eventLoop
-
-		default:
-			mainWindow.handleInput(e)
-		}
+	if err := sdlapp.Main(); err != nil {
+		panic(err)
 	}
 }

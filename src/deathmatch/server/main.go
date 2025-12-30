@@ -148,7 +148,7 @@ func (s *Server) serveConn(conn *quic.Conn, logger *slog.Logger) error {
 	// TODO: we shouldn't need to spawn the player immediately. The game should
 	// decide when to do so
 	s.mu.Lock()
-	u.player = spawnplayer(s.scene)
+	u.player = spawnplayer(s.scene, &game.UpdateParams{Logger: slog.Default()})
 	s.mu.Unlock()
 
 	framer := framing.NewFramer(stream2)
@@ -356,6 +356,9 @@ func (s *Server) sendUpdates(u *user) {
 	enc := nice.NewEncoder(buf, replication.NiceOptions)
 
 	{
+		if err := nice.MarshalEncode(enc, &s.scene.Now); err != nil {
+			panic(err)
+		}
 		// TODO: only send SingletonComponents that changed
 		if err := nice.MarshalEncode(enc, &s.scene.SingletonComponents); err != nil {
 			panic(err)
@@ -479,8 +482,8 @@ func readInputCmds(r io.Reader, cmds *[]game.TimestampedInputCmd) error {
 	return nice.UnmarshalDecode(dec, cmds)
 }
 
-func spawnplayer(w *game.Scene) ecs.Entity {
-	player := w.CreateEntity()
+func spawnplayer(w *game.Scene, info *game.UpdateParams) ecs.Entity {
+	player := w.CreateEntity(info)
 
 	var playerSpawns []ecs.Entity
 	for id := range w.PlayerSpawn.All() {
@@ -509,7 +512,7 @@ func spawnplayer(w *game.Scene) ecs.Entity {
 	w.CollisionLayer.Set(player, game.PhysicsLayerMovingKinematic)
 	w.PhysicsMassOverride.Set(player, 100)
 
-	camera := w.CreateEntity()
+	camera := w.CreateEntity(info)
 	w.ParentTo(camera, player)
 	// TODO: poke a method on fpscharacter to perform this
 	w.TranslationRotation.Set(camera, game.TranslationRotation{
@@ -534,8 +537,8 @@ func spawnplayer(w *game.Scene) ecs.Entity {
 	// that player's CharacterUpdate would drive.
 
 	{
-		gun := w.CreateEntity()
-		w.Entity.Set(gun, game.Weapon2GenericProjectileLauncher{})
+		gun := w.CreateEntity(info)
+		w.Entity.Set(gun, game.WeaponGenericProjectileLauncher{})
 		w.ParentTo(gun, player)
 
 		slots = append(slots, gun)
@@ -625,16 +628,18 @@ func main() {
 	}
 	sceneFile.Close()
 
-	{
-		obj := s.scene.CreateEntity()
-		s.scene.TranslationRotation.Set(obj, game.TranslationRotationOne())
-		s.scene.Scale.Set(obj, geometry.Vec3Broadcast(1))
-		tmp := game.LoopedSound{
-			Sound: "lamphum.wav",
+	/*
+		{
+			obj := s.scene.CreateEntity()
+			s.scene.TranslationRotation.Set(obj, game.TranslationRotationOne())
+			s.scene.Scale.Set(obj, geometry.Vec3Broadcast(1))
+			tmp := game.LoopedSound{
+				Sound: "lamphum.wav",
+			}
+			tmp.Init()
+			s.scene.Entity.Set(obj, tmp)
 		}
-		tmp.Init()
-		s.scene.Entity.Set(obj, tmp)
-	}
+	*/
 
 	s.scene.InstantinateCollections()
 

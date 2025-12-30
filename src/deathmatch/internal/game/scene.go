@@ -33,6 +33,7 @@ var Data fs.FS
 
 // TODO: something to let us control what gets sent to a client.
 
+// TODO: rename to TranslationAndRotation?
 type TranslationRotation struct {
 	Translation geometry.DVec3
 	Rotation    geometry.Rot3
@@ -62,9 +63,6 @@ func (w *World) Transform(id ecs.ID) (geometry.Mat4x4, bool) {
 // these with just reading things from entity 1. The time would have to remain
 // special though.
 type SingletonComponents struct {
-	// TODO: document what this means when we're in the middle of an Update
-	Now Time
-
 	// TODO: replace it with sky material
 	Sky string
 
@@ -120,6 +118,7 @@ type Columns struct {
 	// another would be to have constraints and nocollide pairs be its own
 	// concept in the world
 	//
+
 	// TODO: merge some of these components?
 
 	CollisionLayer         ecs.Column[CollisionLayer]
@@ -142,9 +141,6 @@ type Columns struct {
 
 	// Timer ecs.ComponentStore[time.Duration]
 
-	// TODO: get rid of this component
-	WeaponAim ecs.Column[WeaponAim]
-
 	// TODO: generalize to all events, including damage etc?
 	ContactEvents ecs.Column[[]ContactEvent]
 
@@ -157,7 +153,15 @@ type Columns struct {
 	Delete ecs.Column[struct{}]
 }
 
+// GlobalProperties?
+type SceneProperties struct {
+	Sky     string
+	Gravity geometry.Vec3
+}
+
 type Scene struct {
+	// TODO: document what this means when we're in the middle of an Update
+	Now Time
 	SingletonComponents
 
 	Entities *ecs.Entities
@@ -201,7 +205,14 @@ func (w *Scene) IsEntityValid(id ecs.Entity) bool {
 	return w.Entities.Valid(id)
 }
 
-func (w *Scene) CreateEntity() ecs.Entity {
+// TODO: do we need client-only entities? I don't think we do with this tbh
+// TODO: make this private?
+func (w *Scene) CreateEntity(info *UpdateParams) ecs.Entity {
+	if info.Speculating {
+		// Create an entity at high index and mark it speculative so that it
+		// gets removed when we receive the update for this tick.
+		panic("not implemented")
+	}
 	return w.Entities.Alloc()
 }
 
@@ -452,8 +463,6 @@ func (w *Scene) Update(updateParams *UpdateParams) {
 // TODO: fold into Update
 func ClearTransientComponents(w *Scene) {
 	// TODO: uncomment this when we find a good way to draw view models
-	// w.WeaponAim.Clear()
-
 	w.ContactEvents.Clear()
 }
 

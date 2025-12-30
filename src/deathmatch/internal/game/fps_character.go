@@ -84,7 +84,6 @@ func (entity FPSCharacter) CharacterUpdate(w *Scene, id ecs.Entity, cmd Timestam
 		switchToWeapon = inventory.Slots[0]
 	}
 
-	// TODO: check for validity!
 	if w.IsEntityValid(switchToWeapon) {
 		// TODO: check for validity!
 		// TODO: don't delete the view and worldmodel entities but just hide
@@ -92,30 +91,34 @@ func (entity FPSCharacter) CharacterUpdate(w *Scene, id ecs.Entity, cmd Timestam
 		if w.IsEntityValid(entity.ActiveWeaponViewmodel) {
 			w.Delete.Set(entity.ActiveWeaponViewmodel, struct{}{})
 		}
+		entity.ActiveWeaponViewmodel = 0
 
 		// Now we can switch the weapons
 
 		entity.ActiveWeapon = switchToWeapon
-		entity.ActiveWeaponViewmodel = 0
 
-		weapon, ok := assertEntity[Weapon2](w, entity.ActiveWeapon)
-		if ok {
-			entity.ActiveWeaponViewmodel = weapon.CreateGeometry(w)
+		if !info.Speculating {
+			weapon, ok := assertEntity[Weapon](w, entity.ActiveWeapon)
+			if ok {
+				entity.ActiveWeaponViewmodel = weapon.CreateGeometry(w, info)
 
-			w.Viewmodel2.Set(entity.ActiveWeaponViewmodel,
-				Viewmodel2{
-					Camera: entity.Camera,
-					Mode:   1,
-				})
-			w.ParentTo(entity.ActiveWeaponViewmodel, entity.Camera)
+				w.Viewmodel2.Set(entity.ActiveWeaponViewmodel,
+					Viewmodel2{
+						Camera: entity.Camera,
+						Mode:   1,
+					})
+				w.ParentTo(entity.ActiveWeaponViewmodel, entity.Camera)
+			}
 		}
 	}
 
-	if w.IsEntityValid(entity.ActiveWeapon) {
-		if weapon, ok := assertEntity[Weapon2](w, entity.ActiveWeapon); ok {
-			updateVisual := weapon.UpdateSubtick(w, entity.ActiveWeapon, id, info)
-			updateVisual(entity.ActiveWeaponViewmodel)
+	if weapon, ok := assertEntity[Weapon](w, entity.ActiveWeapon); ok {
+		var buttons WeaponButtons
+		if entity.Buttons&uint64(1<<ButtonAttack) != 0 {
+			buttons |= WeaponTrigger
 		}
+		updateVisual := weapon.UpdateSubtick(w, entity.ActiveWeapon, buttons, info)
+		updateVisual(entity.ActiveWeaponViewmodel)
 	}
 
 	// TODO: avoid unnecessary updates
