@@ -403,6 +403,10 @@ func createWindowWithProperties(props PropertiesID) (*Window, error) {
 	return window, nil
 }
 
+func (w *Window) ID() WindowID {
+	return WindowID(C.SDL_GetWindowID((*C.SDL_Window)(w)))
+}
+
 func (w *Window) Properties() PropertiesID {
 	return PropertiesID(C.SDL_GetWindowProperties((*C.SDL_Window)(w)))
 }
