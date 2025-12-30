@@ -10,7 +10,7 @@ import (
 type Entities struct {
 	used bitset.Bitset
 	gens []uint32
-	next int // wack
+	next int // wack; outsource hint management to the user
 }
 
 func NewEntities(n int) *Entities {
@@ -27,6 +27,8 @@ func (dst *Entities) Copy(src *Entities) {
 	bitset.Copy(dst.used, src.used)
 	copy(dst.gens, src.gens)
 }
+
+// TODO: kill off all alloc strategies and allocation onto the user
 
 // TODO: bulk allocation?
 // TODO: let the user control the ranges? the client needs to reserve IDs with

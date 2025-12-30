@@ -137,18 +137,14 @@ func (c reflectedColumn[V]) All() iter.Seq[Entity] {
 	}
 }
 
-func (c reflectedColumn[V]) Get(id Entity, v reflect.Value) bool {
-	elem, ok := c.column.Get(id)
-	if ok {
-		v.Set(reflect.ValueOf(elem))
-	} else {
-		v.SetZero()
-	}
+func (c reflectedColumn[V]) Get(id Entity, out reflect.Value) bool {
+	v, ok := c.column.Get(id)
+	*mustTypeAssert[*V](out.Addr()) = v
 	return ok
 }
 
 func (c reflectedColumn[V]) Set(id Entity, v reflect.Value) {
-	c.column.Set(id, v.Interface().(V))
+	c.column.Set(id, mustTypeAssert[V](v))
 }
 
 func (c reflectedColumn[V]) Delete(id Entity) {
@@ -157,4 +153,12 @@ func (c reflectedColumn[V]) Delete(id Entity) {
 
 func (dst reflectedColumn[V]) Copy(src ReflectedColumn) {
 	dst.column.Copy(*src.(reflectedColumn[V]).column)
+}
+
+func mustTypeAssert[T any](v reflect.Value) T {
+	v2, ok := reflect.TypeAssert[T](v)
+	if !ok {
+		_ = v.Interface().(T)
+	}
+	return v2
 }
