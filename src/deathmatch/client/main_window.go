@@ -78,18 +78,6 @@ func (w *mainWindow) resize(extent [3]int) {
 		OldSwapchain: w.swapchain,
 	})
 
-	gpu.NewPresentableImageTest(
-		w.sdlWindow,
-		&gpu.ImageConfig{
-			Dim:       gpu.ImageDim2D,
-			Extent:    extent,
-			Layers:    1,
-			MipLevels: 1,
-			Samples:   1,
-			Format:    vk.FORMAT_R8G8B8A8_SRGB,
-			Usage:     gpu.ImageUsageAttachment,
-		})
-
 	w.swapchainImage = gpu.NewImage(&gpu.ImageConfig{
 		Dim:       gpu.ImageDim2D,
 		Extent:    extent,
