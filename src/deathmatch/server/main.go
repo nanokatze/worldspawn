@@ -355,14 +355,8 @@ func (s *Server) sendUpdates(u *user) {
 	buf := new(bytes.Buffer)
 	enc := nice.NewEncoder(buf, replication.NiceOptions)
 
-	{
-		if err := nice.MarshalEncode(enc, &s.scene.Now); err != nil {
-			panic(err)
-		}
-		// TODO: only send SingletonComponents that changed
-		if err := nice.MarshalEncode(enc, &s.scene.SingletonComponents); err != nil {
-			panic(err)
-		}
+	if err := nice.MarshalEncode(enc, &s.scene.Now); err != nil {
+		panic(err)
 	}
 
 	// Send everything that changed since u.latestAcked

@@ -75,11 +75,13 @@ def cook(context, scene):
     # __handle_view_layer(scene.view_layers[0].layer_collection)
 
     tmp = __Cooker()
-    tmp.cooked = cooked_scene
+    tmp.cooked = {}
     tmp.entity = 1
+
+    tmp.add_entity({"Entity": {"SingletonComponents": cooked_scene}})
 
     __handle_collection(context, tmp, scene.collection, Matrix())
 
-    cooked_scene = bpyutil.fixupdict(cooked_scene) # pain
+    cooked_scene = bpyutil.fixupdict(tmp.cooked) # pain
     with open(context.path_for_datablock(scene), 'wb') as f:
         json.dump(cooked_scene, util.UTF8Writer(f), indent='\t', default=bpyutil.asdasd)

@@ -156,7 +156,7 @@ func (fpsCharacter FPSCharacter) UpdateBeforePhysics(w *Scene, id ecs.Entity, in
 	velocity.Linear = rotation.Rotate(localVel)
 
 	if !fpsCharacter.Supported {
-		velocity.Linear = velocity.Linear.Add(w.Gravity.Scale(float32(durationToFloatSeconds(info.Δt))))
+		velocity.Linear = velocity.Linear.Add(w.Gravity().Scale(float32(durationToFloatSeconds(info.Δt))))
 	}
 
 	velocity.Linear = fpsCharacter.asdasd(w, id, velocity.Linear, info.Δt)

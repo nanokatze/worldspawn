@@ -59,9 +59,6 @@ func (w *World) Transform(id ecs.ID) (geometry.Mat4x4, bool) {
 */
 
 // TODO: rename?
-// TODO: it's annoying that this needs special handling. We can replace most of
-// these with just reading things from entity 1. The time would have to remain
-// special though.
 type SingletonComponents struct {
 	// TODO: replace it with sky material
 	Sky string
@@ -153,16 +150,8 @@ type Columns struct {
 	Delete ecs.Column[struct{}]
 }
 
-// GlobalProperties?
-type SceneProperties struct {
-	Sky     string
-	Gravity geometry.Vec3
-}
-
 type Scene struct {
-	// TODO: document what this means when we're in the middle of an Update
 	Now Time
-	SingletonComponents
 
 	Entities *ecs.Entities
 	Columns
@@ -194,6 +183,19 @@ func NewScene(n int) *Scene {
 	// often
 
 	return w
+}
+
+func (w *Scene) Sky() string {
+	return w.singletonComponents().Sky
+}
+
+func (w *Scene) Gravity() geometry.Vec3 {
+	return w.singletonComponents().Gravity
+}
+
+func (w *Scene) singletonComponents() SingletonComponents {
+	x, _ := assertEntity[SingletonComponents](w, 1)
+	return x
 }
 
 func (w *Scene) Destroy() {

@@ -191,9 +191,6 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 	if err := nice.UnmarshalDecode(dec, &s.world.Now); err != nil {
 		return err
 	}
-	if err := nice.UnmarshalDecode(dec, &s.world.SingletonComponents); err != nil {
-		return err
-	}
 
 	{
 		var n int

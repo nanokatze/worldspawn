@@ -100,7 +100,7 @@ func (re *gameRendererImpl) Tick(w *game.Scene, playerID ecs.Entity, t0, t1 game
 			update.Instance[i].Transform = 0
 		}
 
-		update.Sky = texture(w.Sky).Image
+		update.Sky = texture(w.Sky()).Image
 
 		playerEntity, _ := w.Entity.Get(playerID)
 		fpsCharacter := playerEntity.(game.FPSCharacter)
