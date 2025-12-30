@@ -34,6 +34,7 @@ type Config struct {
 	// TODO: rename?
 	Controls struct {
 		KeyActions           map[sdl.Keycode]int
+		MouseButtonActions   map[sdl.MouseButton]int
 		GamepadButtonActions map[sdl.GamepadButton]int
 	}
 
@@ -68,6 +69,9 @@ var defaultConfig = func() *Config {
 		sdl.K_D:     game.ActionSetMovementVelocityX,
 		sdl.K_SPACE: game.ActionJump,
 		sdl.K_LCTRL: game.ActionCrouch,
+	}
+	conf.Controls.MouseButtonActions = map[sdl.MouseButton]int{
+		sdl.BUTTON_LEFT: game.ActionAttack,
 	}
 	conf.Controls.GamepadButtonActions = map[sdl.GamepadButton]int{
 		sdl.GAMEPAD_BUTTON_DPAD_UP:    game.ActionSlot1,

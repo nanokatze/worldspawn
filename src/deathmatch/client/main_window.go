@@ -197,6 +197,20 @@ func (w *mainWindow) handleInput(e any) {
 		cmds = game.AppendAction(cmds, etime, game.ActionDLookX, e.XRel*0.0005)
 		cmds = game.AppendAction(cmds, etime, game.ActionDLookY, e.YRel*0.0005)
 
+	case *sdl.MouseButtonDownEvent:
+		etime := sdlTimeToGameTime(e.Timestamp)
+
+		if action, ok := conf.Controls.MouseButtonActions[sdl.MouseButton(e.Button)]; ok {
+			cmds = game.AppendAction(cmds, etime, action, 1)
+		}
+
+	case *sdl.MouseButtonUpEvent:
+		etime := sdlTimeToGameTime(e.Timestamp)
+
+		if action, ok := conf.Controls.MouseButtonActions[sdl.MouseButton(e.Button)]; ok {
+			cmds = game.AppendAction(cmds, etime, action, 0)
+		}
+
 	case *sdl.GamepadAxisMotionEvent:
 		etime := sdlTimeToGameTime(e.Timestamp)
 
