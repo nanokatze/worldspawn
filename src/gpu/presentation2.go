@@ -2,21 +2,11 @@ package gpu
 
 import (
 	"fmt"
-	"log"
 	"math"
 	"sync"
 
 	"worldspawn/gpu/vk"
-	"worldspawn/sdl"
 )
-
-func NewPresentableImageTest(window *sdl.Window, imageConfig *ImageConfig) *Image {
-	props := window.Properties()
-	wlDisplay := props.Pointer("SDL.window.wayland.display", 0)
-	wlSurface := props.Pointer("SDL.window.wayland.surface", 0)
-	log.Printf("wlDisplay=%x wlSurface=%x", wlDisplay, wlSurface)
-	return nil
-}
 
 var present2Mu sync.Mutex
 

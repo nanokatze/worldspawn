@@ -7,9 +7,7 @@ import (
 	"reflect"
 )
 
-func SType(v any) StructureType {
-	t := reflect.TypeOf(v)
-
+func StructureTypeOf(t reflect.Type) StructureType {
 	sType, ok := sTypeTable[t]
 	if !ok {
 		panic(fmt.Sprintf("unknown struct %v", t))

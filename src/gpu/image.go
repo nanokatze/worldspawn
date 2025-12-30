@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"runtime"
+	"sync"
 	"unsafe"
 
 	"worldspawn/gpu/vk"
@@ -459,12 +460,28 @@ func (img *Image) enqueueTransitionLayout(jq *JobQueue, oldLayout, newLayout vk.
 	})
 }
 
+var driverID = sync.OnceValue(func() vk.DriverId {
+	var pinner runtime.Pinner
+	defer pinner.Unpin()
+
+	props12 := vk.PhysicalDeviceVulkan12Properties{
+		SType: vk.STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_PROPERTIES,
+	}
+	props10 := vk.PhysicalDeviceProperties2{
+		SType: vk.STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
+		PNext: unsafe.Pointer(pinned(&pinner, &props12)),
+	}
+	vkFns.GetPhysicalDeviceProperties2(physicalDevice, &props10)
+
+	return props12.DriverID
+})
+
 func (job *transitionImageLayoutJob) Info() JobInfo {
 	// VUID-vkCmdPipelineBarrier2-commandBuffer-cmdpool
 	// The VkCommandPool that commandBuffer was allocated from must support
 	// transfer, graphics, compute, decode, or encode operations
 	families := queueFamilies.Mask(0b100)
-	if deviceProps.Vulkan12.DriverID == vk.DRIVER_ID_MESA_RADV && job.newLayout == vk.IMAGE_LAYOUT_PRESENT_SRC_KHR {
+	if driverID() == vk.DRIVER_ID_MESA_RADV && job.newLayout == vk.IMAGE_LAYOUT_PRESENT_SRC_KHR {
 		// WA: RADV does not implement transition to PRESENT_SRC on queues that
 		// don't support compute.
 		families = queueFamilies.Mask(0b010)

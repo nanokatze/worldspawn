@@ -90,8 +90,6 @@ func (families *chosenQueueFamilies) All() []uint32 {
 
 var instance vk.Instance
 var physicalDevice vk.PhysicalDevice
-var deviceProps *properties
-var enabledDeviceFeatures *features
 var queueFamilies *chosenQueueFamilies
 var device vk.Device
 
@@ -165,142 +163,103 @@ func gpuInit() {
 		}
 		physicalDevice = physicalDevices[0]
 
-		deviceProps = new(properties)
-		deviceProps.init()
-		vkFns.GetPhysicalDeviceProperties2(physicalDevice, pinned(&pinner, &deviceProps.Vulkan10))
+		props := vk.PhysicalDeviceProperties2{
+			SType: vk.STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
+		}
+		vkFns.GetPhysicalDeviceProperties2(physicalDevice, &props)
 
 		// TODO: we should use a user-provided function or logger to log stuff.
 		// Actually let's not and just use println(stuff) gated behind an envvar?
-		log.Print("GPU: ", byteSliceToString(deviceProps.Vulkan10.DeviceName[:]))
+		log.Print("GPU: ", byteSliceToString(props.DeviceName[:]))
 
-		availableFeatures := new(features)
-		availableFeatures.init()
-		vkFns.GetPhysicalDeviceFeatures2(physicalDevice, pinned(&pinner, &availableFeatures.Vulkan10))
+		EnableDeviceFeature("SamplerAnisotropy")
+		EnableDeviceFeature("ShaderInt64")
+		EnableDeviceFeature("ShaderInt16")
 
-		enabledDeviceExtensions := make(map[string]struct{})
-		enabledDeviceFeatures = new(features)
+		EnableDeviceFeature("StorageBuffer16BitAccess")
+		EnableDeviceFeature("StoragePushConstant16")
 
-		enabledDeviceFeatures.Vulkan10.PhysicalDeviceFeatures = vk.PhysicalDeviceFeatures{
-			SamplerAnisotropy: vk.TRUE,
-			ShaderInt64:       vk.TRUE,
-			ShaderInt16:       vk.TRUE,
-		}
+		EnableDeviceFeature("StorageBuffer8BitAccess")
+		EnableDeviceFeature("StoragePushConstant8")
+		EnableDeviceFeature("ShaderFloat16")
+		EnableDeviceFeature("ShaderInt8")
+		EnableDeviceFeature("ShaderSampledImageArrayNonUniformIndexing")
+		EnableDeviceFeature("ShaderStorageImageArrayNonUniformIndexing")
+		EnableDeviceFeature("DescriptorBindingSampledImageUpdateAfterBind")
+		EnableDeviceFeature("DescriptorBindingStorageImageUpdateAfterBind")
+		EnableDeviceFeature("DescriptorBindingUpdateUnusedWhilePending")
+		EnableDeviceFeature("DescriptorBindingPartiallyBound")
+		EnableDeviceFeature("DescriptorBindingVariableDescriptorCount")
+		EnableDeviceFeature("RuntimeDescriptorArray")
+		EnableDeviceFeature("ScalarBlockLayout")
+		EnableDeviceFeature("TimelineSemaphore")
+		EnableDeviceFeature("BufferDeviceAddress")
+		EnableDeviceFeature("VulkanMemoryModel")
+		// Not sure we actually need these
+		// EnableFeature("VulkanMemoryModelDeviceScope")
+		// EnableFeature("VulkanMemoryModelAvailabilityVisibilityChains")
 
-		enabledDeviceFeatures.Vulkan11 = vk.PhysicalDeviceVulkan11Features{
-			StorageBuffer16BitAccess: vk.TRUE,
-			StoragePushConstant16:    vk.TRUE,
-		}
+		// TODO: we also might need demote and discard, subgroup size control,
+		// compute full subgroups
+		EnableDeviceFeature("Synchronization2")
+		EnableDeviceFeature("DynamicRendering")
+		EnableDeviceFeature("Maintenance4")
 
-		enabledDeviceFeatures.Vulkan12 = vk.PhysicalDeviceVulkan12Features{
-			StorageBuffer8BitAccess: vk.TRUE,
-			StoragePushConstant8:    vk.TRUE,
-			ShaderFloat16:           vk.TRUE,
-			ShaderInt8:              vk.TRUE,
-			ShaderSampledImageArrayNonUniformIndexing:    vk.TRUE,
-			ShaderStorageImageArrayNonUniformIndexing:    vk.TRUE,
-			DescriptorBindingSampledImageUpdateAfterBind: vk.TRUE,
-			DescriptorBindingStorageImageUpdateAfterBind: vk.TRUE,
-			DescriptorBindingUpdateUnusedWhilePending:    vk.TRUE,
-			DescriptorBindingPartiallyBound:              vk.TRUE,
-			DescriptorBindingVariableDescriptorCount:     vk.TRUE,
-			RuntimeDescriptorArray:                       vk.TRUE,
-			ScalarBlockLayout:                            vk.TRUE,
-			TimelineSemaphore:                            vk.TRUE,
-			BufferDeviceAddress:                          vk.TRUE,
-			VulkanMemoryModel:                            vk.TRUE,
-			// Not sure we actually need these
-			// VulkanMemoryModelDeviceScope: vk.TRUE,
-			// VulkanMemoryModelAvailabilityVisibilityChains: vk.TRUE,
-		}
+		EnableDeviceFeature("Maintenance5")
+		EnableDeviceFeature("Maintenance6")
 
-		enabledDeviceFeatures.Vulkan13 = vk.PhysicalDeviceVulkan13Features{
-			// TODO: we also might need demote and discard, subgroup size control,
-			// compute full subgroups
-			Synchronization2: vk.TRUE,
-			DynamicRendering: vk.TRUE,
-			Maintenance4:     vk.TRUE, // we need this for dynamic resolution scaling
-		}
-
-		enabledDeviceFeatures.Vulkan14 = vk.PhysicalDeviceVulkan14Features{
-			Maintenance5: vk.TRUE,
-			Maintenance6: vk.TRUE,
-		}
-
-		enabledDeviceFeatures.Maintenance7 = vk.PhysicalDeviceMaintenance7FeaturesKHR{
-			Maintenance7: vk.TRUE,
-		}
-		enabledDeviceExtensions["VK_KHR_maintenance7"] = struct{}{}
+		EnableDeviceExtension("VK_KHR_maintenance7")
+		EnableDeviceFeature("Maintenance7")
 
 		// TODO: enable maint{8,9} once we have them on deck
 		if false {
-			enabledDeviceFeatures.Maintenance8 = vk.PhysicalDeviceMaintenance8FeaturesKHR{
-				Maintenance8: vk.TRUE,
-			}
-			enabledDeviceExtensions["VK_KHR_maintenance8"] = struct{}{}
+			EnableDeviceExtension("VK_KHR_maintenance8")
+			EnableDeviceFeature("Maintenance8")
 		}
 
-		enabledDeviceExtensions["VK_KHR_calibrated_timestamps"] = struct{}{}
+		EnableDeviceExtension("VK_KHR_calibrated_timestamps")
 
-		enabledDeviceExtensions["VK_EXT_shader_object"] = struct{}{}
-		enabledDeviceFeatures.ShaderObject = vk.PhysicalDeviceShaderObjectFeaturesEXT{
-			ShaderObject: vk.TRUE,
-		}
+		EnableDeviceExtension("VK_EXT_shader_object")
+		EnableDeviceFeature("ShaderObject")
 
-		enabledDeviceExtensions["VK_EXT_image_view_min_lod"] = struct{}{}
-		enabledDeviceFeatures.ImageViewMinLod = vk.PhysicalDeviceImageViewMinLodFeaturesEXT{
-			MinLod: vk.TRUE,
-		}
+		EnableDeviceExtension("VK_EXT_image_view_min_lod")
+		EnableDeviceFeature("MinLod")
 
 		// TODO: gate on whether we have these features
 		if os.Getenv("SteamDeck") == "1" {
 			if false {
-				enabledDeviceExtensions["VK_EXT_mesh_shader"] = struct{}{}
-				enabledDeviceFeatures.MeshShader = vk.PhysicalDeviceMeshShaderFeaturesEXT{
-					TaskShader: vk.TRUE,
-					MeshShader: vk.TRUE,
-				}
+				EnableDeviceExtension("VK_EXT_mesh_shader")
+				EnableDeviceFeature("TaskShader")
+				EnableDeviceFeature("MeshShader")
 			}
 
-			enabledDeviceExtensions["VK_KHR_deferred_host_operations"] = struct{}{}
+			EnableDeviceExtension("VK_KHR_deferred_host_operations")
 
-			enabledDeviceExtensions["VK_KHR_acceleration_structure"] = struct{}{}
-			enabledDeviceFeatures.AccelerationStructure = vk.PhysicalDeviceAccelerationStructureFeaturesKHR{
-				AccelerationStructure: vk.TRUE,
-			}
+			EnableDeviceExtension("VK_KHR_acceleration_structure")
+			EnableDeviceFeature("AccelerationStructure")
 
-			enabledDeviceExtensions["VK_KHR_pipeline_library"] = struct{}{}
+			EnableDeviceExtension("VK_KHR_pipeline_library")
 
-			enabledDeviceExtensions["VK_EXT_pipeline_library_group_handles"] = struct{}{}
-			enabledDeviceFeatures.PipelineLibraryGroupHandles = vk.PhysicalDevicePipelineLibraryGroupHandlesFeaturesEXT{
-				PipelineLibraryGroupHandles: vk.TRUE,
-			}
+			EnableDeviceExtension("VK_EXT_pipeline_library_group_handles")
+			EnableDeviceFeature("PipelineLibraryGroupHandles")
 
-			enabledDeviceExtensions["VK_KHR_ray_tracing_pipeline"] = struct{}{}
-			enabledDeviceFeatures.RayTracingPipeline = vk.PhysicalDeviceRayTracingPipelineFeaturesKHR{
-				RayTracingPipeline: vk.TRUE,
-			}
+			EnableDeviceExtension("VK_KHR_ray_tracing_pipeline")
+			EnableDeviceFeature("RayTracingPipeline")
 
-			enabledDeviceExtensions["VK_KHR_ray_query"] = struct{}{}
-			enabledDeviceFeatures.RayQuery = vk.PhysicalDeviceRayQueryFeaturesKHR{
-				RayQuery: vk.TRUE,
-			}
+			EnableDeviceExtension("VK_KHR_ray_query")
+			EnableDeviceFeature("RayQuery")
 
-			enabledDeviceExtensions["VK_KHR_ray_tracing_maintenance1"] = struct{}{}
-			enabledDeviceFeatures.RayTracingMaintenance1 = vk.PhysicalDeviceRayTracingMaintenance1FeaturesKHR{
-				RayTracingMaintenance1: vk.TRUE,
-			}
+			EnableDeviceExtension("VK_KHR_ray_tracing_maintenance1")
+			EnableDeviceFeature("RayTracingMaintenance1")
 
-			enabledDeviceExtensions["VK_KHR_ray_tracing_position_fetch"] = struct{}{}
-			enabledDeviceFeatures.RayTracingPositionFetch = vk.PhysicalDeviceRayTracingPositionFetchFeaturesKHR{
-				RayTracingPositionFetch: vk.TRUE,
-			}
+			EnableDeviceExtension("VK_KHR_ray_tracing_position_fetch")
+			EnableDeviceFeature("RayTracingPositionFetch")
 		}
 
-		// enabledDeviceExtensions["VK_EXT_external_memory_host"] = struct{}{}
+		// EnableDeviceExtension("VK_EXT_external_memory_host")
 
-		enabledDeviceExtensions["VK_KHR_swapchain"] = struct{}{}
-
-		enabledDeviceExtensions["VK_KHR_swapchain_mutable_format"] = struct{}{}
+		EnableDeviceExtension("VK_KHR_swapchain")
+		EnableDeviceExtension("VK_KHR_swapchain_mutable_format")
 
 		enabledDeviceFeatures.prepareForDeviceCreate()
 
@@ -332,13 +291,13 @@ func gpuInit() {
 				})
 		}
 
-		enabledDeviceExtensionsSlice := slices.Collect(maps.Keys(enabledDeviceExtensions))
+		enabledDeviceExtensionsSlice := slices.Sorted(maps.Keys(enabledDeviceExtensions))
 
-		pinner.Pin(enabledDeviceFeatures)
+		pinner.Pin(&enabledDeviceFeatures)
 
 		if err := vkFns.CreateDevice(physicalDevice, &vk.DeviceCreateInfo{
 			SType:                   vk.STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-			PNext:                   unsafe.Pointer(&enabledDeviceFeatures.Vulkan10),
+			PNext:                   unsafe.Pointer(&enabledDeviceFeatures.PhysicalDeviceFeatures2),
 			QueueCreateInfoCount:    uint32(len(queueCreateInfos)),
 			PQueueCreateInfos:       pinnedSliceData(&pinner, queueCreateInfos),
 			EnabledExtensionCount:   uint32(len(enabledDeviceExtensionsSlice)),
