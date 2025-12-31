@@ -93,7 +93,7 @@ type Columns struct {
 	// TODO: explore if we can make CreateEntity set this component
 	CreationTime ecs.Column[Time]
 
-	Parent ecs.Column[ecs.Entity]
+	Parent ecs.Column[ecs.ID]
 	// Children ecs.ComponentStore[map[ecs.ID] // map[ecs.ID]struct{} ?
 
 	TranslationRotation ecs.Column[TranslationRotation]
@@ -128,7 +128,7 @@ type Columns struct {
 
 	CollisionLayer         ecs.Column[CollisionLayer]
 	CollisionGeometry      ecs.Column[GeometryPacked]
-	PhysicsFilter          ecs.Column[[]ecs.Entity] // TODO: rename to something like PairwiseFilters?
+	PhysicsFilter          ecs.Column[[]ecs.ID] // TODO: rename to something like PairwiseFilters?
 	GravityFactor          ecs.Column[float32]
 	PhysicsMassOverride    ecs.Column[float32] // TODO: remove "Physics" prefix from these
 	PhysicsInertiaOverride ecs.Column[geometry.Mat4x4]
@@ -161,7 +161,7 @@ type Columns struct {
 type Scene struct {
 	Now Time
 
-	Entities *ecs.Entities
+	IDs *ecs.IDs
 	Columns
 	physicsSystem     *physics.System
 	physicsBodyExists ecs.Column[struct{}]
@@ -170,13 +170,13 @@ type Scene struct {
 func NewScene(n int) *Scene {
 	w := new(Scene)
 
-	w.Entities = ecs.NewEntities(n)
+	w.IDs = ecs.NewEntities(n)
 
 	// TODO: make it clear that these are reflect references
 
 	columns := reflect.ValueOf(&w.Columns).Elem()
 	for i := range columns.Type().NumField() {
-		columns.Field(i).Addr().Interface().(interface{ Init(*ecs.Entities) }).Init(w.Entities)
+		columns.Field(i).Addr().Interface().(interface{ Init(*ecs.IDs) }).Init(w.IDs)
 	}
 
 	w.physicsSystem = physics.NewSystem(
@@ -184,7 +184,7 @@ func NewScene(n int) *Scene {
 		int(NumPhysicsLayers),
 		PhysicsLayerToBroadPhaseLayer[:],
 		ShouldPhysicsLayersCollide)
-	w.physicsBodyExists.Init(w.Entities)
+	w.physicsBodyExists.Init(w.IDs)
 
 	// TODO: we should expose an OptimizeBroadPhase call on physicsSystem which
 	// we'll (optionally) call after loading the world and perhaps every so
@@ -197,27 +197,26 @@ func (w *Scene) Destroy() {
 	// TODO: stop and destroy physicsSystem here
 }
 
-// TODO: rename to EntityIsValid?
-func (w *Scene) IsEntityValid(id ecs.Entity) bool {
-	return w.Entities.Valid(id)
-}
+// TODO: rename to EntityExists
+func (w *Scene) IsEntityValid(id ecs.ID) bool { return w.IDs.Exists(id) }
 
 // TODO: do we need client-only entities? I don't think we do with this tbh
+// TODO: rename to Create?
 // TODO: make this private?
-func (w *Scene) CreateEntity(info *UpdateParams) ecs.Entity {
+func (w *Scene) CreateEntity(info *UpdateParams) ecs.ID {
 	if info.Speculating {
 		// Create an entity at high index and mark it speculative so that it
 		// gets removed when we receive the update for this tick.
 		panic("not implemented")
 	}
-	return w.Entities.Alloc()
+	return w.IDs.Alloc()
 }
 
 // This is used by client networking to remove entities.
 //
 // TODO: is the way we use it correct (deleting entities in-between ticks?)
 // TODO: could we bulk delete things?
-func (w *Scene) DeleteEntityImmediately(id ecs.Entity) {
+func (w *Scene) DeleteEntityImmediately(id ecs.ID) {
 	columns := reflect.ValueOf(&w.Columns).Elem()
 	for i := range columns.NumField() {
 		column := columns.Field(i).Addr().Interface().(ecs.AnyColumn).Reflect()
@@ -228,7 +227,7 @@ func (w *Scene) DeleteEntityImmediately(id ecs.Entity) {
 		w.physicsBodyExists.Delete(id)
 	}
 	w.Delete.Delete(id)
-	w.Entities.Free(id)
+	w.IDs.Delete(id)
 }
 
 func (w *Scene) Sky() string {
@@ -245,21 +244,21 @@ func (w *Scene) singletonComponents() SingletonComponents {
 }
 
 // TODO: or SetParent?
-func (scene *Scene) ParentTo(child, parent ecs.Entity) {
+func (scene *Scene) ParentTo(child, parent ecs.ID) {
 	scene.Parent.Set(child, parent)
 
 	// children, _ := scene.Children.Load(parent)
 	// children
 }
 
-func (scene *Scene) GetScale(id ecs.Entity) geometry.Vec3 {
+func (scene *Scene) GetScale(id ecs.ID) geometry.Vec3 {
 	if scale, ok := scene.Scale.Get(id); ok {
 		return scale
 	}
 	return geometry.Vec3Broadcast(1)
 }
 
-func (scene *Scene) GetRotationTranslation(id ecs.Entity) TranslationRotation {
+func (scene *Scene) GetRotationTranslation(id ecs.ID) TranslationRotation {
 	result := TranslationRotationOne()
 	for id != 0 {
 		tmp, _ := scene.TranslationRotation.Get(id)
@@ -269,7 +268,7 @@ func (scene *Scene) GetRotationTranslation(id ecs.Entity) TranslationRotation {
 	return result
 }
 
-func (w *Scene) HandleInput(id ecs.Entity, cmd TimestampedInputCmd, info *UpdateParams) {
+func (w *Scene) HandleInput(id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
 	if entity, ok := assertEntity[Controllable](w, id); ok {
 		entity.ControllableUpdateSubtick(w, id, cmd, info)
 	} else {
@@ -460,10 +459,9 @@ func (w *Scene) Update(updateParams *UpdateParams) {
 	{
 		// TODO: should we also clear transientComponents?
 		columns := reflect.ValueOf(&w.Columns).Elem()
-		fields := columns.Type().NumField()
 
 		for id := range w.Delete.All() {
-			for i := range fields {
+			for i := range columns.NumField() {
 				column := columns.Field(i).Addr().Interface().(ecs.AnyColumn).Reflect()
 				column.Delete(id)
 			}
@@ -473,7 +471,7 @@ func (w *Scene) Update(updateParams *UpdateParams) {
 				w.physicsBodyExists.Delete(id)
 			}
 			w.Delete.Delete(id)
-			w.Entities.Free(id)
+			w.IDs.Delete(id)
 		}
 	}
 }
@@ -485,7 +483,7 @@ func ClearTransientComponents(w *Scene) {
 }
 
 // TODO: make public
-func assertEntity[T any](w *Scene, id ecs.Entity) (T, bool) {
+func assertEntity[T any](w *Scene, id ecs.ID) (T, bool) {
 	entity, _ := w.Entity.Get(id)
 	entityT, ok := entity.(T)
 	if !ok {

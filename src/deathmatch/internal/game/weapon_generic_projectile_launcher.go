@@ -23,7 +23,7 @@ type Testburger struct {
 var _ Weapon = WeaponGenericProjectileLauncher{}
 
 // TODO: rename to something else like CreateVisual or CreateRenderingGeometry
-func (weapon WeaponGenericProjectileLauncher) WeaponCreateGeometry(scene *Scene, info *UpdateParams) ecs.Entity {
+func (weapon WeaponGenericProjectileLauncher) WeaponCreateGeometry(scene *Scene, info *UpdateParams) ecs.ID {
 	root := scene.CreateEntity(info)
 	scene.TranslationRotation.Set(root, TranslationRotation{
 		Translation: geometry.DVec3{0.2, 0.4, -0.275},
@@ -37,7 +37,7 @@ func (weapon WeaponGenericProjectileLauncher) WeaponCreateGeometry(scene *Scene,
 	return root
 }
 
-func (weapon WeaponGenericProjectileLauncher) WeaponUpdateSubtick(scene *Scene, weaponID ecs.Entity, shootpos TranslationRotation, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.Entity) {
+func (weapon WeaponGenericProjectileLauncher) WeaponUpdateSubtick(scene *Scene, weaponID ecs.ID, shootpos TranslationRotation, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.ID) {
 	if buttons&WeaponTrigger != 0 {
 		if !weapon.NextAttack.After(scene.Now) {
 			// TODO: spawn entity here
@@ -78,7 +78,7 @@ func (weapon WeaponGenericProjectileLauncher) WeaponUpdateSubtick(scene *Scene, 
 }
 
 // TODO: we could also make it a method on the proj launcher tbh?
-func (weapon WeaponGenericProjectileLauncher) fired(scene *Scene, id ecs.Entity) {
+func (weapon WeaponGenericProjectileLauncher) fired(scene *Scene, id ecs.ID) {
 	scene.SoundEffect.Set(id, SoundEmitter{
 		Effect:   "weapons/grenade_launcher/fire.wav",
 		PlayTime: scene.Now, // + time.Duration(rng(w.Time, entityID, 0).Int63n(int64(1*time.Millisecond))),

@@ -13,9 +13,9 @@ type AnyColumn interface {
 // TODO: move inside a subpackage?
 type ReflectedColumn interface {
 	ElemType() reflect.Type
-	All() iter.Seq[Entity]
-	Get(id Entity, v reflect.Value) bool
-	Set(id Entity, v reflect.Value)
-	Delete(id Entity)
+	All() iter.Seq[ID]
+	Get(id ID, v reflect.Value) bool
+	Set(id ID, v reflect.Value)
+	Delete(id ID)
 	Copy(src ReflectedColumn)
 }

@@ -123,7 +123,7 @@ func (renderer *gameRendererImpl) commitUpdate(update *sceneUpdate) {
 	}
 }
 
-func (renderer *gameRendererImpl) Tick(w *game.Scene, playerID ecs.Entity, t0, t1 game.Time, frameDuration time.Duration) {
+func (renderer *gameRendererImpl) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration) {
 	conf := config.Load()
 
 	player, _ := w.Entity.Get(playerID)
@@ -281,7 +281,7 @@ func (renderer *gameRendererImpl) Tick(w *game.Scene, playerID ecs.Entity, t0, t
 	}
 }
 
-func (renderer *gameRendererImpl) Subtick(w *game.Scene, playerID ecs.Entity) {
+func (renderer *gameRendererImpl) Subtick(w *game.Scene, playerID ecs.ID) {
 	// TODO: this will need to enqueue an update and not modify any fields directly!
 
 	// re.stuffMu.Lock()
@@ -368,7 +368,7 @@ func (renderer *gameRendererImpl) Render(jq *gpu.JobQueue, sdlNow uint64, dst *g
 
 type matPropReader struct {
 	scene  *game.Scene
-	object ecs.Entity
+	object ecs.ID
 }
 
 func (sr *matPropReader) UniformAttribute(name string, out *[4]float32) bool {

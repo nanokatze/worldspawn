@@ -11,12 +11,12 @@ import (
 
 // TODO: rename to BeforePhysics
 type UpdateBeforePhysics interface {
-	UpdateBeforePhysics(w *Scene, id ecs.Entity, info *UpdateParams)
+	UpdateBeforePhysics(w *Scene, id ecs.ID, info *UpdateParams)
 }
 
 // TODO: rename to AfterPhysics
 type UpdateAfterPhysics interface {
-	UpdateAfterPhysics(w *Scene, id ecs.Entity, info *UpdateParams)
+	UpdateAfterPhysics(w *Scene, id ecs.ID, info *UpdateParams)
 }
 
 // TODO: rename to just Layer and move it to worldspawn.go? We'll want another
@@ -89,7 +89,7 @@ type ContactKey struct {
 
 type ContactEvent struct {
 	Type      int32
-	EntityID2 ecs.Entity
+	EntityID2 ecs.ID
 }
 
 // TODO: add ability to sync per-entity, e.g. we need this to crouch and
@@ -179,7 +179,7 @@ func worldToPhysics(w *Scene) {
 	}
 }
 
-func getShape(w *Scene, id ecs.Entity) *physics.Shape {
+func getShape(w *Scene, id ecs.ID) *physics.Shape {
 	layer, _ := w.CollisionLayer.Get(id)
 	shape, _ := w.CollisionGeometry.Get(id)
 
@@ -201,7 +201,7 @@ func updatePhysics(w *Scene, Δt time.Duration) {
 	w.physicsSystem.Update(float32(durationToFloatSeconds(Δt)))
 
 	for _, bodyID := range w.physicsSystem.ActiveBodies() {
-		entityID := ecs.Entity(bodyID) // BUG: this is not correct anymore because the generations do not match!!!
+		entityID := ecs.ID(bodyID) // BUG: this is not correct anymore because the generations do not match!!!
 
 		pos, rot, linVel, angVel := w.physicsSystem.WritebackBody(bodyID)
 
@@ -212,8 +212,8 @@ func updatePhysics(w *Scene, Δt time.Duration) {
 	}
 
 	for _, ce := range w.physicsSystem.ContactEvents() {
-		entityID1 := ecs.Entity(ce.Body1.BodyID)
-		entityID2 := ecs.Entity(ce.Body2.BodyID)
+		entityID1 := ecs.ID(ce.Body1.BodyID)
+		entityID2 := ecs.ID(ce.Body2.BodyID)
 
 		// One or both entities in the contact event might've been removed
 		// before the last Update

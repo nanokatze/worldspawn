@@ -14,7 +14,7 @@ type GrenadeLauncherGrenade struct {
 
 var _ UpdateAfterPhysics = GrenadeLauncherGrenade{}
 
-func (grenade GrenadeLauncherGrenade) UpdateAfterPhysics(w *Scene, id ecs.Entity, info *UpdateParams) {
+func (grenade GrenadeLauncherGrenade) UpdateAfterPhysics(w *Scene, id ecs.ID, info *UpdateParams) {
 	creationTime, _ := w.CreationTime.Get(id)
 	explosionTime := creationTime.Add(grenade.Fuse)
 	if explosionTime.After(w.Now) {

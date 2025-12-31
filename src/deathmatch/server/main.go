@@ -74,7 +74,7 @@ type user struct {
 	// would be kinda inverse...)
 	//
 	// TODO: actually use this field
-	player ecs.Entity
+	player ecs.ID
 
 	// time is the latest timestamp (in game time) that we know the user
 	// has the state for
@@ -273,8 +273,8 @@ func (s *Server) handleInputPackets(u *user, stream io.Reader) error {
 
 func (mtimes *mtimes) update(prevWorld, scene *game.Scene) {
 	{
-		a := prevWorld.Entities
-		b := scene.Entities
+		a := prevWorld.IDs
+		b := scene.IDs
 
 		for i := range b.Cap() {
 			if a.Index(i) != b.Index(i) {
@@ -331,7 +331,7 @@ func (s *Server) tick(Δt time.Duration) {
 
 	// TODO: move this into a method on the World
 	s.prevWorld.Now = s.scene.Now
-	s.prevWorld.Entities.Copy(s.scene.Entities)
+	s.prevWorld.IDs.Copy(s.scene.IDs)
 	for columnIndex := range replication.Columns.NumField() {
 		dst := reflect.ValueOf(&s.prevWorld.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
 		src := reflect.ValueOf(&s.scene.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
@@ -373,7 +373,7 @@ func (s *Server) sendUpdates(u *user) {
 				continue
 			}
 
-			id := s.scene.Entities.Index(i)
+			id := s.scene.IDs.Index(i)
 
 			gen := ^uint32(0)
 			if id != 0 {
@@ -412,7 +412,7 @@ func (s *Server) sendUpdates(u *user) {
 				continue
 			}
 
-			id := s.scene.Entities.Index(i)
+			id := s.scene.IDs.Index(i)
 			if id == 0 {
 				continue
 			}
@@ -476,10 +476,10 @@ func readInputCmds(r io.Reader, cmds *[]game.TimestampedInputCmd) error {
 	return nice.UnmarshalDecode(dec, cmds)
 }
 
-func spawnplayer(w *game.Scene, info *game.UpdateParams) ecs.Entity {
+func spawnplayer(w *game.Scene, info *game.UpdateParams) ecs.ID {
 	player := w.CreateEntity(info)
 
-	var playerSpawns []ecs.Entity
+	var playerSpawns []ecs.ID
 	for id := range w.PlayerSpawn.All() {
 		playerSpawns = append(playerSpawns, id)
 	}
@@ -521,7 +521,7 @@ func spawnplayer(w *game.Scene, info *game.UpdateParams) ecs.Entity {
 		StandingViewHeight:          1.9 - 0.1,
 	})
 
-	slots := []ecs.Entity{}
+	slots := []ecs.ID{}
 
 	{
 		gun := w.CreateEntity(info)

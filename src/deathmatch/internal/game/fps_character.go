@@ -48,7 +48,7 @@ type Slot int8
 // TODO: call this "Player"? Or idk.
 type FPSCharacter struct {
 	// TODO: move this into a separate component?
-	Camera ecs.Entity
+	Camera ecs.ID
 
 	// TODO: shape
 	StandingHeight float32
@@ -70,18 +70,18 @@ type FPSCharacter struct {
 
 	Supported bool
 
-	ActiveWeapon           ecs.Entity
-	ActiveWeaponViewmodel  ecs.Entity
-	ActiveWeaponWorldmodel ecs.Entity
-	Weapons                []ecs.Entity
+	ActiveWeapon           ecs.ID
+	ActiveWeaponViewmodel  ecs.ID
+	ActiveWeaponWorldmodel ecs.ID
+	Weapons                []ecs.ID
 }
 
 var _ Controllable = FPSCharacter{}
 
-func (entity FPSCharacter) ControllableUpdateSubtick(w *Scene, id ecs.Entity, cmd TimestampedInputCmd, info *UpdateParams) {
+func (entity FPSCharacter) ControllableUpdateSubtick(w *Scene, id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
 	inventory, _ := w.ArmedCharacter.Get(id)
 
-	var switchToWeapon ecs.Entity
+	var switchToWeapon ecs.ID
 
 	switch cmd := cmd.Cmd.(type) {
 	case InputCmdDLookX:
@@ -166,14 +166,14 @@ func (entity FPSCharacter) ControllableUpdateSubtick(w *Scene, id ecs.Entity, cm
 	})
 }
 
-func (entity FPSCharacter) ControllableUpdate(w *Scene, id ecs.Entity, info *UpdateParams) {
+func (entity FPSCharacter) ControllableUpdate(w *Scene, id ecs.ID, info *UpdateParams) {
 	// TODO: fix this garbage
 	entity.ControllableUpdateSubtick(w, id, TimestampedInputCmd{}, info)
 }
 
 var _ UpdateBeforePhysics = FPSCharacter{}
 
-func (entity FPSCharacter) UpdateBeforePhysics(w *Scene, id ecs.Entity, info *UpdateParams) {
+func (entity FPSCharacter) UpdateBeforePhysics(w *Scene, id ecs.ID, info *UpdateParams) {
 	positionRotation, _ := w.TranslationRotation.Get(id)
 	velocity, _ := w.Velocity.Get(id)
 
@@ -207,7 +207,7 @@ func (entity FPSCharacter) UpdateBeforePhysics(w *Scene, id ecs.Entity, info *Up
 
 // TODO: rename to Inventory or something else
 type ArmedCharacter struct {
-	Slots []ecs.Entity
+	Slots []ecs.ID
 }
 
 func planeNormal(plane geometry.Vec4) geometry.Vec3 {
@@ -218,7 +218,7 @@ func planeSignedDistance(plane geometry.Vec4, point geometry.Vec3) float32 {
 	return point.Dot(planeNormal(plane)) + plane[3]
 }
 
-func (entity *FPSCharacter) asdasd(w *Scene, id ecs.Entity, velocity geometry.Vec3, Δt time.Duration) geometry.Vec3 {
+func (entity *FPSCharacter) asdasd(w *Scene, id ecs.ID, velocity geometry.Vec3, Δt time.Duration) geometry.Vec3 {
 	positionRotation, _ := w.TranslationRotation.Get(id)
 
 	up := geometry.Vec3{0, 0, 1}

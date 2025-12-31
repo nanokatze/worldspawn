@@ -13,9 +13,9 @@ const (
 
 type Weapon interface {
 	// Only call this on the server
-	WeaponCreateGeometry(scene *Scene, info *UpdateParams) ecs.Entity
+	WeaponCreateGeometry(scene *Scene, info *UpdateParams) ecs.ID
 
 	// Returns a function that updates the visual. TODO: we also need to return
 	// stuff like recoil and such.
-	WeaponUpdateSubtick(scene *Scene, weaponId ecs.Entity, shootpos TranslationRotation, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.Entity)
+	WeaponUpdateSubtick(scene *Scene, weaponId ecs.ID, shootpos TranslationRotation, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.ID)
 }

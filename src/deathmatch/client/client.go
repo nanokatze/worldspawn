@@ -26,8 +26,8 @@ import (
 
 type GameRendererInterface interface {
 	// TODO: rename to Update and possibly merge with Subtick somehow?
-	Subtick(w *game.Scene, playerID ecs.Entity)
-	Tick(w *game.Scene, playerID ecs.Entity, t0, t1 game.Time, frameDuration time.Duration)
+	Subtick(w *game.Scene, playerID ecs.ID)
+	Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration)
 }
 
 type Client struct {
@@ -43,7 +43,7 @@ type Client struct {
 	Δt    time.Duration
 	world *game.Scene
 
-	player ecs.Entity
+	player ecs.ID
 
 	renderer GameRendererInterface
 }
@@ -123,7 +123,7 @@ func newClient(renderer GameRendererInterface, addr string) (*Client, error) {
 				// The renderer will resize its scene by itself
 
 			case replication.SetPlayer:
-				var player ecs.Entity
+				var player ecs.ID
 				binary.Read(deframer, binary.LittleEndian, &player)
 				s.mu.Lock()
 				s.player = player
@@ -204,23 +204,23 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 			}
 
 			if indexGen.Gen != ^uint32(0) {
-				id := ecs.MakeEntity(int(indexGen.Index), indexGen.Gen)
+				id := ecs.MakeID(int(indexGen.Index), indexGen.Gen)
 
-				idAtIndex := s.world.Entities.Index(int(indexGen.Index))
+				idAtIndex := s.world.IDs.Index(int(indexGen.Index))
 				if idAtIndex != id {
 					if idAtIndex != 0 {
 						// TODO: log that we're deleting this
 						s.world.DeleteEntityImmediately(idAtIndex)
 					}
-					if err := s.world.Entities.AllocAt(id); err != nil {
-						panic(err) // TODO: handle properly
+					if !s.world.IDs.Create(id) {
+						panic("bad") // TODO: handle properly
 					}
 					// TODO: not sure if slog.Info or slog.Debug?
 					// TODO: rework these slog messages
 					logger.Debug("create entity", "index", indexGen.Index, "id", id, "replaces", idAtIndex)
 				}
 			} else {
-				id := s.world.Entities.Index(int(indexGen.Index))
+				id := s.world.IDs.Index(int(indexGen.Index))
 				if id != 0 {
 					s.world.DeleteEntityImmediately(id)
 					logger.Debug("delete entity", "index", indexGen.Index, "id", id)
@@ -255,7 +255,7 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 				}
 			}
 
-			id := s.world.Entities.Index(int(index))
+			id := s.world.IDs.Index(int(index))
 			if id == 0 {
 				logger.Warn("entity does not exist at an index (likely a bug in the game code)", "component", replication.Columns.Field(columnIndex).Name, "index", index)
 				continue
