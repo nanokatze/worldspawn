@@ -64,7 +64,7 @@ func main() {
 		}
 	}
 
-	go runMainWindow()
+	go newMainWindow().run()
 
 	if err := sdlapp.Main(); err != nil {
 		panic(err)

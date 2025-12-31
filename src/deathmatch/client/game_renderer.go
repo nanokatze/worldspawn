@@ -90,19 +90,6 @@ type gameRendererImpl struct {
 	sfxScene *sfx.Scene
 }
 
-// TODO: should be created at runtime
-var gameRenderer = &gameRendererImpl{
-	lastTransform: make([]geometry.TRS3, 10000),
-
-	updates: make(chan *sceneUpdate, 1),
-
-	scene: pathtracer.NewScene(10000, 5),
-
-	sfxScene: &sfx.Scene{
-		Instance: make([]sfx.Instance, 10000),
-	},
-}
-
 // TODO: remove this in favor of merging updates at commitUpdate time. I.e.
 // we'll start off with a clean update every time.
 func (renderer *gameRendererImpl) beginUpdate() *sceneUpdate {

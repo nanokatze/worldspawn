@@ -15,12 +15,11 @@ import (
 	"worldspawn/geometry-go"
 	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
+	sfx "worldspawn/internal/fuckwwise"
+	"worldspawn/internal/pathtracer"
 	"worldspawn/sdl"
 	"worldspawn/sdlapp"
 )
-
-// TODO: I'm kinda torn between folding this back into main.go and not doing
-// that...
 
 var currentSession atomic.Pointer[Client]
 
@@ -31,52 +30,13 @@ var gamepad *sdl.Gamepad
 type mainWindow struct {
 	sdlWindow *sdl.Window
 
-	resizeCond sync.Cond
-	redrawMu   sync.Mutex
+	flickStickTest flickStick
 
+	resized        chan struct{}
+	redrawMu       sync.Mutex
 	swapchain      *gpu.Swapchain
 	swapchainImage *gpu.Image
-}
-
-func runMainWindow() {
-	w := newMainWindow()
-
-	if err := w.sdlWindow.SetWindowRelativeMouseMode(true); err != nil {
-		slog.Warn("failed to set relative mouse mode", "err", err)
-	}
-
-	slog.Info("gamepads", "gamepads", sdl.GetGamepads())
-
-	// TODO: open all gamepads we have here
-	if gamepads := sdl.GetGamepads(); len(gamepads) > 0 {
-		gamepad, _ = sdl.OpenGamepad(gamepads[0])
-	}
-
-	slog.Info("gamepad", "gamepad", gamepad)
-
-	raddr := flag.Arg(0)
-
-	// TODO: should newRemoteSession do the logging instead? Yes.
-
-	game.Data = os.DirFS(*dataDir)
-
-	session, err := newClient(gameRenderer, raddr)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	currentSession.Store(session)
-
-	go func() {
-		for {
-			w.redraw()
-		}
-	}()
-
-	for {
-		event := sdlapp.Event(w.sdlWindow)
-		w.handleInput(event)
-	}
+	renderer       *gameRendererImpl // this could be an interface probably
 }
 
 func newMainWindow() *mainWindow {
@@ -95,13 +55,63 @@ func newMainWindow() *mainWindow {
 		panic(fmt.Sprintf("sdl.CreateWindow: %v", err))
 	}
 
-	w := new(mainWindow)
-	w.sdlWindow = sdlWindow
-	w.resizeCond.L = &w.redrawMu
+	w := &mainWindow{
+		sdlWindow: sdlWindow,
 
-	// TODO: start goroutine that redraws into this window?
+		// G1: redraw(), returns false
+		// G2: resize()
+		// G1: starts waiting on resizeDone
+		resized: make(chan struct{}, 1),
+
+		renderer: &gameRendererImpl{
+			// TODO: autoresize these inside Tick
+			lastTransform: make([]geometry.TRS3, 10000),
+
+			updates: make(chan *sceneUpdate, 1),
+
+			scene: pathtracer.NewScene(10000, 5),
+
+			sfxScene: &sfx.Scene{
+				Instance: make([]sfx.Instance, 10000),
+			},
+		},
+	}
+
+	if err := w.sdlWindow.SetWindowRelativeMouseMode(true); err != nil {
+		slog.Warn("failed to set relative mouse mode", "err", err)
+	}
+
+	slog.Info("gamepads", "gamepads", sdl.GetGamepads())
+
+	// TODO: open all gamepads we have here
+	if gamepads := sdl.GetGamepads(); len(gamepads) > 0 {
+		gamepad, _ = sdl.OpenGamepad(gamepads[0])
+	}
+
+	slog.Info("gamepad", "gamepad", gamepad)
+
+	raddr := flag.Arg(0)
+
+	game.Data = os.DirFS(*dataDir)
+
+	session, err := newClient(w.renderer, raddr)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	currentSession.Store(session)
 
 	return w
+}
+
+func (w *mainWindow) run() {
+	// TODO: wait for redrawLoop before returning
+	go w.redrawLoop()
+
+	for {
+		event := <-sdlapp.Events(w.sdlWindow)
+		w.handleEvent(event)
+	}
 }
 
 func (w *mainWindow) resize(extent [3]int) {
@@ -145,30 +155,37 @@ func (w *mainWindow) resize(extent [3]int) {
 	// Redraw a single frame at this size.
 	w.redrawLocked()
 
-	w.resizeCond.Broadcast()
+	select {
+	case w.resized <- struct{}{}:
+	default:
+	}
 }
 
-func (w *mainWindow) redraw() {
+func (w *mainWindow) redrawLoop() {
+	for {
+		<-w.resized
+		for {
+			if !w.redraw() {
+				break
+			}
+		}
+	}
+}
+
+func (w *mainWindow) redraw() bool {
 	w.redrawMu.Lock()
 	defer w.redrawMu.Unlock()
 
-	if !w.redrawLocked() {
-		// Present failed, wait for resize.
-		w.resizeCond.Wait()
-	}
+	return w.redrawLocked()
 }
 
 // Must be called with redrawMu held.
 func (w *mainWindow) redrawLocked() bool {
-	if w.swapchain == nil {
-		return false
-	}
-
 	var jq gpu.JobQueue
 
 	w.swapchainImage.EnqueueInit(&jq)
 
-	gameRenderer.Render(&jq, sdl.TicksNS(), w.swapchainImage)
+	w.renderer.Render(&jq, sdl.TicksNS(), w.swapchainImage)
 
 	// TODO: it would probably be a good idea to inject overlay rendering into
 	// Render so that we can avoid breaking the render pass.
@@ -188,16 +205,14 @@ type flickStick struct {
 	lastDeflection geometry.Vec2
 }
 
-var flickStickTest flickStick
-
-func sdlTimeToGameTime(ticks uint64) game.Time {
-	gameRenderer.stuffMu.Lock()
-	defer gameRenderer.stuffMu.Unlock()
+func (w *mainWindow) sdlTimeToGameTime(ticks uint64) game.Time {
+	w.renderer.stuffMu.Lock()
+	defer w.renderer.stuffMu.Unlock()
 
 	// If we have DontInterpolate set, we'll want t = 1
-	t := min(max(float64(ticks-gameRenderer.tm.t0sdl)/float64(gameRenderer.tm.t1sdl-gameRenderer.tm.t0sdl), 0), 1)
+	t := min(max(float64(ticks-w.renderer.tm.t0sdl)/float64(w.renderer.tm.t1sdl-w.renderer.tm.t0sdl), 0), 1)
 
-	return gameRenderer.tm.t0game.Add(time.Duration(float64(gameRenderer.tm.t1game-gameRenderer.tm.t0game) * t))
+	return w.renderer.tm.t0game.Add(time.Duration(float64(w.renderer.tm.t1game-w.renderer.tm.t0game) * t))
 }
 
 // GAMEPAD_BUTTON_START and K_ESC act as ways to switch between the menu and the
@@ -207,7 +222,7 @@ func sdlTimeToGameTime(ticks uint64) game.Time {
 // nothing otherwise
 
 // TODO: we can filter out unchanging actions here
-func (w *mainWindow) handleInput(e sdl.Event) {
+func (w *mainWindow) handleEvent(e sdl.Event) {
 	conf := config.Load()
 
 	var cmds []game.TimestampedInputCmd
@@ -216,41 +231,41 @@ func (w *mainWindow) handleInput(e sdl.Event) {
 		w.resize([3]int{int(e.Data1), int(e.Data2), 1})
 
 	case *sdl.KeyDownEvent:
-		etime := sdlTimeToGameTime(e.Timestamp)
+		etime := w.sdlTimeToGameTime(e.Timestamp)
 
 		if action, ok := conf.Controls.KeyActions[e.Key]; ok {
 			cmds = game.AppendAction(cmds, etime, action, 1)
 		}
 
 	case *sdl.KeyUpEvent:
-		etime := sdlTimeToGameTime(e.Timestamp)
+		etime := w.sdlTimeToGameTime(e.Timestamp)
 
 		if action, ok := conf.Controls.KeyActions[e.Key]; ok {
 			cmds = game.AppendAction(cmds, etime, action, 0)
 		}
 
 	case *sdl.MouseMotionEvent:
-		etime := sdlTimeToGameTime(e.Timestamp)
+		etime := w.sdlTimeToGameTime(e.Timestamp)
 
 		cmds = game.AppendAction(cmds, etime, game.ActionDLookX, e.XRel*0.0005)
 		cmds = game.AppendAction(cmds, etime, game.ActionDLookY, e.YRel*0.0005)
 
 	case *sdl.MouseButtonDownEvent:
-		etime := sdlTimeToGameTime(e.Timestamp)
+		etime := w.sdlTimeToGameTime(e.Timestamp)
 
 		if action, ok := conf.Controls.MouseButtonActions[sdl.MouseButton(e.Button)]; ok {
 			cmds = game.AppendAction(cmds, etime, action, 1)
 		}
 
 	case *sdl.MouseButtonUpEvent:
-		etime := sdlTimeToGameTime(e.Timestamp)
+		etime := w.sdlTimeToGameTime(e.Timestamp)
 
 		if action, ok := conf.Controls.MouseButtonActions[sdl.MouseButton(e.Button)]; ok {
 			cmds = game.AppendAction(cmds, etime, action, 0)
 		}
 
 	case *sdl.GamepadAxisMotionEvent:
-		etime := sdlTimeToGameTime(e.Timestamp)
+		etime := w.sdlTimeToGameTime(e.Timestamp)
 
 		value := max(float32(e.Value)/32767, -1)
 
@@ -270,17 +285,17 @@ func (w *mainWindow) handleInput(e sdl.Event) {
 			cmds = game.AppendAction(cmds, etime, game.ActionSetMovementVelocityY, -value)
 
 		case sdl.GAMEPAD_AXIS_RIGHTX:
-			flickStickTest.deflection.X = value
+			w.flickStickTest.deflection.X = value
 
 		case sdl.GAMEPAD_AXIS_RIGHTY:
-			flickStickTest.deflection.Y = value
+			w.flickStickTest.deflection.Y = value
 
 		case sdl.GAMEPAD_AXIS_RIGHT_TRIGGER:
 			cmds = game.AppendAction(cmds, etime, game.ActionAttack, step(0.9, value))
 		}
 
 	case *sdl.GamepadButtonDownEvent:
-		etime := sdlTimeToGameTime(e.Timestamp)
+		etime := w.sdlTimeToGameTime(e.Timestamp)
 
 		if sdl.GamepadButton(e.Button) == sdl.GAMEPAD_BUTTON_START {
 			return
@@ -291,14 +306,14 @@ func (w *mainWindow) handleInput(e sdl.Event) {
 		}
 
 	case *sdl.GamepadButtonUpEvent:
-		etime := sdlTimeToGameTime(e.Timestamp)
+		etime := w.sdlTimeToGameTime(e.Timestamp)
 
 		if action, ok := conf.Controls.GamepadButtonActions[sdl.GamepadButton(e.Button)]; ok {
 			cmds = game.AppendAction(cmds, etime, action, 0)
 		}
 
 	case *sdl.GamepadUpdateCompleteEvent:
-		etime := sdlTimeToGameTime(e.Timestamp)
+		etime := w.sdlTimeToGameTime(e.Timestamp)
 
 		// TODO: batch gamepad-generated commands and only send them in response
 		// to this event, rather than immediately.
@@ -313,16 +328,16 @@ func (w *mainWindow) handleInput(e sdl.Event) {
 		// TODO: smooth out the initial flick
 		// TODO: do not send inputs when the stick is being released
 
-		activation := flickStickTest.deflection.Length() > 0.5
+		activation := w.flickStickTest.deflection.Length() > 0.5
 
-		if activation && !flickStickTest.activated {
-			flickStickTest.lastDeflection = geometry.Vec2{X: 0, Y: -1}
+		if activation && !w.flickStickTest.activated {
+			w.flickStickTest.lastDeflection = geometry.Vec2{X: 0, Y: -1}
 		}
-		flickStickTest.activated = activation
+		w.flickStickTest.activated = activation
 
-		if flickStickTest.activated {
-			A := complex(flickStickTest.lastDeflection.X, flickStickTest.lastDeflection.Y)
-			B := complex(flickStickTest.deflection.X, flickStickTest.deflection.Y)
+		if w.flickStickTest.activated {
+			A := complex(w.flickStickTest.lastDeflection.X, w.flickStickTest.lastDeflection.Y)
+			B := complex(w.flickStickTest.deflection.X, w.flickStickTest.deflection.Y)
 
 			// We can normalize B and A and then we can just use B * conj(A)
 			D := B / A
@@ -331,7 +346,7 @@ func (w *mainWindow) handleInput(e sdl.Event) {
 
 			cmds = game.AppendAction(cmds, etime, game.ActionDLookX, dlookx)
 
-			flickStickTest.lastDeflection = flickStickTest.deflection
+			w.flickStickTest.lastDeflection = w.flickStickTest.deflection
 		}
 	}
 
