@@ -526,14 +526,16 @@ func spawnplayer(w *game.Scene, info *game.UpdateParams) ecs.Entity {
 
 	slots := []ecs.Entity{}
 
-	// TODO: really redo how we do weapons. We probably do not want literal
-	// entities attached to the player, but rather different data structures
-	// that player's CharacterUpdate would drive.
-
 	{
 		gun := w.CreateEntity(info)
 		w.Entity.Set(gun, game.WeaponGenericProjectileLauncher{})
 		w.ParentTo(gun, player)
+		w.Entity.Set(gun, game.WeaponGenericProjectileLauncher{
+			CycleDuration: 600 * time.Millisecond,
+
+			Projectile:     game.PrefabRef{Filename: "weapons/grenade_launcher_grenade/grenade.json"},
+			MuzzleVelocity: 30,
+		})
 
 		slots = append(slots, gun)
 	}

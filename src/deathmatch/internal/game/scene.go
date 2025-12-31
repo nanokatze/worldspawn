@@ -46,6 +46,13 @@ func TranslationRotationOne() TranslationRotation {
 	}
 }
 
+func (x TranslationRotation) Mul(y TranslationRotation) TranslationRotation {
+	return TranslationRotation{
+		x.Translation.Add(x.Rotation.Rotate64(y.Translation)),
+		x.Rotation.Mul(y.Rotation),
+	}
+}
+
 type Velocity struct {
 	Linear  geometry.Vec3
 	Angular geometry.Vec3
@@ -83,6 +90,7 @@ type Camera struct {
 type Columns struct {
 	// Name ecs.ComponentStore[string]
 
+	// TODO: explore if we can make CreateEntity set this component
 	CreationTime ecs.Column[Time]
 
 	Parent ecs.Column[ecs.Entity]
@@ -185,19 +193,6 @@ func NewScene(n int) *Scene {
 	return w
 }
 
-func (w *Scene) Sky() string {
-	return w.singletonComponents().Sky
-}
-
-func (w *Scene) Gravity() geometry.Vec3 {
-	return w.singletonComponents().Gravity
-}
-
-func (w *Scene) singletonComponents() SingletonComponents {
-	x, _ := assertEntity[SingletonComponents](w, 1)
-	return x
-}
-
 func (w *Scene) Destroy() {
 	// TODO: stop and destroy physicsSystem here
 }
@@ -236,6 +231,19 @@ func (w *Scene) DeleteEntityImmediately(id ecs.Entity) {
 	w.Entities.Free(id)
 }
 
+func (w *Scene) Sky() string {
+	return w.singletonComponents().Sky
+}
+
+func (w *Scene) Gravity() geometry.Vec3 {
+	return w.singletonComponents().Gravity
+}
+
+func (w *Scene) singletonComponents() SingletonComponents {
+	x, _ := assertEntity[SingletonComponents](w, 1)
+	return x
+}
+
 // TODO: or SetParent?
 func (scene *Scene) ParentTo(child, parent ecs.Entity) {
 	scene.Parent.Set(child, parent)
@@ -251,12 +259,21 @@ func (scene *Scene) GetScale(id ecs.Entity) geometry.Vec3 {
 	return geometry.Vec3Broadcast(1)
 }
 
-// TODO: rename to User/Player/etc Input
+func (scene *Scene) GetRotationTranslation(id ecs.Entity) TranslationRotation {
+	result := TranslationRotationOne()
+	for id != 0 {
+		tmp, _ := scene.TranslationRotation.Get(id)
+		result = tmp.Mul(result)
+		id, _ = scene.Parent.Get(id)
+	}
+	return result
+}
+
 func (w *Scene) HandleInput(id ecs.Entity, cmd TimestampedInputCmd, info *UpdateParams) {
-	if entity, ok := assertEntity[Character](w, id); ok {
-		entity.CharacterUpdate(w, id, cmd, info)
+	if entity, ok := assertEntity[Controllable](w, id); ok {
+		entity.ControllableUpdateSubtick(w, id, cmd, info)
 	} else {
-		info.Logger.Warn(fmt.Sprintf("entity does not exist or does not implement %s", reflect.TypeFor[Character]().Name()), "id", id)
+		info.Logger.Warn(fmt.Sprintf("entity does not exist or does not implement %s", reflect.TypeFor[Controllable]().Name()), "id", id)
 	}
 }
 
@@ -270,9 +287,8 @@ func (w *Scene) Update(updateParams *UpdateParams) {
 	// having shadow component stores.
 
 	for id, entity := range w.Entity.All() {
-		if char, ok := entity.(Character); ok {
-			// TODO: not sure what to put in Time here, w.Now or w.Now + Δt?
-			char.CharacterUpdate(w, id, TimestampedInputCmd{Time: 0}, updateParams)
+		if char, ok := entity.(Controllable); ok {
+			char.ControllableUpdate(w, id, updateParams)
 		}
 	}
 

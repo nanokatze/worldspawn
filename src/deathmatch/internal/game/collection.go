@@ -54,9 +54,10 @@ type CollectionInstance struct {
 }
 
 // TODO: rename this to something else, e.g. just Prefab?
+// TODO: make it this an interface of file-backed prefab and inline string
+// prefab (i.e. just json)
 type PrefabRef struct {
-	Entity   ecs.Entity // for prefabs constructed at runtime
-	Filename string     // for on-disk prefabs
+	Filename string // for on-disk prefabs
 }
 
 // TODO: rename this to make it clear that we're instanting collections

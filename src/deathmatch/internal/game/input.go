@@ -1,5 +1,7 @@
 package game
 
+// TODO: these don't really belong here but to client
+
 // TODO: give these a type
 // TODO: rename to axis?
 // TODO: these depend on action sets as well
@@ -51,10 +53,10 @@ func actionToInputCmd(action int, value float32) InputCmd {
 		return Slot(action - ActionSlot0)
 
 	case ActionSetMovementVelocityX:
-		return InputCmdSetMovementVelocityX(value)
+		return InputCmdMoveX(value)
 
 	case ActionSetMovementVelocityY:
-		return InputCmdSetMovementVelocityY(value)
+		return InputCmdMoveY(value)
 
 	case ActionDLookX:
 		return InputCmdDLookX(value)

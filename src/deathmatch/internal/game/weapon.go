@@ -1,31 +1,21 @@
-//go:build ignore
-
 package game
 
 import (
-	"time"
-
-	"worldspawn/geometry-go"
 	"worldspawn/internal/ecs"
 )
 
-// TODO: swap weaponID and operatorID places?
+type WeaponButtons uint64
+
+const (
+	_ WeaponButtons = 1 << iota
+	WeaponTrigger
+)
 
 type Weapon interface {
-	// TODO: return a more elaborate recoil moment or remove recoil altogether?
-	WeaponUpdateSubtick(w *Scene, weaponID, operatorID ecs.Entity, now Time, info *UpdateParams) (recoil geometry.Vec3)
-}
+	// Only call this on the server
+	WeaponCreateGeometry(scene *Scene, info *UpdateParams) ecs.Entity
 
-// TODO: rename this
-type WeaponDeployedInterface interface {
-	WeaponDeployed(w *Scene, weaponID, operatorID ecs.Entity, now Time, Δt time.Duration)
-}
-
-// TODO: just remove this component
-type WeaponAim struct {
-	// TODO: should also include the shooter's entity
-	// TODO: remove "Shoot" from the names of these
-	ShootPos      geometry.DVec3
-	ShootRotation geometry.Rot3
-	Buttons       uint64 // TODO: right now this is passing player's buttons, but we also want to plumb stuff like holster away etc
+	// Returns a function that updates the visual. TODO: we also need to return
+	// stuff like recoil and such.
+	WeaponUpdateSubtick(scene *Scene, weaponId ecs.Entity, shootpos TranslationRotation, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.Entity)
 }

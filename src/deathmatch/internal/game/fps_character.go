@@ -9,6 +9,33 @@ import (
 	"worldspawn/physics"
 )
 
+// TODO: name buttons and input commands in a way so that it's clear that they
+// are player-specific. For vehicles we'd have a different set of input
+// commands, probably even different between e.g. wheeled vehicles and planes.
+
+type Button int8
+
+const (
+	_ Button = iota
+	ButtonJump
+	ButtonCrouch
+	ButtonAttack
+	ButtonReload
+)
+
+// TODO: use SNORM for movement velocity and look direction?
+
+type (
+	InputCmdDLookX        float32
+	InputCmdDLookY        float32
+	InputCmdMoveX         float32
+	InputCmdMoveY         float32
+	InputCmdPressButton   Button
+	InputCmdReleaseButton Button
+)
+
+type Slot int8
+
 // TODO: I guess we should make character controller also be an interface?
 // Though maybe not, this seems less clear cut compared to weapons.
 
@@ -18,6 +45,7 @@ import (
 
 // TODO: this code is in serious need of work!!!
 
+// TODO: call this "Player"? Or idk.
 type FPSCharacter struct {
 	// TODO: move this into a separate component?
 	Camera ecs.Entity
@@ -48,25 +76,21 @@ type FPSCharacter struct {
 	Weapons                []ecs.Entity
 }
 
-var _ Character = FPSCharacter{}
+var _ Controllable = FPSCharacter{}
 
-func (entity FPSCharacter) CharacterUpdate(w *Scene, id ecs.Entity, cmd TimestampedInputCmd, info *UpdateParams) {
-	// positionRotation, _ := w.TranslationRotation.Load(id)
+func (entity FPSCharacter) ControllableUpdateSubtick(w *Scene, id ecs.Entity, cmd TimestampedInputCmd, info *UpdateParams) {
 	inventory, _ := w.ArmedCharacter.Get(id)
-
-	// should this be subtick time?
-	// now := w.Now
 
 	var switchToWeapon ecs.Entity
 
 	switch cmd := cmd.Cmd.(type) {
 	case InputCmdDLookX:
-		entity.Look.X = float32(math.Mod(float64(entity.Look.X+float32(cmd)), 1))
+		entity.Look.X += float32(cmd)
 	case InputCmdDLookY:
-		entity.Look.Y = min(max(entity.Look.Y+float32(cmd), -0.25), 0.25)
-	case InputCmdSetMovementVelocityX:
+		entity.Look.Y += float32(cmd)
+	case InputCmdMoveX:
 		entity.Move.X = float32(cmd)
-	case InputCmdSetMovementVelocityY:
+	case InputCmdMoveY:
 		entity.Move.Y = float32(cmd)
 	case InputCmdPressButton:
 		entity.Buttons |= uint64(1) << cmd
@@ -77,17 +101,21 @@ func (entity FPSCharacter) CharacterUpdate(w *Scene, id ecs.Entity, cmd Timestam
 			switchToWeapon = inventory.Slots[cmd]
 		}
 	default:
-		// TODO: optionally print this command for debugging and stuff
+		// Right now we can get nil here when ControllableUpdateSubtick is
+		// called from ControllableUpdate but ugh.
+		// panic("unreachable")
 	}
+
+	entity.Look.X = float32(math.Mod(float64(entity.Look.X), 1))
+	entity.Look.Y = min(max(entity.Look.Y, -0.25), 0.25)
 
 	if !w.IsEntityValid(entity.ActiveWeapon) && len(inventory.Slots) > 0 {
 		switchToWeapon = inventory.Slots[0]
 	}
 
 	if w.IsEntityValid(switchToWeapon) {
-		// TODO: check for validity!
 		// TODO: don't delete the view and worldmodel entities but just hide
-		// them
+		// them?
 		if w.IsEntityValid(entity.ActiveWeaponViewmodel) {
 			w.Delete.Set(entity.ActiveWeaponViewmodel, struct{}{})
 		}
@@ -98,9 +126,8 @@ func (entity FPSCharacter) CharacterUpdate(w *Scene, id ecs.Entity, cmd Timestam
 		entity.ActiveWeapon = switchToWeapon
 
 		if !info.Speculating {
-			weapon, ok := assertEntity[Weapon](w, entity.ActiveWeapon)
-			if ok {
-				entity.ActiveWeaponViewmodel = weapon.CreateGeometry(w, info)
+			if weapon, ok := assertEntity[Weapon](w, entity.ActiveWeapon); ok {
+				entity.ActiveWeaponViewmodel = weapon.WeaponCreateGeometry(w, info)
 
 				w.Viewmodel2.Set(entity.ActiveWeaponViewmodel,
 					Viewmodel2{
@@ -117,8 +144,16 @@ func (entity FPSCharacter) CharacterUpdate(w *Scene, id ecs.Entity, cmd Timestam
 		if entity.Buttons&uint64(1<<ButtonAttack) != 0 {
 			buttons |= WeaponTrigger
 		}
-		updateVisual := weapon.UpdateSubtick(w, entity.ActiveWeapon, buttons, info)
-		updateVisual(entity.ActiveWeaponViewmodel)
+
+		shootpos := w.GetRotationTranslation(id).Mul(TranslationRotation{
+			Translation: geometry.DVec3{0, 0, float64(entity.StandingViewHeight)},
+			Rotation:    geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, -1}, 2*math.Pi*entity.Look.X).Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, 2*math.Pi*entity.Look.Y)),
+		})
+
+		updateVisual := weapon.WeaponUpdateSubtick(w, entity.ActiveWeapon, shootpos, buttons, info)
+		if updateVisual != nil {
+			updateVisual(w, entity.ActiveWeaponViewmodel)
+		}
 	}
 
 	// TODO: avoid unnecessary updates
@@ -131,37 +166,42 @@ func (entity FPSCharacter) CharacterUpdate(w *Scene, id ecs.Entity, cmd Timestam
 	})
 }
 
+func (entity FPSCharacter) ControllableUpdate(w *Scene, id ecs.Entity, info *UpdateParams) {
+	// TODO: fix this garbage
+	entity.ControllableUpdateSubtick(w, id, TimestampedInputCmd{}, info)
+}
+
 var _ UpdateBeforePhysics = FPSCharacter{}
 
-func (fpsCharacter FPSCharacter) UpdateBeforePhysics(w *Scene, id ecs.Entity, info *UpdateParams) {
+func (entity FPSCharacter) UpdateBeforePhysics(w *Scene, id ecs.Entity, info *UpdateParams) {
 	positionRotation, _ := w.TranslationRotation.Get(id)
 	velocity, _ := w.Velocity.Get(id)
 
 	rotation := positionRotation.Rotation.
-		Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, -1}, 2*math.Pi*fpsCharacter.Look.X))
+		Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, -1}, 2*math.Pi*entity.Look.X))
 
-	move := fpsCharacter.Move
+	move := entity.Move
 	if lenSq := move.LengthSq(); lenSq > 1 {
 		move = move.Scale(1 / float32(math.Sqrt(float64(lenSq))))
 	}
 
 	localVel := rotation.Inverse().Rotate(velocity.Linear)
-	if fpsCharacter.Supported {
-		localVel[0] = move.X * fpsCharacter.WalkVelocity
-		localVel[1] = move.Y * fpsCharacter.WalkVelocity
-		if fpsCharacter.Buttons&(1<<ButtonJump) != 0 {
+	if entity.Supported {
+		localVel[0] = move.X * entity.WalkVelocity
+		localVel[1] = move.Y * entity.WalkVelocity
+		if entity.Buttons&(1<<ButtonJump) != 0 {
 			localVel[2] = 4
 		}
 	}
 	velocity.Linear = rotation.Rotate(localVel)
 
-	if !fpsCharacter.Supported {
+	if !entity.Supported {
 		velocity.Linear = velocity.Linear.Add(w.Gravity().Scale(float32(durationToFloatSeconds(info.Δt))))
 	}
 
-	velocity.Linear = fpsCharacter.asdasd(w, id, velocity.Linear, info.Δt)
+	velocity.Linear = entity.asdasd(w, id, velocity.Linear, info.Δt)
 
-	w.Entity.Set(id, fpsCharacter)
+	w.Entity.Set(id, entity)
 	w.Velocity.Set(id, velocity)
 }
 
@@ -178,7 +218,7 @@ func planeSignedDistance(plane geometry.Vec4, point geometry.Vec3) float32 {
 	return point.Dot(planeNormal(plane)) + plane[3]
 }
 
-func (fpsCharacter *FPSCharacter) asdasd(w *Scene, id ecs.Entity, velocity geometry.Vec3, Δt time.Duration) geometry.Vec3 {
+func (entity *FPSCharacter) asdasd(w *Scene, id ecs.Entity, velocity geometry.Vec3, Δt time.Duration) geometry.Vec3 {
 	positionRotation, _ := w.TranslationRotation.Get(id)
 
 	up := geometry.Vec3{0, 0, 1}
@@ -197,7 +237,7 @@ func (fpsCharacter *FPSCharacter) asdasd(w *Scene, id ecs.Entity, velocity geome
 		hits)
 	hits = hits[:n]
 
-	fpsCharacter.Supported = false
+	entity.Supported = false
 
 	for _, contact := range hits {
 		normal := contact.Normal.Scale(-1)
@@ -214,7 +254,7 @@ func (fpsCharacter *FPSCharacter) asdasd(w *Scene, id ecs.Entity, velocity geome
 				})
 			}
 		} else {
-			fpsCharacter.Supported = true
+			entity.Supported = true
 		}
 		planes = append(planes, geometry.Vec4{
 			normal[0],

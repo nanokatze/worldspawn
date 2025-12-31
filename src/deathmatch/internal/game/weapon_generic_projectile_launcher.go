@@ -1,5 +1,3 @@
-//go:build ignore
-
 package game
 
 import (
@@ -10,119 +8,79 @@ import (
 	"worldspawn/internal/ecs"
 )
 
-// TODO: I think the way we should do attachments is by spawning two models
-// (view and world), with their own set of children entities for attachments.
-// Otherwise we run into issues when plumbing stuff to rendering and everything.
-
 type WeaponGenericProjectileLauncher struct {
-	DeployAnimation string
-	DeployDuration  time.Duration
-
-	// TODO: make a dedicated prefab struct that can be either a filename or *Components
-	Projectile     PrefabRef
-	MuzzleVelocity float32 // TODO: maybe remove this and let the projectile specify velocity directly. We'd have to transform the spawned prefab in that case
-	ShootAnimation string
-	ShootSound     string
 	CycleDuration  time.Duration `json:",format:units"`
-
-	Armature string // TODO: armatures should be folded directly into animations, probably
+	Projectile     PrefabRef
+	MuzzleVelocity float32
 
 	NextAttack Time
 }
 
-var _ WeaponDeployedInterface = WeaponGenericProjectileLauncher{}
-
-func (weapon WeaponGenericProjectileLauncher) WeaponDeployed(w *Scene, weaponID, operatorID ecs.Entity, now Time, Δt time.Duration) {
-	weapon.NextAttack = now.Add(weapon.DeployDuration)
-
-	if weapon.DeployAnimation != "" {
-		// TODO: this should be two animations: one that moves the root bone (later:
-		// the entire entity) and one that moves front cover and tubes
-
-		armature, err := loadArmature(weapon.Armature)
-		if err != nil {
-			panic(err)
-		}
-
-		w.Animation.Set(weaponID, Animation{
-			Armature: armature,
-			Action:   weapon.DeployAnimation,
-			PlayTime: now,
-		})
-	}
-
-	w.Entity.Set(weaponID, weapon)
+type Testburger struct {
+	BaseColor [4]float32
 }
 
 var _ Weapon = WeaponGenericProjectileLauncher{}
 
-func (weapon WeaponGenericProjectileLauncher) WeaponUpdateSubtick(w *Scene, id, playerID ecs.Entity, now Time, info *UpdateParams) (recoil geometry.Vec3) {
-	if w.Now < weapon.NextAttack {
-		return
-	}
-
-	aim, _ := w.WeaponAim.Get(id)
-	if aim.Buttons&(1<<ButtonAttack) == 0 {
-		return
-	}
-
-	// TODO: also spawn a speculative entity on client once we get support for
-	// that.
-	if !info.Speculating {
-		rot := aim.ShootRotation
-
-		realPosition := aim.ShootPos.Add(geometry.DVec3FromVec3(rot.Rotate(geometry.Vec3{0.0, 0.5, 0.0})))
-
-		// TODO: cosmeticPosition should be computed from viewmodel
-		// TODO: actually, cosmeticShootPos should probably be provided to us, we
-		// shouldn't be the ones computing it?
-		// TODO: make CosmeticOffset viewmodel-aware.
-		cosmeticPosition := aim.ShootPos.Add(geometry.DVec3FromVec3(rot.Rotate(geometry.Vec3{0.15, -0.5, -0.15}).Add(geometry.Vec3{0, 0, -0.1})))
-
-		projectile := w.SpawnPrefab(weapon.Projectile)
-		w.TranslationRotation.Set(projectile, TranslationRotation{
-			Translation: realPosition,
-			Rotation:    rot.Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, math.Pi/2)),
-		})
-		w.Scale.Set(projectile, geometry.Vec3Broadcast(1))
-		// TODO: new idea for cosmetic offset: we could trace a ray like TF2 does
-		// and make the decay time be how long it takes to reach the wall!
-		w.CosmeticOffset.Set(projectile, CosmeticOffset{
-			Offset:    cosmeticPosition.Sub(realPosition).Vec3(),
-			StartTime: w.Now,
-			EndTime:   w.Now.Add(300 * time.Millisecond),
-		})
-		w.Velocity.Set(projectile, Velocity{Linear: rot.Rotate(geometry.Vec3{0, weapon.MuzzleVelocity, 0})})
-		w.CollisionLayer.Set(projectile, PhysicsLayerProjectiles)
-		// TODO: which entities to ignore (players might be made out of many
-		// entities) and how (some entities are bounding boxes for physics, others
-		// can be e.g. hitboxes etc) should be specified through WeaponAim
-		w.PhysicsFilter.Set(projectile, []ecs.Entity{playerID})
-		// w.PhysicsInertiaOverride.Store(projectile, geometry.Mat4x4Diagonal(geometry.Vec4Broadcast(1)))
-		w.DeleteCosmeticOffsetOnContact.Set(projectile, struct{}{})
-		w.CreationTime.Set(projectile, w.Now)
-	}
-
-	w.SoundEffect.Set(id, SoundEmitter{
-		Effect:   weapon.ShootSound,
-		PlayTime: w.Now, // + time.Duration(rng(w.Time, entityID, 0).Int63n(int64(1*time.Millisecond))),
+// TODO: rename to something else like CreateVisual or CreateRenderingGeometry
+func (weapon WeaponGenericProjectileLauncher) WeaponCreateGeometry(scene *Scene, info *UpdateParams) ecs.Entity {
+	root := scene.CreateEntity(info)
+	scene.TranslationRotation.Set(root, TranslationRotation{
+		Translation: geometry.DVec3{0.2, 0.4, -0.275},
+		Rotation:    geometry.Rot3One(),
+	})
+	scene.RenderingGeometry.Set(root, PackGeometry(Geometry{Kind: GeometryFileBacked, Filename: "weapons/grenade_launcher/geometries/Grenade_Launcher"}))
+	scene.Entity.Set(root, Testburger{
+		BaseColor: [4]float32{1, 0, 0, 1}, // pretend it's a team color
 	})
 
-	if weapon.ShootAnimation != "" {
-		armature, err := loadArmature(weapon.Armature)
-		if err != nil {
-			panic(err)
-		}
+	return root
+}
 
-		w.Animation.Set(id, Animation{
-			Armature: armature,
-			Action:   weapon.ShootAnimation,
-			PlayTime: w.Now,
-		})
+func (weapon WeaponGenericProjectileLauncher) WeaponUpdateSubtick(scene *Scene, weaponID ecs.Entity, shootpos TranslationRotation, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.Entity) {
+	if buttons&WeaponTrigger != 0 {
+		if !weapon.NextAttack.After(scene.Now) {
+			// TODO: spawn entity here
+
+			if !info.Speculating {
+				projectile := scene.SpawnPrefab(weapon.Projectile, info)
+				scene.CreationTime.Set(projectile, scene.Now)
+				scene.TranslationRotation.Set(projectile, TranslationRotation{
+					Translation: shootpos.Translation,
+					Rotation:    shootpos.Rotation.Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, math.Pi/2)),
+				})
+				// TODO: consider velocity set on the prefab?
+				scene.Velocity.Set(projectile, Velocity{Linear: shootpos.Rotation.Rotate(geometry.Vec3{0, weapon.MuzzleVelocity, 0})})
+				// TODO: new idea for cosmetic offset: we could trace a ray like TF2 does
+				// and make the decay time be how long it takes to reach the wall!
+				// scene.CosmeticOffset.Set(projectile, CosmeticOffset{
+				// 	Offset:    cosmeticPosition.Sub(realPosition).Vec3(),
+				// 	StartTime: scene.Now,
+				// 	EndTime:   scene.Now.Add(300 * time.Millisecond),
+				// })
+				// scene.DeleteCosmeticOffsetOnContact.Set(projectile, struct{}{})
+				scene.CollisionLayer.Set(projectile, PhysicsLayerProjectiles)
+				// TODO: which entities to ignore (players might be made out of many
+				// entities) and how (some entities are bounding boxes for physics, others
+				// can be e.g. hitboxes etc) should be specified through WeaponAim
+				// scene.PhysicsFilter.Set(projectile, []ecs.Entity{playerID})
+				// scene.PhysicsInertiaOverride.Store(projectile, geometry.Mat4x4Diagonal(geometry.Vec4Broadcast(1)))
+			}
+
+			weapon.NextAttack = scene.Now.Add(600 * time.Millisecond)
+
+			scene.Entity.Set(weaponID, weapon)
+			return weapon.fired
+		}
 	}
 
-	weapon.NextAttack = w.Now.Add(weapon.CycleDuration)
+	return nil
+}
 
-	w.Entity.Set(id, weapon)
-	return geometry.Vec3{0.1, 0, 0}
+// TODO: we could also make it a method on the proj launcher tbh?
+func (weapon WeaponGenericProjectileLauncher) fired(scene *Scene, id ecs.Entity) {
+	scene.SoundEffect.Set(id, SoundEmitter{
+		Effect:   "weapons/grenade_launcher/fire.wav",
+		PlayTime: scene.Now, // + time.Duration(rng(w.Time, entityID, 0).Int63n(int64(1*time.Millisecond))),
+	})
 }
