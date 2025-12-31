@@ -12,10 +12,11 @@ const (
 )
 
 type Weapon interface {
-	// Only call this on the server
 	WeaponCreateGeometry(scene *Scene, info *UpdateParams) ecs.ID
 
 	// Returns a function that updates the visual. TODO: we also need to return
 	// stuff like recoil and such.
+	// TODO: we need to somehow tell the thing to filter the player and possibly
+	// other entities
 	WeaponUpdateSubtick(scene *Scene, weaponId ecs.ID, shootpos TranslationRotation, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.ID)
 }

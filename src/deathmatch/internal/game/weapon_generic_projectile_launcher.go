@@ -9,10 +9,11 @@ import (
 )
 
 type WeaponGenericProjectileLauncher struct {
-	CycleDuration  time.Duration `json:",format:units"`
 	Projectile     PrefabRef
 	MuzzleVelocity float32
+	CycleDuration  time.Duration `json:",format:units"`
 
+	// TODO: rename
 	NextAttack Time
 }
 
@@ -67,7 +68,7 @@ func (weapon WeaponGenericProjectileLauncher) WeaponUpdateSubtick(scene *Scene, 
 				// scene.PhysicsInertiaOverride.Store(projectile, geometry.Mat4x4Diagonal(geometry.Vec4Broadcast(1)))
 			}
 
-			weapon.NextAttack = scene.Now.Add(600 * time.Millisecond)
+			weapon.NextAttack = scene.Now.Add(weapon.CycleDuration)
 
 			scene.Entity.Set(weaponID, weapon)
 			return weapon.fired
