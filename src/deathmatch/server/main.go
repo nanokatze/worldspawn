@@ -487,8 +487,6 @@ func spawnplayer(w *game.Scene, info *game.UpdateParams) ecs.Entity {
 	// meh
 	t, _ := w.TranslationRotation.Get(playerSpawns[rand.IntN(len(playerSpawns))])
 	w.TranslationRotation.Set(player, t)
-
-	w.Scale.Set(player, geometry.Vec3Broadcast(1))
 	w.RenderingGeometry.Set(player, game.PackGeometry(game.Geometry{
 		Kind:     game.GeometryFileBacked,
 		Filename: "testcharacter4/geometries/TestCharacter4",
@@ -513,7 +511,6 @@ func spawnplayer(w *game.Scene, info *game.UpdateParams) ecs.Entity {
 		Translation: geometry.DVec3{0, 0, 1.9 - 0.1}, // standing height
 		Rotation:    geometry.Rot3One(),
 	})
-	w.Scale.Set(camera, geometry.Vec3Broadcast(1))
 
 	w.Entity.Set(player, game.FPSCharacter{
 		Camera:                      camera,
@@ -528,7 +525,6 @@ func spawnplayer(w *game.Scene, info *game.UpdateParams) ecs.Entity {
 
 	{
 		gun := w.CreateEntity(info)
-		w.Entity.Set(gun, game.WeaponGenericProjectileLauncher{})
 		w.ParentTo(gun, player)
 		w.Entity.Set(gun, game.WeaponGenericProjectileLauncher{
 			CycleDuration: 600 * time.Millisecond,
