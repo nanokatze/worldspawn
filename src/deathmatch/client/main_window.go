@@ -168,7 +168,7 @@ func (w *mainWindow) redrawLocked() bool {
 
 	w.swapchainImage.EnqueueInit(&jq)
 
-	gameRenderer.Render(&jq, w.swapchainImage)
+	gameRenderer.Render(&jq, sdl.TicksNS(), w.swapchainImage)
 
 	// TODO: it would probably be a good idea to inject overlay rendering into
 	// Render so that we can avoid breaking the render pass.

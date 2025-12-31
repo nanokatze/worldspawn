@@ -26,8 +26,41 @@ type sceneUpdate struct {
 	camera          pathtracer.Camera
 	cameraTransform int
 
-	// TODO: remove renderer.SceneUpdate entirely
-	*pathtracer.SceneUpdate
+	Sky *gpu.Image
+
+	Parent      []int
+	TransformT0 []geometry.TRS3
+	TransformT1 []geometry.TRS3
+	// TODO: we also need to carry velocity here for motion blur, or at least
+	// some extra info to disambiguate fast temporally-aliased motions.
+
+	Mask         []uint8
+	Mesh         []*pathtracer.Mesh
+	Materials    [][]*pathtracer.InterpretedMaterial
+	MaterialArgs [][][256]byte
+}
+
+func newSceneDirty(n int) *sceneUpdate {
+	return &sceneUpdate{
+		Parent:      make([]int, n),
+		TransformT0: make([]geometry.TRS3, n),
+		TransformT1: make([]geometry.TRS3, n),
+
+		Mask:         make([]uint8, n),
+		Mesh:         make([]*pathtracer.Mesh, n),
+		Materials:    make([][]*pathtracer.InterpretedMaterial, n),
+		MaterialArgs: make([][][256]byte, n),
+	}
+}
+
+// TODO: rename to something like GlobalTransform?
+func (s *sceneUpdate) Transform(i int, t float32) geometry.Mat4x4 {
+	B := geometry.Mat4x4Identity()
+	for ; i != 0; i = s.Parent[i] {
+		A := s.TransformT0[i].NLerp(s.TransformT1[i], t).Mat4x4()
+		B = A.Mul4x4(B)
+	}
+	return B
 }
 
 type gameRendererImpl struct {
@@ -71,7 +104,7 @@ var gameRenderer = &gameRendererImpl{
 func (re *gameRendererImpl) beginUpdate() *sceneUpdate {
 	if re.stagingUpdate == nil {
 		// TODO: pool this stuff
-		return &sceneUpdate{SceneUpdate: pathtracer.NewSceneDirty(10000)}
+		return newSceneDirty(10000)
 	}
 	tmp := re.stagingUpdate
 	re.stagingUpdate = nil
@@ -95,10 +128,6 @@ func (re *gameRendererImpl) Tick(w *game.Scene, playerID ecs.Entity, t0, t1 game
 	{
 		for i := range update.Parent {
 			update.Parent[i] = 0
-		}
-
-		for i := range update.Instance {
-			update.Instance[i].Transform = 0
 		}
 
 		update.Sky = texture(w.Sky()).Image
@@ -143,9 +172,7 @@ func (re *gameRendererImpl) Tick(w *game.Scene, playerID ecs.Entity, t0, t1 game
 			i := id.Index()
 
 			mask := uint8(0b11)
-
-			viewmodel, hasViewmodel := w.Viewmodel2.Get(id)
-			if hasViewmodel {
+			if viewmodel, hasViewmodel := w.Viewmodel2.Get(id); hasViewmodel {
 				switch viewmodel.Mode {
 				case 1:
 					mask = 0b01
@@ -153,42 +180,22 @@ func (re *gameRendererImpl) Tick(w *game.Scene, playerID ecs.Entity, t0, t1 game
 					mask = 0b10
 				}
 			}
+			update.Mask[i] = mask
 
 			mesh := getmesh(renderingGeometry)
 
 			update.Mesh[i] = mesh.re
 
-			// TODO: we'll be able to stop allocating a new slice every time
-			// when we pool scene updates themselves
-			update.Materials[i] = make([]pathtracer.MaterialInstance, len(mesh.defaultMaterials))
+			// TODO: stop allocating a new slice every time
+			update.Materials[i] = make([]*pathtracer.InterpretedMaterial, len(mesh.defaultMaterials))
+			update.MaterialArgs[i] = make([][256]byte, len(mesh.defaultMaterials))
 
 			for j := range update.Materials[i] {
 				m2 := getmaterial(mesh.defaultMaterials[j])
-				materialInstance := &update.Materials[i][j]
-				materialInstance.Material = m2.material
-				m2.preamble(materialInstance.Args[:], &matPropReader{w, id})
+				update.Materials[i][j] = m2.material
+				m2.preamble(update.MaterialArgs[i][j][:], &matPropReader{w, id})
 			}
-
-			update.Instance[i].Mask = mask
-			update.Instance[i].Transform = i
 		}
-
-		/*
-			// TODO: this should not exist and be part of sceneUpdate
-			re.stuffMu.Lock()
-			// TODO: make the caller responsible for passing wall clock time?
-			re.t0sdl = sdl.TicksNS()
-			re.t1sdl = re.t0sdl + uint64(frameDuration) // depends on timescale
-			re.t0game = t0
-			re.t1game = t1
-			// TODO: factor out into a function, this gets reused in Subtick
-			re.ourCamera = pathtracer.Camera{
-				FieldOfView:   float32(geometry.Radians(67.5)),
-				NearClipPlane: 0.01,
-			}
-			re.ourCameraTransform = fpsCharacter.Camera.Index()
-			re.stuffMu.Unlock()
-		*/
 
 		update.t0sdl = sdl.TicksNS()
 		update.t1sdl = update.t0sdl + uint64(frameDuration)
@@ -269,7 +276,7 @@ func (re *gameRendererImpl) Tick(w *game.Scene, playerID ecs.Entity, t0, t1 game
 }
 
 func (re *gameRendererImpl) Subtick(w *game.Scene, playerID ecs.Entity) {
-	// TODO: this will need to enqueue an update, not touch any fields!
+	// TODO: this will need to enqueue an update and not modify any fields directly!
 
 	// re.stuffMu.Lock()
 	// defer re.stuffMu.Unlock()
@@ -295,7 +302,7 @@ func (re *gameRendererImpl) Subtick(w *game.Scene, playerID ecs.Entity) {
 	// }
 }
 
-func (re *gameRendererImpl) Render(jq *gpu.JobQueue, dst *gpu.Image) {
+func (re *gameRendererImpl) Render(jq *gpu.JobQueue, sdlNow uint64, dst *gpu.Image) {
 	conf := config.Load()
 
 	select {
@@ -310,22 +317,22 @@ func (re *gameRendererImpl) Render(jq *gpu.JobQueue, dst *gpu.Image) {
 		re.ourCameraTransform = update.cameraTransform
 		re.scene2 = update
 		re.scene.SetSky(update.Sky)
-		for i := range update.Instance {
-			re.scene.SetInstanceGeometry(i, update.Instance[i].Mask, update.Mesh[i], update.Materials[i])
+		for i := range update.Mask {
+			re.scene.SetInstanceGeometry(i, update.Mask[i], update.Mesh[i], update.Materials[i], update.MaterialArgs[i])
 		}
 	default:
 	}
 
 	t := 1.0
-	if true /* !conf.DontInterpolate */ {
+	if !conf.Developer.DontInterpolate {
 		// TODO: we need to be able to lock sceneMu for this but we can't.
 		// We should make our own scene type with the timestamps and stuff.
-		t = min(max(float64(sdl.TicksNS()-re.t0sdl)/float64(re.t1sdl-re.t0sdl), 0), 1)
+		t = min(max(float64(sdlNow-re.t0sdl)/float64(re.t1sdl-re.t0sdl), 0), 1)
 	}
 
 	if re.scene2 != nil {
 		re.ourCamera.Transform = re.scene2.Transform(re.ourCameraTransform, float32(t))
-		for i := range re.scene2.Instance {
+		for i := range re.scene2.Mask {
 			tmp := re.scene2.Transform(i, float32(t))
 			// TODO: outline this
 			var tmp2 [3][4]float32
@@ -346,7 +353,6 @@ func (re *gameRendererImpl) Render(jq *gpu.JobQueue, dst *gpu.Image) {
 			Extent: dst.Extent(),
 			Color:  dst,
 		},
-		float32(t),
 		re.fn,
 		&re.ourCamera,
 		&pathtracer.Quality{

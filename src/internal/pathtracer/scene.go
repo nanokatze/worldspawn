@@ -175,7 +175,7 @@ func (scene *Scene) SetInstanceTransform(i int, x [3][4]float32) {
 // TODO: instead of just mesh pointer this should be a tagged union of different
 // mesh types
 // TODO: split materials into two arrays, one of material and another of args
-func (scene *Scene) SetInstanceGeometry(i int, mask uint8, mesh *Mesh, materials []MaterialInstance) {
+func (scene *Scene) SetInstanceGeometry(i int, mask uint8, mesh *Mesh, materials []*InterpretedMaterial, materialArgs [][256]byte) {
 	accelInstance := &scene.accelInstancesHost[i]
 	accelInstance.InstanceIDAndMask = pack24_8(0, uint32(mask))
 	accelInstance.SBTOffsetAndFlags = pack24_8(uint32(i*scene.maxPartsPerMesh), 0)
@@ -187,10 +187,8 @@ func (scene *Scene) SetInstanceGeometry(i int, mask uint8, mesh *Mesh, materials
 
 	if mesh != nil {
 		for partIdx, part := range mesh.Parts {
-			materialInstance := materials[partIdx]
-
 			scene.materialParamsHost[i*scene.maxPartsPerMesh+partIdx] = materialParams{
-				Program: materialInstance.Material.program,
+				Program: materials[partIdx].program,
 
 				// TODO: make Mesh device-accessible so we don't have to do these redundant copies every time
 				MeshPart: meshPart2{
@@ -200,7 +198,7 @@ func (scene *Scene) SetInstanceGeometry(i int, mask uint8, mesh *Mesh, materials
 					Normals:      gpu.SliceData(part.AttribBuffers[mesh.NormalBuffer].(gpu.Slice[[3]float32])),
 				},
 
-				Args: materialInstance.Args,
+				Args: materialArgs[partIdx],
 			}
 		}
 	}

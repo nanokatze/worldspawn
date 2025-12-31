@@ -128,7 +128,6 @@ func mustReadFile(filename string) []byte {
 func (scene *Scene) Render(
 	jq *gpu.JobQueue,
 	film Film,
-	t float32,
 	fn uint32,
 	camera *Camera,
 	quality *Quality) {
