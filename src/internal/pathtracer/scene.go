@@ -99,6 +99,9 @@ type Scene struct {
 	// MaterialLibrary or whatever
 	pipeline *gpu.RayTracingPipeline
 	sbt      gpu.ShaderBindingTable
+
+	materialParamsHost []materialParams
+	accelInstancesHost []gpu.AccelInstance
 }
 
 /*
@@ -114,6 +117,7 @@ type hitRecord struct {
 // TODO: we'll probs end up needing to take a struct with params
 func NewScene(n int, maxPartsPerMesh int) *Scene {
 	instances := gpu.MakeSliceUncached[materialParams](n * maxPartsPerMesh)
+	accelInstances := gpu.MakeSliceUncached[gpu.AccelInstance](n)
 
 	emissiveInstances := gpu.MakeSliceUncached[emissiveInstance](n)
 
@@ -129,7 +133,7 @@ func NewScene(n int, maxPartsPerMesh int) *Scene {
 		pipeline:        pipeline, // TODO: relink this after materials change and stuff
 		sbt:             gpu.MakeShaderBindingTable(raygenRecord, gpu.Slice[struct{}]{}, gpu.Slice[struct{}]{}, gpu.Slice[struct{}]{}),
 		materialParams:  instances,
-		accelInstances:  gpu.MakeSliceUncached[gpu.AccelInstance](n),
+		accelInstances:  accelInstances,
 		accel:           gpu.NewTopLevelAccel(n),
 		lightAccel: lightAccel{
 			emissiveInstances: emissiveInstances,
@@ -148,57 +152,44 @@ func NewScene(n int, maxPartsPerMesh int) *Scene {
 			MinLod:           0.0,
 			MaxLod:           vk.LOD_CLAMP_NONE,
 		}),
+		materialParamsHost: instances.Value(),
+		accelInstancesHost: accelInstances.Value(),
 	}
 }
 
-// TODO: do not do any host management in EnqueueUpdate (obviously.) Accept a
-// list of transforms and instances to update.
-func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneUpdate, t float32) {
-	// TODO: update sky device-side too? That would make things extra neat and
-	// fun.
-	// TODO: hard-require sky?
-	if dirty.Sky != nil {
-		scene.lightAccel.env = dirty.Sky.SamplingDescriptor().WithSampler(scene.sampler)
+// TODO: make it async
+func (scene *Scene) SetSky(sky *gpu.Image) {
+	if sky != nil {
+		scene.lightAccel.env = sky.SamplingDescriptor().WithSampler(scene.sampler)
 	} else {
 		scene.lightAccel.env = gpu.SamplingViewWithSampler{}
 	}
+}
 
-	// BUG: writes should happen after all commands in jq complete. We should
-	// just put things into a staging buffer and perform a copy on the device.
+// TODO: this should only exist on the device/in the shader
+func (scene *Scene) SetInstanceTransform(i int, x [3][4]float32) {
+	scene.accelInstancesHost[i].Transform = x
+}
 
-	var instanceCount int
-	var emissiveInstanceCount int
+// TODO: this should only exist on the device/in the shader
+// TODO: instead of just mesh pointer this should be a tagged union of different
+// mesh types
+// TODO: split materials into two arrays, one of material and another of args
+func (scene *Scene) SetInstanceGeometry(i int, mask uint8, mesh *Mesh, materials []MaterialInstance) {
+	accelInstance := &scene.accelInstancesHost[i]
+	accelInstance.InstanceIDAndMask = pack24_8(0, uint32(mask))
+	accelInstance.SBTOffsetAndFlags = pack24_8(uint32(i*scene.maxPartsPerMesh), 0)
+	if mesh != nil {
+		accelInstance.Accel = mesh.accel.Data
+	} else {
+		accelInstance.Accel = 0
+	}
 
-	materialParamsHost := scene.materialParams.Value()
-	accelInstancesHost := scene.accelInstances.Value()
-	emissiveInstancesHost := scene.lightAccel.emissiveInstances.Value()
-	for instanceIdx, instance := range dirty.Instance {
-		// TODO: is this necessary?
-		// TODO: actually we might have instances at index 0: this would happen
-		// if the entity at index 0 is in the next generation. Maybe we should
-		// just forbid index 0 in our entities.
-		if instanceIdx == 0 || instance.Transform == 0 {
-			accelInstancesHost[instanceIdx] = gpu.AccelInstance{}
-			continue
-		}
-
-		// Should be done on the device
-		instanceTransform := dirty.Transform(instanceIdx, t)
-
-		// TODO: outline into a func
-		var A [3][4]float32
-		for i := range A {
-			for j := range A[i] {
-				A[i][j] = instanceTransform[i][j]
-			}
-		}
-
-		mesh := dirty.Mesh[instanceIdx]
-
+	if mesh != nil {
 		for partIdx, part := range mesh.Parts {
-			materialInstance := dirty.Materials[instanceIdx][partIdx]
+			materialInstance := materials[partIdx]
 
-			materialParamsHost[instanceIdx*scene.maxPartsPerMesh+partIdx] = materialParams{
+			scene.materialParamsHost[i*scene.maxPartsPerMesh+partIdx] = materialParams{
 				Program: materialInstance.Material.program,
 
 				// TODO: make Mesh device-accessible so we don't have to do these redundant copies every time
@@ -211,45 +202,18 @@ func (scene *Scene) EnqueueUpdate(jq *gpu.JobQueue, dirty *SceneUpdate, t float3
 
 				Args: materialInstance.Args,
 			}
-
-			// TODO: we should build an emissive blas and when instancing it
-			// we'll enable/disable geometries (by specifying emission power for
-			// those geometries)
-			if materialInstance.Material.emissive {
-				emissiveInstancesHost[emissiveInstanceCount] = emissiveInstance{
-					transform:             A,
-					originalInstanceIndex: uint32(instanceIdx),
-					originalGeometryIndex: uint32(partIdx),
-				}
-				emissiveInstanceCount++
-			}
 		}
-
-		// TODO: is this necessary?
-		var accel gpu.UnsafePointer
-		if mesh != nil {
-			accel = mesh.accel.Data
-		}
-
-		accelInstancesHost[instanceIdx] = gpu.AccelInstance{
-			Transform:         A,
-			InstanceIDAndMask: pack24_8(0, uint32(instance.Mask)),
-			SBTOffsetAndFlags: pack24_8(uint32(instanceIdx*scene.maxPartsPerMesh), 0),
-			Accel:             accel,
-		}
-
-		instanceCount = max(instanceCount, instanceIdx+1)
 	}
+}
 
-	scene.lightAccel.emissiveInstanceCount = emissiveInstanceCount
-
+func (scene *Scene) EnqueueBuildAccel(jq *gpu.JobQueue) {
 	scene.accel.EnqueueBuild(jq,
 		&gpu.AccelBuildConfig{
 			Type: vk.ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
 			Inputs: []gpu.AccelBuildInput{
 				&gpu.AccelBuildInputInstances{
 					Instances:     gpu.SliceData(scene.accelInstances),
-					InstanceCount: uint32(instanceCount),
+					InstanceCount: uint32(gpu.SliceLen(scene.accelInstances)),
 				},
 			},
 		})

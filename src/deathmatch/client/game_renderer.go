@@ -23,6 +23,9 @@ type sceneUpdate struct {
 	t0sdl, t1sdl   uint64 // TODO: special type to represent SDL ticks?
 	t0game, t1game game.Time
 
+	camera          pathtracer.Camera
+	cameraTransform int
+
 	// TODO: remove renderer.SceneUpdate entirely
 	*pathtracer.SceneUpdate
 }
@@ -30,23 +33,21 @@ type sceneUpdate struct {
 type gameRendererImpl struct {
 	transformT0 []geometry.TRS3
 
-	// TODO: this should be a part of sceneUpdate. We also need the "currently
-	// being rendered time interval" so that we can map input back to that.
-	stuffMu        sync.Mutex
-	t0sdl, t1sdl   uint64 // TODO: special type to represent SDL ticks?
-	t0game, t1game game.Time
-	// TODO: what if we want to pass multiple cameras to the composition
-	// pipeline?
-	ourCamera pathtracer.Camera
-
 	// The update that didn't fit into the queue
 	stagingUpdate *sceneUpdate
 	// Queue of updates, consumed by Render
 	updates chan *sceneUpdate
 
-	// Only used by Render
-	fn    uint32
-	scene *pathtracer.Scene
+	stuffMu        sync.Mutex
+	t0sdl, t1sdl   uint64 // TODO: special type to represent SDL ticks?
+	t0game, t1game game.Time
+	// TODO: what if we want to pass multiple cameras to the composition
+	// pipeline?
+	ourCamera          pathtracer.Camera
+	ourCameraTransform int
+	fn                 uint32
+	scene2             *sceneUpdate
+	scene              *pathtracer.Scene
 
 	// Uhh
 	sfxScene *sfx.Scene
@@ -172,20 +173,32 @@ func (re *gameRendererImpl) Tick(w *game.Scene, playerID ecs.Entity, t0, t1 game
 			update.Instance[i].Transform = i
 		}
 
-		// TODO: this should not exist and be part of sceneUpdate
-		re.stuffMu.Lock()
-		// TODO: make the caller responsible for passing wall clock time?
-		re.t0sdl = sdl.TicksNS()
-		re.t1sdl = re.t0sdl + uint64(frameDuration) // depends on timescale
-		re.t0game = t0
-		re.t1game = t1
-		// TODO: factor out into a function, this gets reused in Subtick
-		re.ourCamera = pathtracer.Camera{
-			Transform:     update.Transform(fpsCharacter.Camera.Index(), 0),
+		/*
+			// TODO: this should not exist and be part of sceneUpdate
+			re.stuffMu.Lock()
+			// TODO: make the caller responsible for passing wall clock time?
+			re.t0sdl = sdl.TicksNS()
+			re.t1sdl = re.t0sdl + uint64(frameDuration) // depends on timescale
+			re.t0game = t0
+			re.t1game = t1
+			// TODO: factor out into a function, this gets reused in Subtick
+			re.ourCamera = pathtracer.Camera{
+				FieldOfView:   float32(geometry.Radians(67.5)),
+				NearClipPlane: 0.01,
+			}
+			re.ourCameraTransform = fpsCharacter.Camera.Index()
+			re.stuffMu.Unlock()
+		*/
+
+		update.t0sdl = sdl.TicksNS()
+		update.t1sdl = update.t0sdl + uint64(frameDuration)
+		update.t0game = t0
+		update.t1game = t1
+		update.camera = pathtracer.Camera{
 			FieldOfView:   float32(geometry.Radians(67.5)),
 			NearClipPlane: 0.01,
 		}
-		re.stuffMu.Unlock()
+		update.cameraTransform = fpsCharacter.Camera.Index()
 	}
 
 	// Ughhhhhhh
@@ -203,7 +216,7 @@ func (re *gameRendererImpl) Tick(w *game.Scene, playerID ecs.Entity, t0, t1 game
 
 		for id, soundEffect := range w.SoundEffect.All() {
 			positionRotation, _ := w.TranslationRotation.Get(id)
-			scale, _ := w.Scale.Get(id)
+			scale := w.GetScale(id)
 
 			// TODO: take hierarchy into account
 			xform := geometry.TRS3{
@@ -256,6 +269,8 @@ func (re *gameRendererImpl) Tick(w *game.Scene, playerID ecs.Entity, t0, t1 game
 }
 
 func (re *gameRendererImpl) Subtick(w *game.Scene, playerID ecs.Entity) {
+	// TODO: this will need to enqueue an update, not touch any fields!
+
 	// re.stuffMu.Lock()
 	// defer re.stuffMu.Unlock()
 
@@ -285,19 +300,45 @@ func (re *gameRendererImpl) Render(jq *gpu.JobQueue, dst *gpu.Image) {
 
 	select {
 	case update := <-re.updates:
-		re.scene.EnqueueUpdate(jq, update.SceneUpdate, 0)
+		re.stuffMu.Lock()
+		re.t0sdl = update.t0sdl
+		re.t1sdl = update.t1sdl
+		re.t0game = update.t0game
+		re.t1game = update.t1game
+		re.stuffMu.Unlock()
+		re.ourCamera = update.camera
+		re.ourCameraTransform = update.cameraTransform
+		re.scene2 = update
+		re.scene.SetSky(update.Sky)
+		for i := range update.Instance {
+			re.scene.SetInstanceGeometry(i, update.Instance[i].Mask, update.Mesh[i], update.Materials[i])
+		}
 	default:
 	}
 
-	re.stuffMu.Lock()
 	t := 1.0
 	if true /* !conf.DontInterpolate */ {
 		// TODO: we need to be able to lock sceneMu for this but we can't.
 		// We should make our own scene type with the timestamps and stuff.
 		t = min(max(float64(sdl.TicksNS()-re.t0sdl)/float64(re.t1sdl-re.t0sdl), 0), 1)
 	}
-	ourCamera := re.ourCamera
-	re.stuffMu.Unlock()
+
+	if re.scene2 != nil {
+		re.ourCamera.Transform = re.scene2.Transform(re.ourCameraTransform, float32(t))
+		for i := range re.scene2.Instance {
+			tmp := re.scene2.Transform(i, float32(t))
+			// TODO: outline this
+			var tmp2 [3][4]float32
+			for i := range tmp2 {
+				for j := range tmp2[i] {
+					tmp2[i][j] = tmp[i][j]
+				}
+			}
+			re.scene.SetInstanceTransform(i, tmp2)
+		}
+	}
+
+	re.scene.EnqueueBuildAccel(jq)
 
 	re.scene.Render(
 		jq,
@@ -307,7 +348,7 @@ func (re *gameRendererImpl) Render(jq *gpu.JobQueue, dst *gpu.Image) {
 		},
 		float32(t),
 		re.fn,
-		&ourCamera,
+		&re.ourCamera,
 		&pathtracer.Quality{
 			MaxBounces:               conf.Quality.MaxBounces,
 			RussianRouletteThreshold: conf.Quality.RussianRouletteThreshold,
