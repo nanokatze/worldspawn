@@ -20,8 +20,7 @@ import (
 )
 
 type sceneUpdate struct {
-	t0sdl, t1sdl   uint64 // TODO: special type to represent SDL ticks?
-	t0game, t1game game.Time
+	tm timeMapping
 
 	camera          pathtracer.Camera
 	cameraTransform int
@@ -63,6 +62,11 @@ func (s *sceneUpdate) Transform(i int, t float32) geometry.Mat4x4 {
 	return B
 }
 
+type timeMapping struct {
+	t0sdl, t1sdl   uint64 // TODO: special type to represent SDL ticks?
+	t0game, t1game game.Time
+}
+
 type gameRendererImpl struct {
 	transformT0 []geometry.TRS3
 
@@ -71,9 +75,8 @@ type gameRendererImpl struct {
 	// Queue of updates, consumed by Render
 	updates chan *sceneUpdate
 
-	stuffMu        sync.Mutex
-	t0sdl, t1sdl   uint64 // TODO: special type to represent SDL ticks?
-	t0game, t1game game.Time
+	stuffMu sync.Mutex
+	tm      timeMapping
 	// TODO: what if we want to pass multiple cameras to the composition
 	// pipeline?
 	ourCamera          pathtracer.Camera
@@ -197,10 +200,13 @@ func (renderer *gameRendererImpl) Tick(w *game.Scene, playerID ecs.Entity, t0, t
 			}
 		}
 
-		update.t0sdl = sdl.TicksNS()
-		update.t1sdl = update.t0sdl + uint64(frameDuration)
-		update.t0game = t0
-		update.t1game = t1
+		t0sdl := sdl.TicksNS()
+		update.tm = timeMapping{
+			t0sdl:  t0sdl,
+			t1sdl:  t0sdl + uint64(frameDuration),
+			t0game: t0,
+			t1game: t1,
+		}
 		update.camera = pathtracer.Camera{
 			FieldOfView:   float32(geometry.Radians(67.5)),
 			NearClipPlane: 0.01,
@@ -308,10 +314,7 @@ func (renderer *gameRendererImpl) Render(jq *gpu.JobQueue, sdlNow uint64, dst *g
 	select {
 	case update := <-renderer.updates:
 		renderer.stuffMu.Lock()
-		renderer.t0sdl = update.t0sdl
-		renderer.t1sdl = update.t1sdl
-		renderer.t0game = update.t0game
-		renderer.t1game = update.t1game
+		renderer.tm = update.tm
 		renderer.stuffMu.Unlock()
 		renderer.ourCamera = update.camera
 		renderer.ourCameraTransform = update.cameraTransform
@@ -327,7 +330,7 @@ func (renderer *gameRendererImpl) Render(jq *gpu.JobQueue, sdlNow uint64, dst *g
 	if !conf.Developer.DontInterpolate {
 		// TODO: we need to be able to lock sceneMu for this but we can't.
 		// We should make our own scene type with the timestamps and stuff.
-		t = min(max(float64(sdlNow-renderer.t0sdl)/float64(renderer.t1sdl-renderer.t0sdl), 0), 1)
+		t = min(max(float64(sdlNow-renderer.tm.t0sdl)/float64(renderer.tm.t1sdl-renderer.tm.t0sdl), 0), 1)
 	}
 
 	if renderer.scene2 != nil {
