@@ -41,14 +41,14 @@ func CreateWindow(props ...func(props sdl.PropertiesID) error) (*sdl.Window, err
 	return window, nil
 }
 
-func Event(w *sdl.Window) sdl.Event {
+func Events(w *sdl.Window) <-chan sdl.Event {
 	router.mu.Lock()
 	ch := router.windows[w.ID()]
 	router.mu.Unlock()
 	if ch == nil {
 		panic("guh")
 	}
-	return <-ch
+	return ch
 }
 
 func Main() error {
@@ -56,27 +56,27 @@ func Main() error {
 
 eventLoop:
 	for {
-		e, err := sdl.WaitEvent()
+		event, err := sdl.WaitEvent()
 		if err != nil {
 			return err
 		}
 
 		windowID := router.primaryWindow
-		switch e := e.(type) {
+		switch event := event.(type) {
 		case *sdl.QuitEvent:
 			break eventLoop
 		case *sdl.WindowPixelSizeChangedEvent:
-			windowID = e.WindowID
+			windowID = event.WindowID
 		case *sdl.KeyDownEvent:
-			windowID = e.WindowID
+			windowID = event.WindowID
 		case *sdl.KeyUpEvent:
-			windowID = e.WindowID
+			windowID = event.WindowID
 		case *sdl.MouseMotionEvent:
-			windowID = e.WindowID
+			windowID = event.WindowID
 		case *sdl.MouseButtonDownEvent:
-			windowID = e.WindowID
+			windowID = event.WindowID
 		case *sdl.MouseButtonUpEvent:
-			windowID = e.WindowID
+			windowID = event.WindowID
 		}
 
 		router.mu.Lock()
@@ -85,7 +85,7 @@ eventLoop:
 		if ch == nil {
 			panic("guh")
 		}
-		ch <- e
+		ch <- event
 	}
 
 	return nil

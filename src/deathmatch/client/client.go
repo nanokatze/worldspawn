@@ -24,7 +24,7 @@ import (
 // TODO: move client to deathmatch/internal so we can have a separate bot client
 // program that way? This Renderer interface would be moved there as well.
 
-type GameRendererInterface interface {
+type Renderer interface {
 	// TODO: rename to Update and possibly merge with Subtick somehow?
 	Subtick(w *game.Scene, playerID ecs.ID)
 	Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration)
@@ -45,14 +45,14 @@ type Client struct {
 
 	player ecs.ID
 
-	renderer GameRendererInterface
+	renderer Renderer
 }
 
 // TODO: rename?
 // TODO: let Client take Connection instead of addr, and make it a bit more
 // abstract, so that we can use the same construction for single player and demo
 // playback sessions?
-func newClient(renderer GameRendererInterface, addr string) (*Client, error) {
+func newClient(renderer Renderer, addr string) (*Client, error) {
 	// TODO: contextualize log messages
 	slog.Info("dial", "addr", addr)
 

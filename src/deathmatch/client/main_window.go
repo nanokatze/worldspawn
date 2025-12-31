@@ -36,7 +36,7 @@ type mainWindow struct {
 	redrawMu       sync.Mutex
 	swapchain      *gpu.Swapchain
 	swapchainImage *gpu.Image
-	renderer       *gameRendererImpl // this could be an interface probably
+	renderer       *renderer // this could be an interface probably
 }
 
 func newMainWindow() *mainWindow {
@@ -63,7 +63,7 @@ func newMainWindow() *mainWindow {
 		// G1: starts waiting on resizeDone
 		resized: make(chan struct{}, 1),
 
-		renderer: &gameRendererImpl{
+		renderer: &renderer{
 			// TODO: autoresize these inside Tick
 			lastTransform: make([]geometry.TRS3, 10000),
 
