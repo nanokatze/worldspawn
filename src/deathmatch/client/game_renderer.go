@@ -68,7 +68,7 @@ type timeMapping struct {
 }
 
 type gameRendererImpl struct {
-	transformT0 []geometry.TRS3
+	lastTransform []geometry.TRS3
 
 	// The update that didn't fit into the queue
 	stagingUpdate *sceneUpdate
@@ -79,6 +79,7 @@ type gameRendererImpl struct {
 	tm      timeMapping
 	// TODO: what if we want to pass multiple cameras to the composition
 	// pipeline?
+	// TODO: camera states need to be t0 and t1 too
 	ourCamera          pathtracer.Camera
 	ourCameraTransform int
 	fn                 uint32
@@ -91,7 +92,7 @@ type gameRendererImpl struct {
 
 // TODO: should be created at runtime
 var gameRenderer = &gameRendererImpl{
-	transformT0: make([]geometry.TRS3, 10000),
+	lastTransform: make([]geometry.TRS3, 10000),
 
 	updates: make(chan *sceneUpdate, 1),
 
@@ -125,6 +126,9 @@ func (renderer *gameRendererImpl) commitUpdate(update *sceneUpdate) {
 func (renderer *gameRendererImpl) Tick(w *game.Scene, playerID ecs.Entity, t0, t1 game.Time, frameDuration time.Duration) {
 	conf := config.Load()
 
+	player, _ := w.Entity.Get(playerID)
+	fpsCharacter, _ := player.(game.FPSCharacter)
+
 	update := renderer.beginUpdate()
 	defer renderer.commitUpdate(update)
 
@@ -134,9 +138,6 @@ func (renderer *gameRendererImpl) Tick(w *game.Scene, playerID ecs.Entity, t0, t
 		}
 
 		update.Sky = texture(w.Sky()).Image
-
-		playerEntity, _ := w.Entity.Get(playerID)
-		fpsCharacter := playerEntity.(game.FPSCharacter)
 
 		for id, tr := range w.TranslationRotation.All() {
 			cosmeticOffset, _ := w.CosmeticOffset.Get(id)
@@ -153,7 +154,8 @@ func (renderer *gameRendererImpl) Tick(w *game.Scene, playerID ecs.Entity, t0, t
 				offset = cosmeticOffset.Eval(w.Now)
 			}
 
-			transformT0 := renderer.transformT0[i]
+			// TODO: we should not record cosmetic offset into renderer.transformT0
+			transformT0 := renderer.lastTransform[i]
 			transformT1 := geometry.TRS3{
 				Translation: tr.Translation.Add(geometry.DVec3FromVec3(offset)).Vec3(),
 				Rotation:    tr.Rotation,
@@ -162,7 +164,7 @@ func (renderer *gameRendererImpl) Tick(w *game.Scene, playerID ecs.Entity, t0, t
 
 			update.TransformT0[i] = transformT0
 			update.TransformT1[i] = transformT1
-			renderer.transformT0[i] = transformT1
+			renderer.lastTransform[i] = transformT1
 		}
 
 		// TODO: we need to split operations on caches into probe and fetch, so
@@ -216,8 +218,6 @@ func (renderer *gameRendererImpl) Tick(w *game.Scene, playerID ecs.Entity, t0, t
 
 	// Ughhhhhhh
 	{
-		playerEntity, _ := w.Entity.Get(playerID)
-		fpsCharacter := playerEntity.(game.FPSCharacter)
 		camera := update.Transform(fpsCharacter.Camera.Index(), 0)
 		cameraPos := geometry.Vec3{camera[0][3], camera[1][3], camera[2][3]}
 
@@ -333,8 +333,9 @@ func (renderer *gameRendererImpl) Render(jq *gpu.JobQueue, sdlNow uint64, dst *g
 		t = min(max(float64(sdlNow-renderer.tm.t0sdl)/float64(renderer.tm.t1sdl-renderer.tm.t0sdl), 0), 1)
 	}
 
+	camera := renderer.ourCamera
 	if renderer.scene2 != nil {
-		renderer.ourCamera.Transform = renderer.scene2.Transform(renderer.ourCameraTransform, float32(t))
+		camera.Transform = renderer.scene2.Transform(renderer.ourCameraTransform, float32(t))
 		for i := range renderer.scene2.Mask {
 			tmp := renderer.scene2.Transform(i, float32(t))
 			// TODO: outline this
@@ -357,7 +358,7 @@ func (renderer *gameRendererImpl) Render(jq *gpu.JobQueue, sdlNow uint64, dst *g
 			Color:  dst,
 		},
 		renderer.fn,
-		&renderer.ourCamera,
+		&camera,
 		&pathtracer.Quality{
 			MaxBounces:               conf.Quality.MaxBounces,
 			RussianRouletteThreshold: conf.Quality.RussianRouletteThreshold,

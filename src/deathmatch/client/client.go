@@ -26,8 +26,8 @@ import (
 
 type GameRendererInterface interface {
 	// TODO: rename to Update and possibly merge with Subtick somehow?
-	Tick(w *game.Scene, camera ecs.Entity, t0, t1 game.Time, frameDuration time.Duration)
-	Subtick(w *game.Scene, camera ecs.Entity)
+	Subtick(w *game.Scene, playerID ecs.Entity)
+	Tick(w *game.Scene, playerID ecs.Entity, t0, t1 game.Time, frameDuration time.Duration)
 }
 
 type Client struct {
@@ -43,7 +43,6 @@ type Client struct {
 	Δt    time.Duration
 	world *game.Scene
 
-	// TODO: we could be in control of many player entities
 	player ecs.Entity
 
 	renderer GameRendererInterface
@@ -98,6 +97,7 @@ func newClient(renderer GameRendererInterface, addr string) (*Client, error) {
 			if err := binary.Read(deframer, binary.LittleEndian, &msgtype); err != nil {
 				log.Fatal(err)
 			}
+
 			// TODO: rewrite this mess
 			switch msgtype {
 			case replication.SetDeltaTime:
