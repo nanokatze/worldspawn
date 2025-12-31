@@ -101,29 +101,29 @@ var gameRenderer = &gameRendererImpl{
 
 // TODO: remove this in favor of merging updates at commitUpdate time. I.e.
 // we'll start off with a clean update every time.
-func (re *gameRendererImpl) beginUpdate() *sceneUpdate {
-	if re.stagingUpdate == nil {
+func (renderer *gameRendererImpl) beginUpdate() *sceneUpdate {
+	if renderer.stagingUpdate == nil {
 		// TODO: pool this stuff
 		return newSceneDirty(10000)
 	}
-	tmp := re.stagingUpdate
-	re.stagingUpdate = nil
+	tmp := renderer.stagingUpdate
+	renderer.stagingUpdate = nil
 	return tmp
 }
 
 // TODO: rename to enqueueUpdate?
-func (re *gameRendererImpl) commitUpdate(update *sceneUpdate) {
+func (renderer *gameRendererImpl) commitUpdate(update *sceneUpdate) {
 	select {
-	case re.updates <- update:
+	case renderer.updates <- update:
 	default:
 	}
 }
 
-func (re *gameRendererImpl) Tick(w *game.Scene, playerID ecs.Entity, t0, t1 game.Time, frameDuration time.Duration) {
+func (renderer *gameRendererImpl) Tick(w *game.Scene, playerID ecs.Entity, t0, t1 game.Time, frameDuration time.Duration) {
 	conf := config.Load()
 
-	update := re.beginUpdate()
-	defer re.commitUpdate(update)
+	update := renderer.beginUpdate()
+	defer renderer.commitUpdate(update)
 
 	{
 		for i := range update.Parent {
@@ -150,7 +150,7 @@ func (re *gameRendererImpl) Tick(w *game.Scene, playerID ecs.Entity, t0, t1 game
 				offset = cosmeticOffset.Eval(w.Now)
 			}
 
-			transformT0 := re.transformT0[i]
+			transformT0 := renderer.transformT0[i]
 			transformT1 := geometry.TRS3{
 				Translation: tr.Translation.Add(geometry.DVec3FromVec3(offset)).Vec3(),
 				Rotation:    tr.Rotation,
@@ -159,7 +159,7 @@ func (re *gameRendererImpl) Tick(w *game.Scene, playerID ecs.Entity, t0, t1 game
 
 			update.TransformT0[i] = transformT0
 			update.TransformT1[i] = transformT1
-			re.transformT0[i] = transformT1
+			renderer.transformT0[i] = transformT1
 		}
 
 		// TODO: we need to split operations on caches into probe and fetch, so
@@ -215,7 +215,7 @@ func (re *gameRendererImpl) Tick(w *game.Scene, playerID ecs.Entity, t0, t1 game
 		camera := update.Transform(fpsCharacter.Camera.Index(), 0)
 		cameraPos := geometry.Vec3{camera[0][3], camera[1][3], camera[2][3]}
 
-		scene := re.sfxScene
+		scene := renderer.sfxScene
 
 		a := int64(t1.Sub(t0) * 48000 / 1e9)
 
@@ -271,11 +271,11 @@ func (re *gameRendererImpl) Tick(w *game.Scene, playerID ecs.Entity, t0, t1 game
 
 		// TODO: let us do multiple audio renders per frame. Should be nice for
 		// sessions with long ticks
-		renderAudio(re.sfxScene, cameraPos, int64(t0.Sub(game.Time(0))*48000/1e9), a)
+		renderAudio(renderer.sfxScene, cameraPos, int64(t0.Sub(game.Time(0))*48000/1e9), a)
 	}
 }
 
-func (re *gameRendererImpl) Subtick(w *game.Scene, playerID ecs.Entity) {
+func (renderer *gameRendererImpl) Subtick(w *game.Scene, playerID ecs.Entity) {
 	// TODO: this will need to enqueue an update and not modify any fields directly!
 
 	// re.stuffMu.Lock()
@@ -302,23 +302,23 @@ func (re *gameRendererImpl) Subtick(w *game.Scene, playerID ecs.Entity) {
 	// }
 }
 
-func (re *gameRendererImpl) Render(jq *gpu.JobQueue, sdlNow uint64, dst *gpu.Image) {
+func (renderer *gameRendererImpl) Render(jq *gpu.JobQueue, sdlNow uint64, dst *gpu.Image) {
 	conf := config.Load()
 
 	select {
-	case update := <-re.updates:
-		re.stuffMu.Lock()
-		re.t0sdl = update.t0sdl
-		re.t1sdl = update.t1sdl
-		re.t0game = update.t0game
-		re.t1game = update.t1game
-		re.stuffMu.Unlock()
-		re.ourCamera = update.camera
-		re.ourCameraTransform = update.cameraTransform
-		re.scene2 = update
-		re.scene.SetSky(update.Sky)
+	case update := <-renderer.updates:
+		renderer.stuffMu.Lock()
+		renderer.t0sdl = update.t0sdl
+		renderer.t1sdl = update.t1sdl
+		renderer.t0game = update.t0game
+		renderer.t1game = update.t1game
+		renderer.stuffMu.Unlock()
+		renderer.ourCamera = update.camera
+		renderer.ourCameraTransform = update.cameraTransform
+		renderer.scene2 = update
+		renderer.scene.SetSky(update.Sky)
 		for i := range update.Mask {
-			re.scene.SetInstanceGeometry(i, update.Mask[i], update.Mesh[i], update.Materials[i], update.MaterialArgs[i])
+			renderer.scene.SetInstanceGeometry(i, update.Mask[i], update.Mesh[i], update.Materials[i], update.MaterialArgs[i])
 		}
 	default:
 	}
@@ -327,13 +327,13 @@ func (re *gameRendererImpl) Render(jq *gpu.JobQueue, sdlNow uint64, dst *gpu.Ima
 	if !conf.Developer.DontInterpolate {
 		// TODO: we need to be able to lock sceneMu for this but we can't.
 		// We should make our own scene type with the timestamps and stuff.
-		t = min(max(float64(sdlNow-re.t0sdl)/float64(re.t1sdl-re.t0sdl), 0), 1)
+		t = min(max(float64(sdlNow-renderer.t0sdl)/float64(renderer.t1sdl-renderer.t0sdl), 0), 1)
 	}
 
-	if re.scene2 != nil {
-		re.ourCamera.Transform = re.scene2.Transform(re.ourCameraTransform, float32(t))
-		for i := range re.scene2.Mask {
-			tmp := re.scene2.Transform(i, float32(t))
+	if renderer.scene2 != nil {
+		renderer.ourCamera.Transform = renderer.scene2.Transform(renderer.ourCameraTransform, float32(t))
+		for i := range renderer.scene2.Mask {
+			tmp := renderer.scene2.Transform(i, float32(t))
 			// TODO: outline this
 			var tmp2 [3][4]float32
 			for i := range tmp2 {
@@ -341,25 +341,25 @@ func (re *gameRendererImpl) Render(jq *gpu.JobQueue, sdlNow uint64, dst *gpu.Ima
 					tmp2[i][j] = tmp[i][j]
 				}
 			}
-			re.scene.SetInstanceTransform(i, tmp2)
+			renderer.scene.SetInstanceTransform(i, tmp2)
 		}
 	}
 
-	re.scene.EnqueueBuildAccel(jq)
+	renderer.scene.EnqueueBuildAccel(jq)
 
-	re.scene.Render(
+	renderer.scene.Render(
 		jq,
 		pathtracer.Film{
 			Extent: dst.Extent(),
 			Color:  dst,
 		},
-		re.fn,
-		&re.ourCamera,
+		renderer.fn,
+		&renderer.ourCamera,
 		&pathtracer.Quality{
 			MaxBounces:               conf.Quality.MaxBounces,
 			RussianRouletteThreshold: conf.Quality.RussianRouletteThreshold,
 		})
-	re.fn++
+	renderer.fn++
 }
 
 type matPropReader struct {
