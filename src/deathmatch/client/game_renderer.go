@@ -55,7 +55,7 @@ func newSceneDirty(n int) *sceneUpdate {
 // TODO: rename to something like GlobalTransform?
 func (s *sceneUpdate) Transform(i int, t float32) geometry.Mat4x4 {
 	B := geometry.Mat4x4Identity()
-	for ; i != 0; i = s.Parent[i] {
+	for ; i != -1; i = s.Parent[i] {
 		A := s.TransformT0[i].NLerp(s.TransformT1[i], t).Mat4x4()
 		B = A.Mul4x4(B)
 	}
@@ -134,10 +134,10 @@ func (renderer *gameRendererImpl) Tick(w *game.Scene, playerID ecs.ID, t0, t1 ga
 
 	{
 		for i := range update.Parent {
-			update.Parent[i] = 0
+			update.Parent[i] = -1
 		}
 
-		update.Sky = texture(w.Sky()).Image
+		update.Sky = texture(w.Globals().Sky).Image
 
 		for id, tr := range w.TranslationRotation.All() {
 			cosmeticOffset, _ := w.CosmeticOffset.Get(id)

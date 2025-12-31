@@ -78,7 +78,7 @@ def cook(context, scene):
     tmp.cooked = {}
     tmp.entity = 1
 
-    tmp.add_entity({"Entity": {"SingletonComponents": cooked_scene}})
+    tmp.add_entity({'Entity': {'SceneGlobals': cooked_scene}})
 
     __handle_collection(context, tmp, scene.collection, Matrix())
 

@@ -65,8 +65,7 @@ func (w *World) Transform(id ecs.ID) (geometry.Mat4x4, bool) {
 }
 */
 
-// TODO: rename?
-type SingletonComponents struct {
+type SceneGlobals struct {
 	// TODO: replace it with sky material
 	Sky string
 
@@ -230,17 +229,9 @@ func (w *Scene) DeleteEntityImmediately(id ecs.ID) {
 	w.IDs.Delete(id)
 }
 
-func (w *Scene) Sky() string {
-	return w.singletonComponents().Sky
-}
-
-func (w *Scene) Gravity() geometry.Vec3 {
-	return w.singletonComponents().Gravity
-}
-
-func (w *Scene) singletonComponents() SingletonComponents {
-	x, _ := assertEntity[SingletonComponents](w, 1)
-	return x
+func (w *Scene) Globals() SceneGlobals {
+	globals, _ := assertEntity[SceneGlobals](w, 1)
+	return globals
 }
 
 // TODO: or SetParent?
