@@ -8,6 +8,7 @@ import (
 	"math"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"worldspawn/deathmatch/internal/game"
@@ -17,6 +18,14 @@ import (
 	"worldspawn/sdl"
 	"worldspawn/sdlapp"
 )
+
+// TODO: I'm kinda torn between folding this back into main.go and not doing
+// that...
+
+var currentSession atomic.Pointer[Client]
+
+// TODO: gamepad stuff probably should not be global... probably...
+var gamepad *sdl.Gamepad
 
 // TODO: kill
 type mainWindow struct {

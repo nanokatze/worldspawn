@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"math"
+	"sync"
 	"unsafe"
 
 	"worldspawn/geometry-go"
@@ -11,18 +12,14 @@ import (
 	"worldspawn/sdl"
 )
 
+// TODO: output related stuff back to main.go?
+
 const sampleRate = 48000
 
-var au *sdl.AudioStream
-
-// TODO: inline init back into main.go; do it lazily?
-func initAudio() {
-	sdl.InitSubSystem(sdl.INIT_AUDIO)
-
-	// TODO: failures here don't really need to be fatal
-
-	var err error
-	au, err = sdl.OpenAudioDeviceStream(
+// TODO: naming
+// TODO: make this non-fatal?
+var au = sync.OnceValue(func() *sdl.AudioStream {
+	au, err := sdl.OpenAudioDeviceStream(
 		sdl.AUDIO_DEVICE_DEFAULT_PLAYBACK,
 		&sdl.AudioSpec{
 			Format:     sdl.AUDIO_F32,
@@ -35,7 +32,8 @@ func initAudio() {
 	if err := au.Device().Resume(); err != nil {
 		log.Fatal(err)
 	}
-}
+	return au
+})
 
 var sources = make(map[string]*sfx.Source)
 
@@ -54,7 +52,7 @@ func renderAudio(scene *sfx.Scene, camera geometry.Vec3, t0, Δt int64) {
 
 	sfx.Render(scene, camera, t0, tmp, 2, sampleRate)
 
-	nudge := queueingTargetSamples - au.Queued()/(2*4)
+	nudge := queueingTargetSamples - au().Queued()/(2*4)
 
 	Lnudged := L + max(int(math.Ceil(float64(nudge)*nudgeFactor)), -L/2)
 
@@ -64,7 +62,7 @@ func renderAudio(scene *sfx.Scene, camera geometry.Vec3, t0, Δt int64) {
 
 	resample(tmp2, tmp, 2, resamplingRatio)
 
-	au.Write(unsafe.Slice((*byte)(unsafe.Pointer(unsafe.SliceData(tmp2))), len(tmp2)*4))
+	au().Write(unsafe.Slice((*byte)(unsafe.Pointer(unsafe.SliceData(tmp2))), len(tmp2)*4))
 }
 
 func resample(dst []float32, src []float32, channels int, ratio float64) {

@@ -85,6 +85,7 @@ var defaultConfig = func() *Config {
 
 var config rcu[Config]
 
+// TODO: move out of this package
 type rcu[T any] struct {
 	P    atomic.Pointer[T]
 	WrMu sync.Mutex // only locked when modifying the value

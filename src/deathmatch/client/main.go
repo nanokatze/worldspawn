@@ -7,10 +7,8 @@ import "C"
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"runtime"
-	"sync/atomic"
 
 	"github.com/go-json-experiment/json"
 	"golang.org/x/text/language"
@@ -22,14 +20,17 @@ import (
 
 var dataDir = flag.String("data", "data/cooked", "a")
 
-// TODO: should this be in worldspawn
+var sdlHints = [][2]string{
+	{"SDL_JOYSTICK_HIDAPI_STEAMDECK", "1"},
+}
+
+var sdlSubsystems = []sdl.InitFlags{
+	sdl.INIT_AUDIO,
+	sdl.INIT_VIDEO,
+	sdl.INIT_GAMEPAD,
+}
+
 var messagePrinter = message.NewPrinter(language.English)
-
-var currentSession atomic.Pointer[Client]
-
-var gamepad *sdl.Gamepad
-
-// TODO: put sdl inits behind sync.Onces?
 
 func main() {
 	runtime.LockOSThread()
@@ -37,11 +38,7 @@ func main() {
 
 	flag.Parse()
 
-	log.SetFlags(0) // TODO: kill this line
-
 	config.P.Store(defaultConfig)
-
-	// log.Println(os.Hostname())
 
 	// TODO: use xdg config path
 	// TODO: factor this out? this is very gross in its current state.
@@ -55,20 +52,17 @@ func main() {
 		config.WrMu.Unlock()
 	}
 
-	initAudio()
-
-	// TODO: check and report error
-	sdl.SetHint("SDL_JOYSTICK_HIDAPI_STEAMDECK", "1")
-
-	if err := sdl.InitSubSystem(sdl.INIT_GAMEPAD); err != nil {
-		panic(err)
+	for _, hint := range sdlHints {
+		if err := sdl.SetHint(hint[0], hint[1]); err != nil {
+			panic(err)
+		}
 	}
 
-	if err := sdl.InitSubSystem(sdl.INIT_VIDEO); err != nil {
-		panic(fmt.Sprintf("failed to initialize SDL video subsystem: %v", err))
+	for _, subsystem := range sdlSubsystems {
+		if err := sdl.InitSubSystem(subsystem); err != nil {
+			panic(fmt.Sprintf("failed to initialize SDL %v subsystem : %v", subsystem, err))
+		}
 	}
-
-	// TODO: factor stuff into mainWindow constructor
 
 	go runMainWindow()
 
