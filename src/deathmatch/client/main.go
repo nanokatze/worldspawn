@@ -7,6 +7,8 @@ import "C"
 import (
 	"flag"
 	"fmt"
+	"io/fs"
+	"log/slog"
 	"os"
 	"runtime"
 
@@ -14,11 +16,14 @@ import (
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 
+	"worldspawn/deathmatch/internal/game"
 	"worldspawn/sdl"
 	"worldspawn/sdlapp"
 )
 
-var dataDir = flag.String("data", "data/cooked", "a")
+func init() {
+	osDirFSFlag(flag.CommandLine, &game.Data, "data", "data/cooked", "a")
+}
 
 var sdlHints = [][2]string{
 	{"SDL_JOYSTICK_HIDAPI_STEAMDECK", "1"},
@@ -30,6 +35,8 @@ var sdlSubsystems = []sdl.InitFlags{
 	sdl.INIT_GAMEPAD,
 }
 
+// TODO: this needs to live behind atomic.Pointer if we intend on being able to
+// switch the localization at runtime.
 var messagePrinter = message.NewPrinter(language.English)
 
 func main() {
@@ -64,9 +71,20 @@ func main() {
 		}
 	}
 
-	go newMainWindow().run()
+	slog.Info("gamepads", "gamepads", sdl.GetGamepads())
+
+	for _, gamepadID := range sdl.GetGamepads() {
+		sdl.OpenGamepad(gamepadID)
+	}
+
+	go new(mainWindow).Run()
 
 	if err := sdlapp.Main(); err != nil {
 		panic(err)
 	}
+}
+
+func osDirFSFlag(f *flag.FlagSet, p *fs.FS, name string, dir string, usage string) {
+	*p = os.DirFS(dir)
+	f.Func(name, usage, func(dir string) error { *p = os.DirFS(dir); return nil })
 }

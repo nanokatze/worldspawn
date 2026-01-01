@@ -23,13 +23,13 @@ var router = sdlrouter{
 // how we should we wrap it, by newtyping it, by creating a new struct embedding
 // *sdl.Window, or by creating a new struct with private *sdl.Window member?
 
-func CreateWindow(props ...func(props sdl.PropertiesID) error) (*sdl.Window, error) {
+func CreateWindow(props ...func(props sdl.PropertiesID) error) *sdl.Window {
 	router.mu.Lock()
 	defer router.mu.Unlock()
 
 	window, err := sdl.CreateWindow(props...)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 
 	if router.primaryWindow == 0 {
@@ -38,7 +38,7 @@ func CreateWindow(props ...func(props sdl.PropertiesID) error) (*sdl.Window, err
 	}
 	router.windows[window.ID()] = make(chan sdl.Event)
 
-	return window, nil
+	return window
 }
 
 func Events(w *sdl.Window) <-chan sdl.Event {
