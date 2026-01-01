@@ -176,11 +176,11 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 			update.Mesh[i] = mesh.re
 
 			// TODO: stop allocating a new slice every time
-			update.Materials[i] = make([]*pathtracer.InterpretedMaterial, len(mesh.defaultMaterials))
-			update.MaterialArgs[i] = make([][256]byte, len(mesh.defaultMaterials))
+			update.Materials[i] = make([]*pathtracer.InterpretedMaterial, len(mesh.materials))
+			update.MaterialArgs[i] = make([][256]byte, len(mesh.materials))
 
 			for j := range update.Materials[i] {
-				m2 := getmaterial(mesh.defaultMaterials[j])
+				m2 := getmaterial(mesh.materials[j])
 				update.Materials[i][j] = m2.material
 				m2.preamble(update.MaterialArgs[i][j][:], &matPropReader{w, id})
 			}

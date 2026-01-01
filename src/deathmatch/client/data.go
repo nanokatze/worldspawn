@@ -189,7 +189,7 @@ var errorMaterial = sync.OnceValue(func() *pathtracer.InterpretedMaterial {
 })
 
 type fileBackedMesh struct {
-	defaultMaterials []string
+	materials []string
 
 	// we could (should) just embed it tbh
 	re *pathtracer.Mesh
@@ -229,7 +229,7 @@ func loadmesh(filename string) *fileBackedMesh {
 	inner.NormalBuffer = attributes["normal"]
 
 	inner.Parts = make([]pathtracer.MeshPart, len(header2.Rendering.Parts))
-	defaultMaterials := make([]string, len(header2.Rendering.Parts))
+	materials := make([]string, len(header2.Rendering.Parts))
 	for i, partHeader := range header2.Rendering.Parts {
 		part := &inner.Parts[i]
 
@@ -259,7 +259,7 @@ func loadmesh(filename string) *fileBackedMesh {
 			panic(err)
 		}
 
-		defaultMaterials[i] = header2.Materials[partHeader.MaterialIndex]
+		materials[i] = header2.Materials[partHeader.MaterialIndex]
 	}
 
 	inner.InitAccel()
@@ -268,7 +268,7 @@ func loadmesh(filename string) *fileBackedMesh {
 	inner.BuildAccel(&jq)
 	jq.WaitForIdle()
 
-	return &fileBackedMesh{defaultMaterials, inner}
+	return &fileBackedMesh{materials, inner}
 }
 
 func getmesh(geo string) *fileBackedMesh {
