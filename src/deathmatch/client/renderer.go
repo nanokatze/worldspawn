@@ -126,7 +126,7 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 
 		update.Sky = texture(w.Globals().Sky).Image
 
-		for id, tr := range w.TranslationRotation.All() {
+		for id, tr := range w.LocalTranslationRotation.All() {
 			cosmeticOffset, _ := w.CosmeticOffset.Get(id)
 
 			i := id.Index()
@@ -158,7 +158,7 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 		// that when a probe fails, we spawn a new goroutine with fetch and
 		// everything that follows.
 
-		for id, v := range ecs.Join(w.RenderingGeometry, w.TranslationRotation) {
+		for id, v := range ecs.Join(w.RenderingGeometry, w.LocalTranslationRotation) {
 			renderingGeometry := v.V1
 
 			i := id.Index()
@@ -215,10 +215,9 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 		clear(scene.Instance)
 
 		for id, soundEffect := range w.SoundEffect.All() {
-			positionRotation, _ := w.TranslationRotation.Get(id)
+			positionRotation, _ := w.GetGlobalTranslationRotation(id)
 			scale := w.GetScale(id)
 
-			// TODO: take hierarchy into account
 			xform := geometry.TRS3{
 				Translation: positionRotation.Translation.Vec3(), // TODO: we should also be applying cosmetic offset like in video
 				Rotation:    positionRotation.Rotation,

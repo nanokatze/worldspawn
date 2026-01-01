@@ -12,5 +12,5 @@ var EntityTypes = []reflect.Type{
 	reflect.TypeFor[LoopedSound](),
 	reflect.TypeFor[SceneGlobals](),
 	reflect.TypeFor[Testburger](),
-	reflect.TypeFor[WeaponGenericProjectileLauncher](),
+	reflect.TypeFor[WeaponGrenadeLauncher](),
 }

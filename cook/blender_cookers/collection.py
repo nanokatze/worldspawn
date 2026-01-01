@@ -70,7 +70,7 @@ def cook_objects_into(context, xform, collection, cooked_scene):
         comps['Name'] = obj.name
 
         T, R, S = (xform @ obj.matrix_world).decompose()
-        comps['TranslationRotation'] = {
+        comps['LocalTranslationRotation'] = {
             'Translation': T,
             'Rotation': R,
         }

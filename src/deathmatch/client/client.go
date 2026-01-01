@@ -247,7 +247,7 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 			if err := nice.UnmarshalDecode(dec, &indexAndOk); err != nil {
 				return err
 			}
-			index := indexAndOk &^ (1 << 31)
+			index := indexAndOk & ((1 << 31) - 1)
 			exists := indexAndOk&(1<<31) != 0
 			if exists {
 				if err := nice.UnmarshalDecode(dec, v.Interface()); err != nil {
@@ -257,7 +257,7 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 
 			id := s.world.IDs.Index(int(index))
 			if id == 0 {
-				logger.Warn("entity does not exist at an index (likely a bug in the game code)", "component", replication.Columns.Field(columnIndex).Name, "index", index)
+				logger.Warn("update for a non-existent object", "index", index, "component", replication.Columns.Field(columnIndex).Name)
 				continue
 			}
 

@@ -7,7 +7,7 @@ import (
 )
 
 type GrenadeLauncherGrenade struct {
-	Fuse time.Duration `json:",format:units"`
+	Fuse time.Duration `json:",format:iso8601"`
 
 	// TODO: distance impact multiplier parameters
 }
@@ -23,8 +23,8 @@ func (grenade GrenadeLauncherGrenade) UpdateAfterPhysics(w *Scene, id ecs.ID, in
 
 	if !info.Speculating {
 		effect := w.CreateEntity(info)
-		positionRotation, _ := w.TranslationRotation.Get(id)
-		w.TranslationRotation.Set(effect, positionRotation)
+		positionRotation, _ := w.GetGlobalTranslationRotation(id)
+		w.LocalTranslationRotation.Set(effect, positionRotation)
 		w.SoundEffect.Set(effect, SoundEmitter{
 			Effect:   "later.wav",
 			PlayTime: w.Now.Add(info.Δt),

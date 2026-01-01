@@ -8,10 +8,10 @@ import (
 	"worldspawn/internal/ecs"
 )
 
-type WeaponGenericProjectileLauncher struct {
+type WeaponGrenadeLauncher struct {
 	Projectile     PrefabRef
 	MuzzleVelocity float32
-	CycleDuration  time.Duration `json:",format:units"`
+	CycleDuration  time.Duration `json:",format:iso8601"`
 
 	// TODO: rename
 	NextAttack Time
@@ -21,12 +21,12 @@ type Testburger struct {
 	BaseColor [4]float32
 }
 
-var _ Weapon = WeaponGenericProjectileLauncher{}
+var _ Weapon = WeaponGrenadeLauncher{}
 
 // TODO: rename to something else like CreateVisual or CreateRenderingGeometry
-func (weapon WeaponGenericProjectileLauncher) WeaponCreateGeometry(scene *Scene, info *UpdateParams) ecs.ID {
+func (weapon WeaponGrenadeLauncher) WeaponCreateGeometry(scene *Scene, info *UpdateParams) ecs.ID {
 	root := scene.CreateEntity(info)
-	scene.TranslationRotation.Set(root, TranslationRotation{
+	scene.LocalTranslationRotation.Set(root, TranslationRotation{
 		Translation: geometry.DVec3{0.2, 0.4, -0.275},
 		Rotation:    geometry.Rot3One(),
 	})
@@ -38,15 +38,13 @@ func (weapon WeaponGenericProjectileLauncher) WeaponCreateGeometry(scene *Scene,
 	return root
 }
 
-func (weapon WeaponGenericProjectileLauncher) WeaponUpdateSubtick(scene *Scene, weaponID ecs.ID, shootpos TranslationRotation, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.ID) {
+func (weapon WeaponGrenadeLauncher) WeaponUpdateSubtick(scene *Scene, weaponID ecs.ID, shootpos TranslationRotation, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.ID) {
 	if buttons&WeaponTrigger != 0 {
 		if !weapon.NextAttack.After(scene.Now) {
-			// TODO: spawn entity here
-
 			if !info.Speculating {
 				projectile := scene.SpawnPrefab(weapon.Projectile, info)
 				scene.CreationTime.Set(projectile, scene.Now)
-				scene.TranslationRotation.Set(projectile, TranslationRotation{
+				scene.LocalTranslationRotation.Set(projectile, TranslationRotation{
 					Translation: shootpos.Translation,
 					Rotation:    shootpos.Rotation.Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, math.Pi/2)),
 				})
@@ -79,7 +77,7 @@ func (weapon WeaponGenericProjectileLauncher) WeaponUpdateSubtick(scene *Scene, 
 }
 
 // TODO: we could also make it a method on the proj launcher tbh?
-func (weapon WeaponGenericProjectileLauncher) fired(scene *Scene, id ecs.ID) {
+func (weapon WeaponGrenadeLauncher) fired(scene *Scene, id ecs.ID) {
 	scene.SoundEffect.Set(id, SoundEmitter{
 		Effect:   "weapons/grenade_launcher/fire.wav",
 		PlayTime: scene.Now, // + time.Duration(rng(w.Time, entityID, 0).Int63n(int64(1*time.Millisecond))),

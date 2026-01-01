@@ -485,8 +485,8 @@ func spawnplayer(w *game.Scene, info *game.UpdateParams) ecs.ID {
 	}
 
 	// meh
-	t, _ := w.TranslationRotation.Get(playerSpawns[rand.IntN(len(playerSpawns))])
-	w.TranslationRotation.Set(player, t)
+	t, _ := w.GetGlobalTranslationRotation(playerSpawns[rand.IntN(len(playerSpawns))])
+	w.LocalTranslationRotation.Set(player, t)
 	w.RenderingGeometry.Set(player, game.PackGeometry(game.Geometry{
 		Kind:     game.GeometryFileBacked,
 		Filename: "testcharacter4/geometries/TestCharacter4",
@@ -507,7 +507,7 @@ func spawnplayer(w *game.Scene, info *game.UpdateParams) ecs.ID {
 	camera := w.CreateEntity(info)
 	w.ParentTo(camera, player)
 	// TODO: poke a method on fpscharacter to perform this
-	w.TranslationRotation.Set(camera, game.TranslationRotation{
+	w.LocalTranslationRotation.Set(camera, game.TranslationRotation{
 		Translation: geometry.DVec3{0, 0, 1.9 - 0.1}, // standing height
 		Rotation:    geometry.Rot3One(),
 	})
@@ -526,7 +526,7 @@ func spawnplayer(w *game.Scene, info *game.UpdateParams) ecs.ID {
 	{
 		gun := w.CreateEntity(info)
 		w.ParentTo(gun, player)
-		w.Entity.Set(gun, game.WeaponGenericProjectileLauncher{
+		w.Entity.Set(gun, game.WeaponGrenadeLauncher{
 			CycleDuration: 600 * time.Millisecond,
 
 			Projectile:     game.PrefabRef{Filename: "weapons/grenade_launcher_grenade/grenade.json"},

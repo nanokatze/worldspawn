@@ -106,7 +106,7 @@ func worldToPhysics(w *Scene) {
 	}
 
 	for id, layer := range w.CollisionLayer.All() {
-		translationRotation, _ := w.TranslationRotation.Get(id)
+		translationRotation, _ := w.LocalTranslationRotation.Get(id)
 		velocity, _ := w.Velocity.Get(id)
 		filter, _ := w.PhysicsFilter.Get(id)
 
@@ -205,7 +205,7 @@ func updatePhysics(w *Scene, Δt time.Duration) {
 
 		pos, rot, linVel, angVel := w.physicsSystem.WritebackBody(bodyID)
 
-		w.TranslationRotation.Set(entityID, TranslationRotation{Translation: pos, Rotation: rot})
+		w.LocalTranslationRotation.Set(entityID, TranslationRotation{Translation: pos, Rotation: rot})
 
 		// TODO: don't store velocity back for kinematic bodies
 		w.Velocity.Set(entityID, Velocity{Linear: linVel, Angular: angVel})

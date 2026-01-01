@@ -145,7 +145,8 @@ func (entity FPSCharacter) ControllableUpdateSubtick(w *Scene, id ecs.ID, cmd Ti
 			buttons |= WeaponTrigger
 		}
 
-		shootpos := w.GetRotationTranslation(id).Mul(TranslationRotation{
+		shootpos, _ := w.GetGlobalTranslationRotation(id)
+		shootpos = shootpos.Mul(TranslationRotation{
 			Translation: geometry.DVec3{0, 0, float64(entity.StandingViewHeight)},
 			Rotation:    geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, -1}, 2*math.Pi*entity.Look.X).Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, 2*math.Pi*entity.Look.Y)),
 		})
@@ -160,7 +161,7 @@ func (entity FPSCharacter) ControllableUpdateSubtick(w *Scene, id ecs.ID, cmd Ti
 	w.Entity.Set(id, entity)
 
 	// TODO: factor this out
-	w.TranslationRotation.Set(entity.Camera, TranslationRotation{
+	w.LocalTranslationRotation.Set(entity.Camera, TranslationRotation{
 		Translation: geometry.DVec3{0, 0, float64(entity.StandingViewHeight)},
 		Rotation:    geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, -1}, 2*math.Pi*entity.Look.X).Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, 2*math.Pi*entity.Look.Y)),
 	})
@@ -174,7 +175,7 @@ func (entity FPSCharacter) ControllableUpdate(w *Scene, id ecs.ID, info *UpdateP
 var _ UpdateBeforePhysics = FPSCharacter{}
 
 func (entity FPSCharacter) UpdateBeforePhysics(w *Scene, id ecs.ID, info *UpdateParams) {
-	positionRotation, _ := w.TranslationRotation.Get(id)
+	positionRotation, _ := w.LocalTranslationRotation.Get(id)
 	velocity, _ := w.Velocity.Get(id)
 
 	rotation := positionRotation.Rotation.
@@ -219,7 +220,7 @@ func planeSignedDistance(plane geometry.Vec4, point geometry.Vec3) float32 {
 }
 
 func (entity *FPSCharacter) asdasd(w *Scene, id ecs.ID, velocity geometry.Vec3, Δt time.Duration) geometry.Vec3 {
-	positionRotation, _ := w.TranslationRotation.Get(id)
+	positionRotation, _ := w.LocalTranslationRotation.Get(id)
 
 	up := geometry.Vec3{0, 0, 1}
 

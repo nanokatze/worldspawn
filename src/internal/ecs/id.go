@@ -14,7 +14,7 @@ func MakeID(index int, generation uint32) ID {
 }
 
 func (id ID) Index() int {
-	return int(uint64(id) & 0xffffffff)
+	return int(uint64(id) & 0x7fffffff)
 }
 
 func (id ID) Generation() uint32 {

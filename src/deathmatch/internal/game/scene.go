@@ -95,8 +95,8 @@ type Columns struct {
 	Parent ecs.Column[ecs.ID]
 	// Children ecs.ComponentStore[map[ecs.ID] // map[ecs.ID]struct{} ?
 
-	TranslationRotation ecs.Column[TranslationRotation]
-	Scale               ecs.Column[geometry.Vec3] // TODO: default this to 1
+	LocalTranslationRotation ecs.Column[TranslationRotation]
+	Scale                    ecs.Column[geometry.Vec3] // TODO: default this to 1
 
 	Velocity ecs.Column[Velocity]
 
@@ -242,6 +242,7 @@ func (scene *Scene) ParentTo(child, parent ecs.ID) {
 	// children
 }
 
+// TODO: rename the Scale column to something that denotes that it may be absent, and then rename this to Scale
 func (scene *Scene) GetScale(id ecs.ID) geometry.Vec3 {
 	if scale, ok := scene.Scale.Get(id); ok {
 		return scale
@@ -249,14 +250,19 @@ func (scene *Scene) GetScale(id ecs.ID) geometry.Vec3 {
 	return geometry.Vec3Broadcast(1)
 }
 
-func (scene *Scene) GetRotationTranslation(id ecs.ID) TranslationRotation {
+// TODO: should return a bool to indicate an error probably
+func (scene *Scene) GetGlobalTranslationRotation(id ecs.ID) (TranslationRotation, bool) {
 	result := TranslationRotationOne()
+	// TODO: return false for id == 0
 	for id != 0 {
-		tmp, _ := scene.TranslationRotation.Get(id)
+		tmp, ok := scene.LocalTranslationRotation.Get(id)
+		if !ok {
+			return TranslationRotationOne(), false
+		}
 		result = tmp.Mul(result)
 		id, _ = scene.Parent.Get(id)
 	}
-	return result
+	return result, true
 }
 
 func (w *Scene) HandleInput(id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
@@ -277,8 +283,8 @@ func (w *Scene) Update(updateParams *UpdateParams) {
 	// having shadow component stores.
 
 	for id, entity := range w.Entity.All() {
-		if char, ok := entity.(Controllable); ok {
-			char.ControllableUpdate(w, id, updateParams)
+		if controllable, ok := entity.(Controllable); ok {
+			controllable.ControllableUpdate(w, id, updateParams)
 		}
 	}
 
