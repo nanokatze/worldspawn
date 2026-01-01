@@ -85,13 +85,13 @@ func (entity FPSCharacter) ControllableUpdateSubtick(w *Scene, id ecs.ID, cmd Ti
 
 	switch cmd := cmd.Cmd.(type) {
 	case InputCmdDLookX:
-		entity.Look.X += float32(cmd)
+		entity.Look[0] += float32(cmd)
 	case InputCmdDLookY:
-		entity.Look.Y += float32(cmd)
+		entity.Look[1] += float32(cmd)
 	case InputCmdMoveX:
-		entity.Move.X = float32(cmd)
+		entity.Move[0] = float32(cmd)
 	case InputCmdMoveY:
-		entity.Move.Y = float32(cmd)
+		entity.Move[1] = float32(cmd)
 	case InputCmdPressButton:
 		entity.Buttons |= uint64(1) << cmd
 	case InputCmdReleaseButton:
@@ -106,8 +106,8 @@ func (entity FPSCharacter) ControllableUpdateSubtick(w *Scene, id ecs.ID, cmd Ti
 		// panic("unreachable")
 	}
 
-	entity.Look.X = float32(math.Mod(float64(entity.Look.X), 1))
-	entity.Look.Y = min(max(entity.Look.Y, -0.25), 0.25)
+	entity.Look[0] = float32(math.Mod(float64(entity.Look[0]), 1))
+	entity.Look[1] = min(max(entity.Look[1], -0.25), 0.25)
 
 	if !w.IsEntityValid(entity.ActiveWeapon) && len(inventory.Slots) > 0 {
 		switchToWeapon = inventory.Slots[0]
@@ -148,7 +148,7 @@ func (entity FPSCharacter) ControllableUpdateSubtick(w *Scene, id ecs.ID, cmd Ti
 		shootpos, _ := w.GetGlobalTRS(id)
 		shootpos = shootpos.Mul(geometry.DTRS3{
 			T: geometry.DVec3{0, 0, float64(entity.StandingViewHeight)},
-			R: geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, -1}, 2*math.Pi*entity.Look.X).Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, 2*math.Pi*entity.Look.Y)),
+			R: geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, -1}, 2*math.Pi*entity.Look[0]).Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, 2*math.Pi*entity.Look[1])),
 			S: geometry.Vec3Broadcast(1),
 		})
 
@@ -164,7 +164,7 @@ func (entity FPSCharacter) ControllableUpdateSubtick(w *Scene, id ecs.ID, cmd Ti
 	// TODO: factor this out
 	w.SetLocalTRS(entity.Camera, geometry.DTRS3{
 		T: geometry.DVec3{0, 0, float64(entity.StandingViewHeight)},
-		R: geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, -1}, 2*math.Pi*entity.Look.X).Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, 2*math.Pi*entity.Look.Y)),
+		R: geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, -1}, 2*math.Pi*entity.Look[0]).Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, 2*math.Pi*entity.Look[1])),
 		S: geometry.Vec3Broadcast(1),
 	})
 }
@@ -180,7 +180,7 @@ func (entity FPSCharacter) UpdateBeforePhysics(w *Scene, id ecs.ID, info *Update
 	trs, _ := w.GetGlobalTRS(id)
 	velocity, _ := w.Velocity.Get(id)
 
-	rotation := trs.R.Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, -1}, 2*math.Pi*entity.Look.X))
+	rotation := trs.R.Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, -1}, 2*math.Pi*entity.Look[0]))
 
 	move := entity.Move
 	if lenSq := move.LengthSq(); lenSq > 1 {
@@ -189,8 +189,8 @@ func (entity FPSCharacter) UpdateBeforePhysics(w *Scene, id ecs.ID, info *Update
 
 	localVel := rotation.Inverse().Rotate(velocity.Linear)
 	if entity.Supported {
-		localVel[0] = move.X * entity.WalkVelocity
-		localVel[1] = move.Y * entity.WalkVelocity
+		localVel[0] = move[0] * entity.WalkVelocity
+		localVel[1] = move[1] * entity.WalkVelocity
 		if entity.Buttons&(1<<ButtonJump) != 0 {
 			localVel[2] = 4
 		}

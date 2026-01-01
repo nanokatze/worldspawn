@@ -161,10 +161,10 @@ func (w *mainWindow) Run() {
 				cmds = game.AppendAction(cmds, etime, game.ActionSetMovementVelocityY, -value)
 
 			case sdl.GAMEPAD_AXIS_RIGHTX:
-				w.flickStickTest.deflection.X = value
+				w.flickStickTest.deflection[0] = value
 
 			case sdl.GAMEPAD_AXIS_RIGHTY:
-				w.flickStickTest.deflection.Y = value
+				w.flickStickTest.deflection[1] = value
 
 			case sdl.GAMEPAD_AXIS_RIGHT_TRIGGER:
 				cmds = game.AppendAction(cmds, etime, game.ActionAttack, step(0.9, value))
@@ -207,13 +207,13 @@ func (w *mainWindow) Run() {
 			activation := w.flickStickTest.deflection.Length() > 0.5
 
 			if activation && !w.flickStickTest.activated {
-				w.flickStickTest.lastDeflection = geometry.Vec2{X: 0, Y: -1}
+				w.flickStickTest.lastDeflection = geometry.Vec2{0, -1}
 			}
 			w.flickStickTest.activated = activation
 
 			if w.flickStickTest.activated {
-				A := complex(w.flickStickTest.lastDeflection.X, w.flickStickTest.lastDeflection.Y)
-				B := complex(w.flickStickTest.deflection.X, w.flickStickTest.deflection.Y)
+				A := complex(w.flickStickTest.lastDeflection[0], w.flickStickTest.lastDeflection[1])
+				B := complex(w.flickStickTest.deflection[0], w.flickStickTest.deflection[1])
 
 				// We can normalize B and A and then we can just use B * conj(A)
 				D := B / A
