@@ -1,64 +1,40 @@
 package game
 
-//go:generate stringer -trimprefix Geometry -type GeometryKind -output geometry_kind_string.go
+// TODO: eventually kill this off in favor of some geometry nodes -esque
+// mechanism (https://github.com/nanokatze/worldspawn-private/issues/45)
 
 import (
-	"errors"
-
 	"worldspawn/geometry-go"
 	"worldspawn/internal/nice"
-
-	"github.com/go-json-experiment/json"
-	"github.com/go-json-experiment/json/jsontext"
 )
 
-type GeometryKind int
+type geometryKind int
 
 const (
-	_ GeometryKind = iota
-	GeometrySphere
-	GeometryBox
-	GeometryCylinder
-	GeometryFileBacked
+	_ geometryKind = iota
+	geometrySphere
+	geometryBox
+	geometryCylinder
+	geometryFileBacked
 )
 
-var collisionGeometryKindFromString = map[string]GeometryKind{
-	"Sphere":     GeometrySphere,
-	"Box":        GeometryBox,
-	"Cylinder":   GeometryCylinder,
-	"FileBacked": GeometryFileBacked,
-}
-
-func (shapeKind *GeometryKind) MarshalText() ([]byte, error) {
-	return []byte(shapeKind.String()), nil
-}
-
-func (shapeKind *GeometryKind) UnmarshalText(text []byte) error {
-	tmp, ok := collisionGeometryKindFromString[string(text)]
-	if !ok {
-		return errors.New("unknown shape type")
-	}
-	*shapeKind = tmp
-	return nil
-}
-
 // TODO: make it an interface with various implementations (FileBacked, etc.)
-type Geometry struct {
+type _Geometry struct {
 	// TODO: remove the transform in favor of an option to use children entities
 	// as a way to specify compound geometry.
 	Translation geometry.Vec3
 	Rotation    geometry.Rot3
 	Scale       geometry.Vec3
 
-	Kind         GeometryKind
+	Kind         geometryKind
 	Filename     string // used by Kind=FileBacked
 	HalfExtent   geometry.Vec3
 	ConvexRadius float32
 }
 
-type GeometryPacked string
+type geometryPacked string
 
-func PackGeometry(geo Geometry) GeometryPacked {
+func packGeometry(geo _Geometry) geometryPacked {
 	// TODO: ugh
 	if geo.Rotation == (geometry.Rot3{}) {
 		geo.Rotation = geometry.Rot3One()
@@ -71,64 +47,13 @@ func PackGeometry(geo Geometry) GeometryPacked {
 	if err != nil {
 		panic(err)
 	}
-	return GeometryPacked(buf)
+	return geometryPacked(buf)
 }
 
-func UnpackGeometry(packed GeometryPacked) Geometry {
-	var unpacked Geometry
+func unpackGeometry(packed geometryPacked) _Geometry {
+	var unpacked _Geometry
 	if err := nice.Unmarshal([]byte(packed), &unpacked); err != nil {
 		panic(err)
 	}
 	return unpacked
 }
-
-func (geo *GeometryPacked) UnmarshalJSONFrom(d *jsontext.Decoder) error {
-	var tmp Geometry
-	if err := json.UnmarshalDecode(d, &tmp); err != nil {
-		return err
-	}
-	*geo = PackGeometry(tmp)
-	return nil
-}
-
-/*
-
-type Geometry2 any
-
-// Or call it MeshFileGeometry? Or GeometryFile
-type FileBackedGeometry string
-
-type CylinderGeometry struct {
-	Radius     float32
-	HalfHeight float32
-}
-
-// We could also use mat4 in its stead
-type TransformedGeometry struct {
-	Translation geometry.Vec3
-	Rotation    geometry.Rot3
-	Scale       geometry.Vec3
-	Geometry    Geometry2
-}
-
-func PackGeometry2(geo Geometry2) GeometryPacked {
-	buf, err := nice.Marshal(&geo, nice.WithArshalers(niceGeometryArshaler))
-	if err != nil {
-		panic(err)
-	}
-	return GeometryPacked(buf)
-}
-
-func UnpackGeometry2(geo GeometryPacked) Geometry2 {
-	var unpacked Geometry2
-	if err := nice.Unmarshal([]byte(geo), &unpacked, nice.WithArshalers(niceGeometryArshaler)); err != nil {
-		panic(err)
-	}
-	return unpacked
-}
-
-var niceGeometryArshaler = nice.InterfaceArshaler[Geometry2](
-	reflect.TypeFor[CylinderGeometry](),
-	reflect.TypeFor[FileBackedGeometry]())
-
-*/

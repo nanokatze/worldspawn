@@ -487,20 +487,9 @@ func spawnplayer(w *game.Scene, info *game.UpdateParams) ecs.ID {
 	// meh
 	t, _ := w.GetGlobalTRS(playerSpawns[rand.IntN(len(playerSpawns))])
 	w.SetGlobalTRS(player, t)
-	w.RenderingGeometry.Set(player, game.PackGeometry(game.Geometry{
-		Kind:     game.GeometryFileBacked,
-		Filename: "testcharacter4/geometries/TestCharacter4",
-	}))
+	w.RenderingGeometry.Set(player, "testcharacter4/geometries/TestCharacter4")
 	w.Viewmodel2.Set(player, game.Viewmodel2{Mode: 2})
-	w.CollisionGeometry.Set(player, game.PackGeometry(game.Geometry{
-		Translation: geometry.Vec3{0, 0, 1.9 / 2},
-		Rotation:    geometry.Rot3One(),
-		Scale:       geometry.Vec3Broadcast(1),
-
-		Kind:         game.GeometryCylinder,
-		HalfExtent:   geometry.Vec3{1, 1, 0}.Scale(0.4).Add(geometry.Vec3{0, 0, 1.9 / 2}),
-		ConvexRadius: 0.0,
-	}))
+	w.CollisionGeometry.Set(player, "FPSCharacter")
 	w.CollisionLayer.Set(player, game.PhysicsLayerMovingKinematic)
 	w.PhysicsMassOverride.Set(player, 100)
 

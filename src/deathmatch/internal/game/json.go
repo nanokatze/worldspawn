@@ -2,7 +2,9 @@ package game
 
 import (
 	"fmt"
+	"maps"
 	"math"
+	"reflect"
 	"strconv"
 
 	"github.com/go-json-experiment/json"
@@ -69,5 +71,9 @@ var JSONOptions = json.JoinOptions(
 	json.WithUnmarshalers(json.JoinUnmarshalers(
 		json.UnmarshalFromFunc(float32JSONUnmarshaler),
 		json.UnmarshalFromFunc(float64JSONUnmarshaler),
-		json.UnmarshalFromFunc(InterfaceJSONUnmarshaler[Entity](EntityTypes...)),
+		json.UnmarshalFromFunc(InterfaceJSONUnmarshaler[Entity](maps.Collect(func(yield func(reflect.Type, string) bool) {
+			for _, typ := range EntityTypes {
+				yield(typ, typ.Name())
+			}
+		}))),
 	)))

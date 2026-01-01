@@ -75,7 +75,7 @@ type Columns struct {
 
 	Velocity ecs.Column[Velocity]
 
-	RenderingGeometry ecs.Column[GeometryPacked]
+	RenderingGeometry ecs.Column[string]
 
 	// TODO: rename to SoundEmitter
 	SoundEffect ecs.Column[SoundEmitter]
@@ -87,7 +87,13 @@ type Columns struct {
 
 	// Posing test
 	Animation ecs.Column[Animation]
-	Pose      ecs.Column[map[string]geometry.Mat4x4]
+
+	// TODO: going forward, pose needs to be string -> TRS3. Pose generally will
+	// be set in two of the following ways: with physics (so there will be
+	// constrained entities representing limbs and we will set the respective
+	// joints to where those entities are) and with animation (so there might be
+	// a complex script driving the animation)
+	Pose ecs.Column[map[string]geometry.Mat4x4]
 
 	// NOTE: constraints and pairwise filter
 	//
@@ -96,13 +102,12 @@ type Columns struct {
 	// would be to have any entity specify filtered/constrained pairs. Yet
 	// another would be to have constraints and nocollide pairs be its own
 	// concept in the world
-	//
 
 	// TODO: merge some of these components?
 
+	CollisionGeometry      ecs.Column[string]
 	CollisionLayer         ecs.Column[CollisionLayer]
-	CollisionGeometry      ecs.Column[GeometryPacked]
-	PhysicsFilter          ecs.Column[[]ecs.ID] // TODO: rename to something like PairwiseFilters?
+	PhysicsFilter          ecs.Column[[]ecs.ID] // TODO: generalize to all physics constraints
 	GravityFactor          ecs.Column[float32]
 	PhysicsMassOverride    ecs.Column[float32] // TODO: remove "Physics" prefix from these
 	PhysicsInertiaOverride ecs.Column[geometry.Mat4x4]

@@ -82,16 +82,10 @@ def cook_objects_into(context, xform, collection, cooked_scene):
 
             # TODO: do we need to do anything about this?
             if 'RenderingGeometry' not in comps:
-                comps['RenderingGeometry'] = {
-                    'Kind': 'FileBacked',
-                    'Filename': geometry,
-                }
+                comps['RenderingGeometry'] = geometry
 
             if 'CollisionGeometry' not in comps:
-                comps['CollisionGeometry'] = {
-                    'Kind': 'FileBacked',
-                    'Filename': geometry,
-                }
+                comps['CollisionGeometry'] = geometry
 
         if obj.instance_collection is not None:
             comps['CollectionInstance'] = {

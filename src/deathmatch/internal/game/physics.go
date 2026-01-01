@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"worldspawn/geometry-go"
 	"worldspawn/internal/ecs"
 	"worldspawn/physics"
 )
@@ -181,9 +182,37 @@ func worldToPhysics(w *Scene) {
 
 func getShape(w *Scene, id ecs.ID) *physics.Shape {
 	layer, _ := w.CollisionLayer.Get(id)
-	shape, _ := w.CollisionGeometry.Get(id)
+	geom, _ := w.CollisionGeometry.Get(id)
 
 	motionType2 := collisionLayerMotionType[layer]
+
+	// HACK: our gross way out of not having geonodes, see
+	// https://github.com/nanokatze/worldspawn-private/issues/45
+	var shape geometryPacked
+	switch geom {
+	case "Grenade":
+		shape = packGeometry(_Geometry{
+			Rotation: geometry.Rot3One(),
+			Scale:    geometry.Vec3Broadcast(1),
+
+			Kind:       geometrySphere,
+			HalfExtent: geometry.Vec3{0.0568, 0.0568, 0.0568},
+		})
+
+	case "FPSCharacter":
+		shape = packGeometry(_Geometry{
+			Translation: geometry.Vec3{0, 0, 1.9 / 2}, // TODO: read standing height off Entity
+			Rotation:    geometry.Rot3One(),
+			Scale:       geometry.Vec3Broadcast(1),
+
+			Kind:         geometryCylinder,
+			HalfExtent:   geometry.Vec3{1, 1, 0}.Scale(0.4).Add(geometry.Vec3{0, 0, 1.9 / 2}),
+			ConvexRadius: 0.0,
+		})
+
+	default:
+		shape = packGeometry(_Geometry{Kind: geometryFileBacked, Filename: geom})
+	}
 
 	var shape2 *physics.Shape
 	if motionType2 == 0 {
@@ -240,29 +269,29 @@ func updatePhysics(w *Scene, Δt time.Duration) {
 
 // TODO: don't duplicate things we don't need to.
 
-var convexCache = make(map[GeometryPacked]*physics.Shape)
-var concaveCache = make(map[GeometryPacked]*physics.Shape)
+var convexCache = make(map[geometryPacked]*physics.Shape)
+var concaveCache = make(map[geometryPacked]*physics.Shape)
 
-func getConvexShape(key2 GeometryPacked) *physics.Shape {
+func getConvexShape(key2 geometryPacked) *physics.Shape {
 	shape, ok := convexCache[key2]
 	if ok {
 		return shape
 	}
 
-	key := UnpackGeometry(key2)
+	key := unpackGeometry(key2)
 
 	var err error
 	switch key.Kind {
-	case GeometrySphere:
+	case geometrySphere:
 		shape, err = physics.NewSphereShape(key.HalfExtent[0])
 
-	case GeometryBox:
+	case geometryBox:
 		shape, err = physics.NewBoxShape(key.HalfExtent, key.ConvexRadius)
 
-	case GeometryCylinder:
+	case geometryCylinder:
 		shape, err = physics.NewCylinderShape(key.HalfExtent[0], key.HalfExtent[2], key.ConvexRadius)
 
-	case GeometryFileBacked:
+	case geometryFileBacked:
 		shape, err = physics.NewFileBackedShape(Data, key.Filename, false)
 
 	default:
@@ -281,26 +310,26 @@ func getConvexShape(key2 GeometryPacked) *physics.Shape {
 	return shape
 }
 
-func getConcaveShape(key2 GeometryPacked) *physics.Shape {
+func getConcaveShape(key2 geometryPacked) *physics.Shape {
 	shape, ok := concaveCache[key2]
 	if ok {
 		return shape
 	}
 
-	key := UnpackGeometry(key2)
+	key := unpackGeometry(key2)
 
 	var err error
 	switch key.Kind {
-	case GeometrySphere:
+	case geometrySphere:
 		shape, err = physics.NewSphereShape(key.HalfExtent[0])
 
-	case GeometryBox:
+	case geometryBox:
 		shape, err = physics.NewBoxShape(key.HalfExtent, key.ConvexRadius)
 
-	case GeometryCylinder:
+	case geometryCylinder:
 		shape, err = physics.NewCylinderShape(key.HalfExtent[0], key.HalfExtent[2], key.ConvexRadius)
 
-	case GeometryFileBacked:
+	case geometryFileBacked:
 		shape, err = physics.NewFileBackedShape(Data, key.Filename, true)
 
 	default:

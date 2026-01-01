@@ -31,7 +31,7 @@ func (weapon WeaponGrenadeLauncher) WeaponCreateGeometry(scene *Scene, info *Upd
 		R: geometry.Rot3One(),
 		S: geometry.Vec3Broadcast(1),
 	})
-	scene.RenderingGeometry.Set(root, PackGeometry(Geometry{Kind: GeometryFileBacked, Filename: "weapons/grenade_launcher/geometries/Grenade_Launcher"}))
+	scene.RenderingGeometry.Set(root, "weapons/grenade_launcher/geometries/Grenade_Launcher")
 	scene.Entity.Set(root, Testburger{
 		BaseColor: [4]float32{0.8, 0.8, 0.8, 1}, // pretend it's a team color
 	})

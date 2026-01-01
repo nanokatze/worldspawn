@@ -42,10 +42,11 @@ func InterfaceJSONMarshaler[T any](types ...reflect.Type) func(*jsontext.Encoder
 }
 */
 
-func InterfaceJSONUnmarshaler[T any](types ...reflect.Type) func(*jsontext.Decoder, *T) error {
-	m := maps.Collect(func(yield func(string, reflect.Type) bool) {
-		for _, typ := range types {
-			yield(typ.Name(), typ)
+// TODO: make it be a type of parameters?
+func InterfaceJSONUnmarshaler[T any](m map[reflect.Type]string) func(*jsontext.Decoder, *T) error {
+	m2 := maps.Collect(func(yield func(string, reflect.Type) bool) {
+		for k, v := range m {
+			yield(v, k)
 		}
 	})
 
@@ -60,7 +61,7 @@ func InterfaceJSONUnmarshaler[T any](types ...reflect.Type) func(*jsontext.Decod
 		}
 		name := tok.String()
 
-		t, ok := m[name]
+		t, ok := m2[name]
 		if !ok {
 			return fmt.Errorf("unknown entity type %s", name)
 		}

@@ -31,7 +31,7 @@ import (
 
 var texturecache = make(map[string]*pathtracer.Texture)
 var materialcache = make(map[string]material)
-var modelcache = make(map[game.GeometryPacked]*fileBackedMesh)
+var modelcache = make(map[string]*fileBackedMesh)
 
 // TODO: should support streaming etc.
 func texture(filename string) *pathtracer.Texture {
@@ -271,10 +271,10 @@ func loadmesh(filename string) *fileBackedMesh {
 	return &fileBackedMesh{defaultMaterials, inner}
 }
 
-func getmesh(geo game.GeometryPacked) *fileBackedMesh {
+func getmesh(geo string) *fileBackedMesh {
 	m, ok := modelcache[geo]
 	if !ok {
-		m = loadmesh(game.UnpackGeometry(geo).Filename)
+		m = loadmesh(geo)
 		modelcache[geo] = m
 	}
 	return m
