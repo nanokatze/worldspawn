@@ -145,10 +145,11 @@ func (entity FPSCharacter) ControllableUpdateSubtick(w *Scene, id ecs.ID, cmd Ti
 			buttons |= WeaponTrigger
 		}
 
-		shootpos, _ := w.GetGlobalTranslationRotation(id)
-		shootpos = shootpos.Mul(TranslationRotation{
-			Translation: geometry.DVec3{0, 0, float64(entity.StandingViewHeight)},
-			Rotation:    geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, -1}, 2*math.Pi*entity.Look.X).Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, 2*math.Pi*entity.Look.Y)),
+		shootpos, _ := w.GetGlobalTRS(id)
+		shootpos = shootpos.Mul(geometry.DTRS3{
+			T: geometry.DVec3{0, 0, float64(entity.StandingViewHeight)},
+			R: geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, -1}, 2*math.Pi*entity.Look.X).Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, 2*math.Pi*entity.Look.Y)),
+			S: geometry.Vec3Broadcast(1),
 		})
 
 		updateVisual := weapon.WeaponUpdateSubtick(w, entity.ActiveWeapon, shootpos, buttons, info)
@@ -161,9 +162,10 @@ func (entity FPSCharacter) ControllableUpdateSubtick(w *Scene, id ecs.ID, cmd Ti
 	w.Entity.Set(id, entity)
 
 	// TODO: factor this out
-	w.LocalTranslationRotation.Set(entity.Camera, TranslationRotation{
-		Translation: geometry.DVec3{0, 0, float64(entity.StandingViewHeight)},
-		Rotation:    geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, -1}, 2*math.Pi*entity.Look.X).Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, 2*math.Pi*entity.Look.Y)),
+	w.SetLocalTRS(entity.Camera, geometry.DTRS3{
+		T: geometry.DVec3{0, 0, float64(entity.StandingViewHeight)},
+		R: geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, -1}, 2*math.Pi*entity.Look.X).Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, 2*math.Pi*entity.Look.Y)),
+		S: geometry.Vec3Broadcast(1),
 	})
 }
 
@@ -175,11 +177,10 @@ func (entity FPSCharacter) ControllableUpdate(w *Scene, id ecs.ID, info *UpdateP
 var _ UpdateBeforePhysics = FPSCharacter{}
 
 func (entity FPSCharacter) UpdateBeforePhysics(w *Scene, id ecs.ID, info *UpdateParams) {
-	positionRotation, _ := w.LocalTranslationRotation.Get(id)
+	trs, _ := w.GetGlobalTRS(id)
 	velocity, _ := w.Velocity.Get(id)
 
-	rotation := positionRotation.Rotation.
-		Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, -1}, 2*math.Pi*entity.Look.X))
+	rotation := trs.R.Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, -1}, 2*math.Pi*entity.Look.X))
 
 	move := entity.Move
 	if lenSq := move.LengthSq(); lenSq > 1 {
@@ -220,7 +221,7 @@ func planeSignedDistance(plane geometry.Vec4, point geometry.Vec3) float32 {
 }
 
 func (entity *FPSCharacter) asdasd(w *Scene, id ecs.ID, velocity geometry.Vec3, Δt time.Duration) geometry.Vec3 {
-	positionRotation, _ := w.LocalTranslationRotation.Get(id)
+	trs, _ := w.GetGlobalTRS(id)
 
 	up := geometry.Vec3{0, 0, 1}
 
@@ -229,9 +230,9 @@ func (entity *FPSCharacter) asdasd(w *Scene, id ecs.ID, velocity geometry.Vec3, 
 	hits := make([]physics.QueryHit, 100)
 	n := w.physicsSystem.QueryShape(
 		getShape(w, id),
-		positionRotation.Translation,
-		positionRotation.Rotation,
-		geometry.Vec3Broadcast(1),
+		trs.T,
+		trs.R,
+		trs.S,
 		velocity.NormalizedOr(geometry.Vec3{}),
 		0.1,
 		physics.QueryFilter{Ignore: physics.BodyID(id)},

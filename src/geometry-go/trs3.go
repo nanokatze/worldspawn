@@ -1,40 +1,52 @@
 package geometry
 
-import "structs"
-
+// TODO: shearing
 type DTRS3 struct {
-	_           structs.HostLayout
-	Translation DVec3
-	Rotation    Rot3
-	Scale       Vec3
+	T DVec3
+	R Rot3
+	S Vec3
+}
+
+func DTRS3One() DTRS3 {
+	return DTRS3{
+		T: DVec3{},
+		R: Rot3One(),
+		S: Vec3Broadcast(1),
+	}
+}
+
+// TODO: pure rotation and pure scale DTRS3 constructors
+
+func (x DTRS3) Mul(y DTRS3) DTRS3 {
+	return DTRS3{
+		T: x.T.Add(y.R.Rotate64(y.T)),
+		R: x.R.Mul(y.R),
+		S: Vec3Broadcast(1),
+	}
 }
 
 type TRS3 struct {
-	_           structs.HostLayout
-	Translation Vec3
-	Rotation    Rot3
-	Scale       Vec3
+	T Vec3
+	R Rot3
+	S Vec3
 }
 
 func (A TRS3) Inverse() TRS3 {
 	panic("not implemented")
 }
 
-// Composition is not implemented as it can lead to shearing, which TRS3 can't
-// represent.
-
 func (A TRS3) NLerp(B TRS3, t float32) TRS3 {
 	return TRS3{
-		Translation: A.Translation.Lerp(B.Translation, t),
-		Rotation:    A.Rotation.NLerp(B.Rotation, t),
-		Scale:       A.Scale.Lerp(B.Scale, t),
+		T: A.T.Lerp(B.T, t),
+		R: A.R.NLerp(B.R, t),
+		S: A.S.Lerp(B.S, t),
 	}
 }
 
 func (trs TRS3) Mat4x4() Mat4x4 {
-	t := trs.Translation
-	r := trs.Rotation
-	s := trs.Scale
+	t := trs.T
+	r := trs.R
+	s := trs.S
 
 	// TODO: see if we can rewrite this to be more data driven? Especially the quaternion bit.
 	// TODO: let's just have a Mat4x4() per each component and then compose them

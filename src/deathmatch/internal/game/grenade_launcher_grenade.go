@@ -23,8 +23,8 @@ func (grenade GrenadeLauncherGrenade) UpdateAfterPhysics(w *Scene, id ecs.ID, in
 
 	if !info.Speculating {
 		effect := w.CreateEntity(info)
-		positionRotation, _ := w.GetGlobalTranslationRotation(id)
-		w.LocalTranslationRotation.Set(effect, positionRotation)
+		trs, _ := w.GetGlobalTRS(id)
+		w.SetGlobalTRS(effect, trs)
 		w.SoundEffect.Set(effect, SoundEmitter{
 			Effect:   "later.wav",
 			PlayTime: w.Now.Add(info.Δt),

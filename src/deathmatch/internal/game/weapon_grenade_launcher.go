@@ -26,30 +26,31 @@ var _ Weapon = WeaponGrenadeLauncher{}
 // TODO: rename to something else like CreateVisual or CreateRenderingGeometry
 func (weapon WeaponGrenadeLauncher) WeaponCreateGeometry(scene *Scene, info *UpdateParams) ecs.ID {
 	root := scene.CreateEntity(info)
-	scene.LocalTranslationRotation.Set(root, TranslationRotation{
-		Translation: geometry.DVec3{0.2, 0.4, -0.275},
-		Rotation:    geometry.Rot3One(),
+	scene.SetLocalTRS(root, geometry.DTRS3{
+		T: geometry.DVec3{0.2, 0.4, -0.275},
+		R: geometry.Rot3One(),
+		S: geometry.Vec3Broadcast(1),
 	})
 	scene.RenderingGeometry.Set(root, PackGeometry(Geometry{Kind: GeometryFileBacked, Filename: "weapons/grenade_launcher/geometries/Grenade_Launcher"}))
 	scene.Entity.Set(root, Testburger{
-		BaseColor: [4]float32{1, 0, 0, 1}, // pretend it's a team color
+		BaseColor: [4]float32{0.8, 0.8, 0.8, 1}, // pretend it's a team color
 	})
 
 	return root
 }
 
-func (weapon WeaponGrenadeLauncher) WeaponUpdateSubtick(scene *Scene, weaponID ecs.ID, shootpos TranslationRotation, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.ID) {
+func (weapon WeaponGrenadeLauncher) WeaponUpdateSubtick(scene *Scene, weaponID ecs.ID, shootpos geometry.DTRS3, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.ID) {
 	if buttons&WeaponTrigger != 0 {
 		if !weapon.NextAttack.After(scene.Now) {
 			if !info.Speculating {
 				projectile := scene.SpawnPrefab(weapon.Projectile, info)
 				scene.CreationTime.Set(projectile, scene.Now)
-				scene.LocalTranslationRotation.Set(projectile, TranslationRotation{
-					Translation: shootpos.Translation,
-					Rotation:    shootpos.Rotation.Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, math.Pi/2)),
-				})
+				scene.SetGlobalTRS(projectile, shootpos.Mul(geometry.DTRS3{
+					R: geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, math.Pi/2),
+					S: geometry.Vec3Broadcast(1),
+				}))
 				// TODO: consider velocity set on the prefab?
-				scene.Velocity.Set(projectile, Velocity{Linear: shootpos.Rotation.Rotate(geometry.Vec3{0, weapon.MuzzleVelocity, 0})})
+				scene.Velocity.Set(projectile, Velocity{Linear: shootpos.R.Rotate(geometry.Vec3{0, weapon.MuzzleVelocity, 0})})
 				// TODO: new idea for cosmetic offset: we could trace a ray like TF2 does
 				// and make the decay time be how long it takes to reach the wall!
 				// scene.CosmeticOffset.Set(projectile, CosmeticOffset{

@@ -28,42 +28,17 @@ type SubtickUpdateParams struct {
 }
 */
 
-// TODO: move this into the World object?
 var Data fs.FS
 
-// TODO: something to let us control what gets sent to a client.
-
-// TODO: rename to TranslationAndRotation?
 type TranslationRotation struct {
 	Translation geometry.DVec3
 	Rotation    geometry.Rot3
-}
-
-func TranslationRotationOne() TranslationRotation {
-	return TranslationRotation{
-		Translation: geometry.DVec3{},
-		Rotation:    geometry.Rot3One(),
-	}
-}
-
-func (x TranslationRotation) Mul(y TranslationRotation) TranslationRotation {
-	return TranslationRotation{
-		x.Translation.Add(x.Rotation.Rotate64(y.Translation)),
-		x.Rotation.Mul(y.Rotation),
-	}
 }
 
 type Velocity struct {
 	Linear  geometry.Vec3
 	Angular geometry.Vec3
 }
-
-/*
-func (w *World) Transform(id ecs.ID) (geometry.Mat4x4, bool) {
-	A, ok := w.TranslationRotation.Load(id)
-	return A, ok
-}
-*/
 
 type SceneGlobals struct {
 	// TODO: replace it with sky material
@@ -96,7 +71,7 @@ type Columns struct {
 	// Children ecs.ComponentStore[map[ecs.ID] // map[ecs.ID]struct{} ?
 
 	LocalTranslationRotation ecs.Column[TranslationRotation]
-	Scale                    ecs.Column[geometry.Vec3] // TODO: default this to 1
+	LocalScale               ecs.Column[geometry.Vec3]
 
 	Velocity ecs.Column[Velocity]
 
@@ -242,27 +217,40 @@ func (scene *Scene) ParentTo(child, parent ecs.ID) {
 	// children
 }
 
-// TODO: rename the Scale column to something that denotes that it may be absent, and then rename this to Scale
-func (scene *Scene) GetScale(id ecs.ID) geometry.Vec3 {
-	if scale, ok := scene.Scale.Get(id); ok {
-		return scale
+func (scene *Scene) GetLocalTRS(id ecs.ID) (geometry.DTRS3, bool) {
+	tr, ok := scene.LocalTranslationRotation.Get(id)
+	if !ok {
+		return geometry.DTRS3One(), false
 	}
-	return geometry.Vec3Broadcast(1)
+	s, ok := scene.LocalScale.Get(id)
+	if !ok {
+		s = geometry.Vec3Broadcast(1)
+	}
+	return geometry.DTRS3{tr.Translation, tr.Rotation, s}, true
 }
 
-// TODO: should return a bool to indicate an error probably
-func (scene *Scene) GetGlobalTranslationRotation(id ecs.ID) (TranslationRotation, bool) {
-	result := TranslationRotationOne()
+func (scene *Scene) SetLocalTRS(id ecs.ID, trs geometry.DTRS3) {
+	scene.LocalTranslationRotation.Set(id, TranslationRotation{trs.T, trs.R})
+	// TODO: scale
+}
+
+func (scene *Scene) GetGlobalTRS(id ecs.ID) (geometry.DTRS3, bool) {
+	result := geometry.DTRS3One()
 	// TODO: return false for id == 0
 	for id != 0 {
-		tmp, ok := scene.LocalTranslationRotation.Get(id)
+		trs, ok := scene.GetLocalTRS(id)
 		if !ok {
-			return TranslationRotationOne(), false
+			return geometry.DTRS3One(), false
 		}
-		result = tmp.Mul(result)
+		result = trs.Mul(result)
 		id, _ = scene.Parent.Get(id)
 	}
 	return result, true
+}
+
+func (scene *Scene) SetGlobalTRS(id ecs.ID, trs geometry.DTRS3) {
+	// TODO: handle having a parent in some way
+	scene.SetLocalTRS(id, trs)
 }
 
 func (w *Scene) HandleInput(id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {

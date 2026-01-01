@@ -1,6 +1,7 @@
 package game
 
 import (
+	"worldspawn/geometry-go"
 	"worldspawn/internal/ecs"
 )
 
@@ -18,5 +19,5 @@ type Weapon interface {
 	// stuff like recoil and such.
 	// TODO: we need to somehow tell the thing to filter the player and possibly
 	// other entities
-	WeaponUpdateSubtick(scene *Scene, weaponId ecs.ID, shootpos TranslationRotation, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.ID)
+	WeaponUpdateSubtick(scene *Scene, weaponId ecs.ID, shootpos geometry.DTRS3, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.ID)
 }

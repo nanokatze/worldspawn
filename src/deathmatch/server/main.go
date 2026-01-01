@@ -485,8 +485,8 @@ func spawnplayer(w *game.Scene, info *game.UpdateParams) ecs.ID {
 	}
 
 	// meh
-	t, _ := w.GetGlobalTranslationRotation(playerSpawns[rand.IntN(len(playerSpawns))])
-	w.LocalTranslationRotation.Set(player, t)
+	t, _ := w.GetGlobalTRS(playerSpawns[rand.IntN(len(playerSpawns))])
+	w.SetGlobalTRS(player, t)
 	w.RenderingGeometry.Set(player, game.PackGeometry(game.Geometry{
 		Kind:     game.GeometryFileBacked,
 		Filename: "testcharacter4/geometries/TestCharacter4",
@@ -507,9 +507,10 @@ func spawnplayer(w *game.Scene, info *game.UpdateParams) ecs.ID {
 	camera := w.CreateEntity(info)
 	w.ParentTo(camera, player)
 	// TODO: poke a method on fpscharacter to perform this
-	w.LocalTranslationRotation.Set(camera, game.TranslationRotation{
-		Translation: geometry.DVec3{0, 0, 1.9 - 0.1}, // standing height
-		Rotation:    geometry.Rot3One(),
+	w.SetLocalTRS(camera, geometry.DTRS3{
+		T: geometry.DVec3{0, 0, 1.9 - 0.1}, // standing height
+		R: geometry.Rot3One(),
+		S: geometry.Vec3Broadcast(1),
 	})
 
 	w.Entity.Set(player, game.FPSCharacter{

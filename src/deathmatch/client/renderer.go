@@ -126,7 +126,7 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 
 		update.Sky = texture(w.Globals().Sky).Image
 
-		for id, tr := range w.LocalTranslationRotation.All() {
+		for id := range w.LocalTranslationRotation.All() {
 			cosmeticOffset, _ := w.CosmeticOffset.Get(id)
 
 			i := id.Index()
@@ -141,13 +141,10 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 				offset = cosmeticOffset.Eval(w.Now)
 			}
 
-			// TODO: we should not record cosmetic offset into renderer.transformT0
 			transformT0 := re.lastTransform[i]
-			transformT1 := geometry.TRS3{
-				Translation: tr.Translation.Add(geometry.DVec3FromVec3(offset)).Vec3(),
-				Rotation:    tr.Rotation,
-				Scale:       w.GetScale(id),
-			}
+			tmp, _ := w.GetLocalTRS(id)
+			// TODO: we should not record cosmetic offset into renderer.transformT0
+			transformT1 := geometry.TRS3{tmp.T.Vec3().Add(offset), tmp.R, tmp.S}
 
 			update.TransformT0[i] = transformT0
 			update.TransformT1[i] = transformT1
@@ -215,13 +212,12 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 		clear(scene.Instance)
 
 		for id, soundEffect := range w.SoundEffect.All() {
-			positionRotation, _ := w.GetGlobalTranslationRotation(id)
-			scale := w.GetScale(id)
+			trs, _ := w.GetGlobalTRS(id)
 
 			xform := geometry.TRS3{
-				Translation: positionRotation.Translation.Vec3(), // TODO: we should also be applying cosmetic offset like in video
-				Rotation:    positionRotation.Rotation,
-				Scale:       scale,
+				T: trs.T.Vec3(), // TODO: we should also be applying cosmetic offset like in video
+				R: trs.R,
+				S: trs.S,
 			}.Mat4x4()
 
 			effect, ok := sources[soundEffect.Effect]
