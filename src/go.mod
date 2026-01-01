@@ -3,7 +3,6 @@ module worldspawn
 go 1.25
 
 require (
-	gioui.org v0.8.0
 	github.com/go-json-experiment/json v0.0.0-20251027170946-4849db3c2f7e
 	github.com/quic-go/quic-go v0.53.0
 	golang.org/x/text v0.26.0
