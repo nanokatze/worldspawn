@@ -68,6 +68,7 @@ type timeMapping struct {
 }
 
 type renderer struct {
+	lastGen       []uint32
 	lastTransform []geometry.TRS3
 
 	// The update that didn't fit into the queue
@@ -141,13 +142,19 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 				offset = cosmeticOffset.Eval(w.Now)
 			}
 
-			transformT0 := re.lastTransform[i]
 			tmp, _ := w.GetLocalTRS(id)
 			// TODO: we should not record cosmetic offset into renderer.transformT0
 			transformT1 := geometry.TRS3{geometry.ConvertVec3[float32](tmp.T).Add(offset), tmp.R, tmp.S}
 
+			transformT0 := re.lastTransform[i]
+			if re.lastGen[i] != id.Generation() {
+				transformT0 = transformT1
+			}
+
 			update.TransformT0[i] = transformT0
 			update.TransformT1[i] = transformT1
+
+			re.lastGen[i] = id.Generation()
 			re.lastTransform[i] = transformT1
 		}
 

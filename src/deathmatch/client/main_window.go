@@ -62,6 +62,7 @@ func (w *mainWindow) Run() {
 
 	// TODO: the renderer should autoresize its resources on Ticks
 	w.renderer = &renderer{
+		lastGen:       make([]uint32, 10000),
 		lastTransform: make([]geometry.TRS3, 10000),
 
 		updates: make(chan *sceneUpdate, 1),
@@ -71,6 +72,9 @@ func (w *mainWindow) Run() {
 		sfxScene: &sfx.Scene{
 			Instance: make([]sfx.Instance, 10000),
 		},
+	}
+	for i := range w.renderer.lastGen {
+		w.renderer.lastGen[i] = 0xffffffff
 	}
 
 	if err := sdlWindow.SetRelativeMouseMode(true); err != nil {
