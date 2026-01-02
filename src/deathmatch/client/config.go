@@ -69,6 +69,10 @@ var defaultConfig = func() *Config {
 		sdl.K_D:     game.ActionSetMovementVelocityX,
 		sdl.K_SPACE: game.ActionJump,
 		sdl.K_LCTRL: game.ActionCrouch,
+		sdl.K_1:     game.ActionSlot0,
+		sdl.K_2:     game.ActionSlot1,
+		sdl.K_3:     game.ActionSlot2,
+		sdl.K_4:     game.ActionSlot3,
 	}
 	conf.Controls.MouseButtonActions = map[sdl.MouseButton]int{
 		sdl.BUTTON_LEFT: game.ActionAttack,

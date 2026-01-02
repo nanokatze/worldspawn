@@ -91,15 +91,12 @@ type Player struct {
 	ActiveWeaponViewmodel  ecs.ID
 	ActiveWeaponWorldmodel ecs.ID
 
-	// TODO: make this a fixed size array
-	Slots []ecs.ID
+	Slots [4]ecs.ID
 }
 
 func (Player) entity() {}
 
 func (player Player) PlayerUpdateSubtick(w *Scene, id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
-	var switchToWeapon ecs.ID
-
 	switch cmd := cmd.Cmd.(type) {
 	case InputCmdDLookX:
 		player.Look[0] = float32(math.Mod(float64(player.Look[0]+float32(cmd)), 1))
@@ -114,9 +111,44 @@ func (player Player) PlayerUpdateSubtick(w *Scene, id ecs.ID, cmd TimestampedInp
 	case InputCmdReleaseButton:
 		player.Buttons &^= uint64(1) << cmd
 	case Slot:
-		if 0 <= int(cmd) && int(cmd) < len(player.Slots) {
-			switchToWeapon = player.Slots[cmd]
+		if !(0 <= int(cmd) && int(cmd) < len(player.Slots)) {
+			break
 		}
+
+		switchToWeapon := player.Slots[cmd]
+
+		// TODO: rewrite this
+		if player.ActiveWeapon != switchToWeapon {
+			// TODO: for weapon sway we would need to introduce another entity
+			// (basically hands) which we would move around and actually use to
+			// implement sway with.
+			// TODO: make weapon switching predicted when we make CreateEntity work in speculative mode
+			if !info.Speculating {
+				player.ActiveWeapon = 0
+
+				// TODO: don't delete the view and worldmodel entities but just hide
+				// them?
+				if w.IsEntityValid(player.ActiveWeaponViewmodel) {
+					w.Delete.Set(player.ActiveWeaponViewmodel, struct{}{})
+				}
+				player.ActiveWeaponViewmodel = 0
+
+				// Now we can switch the weapons
+
+				player.ActiveWeapon = switchToWeapon
+
+				if weapon, ok := assertEntity[Weapon](w, switchToWeapon); ok {
+					player.ActiveWeaponViewmodel = weapon.WeaponCreateGeometry(w, player.Hands, info)
+
+					w.Viewmodel2.Set(player.ActiveWeaponViewmodel,
+						Viewmodel2{
+							Camera: player.Camera,
+							Mode:   1,
+						})
+				}
+			}
+		}
+
 	default:
 		// TODO: we should not hit this with nil either
 		if cmd != nil {
@@ -124,43 +156,7 @@ func (player Player) PlayerUpdateSubtick(w *Scene, id ecs.ID, cmd TimestampedInp
 		}
 	}
 
-	if !w.IsEntityValid(player.ActiveWeapon) && len(player.Slots) > 0 {
-		// TODO: find the first valid one?
-		switchToWeapon = player.Slots[0]
-	}
-
-	// TODO: in some cases we would in fact need to switch to no weapon.
-	// TODO: rewrite this
-	if switchToWeapon != 0 && player.ActiveWeapon != switchToWeapon {
-		// TODO: for weapon sway we would need to introduce another entity
-		// (basically hands) which we would move around and actually use to
-		// implement sway with.
-		// TODO: make weapon switching predicted when we make CreateEntity work in speculative mode
-		if !info.Speculating {
-			player.ActiveWeapon = 0
-
-			// TODO: don't delete the view and worldmodel entities but just hide
-			// them?
-			if w.IsEntityValid(player.ActiveWeaponViewmodel) {
-				w.Delete.Set(player.ActiveWeaponViewmodel, struct{}{})
-			}
-			player.ActiveWeaponViewmodel = 0
-
-			// Now we can switch the weapons
-
-			player.ActiveWeapon = switchToWeapon
-
-			if weapon, ok := assertEntity[Weapon](w, switchToWeapon); ok {
-				player.ActiveWeaponViewmodel = weapon.WeaponCreateGeometry(w, player.Hands, info)
-
-				w.Viewmodel2.Set(player.ActiveWeaponViewmodel,
-					Viewmodel2{
-						Camera: player.Camera,
-						Mode:   1,
-					})
-			}
-		}
-	}
+	// TODO: under some conditions we should autoselect a gun for the player
 
 	if weapon, ok := assertEntity[Weapon](w, player.ActiveWeapon); ok {
 		var buttons WeaponButtons

@@ -506,14 +506,14 @@ func spawnplayer(w *game.Scene, info *game.UpdateParams) ecs.ID {
 	w.ParentTo(hands, camera)
 	w.SetLocalTRS(hands, geometry.DTRS3One())
 
-	slots := []ecs.ID{}
+	slots := [4]ecs.ID{}
 
 	{
 		gun := w.CreateEntity(info)
 		w.ParentTo(gun, player)
 		w.Entity.Set(gun, game.WeaponGrenadeLauncher{})
 
-		slots = append(slots, gun)
+		slots[0] = gun
 	}
 
 	{
@@ -521,7 +521,7 @@ func spawnplayer(w *game.Scene, info *game.UpdateParams) ecs.ID {
 		w.ParentTo(gun, player)
 		w.Entity.Set(gun, game.WeaponSniperRifle{})
 
-		slots = append(slots, gun)
+		slots[1] = gun
 	}
 
 	w.Entity.Set(player, game.Player{
