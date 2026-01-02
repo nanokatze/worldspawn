@@ -24,7 +24,7 @@ type QualityConfig struct {
 
 type Config struct {
 	Presentation struct {
-		Resolution [2]int64 // TODO: rename; make a Width Height struct?
+		Resolution [2]int32 // TODO: rename; make a Width Height struct?
 	}
 
 	Quality QualityConfig
@@ -57,7 +57,7 @@ func (c *Config) Clone() *Config {
 var defaultConfig = func() *Config {
 	var conf Config
 
-	conf.Presentation.Resolution = [2]int64{1280, 800}
+	conf.Presentation.Resolution = [2]int32{1280, 800}
 
 	conf.Quality = QualityConfig{
 		MaxBounces:               2,

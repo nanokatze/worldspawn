@@ -48,12 +48,13 @@ func (w *mainWindow) Run() {
 	sdlWindow := sdlapp.CreateWindow(
 		sdl.WithBooleanProperty(sdl.PROP_WINDOW_CREATE_VULKAN_BOOLEAN, true),
 		sdl.WithBooleanProperty(sdl.PROP_WINDOW_CREATE_HIGH_PIXEL_DENSITY_BOOLEAN, true),
-		sdl.WithStringProperty(sdl.PROP_WINDOW_CREATE_TITLE_STRING, "Wo̅r̅l̅d̅s̅p̅a̅w̅n̅"),
-		// TODO: minimum window size as a safeguard?
-		sdl.WithBooleanProperty(sdl.PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN, true),
-		sdl.WithNumberProperty(sdl.PROP_WINDOW_CREATE_WIDTH_NUMBER, int64(conf.Presentation.Resolution[0])),
-		sdl.WithNumberProperty(sdl.PROP_WINDOW_CREATE_HEIGHT_NUMBER, int64(conf.Presentation.Resolution[1])),
 	)
+
+	sdlWindow.SetTitle("Wo̅r̅l̅d̅s̅p̅a̅w̅n̅")
+	sdlWindow.SetBordered(false)
+	// TODO: minimum window size as a safeguard?
+	sdlWindow.SetResizable(true)
+	sdlWindow.SetSize(conf.Presentation.Resolution[0], conf.Presentation.Resolution[1])
 
 	w.sdlWindow = sdlWindow
 
@@ -72,7 +73,7 @@ func (w *mainWindow) Run() {
 		},
 	}
 
-	if err := sdlWindow.SetWindowRelativeMouseMode(true); err != nil {
+	if err := sdlWindow.SetRelativeMouseMode(true); err != nil {
 		slog.Warn("failed to set relative mouse mode", "err", err)
 	}
 

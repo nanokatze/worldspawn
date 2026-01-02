@@ -366,13 +366,12 @@ type WindowID uint32
 
 type Window C.SDL_Window
 
+// TODO: get rid of more of these in favor of Set things
 const (
-	PROP_WINDOW_CREATE_HEIGHT_NUMBER                       = C.SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER
 	PROP_WINDOW_CREATE_HIGH_PIXEL_DENSITY_BOOLEAN          = C.SDL_PROP_WINDOW_CREATE_HIGH_PIXEL_DENSITY_BOOLEAN
-	PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN                   = C.SDL_PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN
-	PROP_WINDOW_CREATE_TITLE_STRING                        = C.SDL_PROP_WINDOW_CREATE_TITLE_STRING
+	PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN                   = C.SDL_PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN // TODO: kill
+	PROP_WINDOW_CREATE_TITLE_STRING                        = C.SDL_PROP_WINDOW_CREATE_TITLE_STRING      // TODO: kill
 	PROP_WINDOW_CREATE_VULKAN_BOOLEAN                      = C.SDL_PROP_WINDOW_CREATE_VULKAN_BOOLEAN
-	PROP_WINDOW_CREATE_WIDTH_NUMBER                        = C.SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER
 	PROP_WINDOW_CREATE_WAYLAND_SURFACE_ROLE_CUSTOM_BOOLEAN = C.SDL_PROP_WINDOW_CREATE_WAYLAND_SURFACE_ROLE_CUSTOM_BOOLEAN
 )
 
@@ -420,6 +419,66 @@ func (w *Window) DisplayScale() (float32, error) {
 		return 0, getError()
 	}
 	return scale, nil
+}
+
+func (w *Window) SetTitle(title string) error {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	if !C.SDL_SetWindowTitle((*C.SDL_Window)(w), cstring(title)) {
+		return getError()
+	}
+	return nil
+}
+
+func (w *Window) SetBordered(bordered bool) error {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	if !C.SDL_SetWindowBordered((*C.SDL_Window)(w), C.bool(bordered)) {
+		return getError()
+	}
+	return nil
+}
+
+func (w *Window) SetResizable(resizable bool) error {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	if !C.SDL_SetWindowResizable((*C.SDL_Window)(w), C.bool(resizable)) {
+		return getError()
+	}
+	return nil
+}
+
+func (w *Window) SetSize(width, height int32) error {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	if !C.SDL_SetWindowSize((*C.SDL_Window)(w), C.int(width), C.int(height)) {
+		return getError()
+	}
+	return nil
+}
+
+func (w *Window) SetFullscreen(fullscreen bool) error {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	if !C.SDL_SetWindowFullscreen((*C.SDL_Window)(w), C.bool(fullscreen)) {
+		return getError()
+	}
+	return nil
+}
+
+func (w *Window) SetRelativeMouseMode(enabled bool) error {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	if !C.SDL_SetWindowRelativeMouseMode((*C.SDL_Window)(w), C.bool(enabled)) {
+		return getError()
+	}
+	return nil
 }
 
 // Keyboard
@@ -706,16 +765,6 @@ const (
 )
 
 type MouseButtonFlags uint32
-
-func (window *Window) SetWindowRelativeMouseMode(enabled bool) error {
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
-	if !C.SDL_SetWindowRelativeMouseMode((*C.SDL_Window)(window), C.bool(enabled)) {
-		return getError()
-	}
-	return nil
-}
 
 // Joystick
 
