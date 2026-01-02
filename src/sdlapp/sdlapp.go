@@ -61,9 +61,11 @@ eventLoop:
 			return err
 		}
 
+		router.mu.Lock()
 		windowID := router.primaryWindow
 		switch event := event.(type) {
 		case *sdl.QuitEvent:
+			router.mu.Unlock()
 			break eventLoop
 		case *sdl.WindowPixelSizeChangedEvent:
 			windowID = event.WindowID
@@ -78,8 +80,6 @@ eventLoop:
 		case *sdl.MouseButtonUpEvent:
 			windowID = event.WindowID
 		}
-
-		router.mu.Lock()
 		ch := router.windows[windowID]
 		router.mu.Unlock()
 		if ch == nil {
