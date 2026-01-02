@@ -162,7 +162,7 @@ func (swapchain *Swapchain) Image(index uint32) *Image {
 // TODO: rename to AcquireNextImage
 // TODO: use int here, and or return error
 // TODO: should take gpu.WaitGroup to signal
-func (swapchain *Swapchain) Acquire() uint32 {
+func (swapchain *Swapchain) Acquire() int {
 	var index uint32
 	if err := vkFns.AcquireNextImage2KHR(device, &vk.AcquireNextImageInfoKHR{
 		SType:      vk.STRUCTURE_TYPE_ACQUIRE_NEXT_IMAGE_INFO_KHR,
@@ -170,8 +170,11 @@ func (swapchain *Swapchain) Acquire() uint32 {
 		Timeout:    math.MaxUint64,
 		Fence:      swapchain.acquireFence,
 		DeviceMask: 0b1,
-	}, &index); err != nil {
-		panic(fmt.Sprintf("gpu: vkAcquireNextImage2KHR: %v", err))
+	}, &index); err != nil && err != vk.SUBOPTIMAL_KHR {
+		if err != vk.ERROR_OUT_OF_DATE_KHR {
+			panic(fmt.Sprintf("gpu: vkAcquireNextImage2KHR: %v", err))
+		}
+		return -1
 	}
 
 	// TODO: get rid of this
@@ -183,7 +186,7 @@ func (swapchain *Swapchain) Acquire() uint32 {
 		panic(fmt.Sprintf("gpu: vkResetFences: %v", err))
 	}
 
-	return index
+	return int(index)
 }
 
 type presentJob struct {
@@ -191,17 +194,15 @@ type presentJob struct {
 	index     uint32
 }
 
-func (swapchain *Swapchain) Present(jq *JobQueue, index uint32) (ok bool) {
+func (swapchain *Swapchain) Present(jq *JobQueue, index int) {
 	swapchain.images[index].enqueueTransitionLayout(jq, vk.IMAGE_LAYOUT_GENERAL, vk.IMAGE_LAYOUT_PRESENT_SRC_KHR)
 
 	jq.Enqueue(&presentJob{
 		swapchain: swapchain,
-		index:     index,
+		index:     uint32(index),
 	})
 
 	jq.WaitForIdle()
-
-	return true
 }
 
 func (job *presentJob) Info() JobInfo {

@@ -123,243 +123,6 @@ func WithBooleanProperty(prop string, value bool) func(props PropertiesID) error
 	return func(props PropertiesID) error { return props.SetBoolean(prop, value) }
 }
 
-// Events
-
-//go:generate stringer -type EventType -trimprefix EVENT_
-
-type EventType uint32
-
-const (
-	EVENT_QUIT EventType = C.SDL_EVENT_QUIT
-
-	EVENT_WINDOW_PIXEL_SIZE_CHANGED EventType = C.SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED
-
-	EVENT_KEY_DOWN EventType = C.SDL_EVENT_KEY_DOWN
-	EVENT_KEY_UP   EventType = C.SDL_EVENT_KEY_UP
-
-	EVENT_MOUSE_MOTION      EventType = C.SDL_EVENT_MOUSE_MOTION
-	EVENT_MOUSE_BUTTON_DOWN EventType = C.SDL_EVENT_MOUSE_BUTTON_DOWN
-	EVENT_MOUSE_BUTTON_UP   EventType = C.SDL_EVENT_MOUSE_BUTTON_UP
-	EVENT_MOUSE_WHEEL       EventType = C.SDL_EVENT_MOUSE_WHEEL
-
-	EVENT_GAMEPAD_AXIS_MOTION          EventType = C.SDL_EVENT_GAMEPAD_AXIS_MOTION
-	EVENT_GAMEPAD_BUTTON_DOWN          EventType = C.SDL_EVENT_GAMEPAD_BUTTON_DOWN
-	EVENT_GAMEPAD_BUTTON_UP            EventType = C.SDL_EVENT_GAMEPAD_BUTTON_UP
-	EVENT_GAMEPAD_ADDED                EventType = C.SDL_EVENT_GAMEPAD_ADDED
-	EVENT_GAMEPAD_REMOVED              EventType = C.SDL_EVENT_GAMEPAD_REMOVED
-	EVENT_GAMEPAD_REMAPPED             EventType = C.SDL_EVENT_GAMEPAD_REMAPPED
-	EVENT_GAMEPAD_TOUCHPAD_DOWN        EventType = C.SDL_EVENT_GAMEPAD_TOUCHPAD_DOWN
-	EVENT_GAMEPAD_TOUCHPAD_MOTION      EventType = C.SDL_EVENT_GAMEPAD_TOUCHPAD_MOTION
-	EVENT_GAMEPAD_TOUCHPAD_UP          EventType = C.SDL_EVENT_GAMEPAD_TOUCHPAD_UP
-	EVENT_GAMEPAD_SENSOR_UPDATE        EventType = C.SDL_EVENT_GAMEPAD_SENSOR_UPDATE
-	EVENT_GAMEPAD_UPDATE_COMPLETE      EventType = C.SDL_EVENT_GAMEPAD_UPDATE_COMPLETE
-	EVENT_GAMEPAD_STEAM_HANDLE_UPDATED EventType = C.SDL_EVENT_GAMEPAD_STEAM_HANDLE_UPDATED
-)
-
-// TODO: rename so that it's clear it's not SDL_Event? E.g. EventPointer or idk.
-type Event interface{ event() }
-
-type QuitEvent struct {
-	_         structs.HostLayout
-	Type      EventType
-	_         uint32
-	Timestamp uint64
-}
-
-func (*QuitEvent) event() {}
-
-type WindowEvent struct {
-	_         structs.HostLayout
-	Type      EventType
-	_         uint32
-	Timestamp uint64
-	WindowID  WindowID
-	Data1     int32
-	Data2     int32
-}
-
-type WindowPixelSizeChangedEvent WindowEvent
-
-func (*WindowPixelSizeChangedEvent) event() {}
-
-type KeyboardEvent struct {
-	_         structs.HostLayout
-	Type      EventType
-	_         uint32
-	Timestamp uint64
-	WindowID  WindowID
-	Which     KeyboardID
-	Scancode  Scancode
-	Key       Keycode
-	Mod       Keymod
-	Raw       uint16
-	Down      bool
-	Repeat    bool
-}
-
-type KeyDownEvent KeyboardEvent
-type KeyUpEvent KeyboardEvent
-
-func (*KeyDownEvent) event() {}
-func (*KeyUpEvent) event()   {}
-
-type MouseMotionEvent struct {
-	_         structs.HostLayout
-	Type      EventType
-	_         uint32
-	Timestamp uint64
-	WindowID  WindowID
-	Which     MouseID
-	State     MouseButtonFlags
-	X         float32
-	Y         float32
-	XRel      float32
-	YRel      float32
-}
-
-func (*MouseMotionEvent) event() {}
-
-type MouseButtonEvent struct {
-	_         structs.HostLayout
-	Type      EventType
-	_         uint32
-	Timestamp uint64
-	WindowID  WindowID
-	Which     MouseID
-	Button    uint8
-	Down      bool
-	Clicks    uint8
-	_         uint8
-	X         float32
-	Y         float32
-}
-
-type (
-	MouseButtonDownEvent MouseButtonEvent
-	MouseButtonUpEvent   MouseButtonEvent
-)
-
-func (*MouseButtonDownEvent) event() {}
-func (*MouseButtonUpEvent) event()   {}
-
-type GamepadAxisEvent struct {
-	_         structs.HostLayout
-	Type      EventType
-	_         uint32
-	Timestamp uint64
-	Which     JoystickID
-	Axis      GamepadAxis
-	_         uint8
-	_         uint8
-	_         uint8
-	Value     int16
-	_         uint16
-}
-
-type GamepadAxisMotionEvent GamepadAxisEvent
-
-func (*GamepadAxisMotionEvent) event() {}
-
-type GamepadButtonEvent struct {
-	_         structs.HostLayout
-	Type      EventType
-	_         uint32
-	Timestamp uint64
-	Which     JoystickID
-	Button    uint8
-	Down      bool
-	_         uint8
-	_         uint8
-}
-
-type (
-	GamepadButtonDownEvent GamepadButtonEvent
-	GamepadButtonUpEvent   GamepadButtonEvent
-)
-
-func (*GamepadButtonDownEvent) event() {}
-func (*GamepadButtonUpEvent) event()   {}
-
-type GamepadDeviceEvent struct {
-	_         structs.HostLayout
-	Type      EventType
-	_         uint32
-	Timestamp uint64
-	Which     JoystickID
-}
-
-type (
-	GamepadAddedEvent          GamepadDeviceEvent
-	GamepadRemappedEvent       GamepadDeviceEvent
-	GamepadRemovedEvent        GamepadDeviceEvent
-	GamepadUpdateCompleteEvent GamepadDeviceEvent
-)
-
-func (*GamepadAddedEvent) event()          {}
-func (*GamepadRemappedEvent) event()       {}
-func (*GamepadRemovedEvent) event()        {}
-func (*GamepadUpdateCompleteEvent) event() {}
-
-func _() {
-	var x [1]int
-	_ = x[unsafe.Sizeof(QuitEvent{})-unsafe.Sizeof(C.SDL_QuitEvent{})]
-	_ = x[unsafe.Sizeof(WindowEvent{})-unsafe.Sizeof(C.SDL_WindowEvent{})]
-	_ = x[unsafe.Sizeof(KeyboardEvent{})-unsafe.Sizeof(C.SDL_KeyboardEvent{})]
-	_ = x[unsafe.Sizeof(MouseMotionEvent{})-unsafe.Sizeof(C.SDL_MouseMotionEvent{})]
-	_ = x[unsafe.Sizeof(MouseButtonEvent{})-unsafe.Sizeof(C.SDL_MouseButtonEvent{})]
-	_ = x[unsafe.Sizeof(GamepadAxisEvent{})-unsafe.Sizeof(C.SDL_GamepadAxisEvent{})]
-	_ = x[unsafe.Sizeof(GamepadButtonEvent{})-unsafe.Sizeof(C.SDL_GamepadButtonEvent{})]
-	_ = x[unsafe.Sizeof(GamepadDeviceEvent{})-unsafe.Sizeof(C.SDL_GamepadDeviceEvent{})]
-}
-
-var eventTypes = map[EventType]reflect.Type{
-	EVENT_QUIT:                      reflect.TypeFor[*QuitEvent](),
-	EVENT_WINDOW_PIXEL_SIZE_CHANGED: reflect.TypeFor[*WindowPixelSizeChangedEvent](),
-	EVENT_KEY_DOWN:                  reflect.TypeFor[*KeyDownEvent](),
-	EVENT_KEY_UP:                    reflect.TypeFor[*KeyUpEvent](),
-	EVENT_MOUSE_MOTION:              reflect.TypeFor[*MouseMotionEvent](),
-	EVENT_MOUSE_BUTTON_DOWN:         reflect.TypeFor[*MouseButtonDownEvent](),
-	EVENT_MOUSE_BUTTON_UP:           reflect.TypeFor[*MouseButtonUpEvent](),
-	EVENT_GAMEPAD_AXIS_MOTION:       reflect.TypeFor[*GamepadAxisMotionEvent](),
-	EVENT_GAMEPAD_BUTTON_DOWN:       reflect.TypeFor[*GamepadButtonDownEvent](),
-	EVENT_GAMEPAD_BUTTON_UP:         reflect.TypeFor[*GamepadButtonUpEvent](),
-	EVENT_GAMEPAD_ADDED:             reflect.TypeFor[*GamepadAddedEvent](),
-	EVENT_GAMEPAD_REMAPPED:          reflect.TypeFor[*GamepadRemappedEvent](),
-	EVENT_GAMEPAD_REMOVED:           reflect.TypeFor[*GamepadRemovedEvent](),
-	EVENT_GAMEPAD_UPDATE_COMPLETE:   reflect.TypeFor[*GamepadUpdateCompleteEvent](),
-}
-
-func WaitEvent() (Event, error) {
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
-	for {
-		var cEvent C.SDL_Event
-		if !C.SDL_WaitEvent(&cEvent) {
-			return nil, getError()
-		}
-
-		event := translateEvent(&cEvent)
-		if event != nil {
-			return event, nil
-		}
-	}
-}
-
-// TODO: rename
-func translateEvent(cEvent *C.SDL_Event) Event {
-	eventType := *(*EventType)(unsafe.Pointer(cEvent))
-
-	typ := eventTypes[eventType]
-	if typ == nil {
-		if false {
-			println(fmt.Sprintf("sdl: event type 0x%x not implemented", uint32(eventType)))
-		}
-		return nil
-	}
-	return reflect.NewAt(typ.Elem(), unsafe.Pointer(cEvent)).Interface().(Event)
-}
-
 // Video
 
 type WindowID uint32
@@ -888,17 +651,6 @@ func (g *Gamepad) Close() {
 	C.SDL_CloseGamepad((*C.SDL_Gamepad)(g))
 }
 
-// Sensor
-
-//go:generate stringer -type SensorType -trimprefix SENSOR_
-
-type SensorType C.SDL_SensorType
-
-const (
-	SENSOR_ACCEL SensorType = C.SDL_SENSOR_ACCEL
-	SENSOR_GYRO  SensorType = C.SDL_SENSOR_GYRO
-)
-
 // Audio
 
 //go:generate stringer -type AudioFormat -trimprefix AUDIO_
@@ -967,6 +719,254 @@ func (s *AudioStream) Write(b []byte) (int, error) {
 		return 0, getError()
 	}
 	return len(b), nil
+}
+
+// Sensor
+
+//go:generate stringer -type SensorType -trimprefix SENSOR_
+
+type SensorType C.SDL_SensorType
+
+const (
+	SENSOR_ACCEL SensorType = C.SDL_SENSOR_ACCEL
+	SENSOR_GYRO  SensorType = C.SDL_SENSOR_GYRO
+)
+
+// Events
+
+//go:generate stringer -type EventType -trimprefix EVENT_
+
+type EventType uint32
+
+const (
+	EVENT_QUIT EventType = C.SDL_EVENT_QUIT
+
+	EVENT_WINDOW_PIXEL_SIZE_CHANGED EventType = C.SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED
+
+	EVENT_KEY_DOWN EventType = C.SDL_EVENT_KEY_DOWN
+	EVENT_KEY_UP   EventType = C.SDL_EVENT_KEY_UP
+
+	EVENT_MOUSE_MOTION      EventType = C.SDL_EVENT_MOUSE_MOTION
+	EVENT_MOUSE_BUTTON_DOWN EventType = C.SDL_EVENT_MOUSE_BUTTON_DOWN
+	EVENT_MOUSE_BUTTON_UP   EventType = C.SDL_EVENT_MOUSE_BUTTON_UP
+	EVENT_MOUSE_WHEEL       EventType = C.SDL_EVENT_MOUSE_WHEEL
+
+	EVENT_GAMEPAD_AXIS_MOTION          EventType = C.SDL_EVENT_GAMEPAD_AXIS_MOTION
+	EVENT_GAMEPAD_BUTTON_DOWN          EventType = C.SDL_EVENT_GAMEPAD_BUTTON_DOWN
+	EVENT_GAMEPAD_BUTTON_UP            EventType = C.SDL_EVENT_GAMEPAD_BUTTON_UP
+	EVENT_GAMEPAD_ADDED                EventType = C.SDL_EVENT_GAMEPAD_ADDED
+	EVENT_GAMEPAD_REMOVED              EventType = C.SDL_EVENT_GAMEPAD_REMOVED
+	EVENT_GAMEPAD_REMAPPED             EventType = C.SDL_EVENT_GAMEPAD_REMAPPED
+	EVENT_GAMEPAD_TOUCHPAD_DOWN        EventType = C.SDL_EVENT_GAMEPAD_TOUCHPAD_DOWN
+	EVENT_GAMEPAD_TOUCHPAD_MOTION      EventType = C.SDL_EVENT_GAMEPAD_TOUCHPAD_MOTION
+	EVENT_GAMEPAD_TOUCHPAD_UP          EventType = C.SDL_EVENT_GAMEPAD_TOUCHPAD_UP
+	EVENT_GAMEPAD_SENSOR_UPDATE        EventType = C.SDL_EVENT_GAMEPAD_SENSOR_UPDATE
+	EVENT_GAMEPAD_UPDATE_COMPLETE      EventType = C.SDL_EVENT_GAMEPAD_UPDATE_COMPLETE
+	EVENT_GAMEPAD_STEAM_HANDLE_UPDATED EventType = C.SDL_EVENT_GAMEPAD_STEAM_HANDLE_UPDATED
+)
+
+// TODO: rename so that it's clear it's not SDL_Event? E.g. EventPointer or idk.
+type Event interface{ event() }
+
+type QuitEvent struct {
+	_         structs.HostLayout
+	Type      EventType
+	_         uint32
+	Timestamp uint64
+}
+
+func (*QuitEvent) event() {}
+
+type WindowEvent struct {
+	_         structs.HostLayout
+	Type      EventType
+	_         uint32
+	Timestamp uint64
+	WindowID  WindowID
+	Data1     int32
+	Data2     int32
+}
+
+type WindowPixelSizeChangedEvent WindowEvent
+
+func (*WindowPixelSizeChangedEvent) event() {}
+
+type KeyboardEvent struct {
+	_         structs.HostLayout
+	Type      EventType
+	_         uint32
+	Timestamp uint64
+	WindowID  WindowID
+	Which     KeyboardID
+	Scancode  Scancode
+	Key       Keycode
+	Mod       Keymod
+	Raw       uint16
+	Down      bool
+	Repeat    bool
+}
+
+type KeyDownEvent KeyboardEvent
+type KeyUpEvent KeyboardEvent
+
+func (*KeyDownEvent) event() {}
+func (*KeyUpEvent) event()   {}
+
+type MouseMotionEvent struct {
+	_         structs.HostLayout
+	Type      EventType
+	_         uint32
+	Timestamp uint64
+	WindowID  WindowID
+	Which     MouseID
+	State     MouseButtonFlags
+	X         float32
+	Y         float32
+	XRel      float32
+	YRel      float32
+}
+
+func (*MouseMotionEvent) event() {}
+
+type MouseButtonEvent struct {
+	_         structs.HostLayout
+	Type      EventType
+	_         uint32
+	Timestamp uint64
+	WindowID  WindowID
+	Which     MouseID
+	Button    uint8
+	Down      bool
+	Clicks    uint8
+	_         uint8
+	X         float32
+	Y         float32
+}
+
+type (
+	MouseButtonDownEvent MouseButtonEvent
+	MouseButtonUpEvent   MouseButtonEvent
+)
+
+func (*MouseButtonDownEvent) event() {}
+func (*MouseButtonUpEvent) event()   {}
+
+type GamepadAxisEvent struct {
+	_         structs.HostLayout
+	Type      EventType
+	_         uint32
+	Timestamp uint64
+	Which     JoystickID
+	Axis      GamepadAxis
+	_         uint8
+	_         uint8
+	_         uint8
+	Value     int16
+	_         uint16
+}
+
+type GamepadAxisMotionEvent GamepadAxisEvent
+
+func (*GamepadAxisMotionEvent) event() {}
+
+type GamepadButtonEvent struct {
+	_         structs.HostLayout
+	Type      EventType
+	_         uint32
+	Timestamp uint64
+	Which     JoystickID
+	Button    uint8
+	Down      bool
+	_         uint8
+	_         uint8
+}
+
+type (
+	GamepadButtonDownEvent GamepadButtonEvent
+	GamepadButtonUpEvent   GamepadButtonEvent
+)
+
+func (*GamepadButtonDownEvent) event() {}
+func (*GamepadButtonUpEvent) event()   {}
+
+type GamepadDeviceEvent struct {
+	_         structs.HostLayout
+	Type      EventType
+	_         uint32
+	Timestamp uint64
+	Which     JoystickID
+}
+
+type (
+	GamepadAddedEvent          GamepadDeviceEvent
+	GamepadRemappedEvent       GamepadDeviceEvent
+	GamepadRemovedEvent        GamepadDeviceEvent
+	GamepadUpdateCompleteEvent GamepadDeviceEvent
+)
+
+func (*GamepadAddedEvent) event()          {}
+func (*GamepadRemappedEvent) event()       {}
+func (*GamepadRemovedEvent) event()        {}
+func (*GamepadUpdateCompleteEvent) event() {}
+
+func _() {
+	var x [1]int
+	_ = x[unsafe.Sizeof(QuitEvent{})-unsafe.Sizeof(C.SDL_QuitEvent{})]
+	_ = x[unsafe.Sizeof(WindowEvent{})-unsafe.Sizeof(C.SDL_WindowEvent{})]
+	_ = x[unsafe.Sizeof(KeyboardEvent{})-unsafe.Sizeof(C.SDL_KeyboardEvent{})]
+	_ = x[unsafe.Sizeof(MouseMotionEvent{})-unsafe.Sizeof(C.SDL_MouseMotionEvent{})]
+	_ = x[unsafe.Sizeof(MouseButtonEvent{})-unsafe.Sizeof(C.SDL_MouseButtonEvent{})]
+	_ = x[unsafe.Sizeof(GamepadAxisEvent{})-unsafe.Sizeof(C.SDL_GamepadAxisEvent{})]
+	_ = x[unsafe.Sizeof(GamepadButtonEvent{})-unsafe.Sizeof(C.SDL_GamepadButtonEvent{})]
+	_ = x[unsafe.Sizeof(GamepadDeviceEvent{})-unsafe.Sizeof(C.SDL_GamepadDeviceEvent{})]
+}
+
+var eventTypes = map[EventType]reflect.Type{
+	EVENT_QUIT:                      reflect.TypeFor[*QuitEvent](),
+	EVENT_WINDOW_PIXEL_SIZE_CHANGED: reflect.TypeFor[*WindowPixelSizeChangedEvent](),
+	EVENT_KEY_DOWN:                  reflect.TypeFor[*KeyDownEvent](),
+	EVENT_KEY_UP:                    reflect.TypeFor[*KeyUpEvent](),
+	EVENT_MOUSE_MOTION:              reflect.TypeFor[*MouseMotionEvent](),
+	EVENT_MOUSE_BUTTON_DOWN:         reflect.TypeFor[*MouseButtonDownEvent](),
+	EVENT_MOUSE_BUTTON_UP:           reflect.TypeFor[*MouseButtonUpEvent](),
+	EVENT_GAMEPAD_AXIS_MOTION:       reflect.TypeFor[*GamepadAxisMotionEvent](),
+	EVENT_GAMEPAD_BUTTON_DOWN:       reflect.TypeFor[*GamepadButtonDownEvent](),
+	EVENT_GAMEPAD_BUTTON_UP:         reflect.TypeFor[*GamepadButtonUpEvent](),
+	EVENT_GAMEPAD_ADDED:             reflect.TypeFor[*GamepadAddedEvent](),
+	EVENT_GAMEPAD_REMAPPED:          reflect.TypeFor[*GamepadRemappedEvent](),
+	EVENT_GAMEPAD_REMOVED:           reflect.TypeFor[*GamepadRemovedEvent](),
+	EVENT_GAMEPAD_UPDATE_COMPLETE:   reflect.TypeFor[*GamepadUpdateCompleteEvent](),
+}
+
+func WaitEvent() (Event, error) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	for {
+		var cEvent C.SDL_Event
+		if !C.SDL_WaitEvent(&cEvent) {
+			return nil, getError()
+		}
+
+		event := translateEvent(&cEvent)
+		if event != nil {
+			return event, nil
+		}
+	}
+}
+
+// TODO: rename
+func translateEvent(cEvent *C.SDL_Event) Event {
+	eventType := *(*EventType)(unsafe.Pointer(cEvent))
+
+	typ := eventTypes[eventType]
+	if typ == nil {
+		if false {
+			println(fmt.Sprintf("sdl: event type 0x%x not implemented", uint32(eventType)))
+		}
+		return nil
+	}
+	return reflect.NewAt(typ.Elem(), unsafe.Pointer(cEvent)).Interface().(Event)
 }
 
 // Timer
