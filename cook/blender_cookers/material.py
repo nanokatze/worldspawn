@@ -103,6 +103,10 @@ class Compiler:
                 alpha = self.__builder.value('IConst', 'Int[32]', util.float32_bits(1))
                 return self.__builder.value('MakeArray', 'Array[4, Int[32]]', None, red, green, blue, alpha)
 
+            case bpy.types.ShaderNodeEmission():
+                # TODO: stop doing this
+                return self.__builder.value('DFWeightedSum', 'BSDF', None)
+
             case bpy.types.ShaderNodeBsdfPrincipled():
                 assert output_name == 'BSDF'
 
