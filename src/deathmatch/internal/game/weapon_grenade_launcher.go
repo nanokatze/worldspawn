@@ -8,30 +8,49 @@ import (
 	"worldspawn/internal/ecs"
 )
 
-type WeaponGrenadeLauncher struct {
-	Projectile     PrefabRef
-	MuzzleVelocity float32
-	CycleDuration  time.Duration `json:",format:iso8601"`
-
-	// TODO: rename
-	NextAttack Time
-}
-
 type Testburger struct {
 	BaseColor [4]float32
 }
 
-var _ Weapon = WeaponGrenadeLauncher{}
+func (Testburger) entity() {}
 
-// TODO: rename to something else like CreateVisual or CreateRenderingGeometry
-func (weapon WeaponGrenadeLauncher) WeaponCreateGeometry(scene *Scene, info *UpdateParams) ecs.ID {
-	root := scene.CreateEntity(info)
-	scene.SetLocalTRS(root, geometry.DTRS3{
+// TODO: keep the stats in a json file. We should name the stats file
+// explicitly, perhaps in a component.
+var grenadeLauncherStats = struct {
+	ViewmodelTRS      geometry.DTRS3 // TODO: we'll need to change this when we
+	RenderingGeometry string
+
+	Projectile     PrefabRef
+	MuzzleVelocity float32
+	CycleDuration  time.Duration `json:",format:iso8601"`
+}{
+	ViewmodelTRS: geometry.DTRS3{
 		T: geometry.DVec3{0.2, 0.4, -0.275},
 		R: geometry.Rot3One(),
 		S: geometry.Vec3Broadcast(1),
-	})
-	scene.RenderingGeometry.Set(root, "weapons/grenade_launcher/geometries/Grenade_Launcher")
+	},
+	RenderingGeometry: "weapons/grenade_launcher/geometries/Grenade_Launcher",
+
+	Projectile:     PrefabRef{Filename: "weapons/grenade_launcher_grenade/grenade.json"},
+	MuzzleVelocity: 30,
+	CycleDuration:  600 * time.Millisecond,
+}
+
+type WeaponGrenadeLauncher struct {
+	// TODO: rename
+	NextAttack Time
+}
+
+func (WeaponGrenadeLauncher) entity() {}
+
+var _ Weapon = WeaponGrenadeLauncher{}
+
+// TODO: rename to something else like CreateVisual or CreateRenderingGeometry
+func (weapon WeaponGrenadeLauncher) WeaponCreateGeometry(scene *Scene, parent ecs.ID, info *UpdateParams) ecs.ID {
+	root := scene.CreateEntity(info)
+	scene.ParentTo(root, parent)
+	scene.SetLocalTRS(root, grenadeLauncherStats.ViewmodelTRS)
+	scene.RenderingGeometry.Set(root, grenadeLauncherStats.RenderingGeometry)
 	scene.Entity.Set(root, Testburger{
 		BaseColor: [4]float32{0.8, 0.8, 0.8, 1}, // pretend it's a team color
 	})
@@ -39,18 +58,19 @@ func (weapon WeaponGrenadeLauncher) WeaponCreateGeometry(scene *Scene, info *Upd
 	return root
 }
 
+// TODO: pass func(ecs.ID) for projectile creation
 func (weapon WeaponGrenadeLauncher) WeaponUpdateSubtick(scene *Scene, weaponID ecs.ID, shootpos geometry.DTRS3, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.ID) {
 	if buttons&WeaponTrigger != 0 {
 		if !weapon.NextAttack.After(scene.Now) {
 			if !info.Speculating {
-				projectile := scene.SpawnPrefab(weapon.Projectile, info)
+				projectile := scene.SpawnPrefab(grenadeLauncherStats.Projectile, 0, info)
 				scene.CreationTime.Set(projectile, scene.Now)
 				scene.SetGlobalTRS(projectile, shootpos.Mul(geometry.DTRS3{
 					R: geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, math.Pi/2),
 					S: geometry.Vec3Broadcast(1),
 				}))
 				// TODO: consider velocity set on the prefab?
-				scene.Velocity.Set(projectile, Velocity{Linear: shootpos.R.Rotate(geometry.Vec3{0, weapon.MuzzleVelocity, 0})})
+				scene.Velocity.Set(projectile, Velocity{Linear: shootpos.R.Rotate(geometry.Vec3{0, grenadeLauncherStats.MuzzleVelocity, 0})})
 				// TODO: new idea for cosmetic offset: we could trace a ray like TF2 does
 				// and make the decay time be how long it takes to reach the wall!
 				// scene.CosmeticOffset.Set(projectile, CosmeticOffset{
@@ -67,7 +87,7 @@ func (weapon WeaponGrenadeLauncher) WeaponUpdateSubtick(scene *Scene, weaponID e
 				// scene.PhysicsInertiaOverride.Store(projectile, geometry.Mat4x4Diagonal(geometry.Vec4Broadcast(1)))
 			}
 
-			weapon.NextAttack = scene.Now.Add(weapon.CycleDuration)
+			weapon.NextAttack = scene.Now.Add(grenadeLauncherStats.CycleDuration)
 
 			scene.Entity.Set(weaponID, weapon)
 			return weapon.fired

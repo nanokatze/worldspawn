@@ -20,6 +20,8 @@ type LoopedSound struct {
 	LengthInSamples int64 // TODO: make this private and non-txable?
 }
 
+func (LoopedSound) entity() {}
+
 // Ugly, we should init() on update or something like that
 func (a *LoopedSound) Init() {
 	// TODO: factor this out into a function in fuckwwise probs

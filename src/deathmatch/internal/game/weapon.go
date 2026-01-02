@@ -5,6 +5,8 @@ import (
 	"worldspawn/internal/ecs"
 )
 
+// TODO: rename the Weapon interface to just something that can be held
+
 type WeaponButtons uint64
 
 const (
@@ -13,7 +15,7 @@ const (
 )
 
 type Weapon interface {
-	WeaponCreateGeometry(scene *Scene, info *UpdateParams) ecs.ID
+	WeaponCreateGeometry(scene *Scene, parent ecs.ID, info *UpdateParams) ecs.ID
 
 	// Returns a function that updates the visual. TODO: we also need to return
 	// stuff like recoil and such.

@@ -114,7 +114,7 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 	conf := config.Load()
 
 	player, _ := w.Entity.Get(playerID)
-	fpsCharacter, _ := player.(game.FPSCharacter)
+	fpsCharacter, _ := player.(game.Player)
 
 	update := re.beginUpdate()
 	defer re.commitUpdate(update)

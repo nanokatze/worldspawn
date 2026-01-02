@@ -16,10 +16,27 @@ import (
 
 // TODO: split this file up
 
+// TODO: split stuff relevant for entity creation into its own type pointing to
+// this object (entity creation needs to be aware of Now and Speculating and be
+// able to log things also.)
 type UpdateParams struct {
+	// Now         Time // for substeps
 	Δt          time.Duration
 	Speculating bool
 	Logger      *slog.Logger
+}
+
+// TODO: kill in favor of a function
+type EntityCreationContext struct {
+	*UpdateParams
+
+	parentTo ecs.ID
+}
+
+// TODO: generalize to arbitrary components, i.e. this should just be a lambda
+func (ctx EntityCreationContext) WithParent(parent ecs.ID) EntityCreationContext {
+	ctx.parentTo = parent
+	return ctx
 }
 
 /*
@@ -46,6 +63,8 @@ type SceneGlobals struct {
 
 	Gravity geometry.Vec3
 }
+
+func (SceneGlobals) entity() {}
 
 // TODO: introduce Camera component which will specify fov etc
 type Camera struct {
@@ -112,9 +131,6 @@ type Columns struct {
 	PhysicsMassOverride    ecs.Column[float32] // TODO: remove "Physics" prefix from these
 	PhysicsInertiaOverride ecs.Column[geometry.Mat4x4]
 
-	// TODO: remove this component
-	ArmedCharacter ecs.Column[ArmedCharacter]
-
 	// TODO: unify these two components probably
 	ViewPunch         ecs.Column[geometry.Rot3]
 	ViewPunchVelocity ecs.Column[geometry.Vec3]
@@ -180,7 +196,6 @@ func (w *Scene) Destroy() {
 func (w *Scene) IsEntityValid(id ecs.ID) bool { return w.IDs.Exists(id) }
 
 // TODO: do we need client-only entities? I don't think we do with this tbh
-// TODO: rename to Create?
 // TODO: make this private?
 func (w *Scene) CreateEntity(info *UpdateParams) ecs.ID {
 	if info.Speculating {
@@ -215,8 +230,13 @@ func (w *Scene) Globals() SceneGlobals {
 }
 
 // TODO: or SetParent?
+// TODO: swap child and parent order?
 func (scene *Scene) ParentTo(child, parent ecs.ID) {
-	scene.Parent.Set(child, parent)
+	if parent != 0 {
+		scene.Parent.Set(child, parent)
+	} else {
+		scene.Parent.Delete(child)
+	}
 
 	// children, _ := scene.Children.Load(parent)
 	// children
@@ -259,16 +279,17 @@ func (scene *Scene) SetGlobalTRS(id ecs.ID, trs geometry.DTRS3) {
 }
 
 func (w *Scene) HandleInput(id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
-	if entity, ok := assertEntity[Controllable](w, id); ok {
-		entity.ControllableUpdateSubtick(w, id, cmd, info)
+	if entity, ok := assertEntity[Player](w, id); ok {
+		entity.PlayerUpdateSubtick(w, id, cmd, info)
 	} else {
-		info.Logger.Warn(fmt.Sprintf("entity does not exist or does not implement %s", reflect.TypeFor[Controllable]().Name()), "id", id)
+		info.Logger.Warn(fmt.Sprintf("entity does not exist or does not implement %s", reflect.TypeFor[Player]().Name()), "id", id)
 	}
 }
 
 // TODO: parallel for in blender for example specifies bulk number for tasks so
 // we might want to do the same.
 
+// TODO: rename to Step?
 func (w *Scene) Update(updateParams *UpdateParams) {
 	w.Now = w.Now.Add(updateParams.Δt)
 
@@ -276,8 +297,8 @@ func (w *Scene) Update(updateParams *UpdateParams) {
 	// having shadow component stores.
 
 	for id, entity := range w.Entity.All() {
-		if controllable, ok := entity.(Controllable); ok {
-			controllable.ControllableUpdate(w, id, updateParams)
+		if player, ok := entity.(Player); ok {
+			player.PlayerUpdate(w, id, updateParams)
 		}
 	}
 

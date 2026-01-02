@@ -502,57 +502,33 @@ func spawnplayer(w *game.Scene, info *game.UpdateParams) ecs.ID {
 		S: geometry.Vec3Broadcast(1),
 	})
 
-	w.Entity.Set(player, game.FPSCharacter{
-		Camera:                      camera,
-		WalkVelocity:                21.6 / 3.6,
-		BackwardsWalkVelocityFactor: 0.8,
-		WalkAcceleration:            35,
-		JumpVelocity:                4,
-		StandingViewHeight:          1.9 - 0.1,
-	})
+	hands := w.CreateEntity(info)
+	w.ParentTo(hands, camera)
+	w.SetLocalTRS(hands, geometry.DTRS3One())
 
 	slots := []ecs.ID{}
 
 	{
 		gun := w.CreateEntity(info)
 		w.ParentTo(gun, player)
-		w.Entity.Set(gun, game.WeaponGrenadeLauncher{
-			CycleDuration: 600 * time.Millisecond,
-
-			Projectile:     game.PrefabRef{Filename: "weapons/grenade_launcher_grenade/grenade.json"},
-			MuzzleVelocity: 30,
-		})
+		w.Entity.Set(gun, game.WeaponGrenadeLauncher{})
 
 		slots = append(slots, gun)
 	}
 
-	/*
-		{
-			gun := w.SpawnPrefab(game.PrefabRef{Filename: "weapons/grenade_launcher/grenade_launcher.json"})
-			w.TranslationRotation.Store(gun, game.TranslationRotationOne())
-			w.Scale.Store(gun, geometry.Vec3Broadcast(1))
+	{
+		gun := w.CreateEntity(info)
+		w.ParentTo(gun, player)
+		w.Entity.Set(gun, game.WeaponSniperRifle{})
 
-			slots = append(slots, gun)
-		}
+		slots = append(slots, gun)
+	}
 
-		{
-			gun := w.SpawnPrefab(game.PrefabRef{Filename: "weapons/rocket_launcher/rocket_launcher.json"})
-			w.TranslationRotation.Store(gun, game.TranslationRotationOne())
-			w.Scale.Store(gun, geometry.Vec3Broadcast(1))
-
-			slots = append(slots, gun)
-		}
-
-		if false {
-			gun := w.SpawnPrefab(game.PrefabRef{Filename: "weapons/sniper_rifle/sniper_rifle.json"})
-			w.TranslationRotation.Store(gun, game.TranslationRotationOne())
-			w.Scale.Store(gun, geometry.Vec3Broadcast(1))
-
-			slots = append(slots, gun)
-		}
-	*/
-
-	w.ArmedCharacter.Set(player, game.ArmedCharacter{Slots: slots})
+	w.Entity.Set(player, game.Player{
+		Camera: camera,
+		Slots:  slots,
+		Hands:  hands,
+	})
 
 	return player
 }
