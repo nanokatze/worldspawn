@@ -11,70 +11,36 @@ import (
 	"worldspawn/internal/ecs/internal/bitset"
 )
 
-type Column[V any] struct {
+type Column[T any] struct {
+	table *Table // This is only necessary for json unmarshal garbage, kill
 	ids   *IDs
 	valid bitset.Bitset
-	data  []V
+	data  []T
 }
 
-// TODO: replace this somehow with doing something using AnyComponentStore?
-// Actually there's no other way to autoinit stuff so we'll have to keep the
-// Init method.
-func (c *Column[V]) Init(ids *IDs) {
-	c.ids = ids
-	c.valid = bitset.Make(ids.Cap())
-	c.data = make([]V, ids.Cap())
+// TODO: should we delegate registering the column with the table to the caller?
+// In that case we will be able to replace *Table parameter with just *IDs.
+func (c *Column[T]) Init(table *Table) {
+	c.table = table
+	c.ids = table.IDs()
+	c.valid = bitset.Make(table.IDs().Cap())
+	c.data = make([]T, table.IDs().Cap())
+	table.columns = append(table.columns, c.Reflect())
 }
 
-// Compatibility; TODO: remove, worldspawn code should implement save/restore
-// and prefabs by itself
-func (c *Column[V]) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
-	var tmp map[ID]V
-	if err := json.UnmarshalDecode(dec, &tmp); err != nil {
-		return err
-	}
-	{
-		var maxIndex int
-		for id := range tmp {
-			maxIndex = max(maxIndex, id.Index())
-		}
-		if maxIndex >= len(c.data) {
-			c.Init(NewEntities(maxIndex + 1))
-		}
-	}
-	for id, v := range tmp {
-		// if m.idAlloc
-		if !c.ids.Exists(id) && !c.ids.Create(id) {
-			return errors.New("bad")
-		}
-		c.Set(id, v)
-	}
-	return nil
-}
-
-func (c Column[V]) All() iter.Seq2[ID, V] {
-	return func(yield func(k ID, v V) bool) {
-		ents := c.ids
-		bitset.And(c.valid)(func(i int) bool {
-			return yield(MakeID(i, ents.gens[i]), c.data[i])
-		})
-	}
-}
-
-// TODO: there are many uses where Get is used without ok, should we make a separate method for that?
-func (c Column[V]) Get(id ID) (V, bool) {
-	// Prefabs will have some component stores be left uninitialized
+func (c *Column[T]) Get(id ID) (T, bool) {
+	// Prefabs will have some component stores be left uninitialized; TODO: remove
 	if c.ids == nil {
-		return *new(V), false
+		return *new(T), false
 	}
 	index := id.Index()
 	if !c.ids.Exists(id) || !c.valid.Test(index) {
-		return *new(V), false
+		return *new(T), false
 	}
 	return c.data[index], true
 }
 
-func (c Column[V]) Set(id ID, v V) {
+func (c *Column[T]) Set(id ID, v T) {
 	index := id.Index()
 	if !c.ids.Exists(id) {
 		panic("bad")
@@ -83,34 +49,16 @@ func (c Column[V]) Set(id ID, v V) {
 	c.valid.Set(index)
 }
 
-func (c Column[V]) Delete(id ID) {
+func (c *Column[T]) Delete(id ID) {
 	index := id.Index()
 	if !c.ids.Exists(id) {
-		panic("bad")
+		return
 	}
-	if c.valid.Unset(index) {
-		c.data[index] = *new(V) // don't retain pointers
-	}
+	c.data[index] = *new(T) // don't retain pointers
+	c.valid.Unset(index)
 }
 
-func (c Column[V]) Clear() {
-	// Don't retain pointers.
-	//
-	// Most ComponentStores the game calls Clear on are pretty sparse, so this
-	// is faster than clearing the entire thing with a zeroing loop.
-	//
-	// TODO: we can peek inside hbitset to find non-zero counters and memzero
-	// the huge range. This should provide decent performance regardless whether
-	// ComponentStore is sparse or dense.
-	for i := range bitset.And(c.valid) {
-		c.data[i] = *new(V)
-	}
-
-	c.valid.Reset()
-}
-
-// TODO: make this a standalone function?
-func (dst Column[V]) Copy(src Column[V]) {
+func (dst *Column[T]) Copy(src *Column[T]) {
 	// TODO: we can do a better implementation, comparable to clear, which would
 	// require peeking into the bitsets' counters or words. If we do not wish to
 	// unnecessarily retain pointers, this would become a little bit more
@@ -120,40 +68,84 @@ func (dst Column[V]) Copy(src Column[V]) {
 	copy(dst.data, src.data)
 }
 
-type reflectedColumn[V any] struct{ column *Column[V] }
+func (c *Column[T]) Clear() {
+	// Don't retain pointers.
+	//
+	// Most ComponentStores the game calls Clear on are pretty sparse, so this
+	// is faster than clearing the entire thing with a zeroing loop.
+	//
+	// TODO: we can peek inside hbitset to find non-zero counters and memzero
+	// the huge range. This should provide decent performance regardless whether
+	// ComponentStore is sparse or dense.
+	for i := range bitset.And(c.valid) {
+		c.data[i] = *new(T)
+	}
 
-func (c *Column[V]) Reflect() ReflectedColumn { return reflectedColumn[V]{c} }
+	c.valid.Reset()
+}
 
-func (c reflectedColumn[V]) ElemType() reflect.Type { return reflect.TypeFor[V]() }
+// Compatibility; TODO: remove, worldspawn code should implement save/restore
+// and prefabs by itself
+func (c *Column[T]) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var tmp map[ID]T
+	if err := json.UnmarshalDecode(dec, &tmp); err != nil {
+		return err
+	}
+	{
+		var maxIndex int
+		for id := range tmp {
+			maxIndex = max(maxIndex, id.Index())
+		}
+		if maxIndex >= len(c.data) {
+			c.Init(NewTable(maxIndex + 1))
+		}
+	}
+	for id, v := range tmp {
+		// if m.idAlloc
+		if !c.ids.Exists(id) && !c.table.Create(id) {
+			return errors.New("bad")
+		}
+		c.Set(id, v)
+	}
+	return nil
+}
 
-func (c reflectedColumn[V]) All() iter.Seq[ID] {
-	column := *c.column
+func (c *Column[T]) Reflect() ReflectedColumn { return (*reflectedColumn[T])(c) }
+
+type reflectedColumn[T any] Column[T]
+
+func (rc *reflectedColumn[T]) ElemType() reflect.Type { return reflect.TypeFor[T]() }
+
+func (rc *reflectedColumn[T]) All() iter.Seq[ID] {
+	c := (*Column[T])(rc)
 	return func(yield func(ID) bool) {
-		ents := column.ids
-		for i := range bitset.And(column.valid) {
-			if !yield(MakeID(i, ents.gens[i])) {
+		for i := range bitset.And(c.valid) {
+			if !yield(MakeID(i, c.ids.gens[i])) {
 				break
 			}
 		}
 	}
 }
 
-func (c reflectedColumn[V]) Get(id ID, out reflect.Value) bool {
-	v, ok := c.column.Get(id)
-	*mustTypeAssert[*V](out.Addr()) = v
+func (rc *reflectedColumn[T]) Get(id ID, out reflect.Value) bool {
+	c := (*Column[T])(rc)
+	v, ok := c.Get(id)
+	*mustTypeAssert[*T](out.Addr()) = v
 	return ok
 }
 
-func (c reflectedColumn[V]) Set(id ID, v reflect.Value) {
-	c.column.Set(id, mustTypeAssert[V](v))
+func (rc *reflectedColumn[T]) Set(id ID, v reflect.Value) {
+	c := (*Column[T])(rc)
+	c.Set(id, mustTypeAssert[T](v))
 }
 
-func (c reflectedColumn[V]) Delete(id ID) {
-	c.column.Delete(id)
+func (rc *reflectedColumn[T]) Delete(id ID) {
+	c := (*Column[T])(rc)
+	c.Delete(id)
 }
 
-func (dst reflectedColumn[V]) Copy(src ReflectedColumn) {
-	dst.column.Copy(*src.(reflectedColumn[V]).column)
+func (dst *reflectedColumn[T]) Copy(src ReflectedColumn) {
+	(*Column[T])(dst).Copy((*Column[T])(src.(*reflectedColumn[T])))
 }
 
 func mustTypeAssert[T any](v reflect.Value) T {

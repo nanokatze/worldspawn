@@ -127,7 +127,7 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 
 		update.Sky = texture(w.Globals().Sky).Image
 
-		for id := range w.LocalTranslationRotation.All() {
+		for id := range ecs.All(&w.LocalTranslationRotation) {
 			cosmeticOffset, _ := w.CosmeticOffset.Get(id)
 
 			i := id.Index()
@@ -161,7 +161,7 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 		// that when a probe fails, we spawn a new goroutine with fetch and
 		// everything that follows.
 
-		for id, v := range ecs.Join(w.RenderingGeometry, w.LocalTranslationRotation) {
+		for id, v := range ecs.Join(&w.RenderingGeometry, &w.LocalTranslationRotation) {
 			renderingGeometry := v.V1
 
 			i := id.Index()
@@ -217,7 +217,7 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 
 		clear(scene.Instance)
 
-		for id, soundEffect := range w.SoundEffect.All() {
+		for id, soundEffect := range ecs.All(&w.SoundEffect) {
 			trs, _ := w.GetGlobalTRS(id)
 
 			xform := geometry.TRS3{

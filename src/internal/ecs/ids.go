@@ -1,68 +1,31 @@
 package ecs
 
-import (
-	"worldspawn/internal/ecs/internal/bitset"
-)
+import "worldspawn/internal/ecs/internal/bitset"
 
 type IDs struct {
 	used bitset.Bitset
 	gens []uint32
-	next int // wack; outsource hint management to the user
 }
 
-func NewEntities(n int) *IDs {
-	return &IDs{
-		used: bitset.Make(n),
-		gens: make([]uint32, n),
-		next: 1,
-	}
+func (a *IDs) Cap() int {
+	return len(a.gens)
 }
 
-// TODO: make this a standalone func
-func (dst *IDs) Copy(src *IDs) {
-	// TODO: ensure sizes match and stuff
-	bitset.Copy(dst.used, src.used)
-	copy(dst.gens, src.gens)
-}
-
-// TODO: kill off all alloc strategies and allocation onto the user
-
-// TODO: bulk allocation?
-// TODO: let the user control the ranges? the client needs to reserve IDs with
-// high indices for client-only entities
-// TODO: have this return error so it's up to the user to panic
-func (a *IDs) Alloc() ID {
-	index := a.next
-	for a.used.Set(index) {
-		// BUG: this doesn't wrap around
-		index++
-	}
-	a.next = index + 1
-	gen := a.gens[index]
-	id := MakeID(index, gen)
+// TODO: add a constraint that the generation should advance? It seems like in
+// the game we could run into a situation where an entity is revived (e.g.
+// something unsets the deletion timer but that timer already fired on client.)
+// We'll need to think that through I guess.
+// TODO: what do we return if we try to create an ID that's already there?
+func (a *IDs) create(id ID) bool {
 	if id == 0 {
-		panic("unreachable")
+		panic("null id")
 	}
-	return id
-}
-
-func (a *IDs) Create(id ID) bool {
-	index := id.Index()
-	if index == 0 {
-		panic("no")
-	}
+	index, gen := id.Index(), id.Generation()
 	if a.used.Set(index) {
 		return false
 	}
-	a.gens[index] = id.Generation()
+	a.gens[index] = gen
 	return true
-}
-
-func (a *IDs) Delete(id ID) {
-	index := id.Index()
-	if a.gens[index] == id.Generation() {
-		a.used.Unset(index)
-	}
 }
 
 func (a *IDs) Exists(id ID) bool {
@@ -76,6 +39,9 @@ func (a *IDs) Index(index int) ID {
 	return MakeID(index, a.gens[index])
 }
 
-func (a *IDs) Cap() int {
-	return len(a.gens)
+func (dst *IDs) Copy(src *IDs) {
+	// TODO: ensure sizes match
+
+	bitset.Copy(dst.used, src.used)
+	copy(dst.gens, src.gens)
 }

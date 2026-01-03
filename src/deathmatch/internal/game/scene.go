@@ -137,7 +137,7 @@ type Columns struct {
 type Scene struct {
 	Now Time
 
-	IDs *ecs.IDs
+	Rows *ecs.Table
 	Columns
 	physicsSystem     *physics.System
 	physicsBodyExists ecs.Column[struct{}]
@@ -146,13 +146,13 @@ type Scene struct {
 func NewScene(n int) *Scene {
 	w := new(Scene)
 
-	w.IDs = ecs.NewEntities(n)
+	w.Rows = ecs.NewTable(n)
 
 	// TODO: make it clear that these are reflect references
 
 	columns := reflect.ValueOf(&w.Columns).Elem()
 	for i := range columns.Type().NumField() {
-		columns.Field(i).Addr().Interface().(interface{ Init(*ecs.IDs) }).Init(w.IDs)
+		columns.Field(i).Addr().Interface().(interface{ Init(*ecs.Table) }).Init(w.Rows)
 	}
 
 	w.physicsSystem = physics.NewSystem(
@@ -160,7 +160,7 @@ func NewScene(n int) *Scene {
 		int(NumPhysicsLayers),
 		PhysicsLayerToBroadPhaseLayer[:],
 		ShouldPhysicsLayersCollide)
-	w.physicsBodyExists.Init(w.IDs)
+	w.physicsBodyExists.Init(w.Rows)
 
 	// TODO: we should expose an OptimizeBroadPhase call on physicsSystem which
 	// we'll (optionally) call after loading the world and perhaps every so
@@ -174,7 +174,7 @@ func (w *Scene) Destroy() {
 }
 
 // TODO: rename to EntityExists
-func (w *Scene) IsEntityValid(id ecs.ID) bool { return w.IDs.Exists(id) }
+func (w *Scene) IsEntityValid(id ecs.ID) bool { return w.Rows.IDs().Exists(id) }
 
 // TODO: do we need client-only entities? I don't think we do with this tbh
 // TODO: make this private?
@@ -184,25 +184,21 @@ func (w *Scene) CreateEntity(info *UpdateParams) ecs.ID {
 		// gets removed when we receive the update for this tick.
 		panic("not implemented")
 	}
-	return w.IDs.Alloc()
+	return w.Rows.Alloc()
 }
 
 // This is used by client networking to remove entities.
 //
 // TODO: is the way we use it correct (deleting entities in-between ticks?)
 // TODO: could we bulk delete things?
+// TODO: kill, networking code should just mark entities for removal with Delete
+// and poke a pass that deletes entities marked for deletion
 func (w *Scene) DeleteEntityImmediately(id ecs.ID) {
-	columns := reflect.ValueOf(&w.Columns).Elem()
-	for i := range columns.NumField() {
-		column := columns.Field(i).Addr().Interface().(ecs.AnyColumn).Reflect()
-		column.Delete(id)
-	}
+	// TODO: we should just make a physicsBodyColumn or something
 	if _, ok := w.physicsBodyExists.Get(id); ok {
 		w.physicsSystem.RemoveBody(physics.BodyID(id))
-		w.physicsBodyExists.Delete(id)
 	}
-	w.Delete.Delete(id)
-	w.IDs.Delete(id)
+	w.Rows.Delete(id)
 }
 
 func (w *Scene) Globals() SceneGlobals {
@@ -280,13 +276,13 @@ func (w *Scene) Step(updateParams *UpdateParams) {
 	// TODO: optimize loops over entities implementing particular interface by
 	// having shadow component stores.
 
-	for id, entity := range w.Entity.All() {
+	for id, entity := range ecs.All(&w.Entity) {
 		if player, ok := entity.(Player); ok {
 			player.PlayerUpdate(w, id, updateParams)
 		}
 	}
 
-	for id, entity := range w.Entity.All() {
+	for id, entity := range ecs.All(&w.Entity) {
 		if entity, ok := entity.(UpdateBeforePhysics); ok {
 			entity.UpdateBeforePhysics(w, id, updateParams)
 		}
@@ -295,7 +291,7 @@ func (w *Scene) Step(updateParams *UpdateParams) {
 	worldToPhysics(w)
 	physicsStep(w, updateParams.Δt)
 
-	for id, entity := range w.Entity.All() {
+	for id, entity := range ecs.All(&w.Entity) {
 		if entity, ok := entity.(UpdateAfterPhysics); ok {
 			entity.UpdateAfterPhysics(w, id, updateParams)
 		}
@@ -303,11 +299,11 @@ func (w *Scene) Step(updateParams *UpdateParams) {
 
 	// TODO: simulate viewpunch motion better. View punch is a sphere with
 	// inertia and damping which we should simulate.
-	for id, viewPunch := range w.ViewPunch.All() {
+	for id, viewPunch := range ecs.All(&w.ViewPunch) {
 		w.ViewPunch.Set(id, viewPunch.NLerp(geometry.Rot3One(), float32(durationToFloatSeconds(updateParams.Δt))))
 	}
 
-	for id, animation := range w.Animation.All() {
+	for id, animation := range ecs.All(&w.Animation) {
 		// simple demo, TODO: remove
 
 		action := getAnimation(animation.Action)
@@ -430,7 +426,7 @@ func (w *Scene) Step(updateParams *UpdateParams) {
 			})
 	*/
 
-	for id, v := range ecs.Join(w.ContactEvents, w.DeleteCosmeticOffsetOnContact) {
+	for id, v := range ecs.Join(&w.ContactEvents, &w.DeleteCosmeticOffsetOnContact) {
 		for _, ce := range v.V1 {
 			if ce.Type == 1 {
 				w.CosmeticOffset.Delete(id)
@@ -439,7 +435,7 @@ func (w *Scene) Step(updateParams *UpdateParams) {
 		}
 	}
 
-	for id, deleteAfter := range w.DeleteAfter.All() {
+	for id, deleteAfter := range ecs.All(&w.DeleteAfter) {
 		if deleteAfter.Before(w.Now) {
 			w.Delete.Set(id, struct{}{})
 		}
@@ -473,28 +469,23 @@ func (w *Scene) Step(updateParams *UpdateParams) {
 			return delet
 		}
 
-		for id := range w.Parent.All() {
+		for id := range ecs.All(&w.Parent) {
 			f(id)
 		}
 	}
 
 	// Remove entities that were scheduled for removal
 	{
-		// TODO: should we also clear transientComponents?
-		columns := reflect.ValueOf(&w.Columns).Elem()
-
-		for id := range w.Delete.All() {
-			for i := range columns.NumField() {
-				column := columns.Field(i).Addr().Interface().(ecs.AnyColumn).Reflect()
-				column.Delete(id)
-			}
+		for id := range ecs.All(&w.Delete) {
 			// TODO: delete bodies in bulk
 			if _, ok := w.physicsBodyExists.Get(id); ok {
 				w.physicsSystem.RemoveBody(physics.BodyID(id))
-				w.physicsBodyExists.Delete(id)
 			}
-			w.Delete.Delete(id)
-			w.IDs.Delete(id)
+			w.Rows.Delete(id)
+		}
+
+		for range ecs.All(&w.Delete) {
+			panic("all columns must be empty")
 		}
 	}
 }

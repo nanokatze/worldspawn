@@ -64,7 +64,7 @@ type PrefabRef struct {
 // specified by CollectionInstance components. E.g.
 // Realize{,Collection,Prefab}Instances?
 func (w *Scene) InstantinateCollections() {
-	for id, collection := range w.CollectionInstance.All() {
+	for id, collection := range ecs.All(&w.CollectionInstance) {
 		w.CollectionInstance.Delete(id)
 		w.InstanceCollectionAt(id, PrefabRef{Filename: collection.Filename})
 	}

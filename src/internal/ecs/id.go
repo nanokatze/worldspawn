@@ -17,6 +17,7 @@ func (id ID) Index() int {
 	return int(uint64(id) & 0x7fffffff)
 }
 
+// TODO: make it int32?
 func (id ID) Generation() uint32 {
 	return uint32(uint64(id) >> 32)
 }

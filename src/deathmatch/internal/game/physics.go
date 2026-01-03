@@ -99,14 +99,14 @@ type ContactEvent struct {
 // Always execute this system before systems performing physics queries!!!
 // TODO: a more descriptive name
 func worldToPhysics(w *Scene) {
-	for id := range w.physicsBodyExists.All() {
+	for id := range ecs.All(&w.physicsBodyExists) {
 		if _, ok := w.CollisionLayer.Get(id); !ok {
 			w.physicsSystem.RemoveBody(physics.BodyID(id))
 			w.physicsBodyExists.Delete(id)
 		}
 	}
 
-	for id, layer := range w.CollisionLayer.All() {
+	for id, layer := range ecs.All(&w.CollisionLayer) {
 		translationRotation, _ := w.LocalTranslationRotation.Get(id)
 		velocity, _ := w.Velocity.Get(id)
 		filter, _ := w.PhysicsFilter.Get(id)

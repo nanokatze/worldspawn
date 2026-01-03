@@ -206,13 +206,13 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 			if indexGen.Gen != ^uint32(0) {
 				id := ecs.MakeID(int(indexGen.Index), indexGen.Gen)
 
-				idAtIndex := s.world.IDs.Index(int(indexGen.Index))
+				idAtIndex := s.world.Rows.IDs().Index(int(indexGen.Index))
 				if idAtIndex != id {
 					if idAtIndex != 0 {
 						// TODO: log that we're deleting this
 						s.world.DeleteEntityImmediately(idAtIndex)
 					}
-					if !s.world.IDs.Create(id) {
+					if !s.world.Rows.Create(id) {
 						panic("bad") // TODO: handle properly
 					}
 					// TODO: not sure if slog.Info or slog.Debug?
@@ -220,7 +220,7 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 					logger.Debug("create entity", "index", indexGen.Index, "id", id, "replaces", idAtIndex)
 				}
 			} else {
-				id := s.world.IDs.Index(int(indexGen.Index))
+				id := s.world.Rows.IDs().Index(int(indexGen.Index))
 				if id != 0 {
 					s.world.DeleteEntityImmediately(id)
 					logger.Debug("delete entity", "index", indexGen.Index, "id", id)
@@ -255,7 +255,7 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 				}
 			}
 
-			id := s.world.IDs.Index(int(index))
+			id := s.world.Rows.IDs().Index(int(index))
 			if id == 0 {
 				logger.Warn("update for a non-existent object", "index", index, "component", replication.Columns.Field(columnIndex).Name)
 				continue
