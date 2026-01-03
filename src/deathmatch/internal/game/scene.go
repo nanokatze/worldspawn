@@ -137,7 +137,7 @@ type Columns struct {
 type Scene struct {
 	Now Time
 
-	Rows *ecs.Table
+	Table *ecs.Table
 	Columns
 	physicsSystem     *physics.System
 	physicsBodyExists ecs.Column[struct{}]
@@ -146,13 +146,13 @@ type Scene struct {
 func NewScene(n int) *Scene {
 	w := new(Scene)
 
-	w.Rows = ecs.NewTable(n)
+	w.Table = ecs.NewTable(n)
 
 	// TODO: make it clear that these are reflect references
 
 	columns := reflect.ValueOf(&w.Columns).Elem()
 	for i := range columns.Type().NumField() {
-		columns.Field(i).Addr().Interface().(interface{ Init(*ecs.Table) }).Init(w.Rows)
+		columns.Field(i).Addr().Interface().(interface{ Init(*ecs.Table) }).Init(w.Table)
 	}
 
 	w.physicsSystem = physics.NewSystem(
@@ -160,7 +160,7 @@ func NewScene(n int) *Scene {
 		int(NumPhysicsLayers),
 		PhysicsLayerToBroadPhaseLayer[:],
 		ShouldPhysicsLayersCollide)
-	w.physicsBodyExists.Init(w.Rows)
+	w.physicsBodyExists.Init(w.Table)
 
 	// TODO: we should expose an OptimizeBroadPhase call on physicsSystem which
 	// we'll (optionally) call after loading the world and perhaps every so
@@ -174,7 +174,7 @@ func (w *Scene) Destroy() {
 }
 
 // TODO: rename to EntityExists
-func (w *Scene) IsEntityValid(id ecs.ID) bool { return w.Rows.IDs().Exists(id) }
+func (w *Scene) IsEntityValid(id ecs.ID) bool { return w.Table.IDs().Exists(id) }
 
 // TODO: do we need client-only entities? I don't think we do with this tbh
 // TODO: make this private?
@@ -184,21 +184,20 @@ func (w *Scene) CreateEntity(info *UpdateParams) ecs.ID {
 		// gets removed when we receive the update for this tick.
 		panic("not implemented")
 	}
-	return w.Rows.Alloc()
+	return w.Table.Alloc()
 }
 
 // This is used by client networking to remove entities.
 //
 // TODO: is the way we use it correct (deleting entities in-between ticks?)
 // TODO: could we bulk delete things?
-// TODO: kill, networking code should just mark entities for removal with Delete
-// and poke a pass that deletes entities marked for deletion
+// TODO: kill in favor of w.Table.Delete(id) doing the expected thing.
 func (w *Scene) DeleteEntityImmediately(id ecs.ID) {
 	// TODO: we should just make a physicsBodyColumn or something
 	if _, ok := w.physicsBodyExists.Get(id); ok {
 		w.physicsSystem.RemoveBody(physics.BodyID(id))
 	}
-	w.Rows.Delete(id)
+	w.Table.Delete(id)
 }
 
 func (w *Scene) Globals() SceneGlobals {
@@ -481,7 +480,7 @@ func (w *Scene) Step(updateParams *UpdateParams) {
 			if _, ok := w.physicsBodyExists.Get(id); ok {
 				w.physicsSystem.RemoveBody(physics.BodyID(id))
 			}
-			w.Rows.Delete(id)
+			w.Table.Delete(id)
 		}
 
 		for range ecs.All(&w.Delete) {

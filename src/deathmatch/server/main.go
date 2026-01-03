@@ -273,8 +273,8 @@ func (s *Server) handleInputPackets(u *user, stream io.Reader) error {
 
 func (mtimes *mtimes) update(prevWorld, scene *game.Scene) {
 	{
-		a := prevWorld.Rows.IDs()
-		b := scene.Rows.IDs()
+		a := prevWorld.Table.IDs()
+		b := scene.Table.IDs()
 
 		for i := range b.Cap() {
 			if a.Index(i) != b.Index(i) {
@@ -331,7 +331,7 @@ func (s *Server) tick(Δt time.Duration) {
 
 	// TODO: move this into a method on the World
 	s.prevWorld.Now = s.scene.Now
-	s.prevWorld.Rows.Copy(s.scene.Rows)
+	s.prevWorld.Table.Copy(s.scene.Table)
 	for columnIndex := range replication.Columns.NumField() {
 		dst := reflect.ValueOf(&s.prevWorld.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
 		src := reflect.ValueOf(&s.scene.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
@@ -373,7 +373,7 @@ func (s *Server) sendUpdates(u *user) {
 				continue
 			}
 
-			id := s.scene.Rows.IDs().Index(i)
+			id := s.scene.Table.IDs().Index(i)
 
 			gen := ^uint32(0)
 			if id != 0 {
@@ -412,7 +412,7 @@ func (s *Server) sendUpdates(u *user) {
 				continue
 			}
 
-			id := s.scene.Rows.IDs().Index(i)
+			id := s.scene.Table.IDs().Index(i)
 			if id == 0 {
 				continue
 			}
