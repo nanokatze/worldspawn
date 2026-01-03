@@ -69,15 +69,15 @@ type Columns struct {
 
 	Velocity ecs.Column[Velocity]
 
+	CosmeticOffset                ecs.Column[CosmeticOffset]
+	DeleteCosmeticOffsetOnContact ecs.Column[struct{}]
+
 	Visibility ecs.Column[Visibility]
 
 	RenderingGeometry ecs.Column[string]
 
 	// TODO: rename to SoundEmitter
 	SoundEffect ecs.Column[SoundEmitter]
-
-	CosmeticOffset                ecs.Column[CosmeticOffset]
-	DeleteCosmeticOffsetOnContact ecs.Column[struct{}]
 
 	// Posing test
 	Animation ecs.Column[Animation]
