@@ -34,16 +34,16 @@ func (weapon WeaponSniperRifle) WeaponCreateGeometry(scene *Scene, parent ecs.ID
 	scene.SetLocalTRS(root, sniperRifleStats.ViewGeometryTRS)
 	scene.RenderingGeometry.Set(root, sniperRifleStats.RenderingGeometry)
 
-	sound := scene.CreateEntity(info)
-	scene.CreationTime.Set(sound, scene.Now)
-	scene.SetParent(sound, root)
-	scene.SetLocalTRS(sound, geometry.DTRS3One())
-	guh := LoopedSound{
-		Sound:       "lamphum.wav",
-		Attenuation: 0.1,
-	}
-	guh.Init()
-	scene.Entity.Set(sound, guh)
+	// sound := scene.CreateEntity(info)
+	// scene.CreationTime.Set(sound, scene.Now)
+	// scene.SetParent(sound, root)
+	// scene.SetLocalTRS(sound, geometry.DTRS3One())
+	// guh := LoopedSound{
+	// 	Sound:       "lamphum.wav",
+	// 	Attenuation: 0.1,
+	// }
+	// guh.Init()
+	// scene.Entity.Set(sound, guh)
 
 	return root
 }
