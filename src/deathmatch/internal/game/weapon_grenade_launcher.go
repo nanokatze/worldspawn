@@ -45,11 +45,11 @@ func (WeaponGrenadeLauncher) entity() {}
 
 var _ Weapon = WeaponGrenadeLauncher{}
 
-// TODO: rename to something else like CreateVisual or CreateRenderingGeometry
+// TODO: rename to CreateRenderingGeometry
 func (weapon WeaponGrenadeLauncher) WeaponCreateGeometry(scene *Scene, parent ecs.ID, info *UpdateParams) ecs.ID {
 	root := scene.CreateEntity(info)
-	scene.ParentTo(root, parent)
-	scene.SetLocalTRS(root, grenadeLauncherStats.ViewmodelTRS)
+	scene.SetParent(root, parent)
+	scene.SetLocalTRS(root, grenadeLauncherStats.ViewGeometryTRS)
 	scene.RenderingGeometry.Set(root, grenadeLauncherStats.RenderingGeometry)
 	scene.Entity.Set(root, Testburger{
 		BaseColor: [4]float32{0.8, 0.8, 0.8, 1}, // pretend it's a team color

@@ -132,8 +132,7 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 
 			i := id.Index()
 
-			parent, hasParent := w.Parent.Get(id)
-			if hasParent {
+			if parent := w.GetParent(id); parent != 0 {
 				update.Parent[i] = parent.Index()
 			}
 

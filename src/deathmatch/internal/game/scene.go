@@ -229,13 +229,16 @@ func (w *Scene) Globals() SceneGlobals {
 	return globals
 }
 
-// TODO: or SetParent?
-// TODO: swap child and parent order?
-func (scene *Scene) ParentTo(child, parent ecs.ID) {
+func (scene *Scene) GetParent(id ecs.ID) ecs.ID {
+	parent, _ := scene.Parent.Get(id)
+	return parent
+}
+
+func (scene *Scene) SetParent(id, parent ecs.ID) {
 	if parent != 0 {
-		scene.Parent.Set(child, parent)
+		scene.Parent.Set(id, parent)
 	} else {
-		scene.Parent.Delete(child)
+		scene.Parent.Delete(id)
 	}
 
 	// children, _ := scene.Children.Load(parent)
@@ -254,6 +257,7 @@ func (scene *Scene) GetLocalTRS(id ecs.ID) (geometry.DTRS3, bool) {
 	return geometry.DTRS3{tr.Translation, tr.Rotation, s}, true
 }
 
+// TODO: should we blow up if we have no parent? That doesn't seem very sensible TBH.
 func (scene *Scene) SetLocalTRS(id ecs.ID, trs geometry.DTRS3) {
 	scene.LocalTranslationRotation.Set(id, TranslationRotation{trs.T, trs.R})
 	// TODO: scale
@@ -268,7 +272,7 @@ func (scene *Scene) GetGlobalTRS(id ecs.ID) (geometry.DTRS3, bool) {
 			return geometry.DTRS3One(), false
 		}
 		result = trs.Mul(result)
-		id, _ = scene.Parent.Get(id)
+		id = scene.GetParent(id)
 	}
 	return result, true
 }
@@ -465,6 +469,34 @@ func (w *Scene) Step(updateParams *UpdateParams) {
 
 	// TODO: delete entities too far off the map
 
+	// Propagate deletion from parents.
+	//
+	// TODO: make this less gross. We could do a probe whether there's any
+	// deletions at all right now.
+	{
+		var f func(id ecs.ID) bool
+		// TODO: we could also rotate this
+		f = func(id ecs.ID) bool {
+			if id == 0 {
+				return false
+			}
+
+			if _, delet := w.Delete.Get(id); delet {
+				return true
+			}
+
+			delet := f(w.GetParent(id))
+			if delet {
+				w.Delete.Set(id, struct{}{})
+			}
+			return delet
+		}
+
+		for id := range w.Parent.All() {
+			f(id)
+		}
+	}
+
 	// Remove entities that were scheduled for removal
 	{
 		// TODO: should we also clear transientComponents?
@@ -488,7 +520,6 @@ func (w *Scene) Step(updateParams *UpdateParams) {
 
 // TODO: fold into Update
 func ClearTransientComponents(w *Scene) {
-	// TODO: uncomment this when we find a good way to draw view models
 	w.ContactEvents.Clear()
 }
 

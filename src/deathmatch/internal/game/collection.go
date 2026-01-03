@@ -93,7 +93,7 @@ func prefab(filename string) *Columns {
 // TODO: rename to InstanceCollection
 func (w *Scene) SpawnPrefab(prefabRef PrefabRef, parent ecs.ID, info *UpdateParams) ecs.ID {
 	e := w.CreateEntity(info)
-	w.ParentTo(e, parent)
+	w.SetParent(e, parent)
 	w.CopyEntities(e, prefab(prefabRef.Filename))
 	return e
 }

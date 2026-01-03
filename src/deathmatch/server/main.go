@@ -494,8 +494,8 @@ func spawnplayer(w *game.Scene, info *game.UpdateParams) ecs.ID {
 	w.PhysicsMassOverride.Set(player, 100)
 
 	camera := w.CreateEntity(info)
-	w.ParentTo(camera, player)
-	// TODO: poke a method on fpscharacter to perform this
+	w.SetParent(camera, player)
+	// TODO: poke a method on Player to perform this
 	w.SetLocalTRS(camera, geometry.DTRS3{
 		T: geometry.DVec3{0, 0, 1.9 - 0.1}, // standing height
 		R: geometry.Rot3One(),
@@ -503,14 +503,14 @@ func spawnplayer(w *game.Scene, info *game.UpdateParams) ecs.ID {
 	})
 
 	hands := w.CreateEntity(info)
-	w.ParentTo(hands, camera)
+	w.SetParent(hands, camera)
 	w.SetLocalTRS(hands, geometry.DTRS3One())
 
 	slots := [4]ecs.ID{}
 
 	{
 		gun := w.CreateEntity(info)
-		w.ParentTo(gun, player)
+		w.SetParent(gun, player)
 		w.Entity.Set(gun, game.WeaponGrenadeLauncher{})
 
 		slots[0] = gun
@@ -518,7 +518,7 @@ func spawnplayer(w *game.Scene, info *game.UpdateParams) ecs.ID {
 
 	{
 		gun := w.CreateEntity(info)
-		w.ParentTo(gun, player)
+		w.SetParent(gun, player)
 		w.Entity.Set(gun, game.WeaponSniperRifle{})
 
 		slots[1] = gun
