@@ -487,11 +487,11 @@ func spawnplayer(w *game.Scene, info *game.UpdateParams) ecs.ID {
 	// meh
 	t, _ := w.GetGlobalTRS(playerSpawns[rand.IntN(len(playerSpawns))])
 	w.SetGlobalTRS(player, t)
-	w.Visibility.Set(player, game.Visibility{Mode: 2})
-	w.RenderingGeometry.Set(player, "testcharacter4/geometries/TestCharacter4")
 	w.CollisionGeometry.Set(player, "FPSCharacter")
 	w.CollisionLayer.Set(player, game.PhysicsLayerMovingKinematic)
 	w.PhysicsMassOverride.Set(player, 100)
+	w.Visibility.Set(player, game.Visibility{Mode: 2})
+	w.RenderingGeometry.Set(player, "testcharacter4/geometries/TestCharacter4")
 
 	camera := w.CreateEntity(info)
 	w.SetParent(camera, player)

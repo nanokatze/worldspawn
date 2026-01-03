@@ -50,10 +50,10 @@ func (weapon WeaponGrenadeLauncher) WeaponCreateGeometry(scene *Scene, parent ec
 	root := scene.CreateEntity(info)
 	scene.SetParent(root, parent)
 	scene.SetLocalTRS(root, grenadeLauncherStats.ViewGeometryTRS)
-	scene.RenderingGeometry.Set(root, grenadeLauncherStats.RenderingGeometry)
 	scene.Entity.Set(root, Testburger{
 		BaseColor: [4]float32{0.8, 0.8, 0.8, 1}, // pretend it's a team color
 	})
+	scene.RenderingGeometry.Set(root, grenadeLauncherStats.RenderingGeometry)
 
 	return root
 }

@@ -69,16 +69,6 @@ type Columns struct {
 
 	Velocity ecs.Column[Velocity]
 
-	CosmeticOffset                ecs.Column[CosmeticOffset]
-	DeleteCosmeticOffsetOnContact ecs.Column[struct{}]
-
-	Visibility ecs.Column[Visibility]
-
-	RenderingGeometry ecs.Column[string]
-
-	// TODO: rename to SoundEmitter
-	SoundEffect ecs.Column[SoundEmitter]
-
 	// NOTE: constraints and pairwise filter
 	//
 	// Should we have an identifier for each filtered/constrained entity so that
@@ -112,6 +102,16 @@ type Columns struct {
 	Entity ecs.Column[Entity]
 
 	Delete ecs.Column[struct{}]
+
+	CosmeticOffset                ecs.Column[CosmeticOffset]
+	DeleteCosmeticOffsetOnContact ecs.Column[struct{}]
+
+	Visibility ecs.Column[Visibility]
+
+	RenderingGeometry ecs.Column[string]
+
+	// TODO: rename to SoundEmitter
+	SoundEffect ecs.Column[SoundEmitter]
 }
 
 type Scene struct {
