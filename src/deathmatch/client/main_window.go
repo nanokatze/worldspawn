@@ -115,34 +115,34 @@ func (w *mainWindow) Run() {
 			etime := w.sdlTimeToGameTime(e.Timestamp)
 
 			if action, ok := conf.Controls.KeyActions[e.Key]; ok {
-				cmds = game.AppendAction(cmds, etime, action, 1)
+				cmds = AppendAction(cmds, etime, action, 1)
 			}
 
 		case *sdl.KeyUpEvent:
 			etime := w.sdlTimeToGameTime(e.Timestamp)
 
 			if action, ok := conf.Controls.KeyActions[e.Key]; ok {
-				cmds = game.AppendAction(cmds, etime, action, 0)
+				cmds = AppendAction(cmds, etime, action, 0)
 			}
 
 		case *sdl.MouseMotionEvent:
 			etime := w.sdlTimeToGameTime(e.Timestamp)
 
-			cmds = game.AppendAction(cmds, etime, game.ActionDLookX, e.XRel*0.0005)
-			cmds = game.AppendAction(cmds, etime, game.ActionDLookY, e.YRel*0.0005)
+			cmds = AppendAction(cmds, etime, ActionDLookX, e.XRel*0.0005)
+			cmds = AppendAction(cmds, etime, ActionDLookY, e.YRel*0.0005)
 
 		case *sdl.MouseButtonDownEvent:
 			etime := w.sdlTimeToGameTime(e.Timestamp)
 
 			if action, ok := conf.Controls.MouseButtonActions[sdl.MouseButton(e.Button)]; ok {
-				cmds = game.AppendAction(cmds, etime, action, 1)
+				cmds = AppendAction(cmds, etime, action, 1)
 			}
 
 		case *sdl.MouseButtonUpEvent:
 			etime := w.sdlTimeToGameTime(e.Timestamp)
 
 			if action, ok := conf.Controls.MouseButtonActions[sdl.MouseButton(e.Button)]; ok {
-				cmds = game.AppendAction(cmds, etime, action, 0)
+				cmds = AppendAction(cmds, etime, action, 0)
 			}
 
 		case *sdl.GamepadAxisMotionEvent:
@@ -156,14 +156,14 @@ func (w *mainWindow) Run() {
 					value = 0
 				}
 
-				cmds = game.AppendAction(cmds, etime, game.ActionSetMovementVelocityX, value)
+				cmds = AppendAction(cmds, etime, ActionSetMovementVelocityX, value)
 
 			case sdl.GAMEPAD_AXIS_LEFTY:
 				if math.Abs(float64(value)) < 0.2 {
 					value = 0
 				}
 
-				cmds = game.AppendAction(cmds, etime, game.ActionSetMovementVelocityY, -value)
+				cmds = AppendAction(cmds, etime, ActionSetMovementVelocityY, -value)
 
 			case sdl.GAMEPAD_AXIS_RIGHTX:
 				w.flickStickTest.deflection[0] = value
@@ -172,7 +172,7 @@ func (w *mainWindow) Run() {
 				w.flickStickTest.deflection[1] = value
 
 			case sdl.GAMEPAD_AXIS_RIGHT_TRIGGER:
-				cmds = game.AppendAction(cmds, etime, game.ActionAttack, step(0.9, value))
+				cmds = AppendAction(cmds, etime, ActionAttack, step(0.9, value))
 			}
 
 		case *sdl.GamepadButtonDownEvent:
@@ -183,14 +183,14 @@ func (w *mainWindow) Run() {
 			}
 
 			if action, ok := conf.Controls.GamepadButtonActions[sdl.GamepadButton(e.Button)]; ok {
-				cmds = game.AppendAction(cmds, etime, action, 1)
+				cmds = AppendAction(cmds, etime, action, 1)
 			}
 
 		case *sdl.GamepadButtonUpEvent:
 			etime := w.sdlTimeToGameTime(e.Timestamp)
 
 			if action, ok := conf.Controls.GamepadButtonActions[sdl.GamepadButton(e.Button)]; ok {
-				cmds = game.AppendAction(cmds, etime, action, 0)
+				cmds = AppendAction(cmds, etime, action, 0)
 			}
 
 		case *sdl.GamepadUpdateCompleteEvent:
@@ -225,7 +225,7 @@ func (w *mainWindow) Run() {
 
 				dlookx := float32(math.Atan2(float64(imag(D)), float64(real(D))) / (2 * math.Pi))
 
-				cmds = game.AppendAction(cmds, etime, game.ActionDLookX, dlookx)
+				cmds = AppendAction(cmds, etime, ActionDLookX, dlookx)
 
 				w.flickStickTest.lastDeflection = w.flickStickTest.deflection
 			}

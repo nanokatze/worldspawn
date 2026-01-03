@@ -5,7 +5,6 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"worldspawn/deathmatch/internal/game"
 	"worldspawn/sdl"
 )
 
@@ -65,23 +64,23 @@ var defaultConfig = func() *Config {
 	}
 
 	conf.Controls.KeyActions = map[sdl.Keycode]int{
-		sdl.K_W:     game.ActionSetMovementVelocityY,
-		sdl.K_D:     game.ActionSetMovementVelocityX,
-		sdl.K_SPACE: game.ActionJump,
-		sdl.K_LCTRL: game.ActionCrouch,
-		sdl.K_1:     game.ActionSlot0,
-		sdl.K_2:     game.ActionSlot1,
-		sdl.K_3:     game.ActionSlot2,
-		sdl.K_4:     game.ActionSlot3,
+		sdl.K_W:     ActionSetMovementVelocityY,
+		sdl.K_D:     ActionSetMovementVelocityX,
+		sdl.K_SPACE: ActionJump,
+		sdl.K_LCTRL: ActionCrouch,
+		sdl.K_1:     ActionSlot0,
+		sdl.K_2:     ActionSlot1,
+		sdl.K_3:     ActionSlot2,
+		sdl.K_4:     ActionSlot3,
 	}
 	conf.Controls.MouseButtonActions = map[sdl.MouseButton]int{
-		sdl.BUTTON_LEFT: game.ActionAttack,
+		sdl.BUTTON_LEFT: ActionAttack,
 	}
 	conf.Controls.GamepadButtonActions = map[sdl.GamepadButton]int{
-		sdl.GAMEPAD_BUTTON_DPAD_UP:    game.ActionSlot1,
-		sdl.GAMEPAD_BUTTON_DPAD_DOWN:  game.ActionSlot3,
-		sdl.GAMEPAD_BUTTON_DPAD_LEFT:  game.ActionSlot0,
-		sdl.GAMEPAD_BUTTON_DPAD_RIGHT: game.ActionSlot2,
+		sdl.GAMEPAD_BUTTON_DPAD_UP:    ActionSlot1,
+		sdl.GAMEPAD_BUTTON_DPAD_DOWN:  ActionSlot3,
+		sdl.GAMEPAD_BUTTON_DPAD_LEFT:  ActionSlot0,
+		sdl.GAMEPAD_BUTTON_DPAD_RIGHT: ActionSlot2,
 	}
 
 	return &conf
@@ -89,7 +88,7 @@ var defaultConfig = func() *Config {
 
 var config rcu[Config]
 
-// TODO: move out of this package
+// TODO: kill this after all
 type rcu[T any] struct {
 	P    atomic.Pointer[T]
 	WrMu sync.Mutex // only locked when modifying the value
