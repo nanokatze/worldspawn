@@ -225,7 +225,7 @@ func getShape(w *Scene, id ecs.ID) *physics.Shape {
 }
 
 // TODO: we could split this back so that we can run stuff in parallel
-func updatePhysics(w *Scene, Δt time.Duration) {
+func physicsStep(w *Scene, Δt time.Duration) {
 	w.physicsSystem.SetGravity(w.Globals().Gravity)
 	w.physicsSystem.Update(float32(durationToFloatSeconds(Δt)))
 
