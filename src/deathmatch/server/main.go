@@ -322,11 +322,6 @@ func (s *Server) tick(Δt time.Duration) {
 		return true
 	})
 
-	// TODO: any reason not to clear transients *before* sending updates, etc? I
-	// guess demo recording would want to record the transients. Should we
-	// separate demo recording, relay (tv) and normal replication?
-	game.ClearTransientComponents(s.scene)
-
 	// Copy the current s.World to s.PrevWorld
 
 	// TODO: move this into a method on the World

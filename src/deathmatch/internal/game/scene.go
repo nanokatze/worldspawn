@@ -410,6 +410,8 @@ func (w *Scene) Step(updateParams *UpdateParams) {
 	}
 
 	w.DeleteEntities()
+
+	w.ContactEvents.Clear()
 }
 
 // TODO: rename to make it clear that we're deleting things already marked for
@@ -462,9 +464,4 @@ func (w *Scene) DeleteEntities() {
 			panic("all columns must be empty")
 		}
 	}
-}
-
-// TODO: fold into Update
-func ClearTransientComponents(w *Scene) {
-	w.ContactEvents.Clear()
 }
