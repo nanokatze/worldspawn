@@ -79,16 +79,6 @@ type Columns struct {
 	// TODO: rename to SoundEmitter
 	SoundEffect ecs.Column[SoundEmitter]
 
-	// Posing test
-	Animation ecs.Column[Animation]
-
-	// TODO: going forward, pose needs to be string -> TRS3. Pose generally will
-	// be set in two of the following ways: with physics (so there will be
-	// constrained entities representing limbs and we will set the respective
-	// joints to where those entities are) and with animation (so there might be
-	// a complex script driving the animation)
-	Pose ecs.Column[map[string]geometry.Mat4x4]
-
 	// NOTE: constraints and pairwise filter
 	//
 	// Should we have an identifier for each filtered/constrained entity so that
@@ -309,38 +299,6 @@ func (w *Scene) Step(updateParams *UpdateParams) {
 		if entity, ok := entity.(UpdateAfterPhysics); ok {
 			entity.UpdateAfterPhysics(w, id, updateParams)
 		}
-	}
-
-	// TODO: simulate viewpunch motion better. View punch is a sphere with
-	// inertia and damping which we should simulate.
-	for id, viewPunch := range ecs.All(&w.ViewPunch) {
-		w.ViewPunch.Set(id, viewPunch.NLerp(geometry.Rot3One(), float32(durationToFloatSeconds(updateParams.Δt))))
-	}
-
-	for id, animation := range ecs.All(&w.Animation) {
-		// simple demo, TODO: remove
-
-		action := getAnimation(animation.Action)
-
-		t := float64(w.Now.Sub(animation.PlayTime)) / 1e9
-
-		pose := make(map[string]geometry.Mat4x4)
-
-		// TODO: iterate over a channel map instead
-		for channel := range action.samples {
-			inverseBindTransform, ok := animation.Armature[channel]
-			if !ok {
-				continue
-			}
-
-			// TODO: we should specify border behavior (e.g. clamp or repeat)
-			// TODO: normalized mode (whether entire animation plays in 1 second
-			// so the code can specify the time an animation should take) or
-			// unnormalized so it plays for as long as was authored.
-			pose[channel] = action.Sample(t, channel).Mat4x4().Mul4x4(inverseBindTransform.Mat4x4())
-		}
-
-		w.Pose.Set(id, pose)
 	}
 
 	/*
