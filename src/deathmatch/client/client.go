@@ -25,7 +25,7 @@ import (
 // program that way? This Renderer interface would be moved there as well.
 
 type Renderer interface {
-	// TODO: rename to Update and possibly merge with Subtick somehow?
+	// TODO: rename to Update
 	Subtick(w *game.Scene, playerID ecs.ID)
 	Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration)
 }
@@ -307,7 +307,7 @@ func (s *Client) tick(Δt time.Duration) {
 	}
 
 	t0 := s.world.Now
-	s.world.Update(&game.UpdateParams{Δt: Δt, Speculating: true, Logger: slog.Default()})
+	s.world.Step(&game.UpdateParams{Δt: Δt, Speculating: true, Logger: slog.Default()})
 	s.renderer.Tick(s.world, s.player, t0, s.world.Now, Δt)
 
 	game.ClearTransientComponents(s.world)

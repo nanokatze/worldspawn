@@ -280,7 +280,7 @@ func (scene *Scene) SetGlobalTRS(id ecs.ID, trs geometry.DTRS3) {
 
 func (w *Scene) HandleInput(id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
 	if entity, ok := assertEntity[Player](w, id); ok {
-		entity.PlayerUpdateSubtick(w, id, cmd, info)
+		entity.PlayerSubstep(w, id, cmd, info)
 	} else {
 		info.Logger.Warn(fmt.Sprintf("entity does not exist or does not implement %s", reflect.TypeFor[Player]().Name()), "id", id)
 	}
@@ -289,8 +289,7 @@ func (w *Scene) HandleInput(id ecs.ID, cmd TimestampedInputCmd, info *UpdatePara
 // TODO: parallel for in blender for example specifies bulk number for tasks so
 // we might want to do the same.
 
-// TODO: rename to Step?
-func (w *Scene) Update(updateParams *UpdateParams) {
+func (w *Scene) Step(updateParams *UpdateParams) {
 	w.Now = w.Now.Add(updateParams.Δt)
 
 	// TODO: optimize loops over entities implementing particular interface by
@@ -309,7 +308,7 @@ func (w *Scene) Update(updateParams *UpdateParams) {
 	}
 
 	worldToPhysics(w)
-	updatePhysics(w, updateParams.Δt)
+	physicsStep(w, updateParams.Δt)
 
 	for id, entity := range w.Entity.All() {
 		if entity, ok := entity.(UpdateAfterPhysics); ok {

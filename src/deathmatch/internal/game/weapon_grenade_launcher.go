@@ -58,8 +58,7 @@ func (weapon WeaponGrenadeLauncher) WeaponCreateGeometry(scene *Scene, parent ec
 	return root
 }
 
-// TODO: pass func(ecs.ID) for projectile creation
-func (weapon WeaponGrenadeLauncher) WeaponUpdateSubtick(scene *Scene, weaponID ecs.ID, shootpos geometry.DTRS3, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.ID) {
+func (weapon WeaponGrenadeLauncher) WeaponSubstep(scene *Scene, weaponID ecs.ID, shootpos geometry.DTRS3, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.ID) {
 	if buttons&WeaponTrigger != 0 {
 		if !weapon.NextAttack.After(scene.Now) {
 			if !info.Speculating {

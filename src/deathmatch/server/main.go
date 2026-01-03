@@ -311,7 +311,7 @@ func (s *Server) tick(Δt time.Duration) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.scene.Update(&game.UpdateParams{Δt: Δt, Logger: slog.Default()})
+	s.scene.Step(&game.UpdateParams{Δt: Δt, Logger: slog.Default()})
 
 	s.mtimes.update(s.prevWorld, s.scene)
 

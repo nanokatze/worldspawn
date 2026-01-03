@@ -17,9 +17,10 @@ const (
 type Weapon interface {
 	WeaponCreateGeometry(scene *Scene, parent ecs.ID, info *UpdateParams) ecs.ID
 
-	// Returns a function that updates the visual. TODO: we also need to return
-	// stuff like recoil and such.
+	// Returns a function that updates the rendering geometry. TODO: we also
+	// need to return stuff like recoil and such.
 	// TODO: we need to somehow tell the thing to filter the player and possibly
 	// other entities
-	WeaponUpdateSubtick(scene *Scene, weaponId ecs.ID, shootpos geometry.DTRS3, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.ID)
+	// TODO: shootpos really should be DVec3 + Rot3 tbh
+	WeaponSubstep(scene *Scene, weaponId ecs.ID, shootpos geometry.DTRS3, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.ID)
 }

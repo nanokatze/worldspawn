@@ -96,7 +96,7 @@ type Player struct {
 
 func (Player) entity() {}
 
-func (player Player) PlayerUpdateSubtick(w *Scene, id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
+func (player Player) PlayerSubstep(w *Scene, id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
 	switch cmd := cmd.Cmd.(type) {
 	case InputCmdDLookX:
 		player.Look[0] = float32(math.Mod(float64(player.Look[0]+float32(cmd)), 1))
@@ -171,7 +171,7 @@ func (player Player) PlayerUpdateSubtick(w *Scene, id ecs.ID, cmd TimestampedInp
 			S: geometry.Vec3Broadcast(1),
 		})
 
-		updateVisual := weapon.WeaponUpdateSubtick(w, player.ActiveWeapon, shootpos, buttons, info)
+		updateVisual := weapon.WeaponSubstep(w, player.ActiveWeapon, shootpos, buttons, info)
 		if updateVisual != nil {
 			updateVisual(w, player.ActiveWeaponViewmodel)
 		}
@@ -189,8 +189,8 @@ func (player Player) PlayerUpdateSubtick(w *Scene, id ecs.ID, cmd TimestampedInp
 }
 
 func (player Player) PlayerUpdate(w *Scene, id ecs.ID, info *UpdateParams) {
-	// TODO: do not call this here, properly move stuff from PlayerUpdateSubtick to here
-	player.PlayerUpdateSubtick(w, id, TimestampedInputCmd{}, info)
+	// TODO: do not call this here, properly move stuff from PlayerSubstep to here
+	player.PlayerSubstep(w, id, TimestampedInputCmd{}, info)
 
 	velocity, _ := w.Velocity.Get(id)
 
