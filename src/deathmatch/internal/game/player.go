@@ -137,7 +137,7 @@ func (player Player) PlayerSubstep(w *Scene, id ecs.ID, cmd TimestampedInputCmd,
 
 				player.ActiveWeapon = switchToWeapon
 
-				if weapon, ok := assertEntity[Weapon](w, switchToWeapon); ok {
+				if weapon, ok := SceneGetEntity[Weapon](w, switchToWeapon); ok {
 					player.ActiveWeaponViewmodel = weapon.WeaponCreateGeometry(w, player.Hands, info)
 
 					w.Visibility.Set(player.ActiveWeaponViewmodel, Visibility{Mode: 1, Camera: player.Camera})
@@ -154,7 +154,7 @@ func (player Player) PlayerSubstep(w *Scene, id ecs.ID, cmd TimestampedInputCmd,
 
 	// TODO: under some conditions we should autoselect a gun for the player
 
-	if weapon, ok := assertEntity[Weapon](w, player.ActiveWeapon); ok {
+	if weapon, ok := SceneGetEntity[Weapon](w, player.ActiveWeapon); ok {
 		var buttons WeaponButtons
 		if player.Buttons&uint64(1<<ButtonAttack) != 0 {
 			buttons |= WeaponTrigger

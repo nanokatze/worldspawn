@@ -201,7 +201,7 @@ func (w *Scene) DeleteEntityImmediately(id ecs.ID) {
 }
 
 func (w *Scene) Globals() SceneGlobals {
-	globals, _ := assertEntity[SceneGlobals](w, 1)
+	globals, _ := SceneGetEntity[SceneGlobals](w, 1)
 	return globals
 }
 
@@ -258,8 +258,17 @@ func (scene *Scene) SetGlobalTRS(id ecs.ID, trs geometry.DTRS3) {
 	scene.SetLocalTRS(id, trs)
 }
 
+func SceneGetEntity[T any](w *Scene, id ecs.ID) (T, bool) {
+	entity, _ := w.Entity.Get(id)
+	entityT, ok := entity.(T)
+	if !ok {
+		return *new(T), false
+	}
+	return entityT, true
+}
+
 func (w *Scene) HandleInput(id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
-	if entity, ok := assertEntity[Player](w, id); ok {
+	if entity, ok := SceneGetEntity[Player](w, id); ok {
 		entity.PlayerSubstep(w, id, cmd, info)
 	} else {
 		info.Logger.Warn(fmt.Sprintf("entity does not exist or does not implement %s", reflect.TypeFor[Player]().Name()), "id", id)
@@ -492,14 +501,4 @@ func (w *Scene) Step(updateParams *UpdateParams) {
 // TODO: fold into Update
 func ClearTransientComponents(w *Scene) {
 	w.ContactEvents.Clear()
-}
-
-// TODO: make public
-func assertEntity[T any](w *Scene, id ecs.ID) (T, bool) {
-	entity, _ := w.Entity.Get(id)
-	entityT, ok := entity.(T)
-	if !ok {
-		return *new(T), false
-	}
-	return entityT, true
 }
