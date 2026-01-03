@@ -17,14 +17,14 @@ func (Testburger) entity() {}
 // TODO: keep the stats in a json file. We should name the stats file
 // explicitly, perhaps in a component.
 var grenadeLauncherStats = struct {
-	ViewmodelTRS      geometry.DTRS3 // TODO: we'll need to change this when we
+	ViewGeometryTRS   geometry.DTRS3 // TODO: this should be killed
 	RenderingGeometry string
 
 	Projectile     PrefabRef
 	MuzzleVelocity float32
 	CycleDuration  time.Duration `json:",format:iso8601"`
 }{
-	ViewmodelTRS: geometry.DTRS3{
+	ViewGeometryTRS: geometry.DTRS3{
 		T: geometry.DVec3{0.2, 0.4, -0.275},
 		R: geometry.Rot3One(),
 		S: geometry.Vec3Broadcast(1),

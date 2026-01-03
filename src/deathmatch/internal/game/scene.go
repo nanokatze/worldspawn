@@ -26,25 +26,6 @@ type UpdateParams struct {
 	Logger      *slog.Logger
 }
 
-// TODO: kill in favor of a function
-type EntityCreationContext struct {
-	*UpdateParams
-
-	parentTo ecs.ID
-}
-
-// TODO: generalize to arbitrary components, i.e. this should just be a lambda
-func (ctx EntityCreationContext) WithParent(parent ecs.ID) EntityCreationContext {
-	ctx.parentTo = parent
-	return ctx
-}
-
-/*
-type SubtickUpdateParams struct {
-	UpdateParams
-}
-*/
-
 var Data fs.FS
 
 type TranslationRotation struct {
@@ -131,7 +112,7 @@ type Columns struct {
 	PhysicsMassOverride    ecs.Column[float32] // TODO: remove "Physics" prefix from these
 	PhysicsInertiaOverride ecs.Column[geometry.Mat4x4]
 
-	// TODO: unify these two components probably
+	// TODO: unify these
 	ViewPunch         ecs.Column[geometry.Rot3]
 	ViewPunchVelocity ecs.Column[geometry.Vec3]
 

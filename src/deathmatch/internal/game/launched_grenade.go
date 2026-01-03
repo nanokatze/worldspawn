@@ -7,11 +7,13 @@ import (
 )
 
 var grenadeStats = struct {
-	FuseDuration   time.Duration `json:",format:iso8601"`
 	ExplosionSound string
+
+	FuseDuration time.Duration `json:",format:iso8601"`
 }{
-	FuseDuration:   1400 * time.Millisecond,
 	ExplosionSound: "later.wav",
+
+	FuseDuration: 1400 * time.Millisecond,
 }
 
 type LaunchedGrenade struct{}

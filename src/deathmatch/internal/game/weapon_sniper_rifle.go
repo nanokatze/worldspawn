@@ -1,11 +1,27 @@
 package game
 
 import (
+	"time"
 	"worldspawn/geometry-go"
 	"worldspawn/internal/ecs"
 )
 
+var sniperRifleStats = struct {
+	ViewGeometryTRS geometry.DTRS3 // TODO: this should be killed
+
+	RenderingGeometry string
+}{
+	ViewGeometryTRS: geometry.DTRS3{
+		T: geometry.DVec3{0.15, 0.4, -0.225},
+		R: geometry.Rot3One(),
+		S: geometry.Vec3Broadcast(1),
+	},
+
+	RenderingGeometry: "weapons/sniper_rifle/geometries/Sniper_Rifle_001",
+}
+
 type WeaponSniperRifle struct {
+	NextAttack time.Duration
 }
 
 func (WeaponSniperRifle) entity() {}
