@@ -114,10 +114,9 @@ func (c *Column[T]) Reflect() ReflectedColumn { return (*reflectedColumn[T])(c) 
 
 type reflectedColumn[T any] Column[T]
 
-func (rc *reflectedColumn[T]) ElemType() reflect.Type { return reflect.TypeFor[T]() }
+func (c *reflectedColumn[T]) ElemType() reflect.Type { return reflect.TypeFor[T]() }
 
-func (rc *reflectedColumn[T]) All() iter.Seq[ID] {
-	c := (*Column[T])(rc)
+func (c *reflectedColumn[T]) All() iter.Seq[ID] {
 	return func(yield func(ID) bool) {
 		for i := range bitset.And(c.valid) {
 			if !yield(MakeID(i, c.ids.gens[i])) {
@@ -127,25 +126,22 @@ func (rc *reflectedColumn[T]) All() iter.Seq[ID] {
 	}
 }
 
-func (rc *reflectedColumn[T]) Get(id ID, out reflect.Value) bool {
-	c := (*Column[T])(rc)
-	v, ok := c.Get(id)
+func (c *reflectedColumn[T]) Get(id ID, out reflect.Value) bool {
+	v, ok := (*Column[T])(c).Get(id)
 	*mustTypeAssert[*T](out.Addr()) = v
 	return ok
 }
 
-func (rc *reflectedColumn[T]) Set(id ID, v reflect.Value) {
-	c := (*Column[T])(rc)
-	c.Set(id, mustTypeAssert[T](v))
+func (c *reflectedColumn[T]) Set(id ID, v reflect.Value) {
+	(*Column[T])(c).Set(id, mustTypeAssert[T](v))
 }
 
-func (rc *reflectedColumn[T]) Delete(id ID) {
-	c := (*Column[T])(rc)
-	c.Delete(id)
+func (c *reflectedColumn[T]) Delete(id ID) {
+	(*Column[T])(c).Delete(id)
 }
 
-func (dst *reflectedColumn[T]) Copy(src ReflectedColumn) {
-	(*Column[T])(dst).Copy((*Column[T])(src.(*reflectedColumn[T])))
+func (c *reflectedColumn[T]) Copy(src ReflectedColumn) {
+	(*Column[T])(c).Copy((*Column[T])(src.(*reflectedColumn[T])))
 }
 
 func mustTypeAssert[T any](v reflect.Value) T {

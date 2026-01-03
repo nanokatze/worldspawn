@@ -47,28 +47,21 @@ func (a *Table) Alloc() ID {
 }
 
 func (t *Table) Create(id ID) bool {
-	return t.ids.create(id)
-}
-
-func (a *IDs) delete(id ID) {
-	index := id.Index()
-	if a.gens[index] == id.Generation() {
-		a.used.Unset(index)
-	}
+	return t.IDs().create(id)
 }
 
 func (t *Table) Delete(id ID) {
 	for _, column := range t.columns {
 		column.Delete(id)
 	}
-	t.ids.delete(id)
+	t.IDs().delete(id)
 }
 
 // NOTE: this only copies IDs for now, but not columns.
 func (dst *Table) Copy(src *Table) {
 	// TODO: ensure sizes, etc, match.
 
-	dst.ids.Copy(&src.ids)
+	dst.IDs().Copy(src.IDs())
 
 	// TODO: copy columns
 }
