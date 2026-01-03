@@ -12,21 +12,11 @@ import (
 	"worldspawn/physics"
 )
 
+var Data fs.FS
+
 // TODO: use "object" instead of "entity" throughout the code?
 
 // TODO: split this file up
-
-// TODO: split stuff relevant for entity creation into its own type pointing to
-// this object (entity creation needs to be aware of Now and Speculating and be
-// able to log things also.)
-type UpdateParams struct {
-	// Now         Time // for substeps
-	Δt          time.Duration
-	Speculating bool
-	Logger      *slog.Logger
-}
-
-var Data fs.FS
 
 type TranslationRotation struct {
 	Translation geometry.DVec3
@@ -70,8 +60,12 @@ type Columns struct {
 	Parent ecs.Column[ecs.ID]
 	// Children ecs.ComponentStore[map[ecs.ID] // map[ecs.ID]struct{} ?
 
+	// Do not access this column directly, use {Get,Set}{Local,Global}TRS
+	// instead.
 	LocalTranslationRotation ecs.Column[TranslationRotation]
-	LocalScale               ecs.Column[geometry.Vec3]
+	// Do not access this column directly, use {Get,Set}{Local,Global}TRS
+	// instead.
+	LocalScale ecs.Column[geometry.Vec3]
 
 	Velocity ecs.Column[Velocity]
 
@@ -265,6 +259,18 @@ func SceneGetEntity[T any](w *Scene, id ecs.ID) (T, bool) {
 		return *new(T), false
 	}
 	return entityT, true
+}
+
+// TODO: move these into a separate file
+
+// TODO: split stuff relevant for entity creation into its own type pointing to
+// this object (entity creation needs to be aware of Now and Speculating and be
+// able to log things also.)
+type UpdateParams struct {
+	// Now         Time // for substeps
+	Δt          time.Duration
+	Speculating bool
+	Logger      *slog.Logger
 }
 
 func (w *Scene) HandleInput(id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
