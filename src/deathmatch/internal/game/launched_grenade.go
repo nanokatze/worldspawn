@@ -32,8 +32,9 @@ func (grenade LaunchedGrenade) UpdateAfterPhysics(w *Scene, id ecs.ID, info *Upd
 		trs, _ := w.GetGlobalTRS(id)
 		w.SetGlobalTRS(effect, trs)
 		w.SoundEffect.Set(effect, SoundEmitter{
-			Effect:   grenadeStats.ExplosionSound,
-			PlayTime: w.Now.Add(info.Δt),
+			Effect:      grenadeStats.ExplosionSound,
+			Attenuation: 1,
+			PlayTime:    w.Now.Add(info.Δt),
 		})
 		w.DeleteAfter.Set(effect, w.Now.Add(2*time.Second))
 	}

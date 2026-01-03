@@ -257,9 +257,10 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 			}
 
 			scene.Instance[id.Index()] = sfx.Instance{
-				Transform: xform,
-				Samples:   effect.Samples,
-				PlayTime:  int64(soundEffect.PlayTime.Sub(game.Time(0)) * 48000 / 1e9),
+				Transform:   xform,
+				Samples:     effect.Samples,
+				Attenuation: soundEffect.Attenuation,
+				PlayTime:    int64(soundEffect.PlayTime.Sub(game.Time(0)) * 48000 / 1e9),
 			}
 		}
 

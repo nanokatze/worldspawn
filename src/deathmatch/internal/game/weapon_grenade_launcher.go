@@ -99,7 +99,8 @@ func (weapon WeaponGrenadeLauncher) WeaponSubstep(scene *Scene, weaponID ecs.ID,
 // TODO: we could also make it a method on the proj launcher tbh?
 func (weapon WeaponGrenadeLauncher) fired(scene *Scene, id ecs.ID) {
 	scene.SoundEffect.Set(id, SoundEmitter{
-		Effect:   "weapons/grenade_launcher/fire.wav",
-		PlayTime: scene.Now, // + time.Duration(rng(w.Time, entityID, 0).Int63n(int64(1*time.Millisecond))),
+		Effect:      "weapons/grenade_launcher/fire.wav",
+		Attenuation: 1,
+		PlayTime:    scene.Now, // + time.Duration(rng(w.Time, entityID, 0).Int63n(int64(1*time.Millisecond))),
 	})
 }

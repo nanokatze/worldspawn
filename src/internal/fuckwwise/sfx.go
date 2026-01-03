@@ -23,6 +23,8 @@ type Instance struct {
 	// TODO: stop using this in favor of Source (ReaderAt)
 	Samples []float32
 
+	Attenuation float32
+
 	Source io.ReaderAt
 
 	PlayTime int64
@@ -77,7 +79,7 @@ func Render(scene *Scene, camera geometry.Vec3, now int64, dst []float32, channe
 			instance.Transform[1][3],
 			instance.Transform[2][3],
 		}.Sub(camera).Length()
-		contribution := min(10.0/(dist*dist), 1)
+		contribution := min(10.0/(dist*dist), 1) * instance.Attenuation
 
 		for i := 0; i < L; i++ {
 			sample := sliceLoadOrZero(src, int(t0)+i) * contribution

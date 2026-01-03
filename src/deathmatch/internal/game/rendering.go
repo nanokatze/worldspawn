@@ -28,6 +28,7 @@ func (cosmeticOffset CosmeticOffset) Eval(now Time) geometry.Vec3 {
 }
 
 type SoundEmitter struct {
-	Effect   string
-	PlayTime Time
+	Effect      string
+	Attenuation float32
+	PlayTime    Time
 }

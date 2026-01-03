@@ -17,6 +17,7 @@ import (
 // TODO: rename to LoopingSound?
 type LoopedSound struct {
 	Sound           string
+	Attenuation     float32
 	LengthInSamples int64 // TODO: make this private and non-txable?
 }
 
@@ -71,6 +72,7 @@ func (a LoopedSound) UpdateBeforePhysics(scene *Scene, id ecs.ID, info *UpdatePa
 	}
 
 	soundEffect.Effect = a.Sound
+	soundEffect.Attenuation = a.Attenuation
 	soundEffect.PlayTime = scene.Now
 	scene.SoundEffect.Set(id, soundEffect)
 }
