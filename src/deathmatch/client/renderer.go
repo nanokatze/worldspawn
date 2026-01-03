@@ -167,8 +167,8 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 			i := id.Index()
 
 			mask := uint8(0b11)
-			if viewmodel, hasViewmodel := w.Viewmodel2.Get(id); hasViewmodel {
-				switch viewmodel.Mode {
+			if visibility, ok := w.Visibility.Get(id); ok {
+				switch visibility.Mode {
 				case 1:
 					mask = 0b01
 				case 2:

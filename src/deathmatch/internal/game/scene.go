@@ -94,12 +94,12 @@ type Columns struct {
 
 	Velocity ecs.Column[Velocity]
 
+	Visibility ecs.Column[Visibility]
+
 	RenderingGeometry ecs.Column[string]
 
 	// TODO: rename to SoundEmitter
 	SoundEffect ecs.Column[SoundEmitter]
-
-	Viewmodel2 ecs.Column[Viewmodel2]
 
 	CosmeticOffset                ecs.Column[CosmeticOffset]
 	DeleteCosmeticOffsetOnContact ecs.Column[struct{}]

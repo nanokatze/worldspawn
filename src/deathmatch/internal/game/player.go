@@ -140,11 +140,7 @@ func (player Player) PlayerSubstep(w *Scene, id ecs.ID, cmd TimestampedInputCmd,
 				if weapon, ok := assertEntity[Weapon](w, switchToWeapon); ok {
 					player.ActiveWeaponViewmodel = weapon.WeaponCreateGeometry(w, player.Hands, info)
 
-					w.Viewmodel2.Set(player.ActiveWeaponViewmodel,
-						Viewmodel2{
-							Camera: player.Camera,
-							Mode:   1,
-						})
+					w.Visibility.Set(player.ActiveWeaponViewmodel, Visibility{Mode: 1, Camera: player.Camera})
 				}
 			}
 		}

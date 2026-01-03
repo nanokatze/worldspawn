@@ -5,6 +5,13 @@ import (
 	"worldspawn/internal/ecs"
 )
 
+type Visibility struct {
+	Mode   int8 // 1=viewmodel, 2=worldmodel; TODO: make a enum
+	Camera ecs.ID
+	// TODO: replace with an arbitrary int64 id so we can have the same cameras
+	// share visibility sets? Or should this be a set of ids/ecs.IDs?
+}
+
 type CosmeticOffset struct {
 	Offset    geometry.Vec3
 	StartTime Time
@@ -23,12 +30,4 @@ func (cosmeticOffset CosmeticOffset) Eval(now Time) geometry.Vec3 {
 type SoundEmitter struct {
 	Effect   string
 	PlayTime Time
-}
-
-// TODO: rename
-type Viewmodel2 struct {
-	// TODO: replace with an arbitrary int64 id so we can have the same cameras
-	// share visibility sets? Or should this be a set of ids/ecs.IDs?
-	Camera ecs.ID
-	Mode   int8 // 1=viewmodel, 2=worldmodel; TODO: make a enum
 }
