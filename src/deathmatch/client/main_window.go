@@ -67,7 +67,7 @@ func (w *mainWindow) Run() {
 
 		updates: make(chan *sceneUpdate, 1),
 
-		scene: pathtracer.NewScene(10000, 5),
+		scene: pathtracer.NewScene(10000, 6),
 
 		sfxScene: &sfx.Scene{
 			Instance: make([]sfx.Instance, 10000),

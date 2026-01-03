@@ -186,6 +186,9 @@ func (scene *Scene) SetInstanceGeometry(i int, mask uint8, mesh *Mesh, materials
 	}
 
 	if mesh != nil {
+		if len(mesh.Parts) > scene.maxPartsPerMesh {
+			panic("umm")
+		}
 		for partIdx, part := range mesh.Parts {
 			scene.materialParamsHost[i*scene.maxPartsPerMesh+partIdx] = materialParams{
 				Program: materials[partIdx].program,
