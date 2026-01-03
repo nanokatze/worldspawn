@@ -87,6 +87,10 @@ var blueNoise = sync.OnceValue(func() *gpu.Image {
 
 			imgNRGBA := img.(*image.NRGBA64)
 
+			for i := 0; i < len(imgNRGBA.Pix); i += 2 {
+				imgNRGBA.Pix[i+0], imgNRGBA.Pix[i+1] = imgNRGBA.Pix[i+1], imgNRGBA.Pix[i+0]
+			}
+
 			staging := gpu.MakeSliceUncached[byte](len(imgNRGBA.Pix))
 			defer jq.Cleanup(func() { gpu.Free(gpu.UnsafePointer(gpu.SliceData(staging))) })
 
