@@ -101,13 +101,13 @@ func (w *Scene) SpawnPrefab(prefabRef PrefabRef, parent ecs.ID, info *UpdatePara
 // TODO: make this a standalone method?
 // TODO: rename to InstantinateCollectionAt
 func (w *Scene) InstanceCollectionAt(id ecs.ID, prefabRef PrefabRef) {
-	translationRotation, _ := w.LocalTranslationRotation.Get(id)
-	scale, _ := w.LocalScale.Get(id)
+	translationRotation, _ := w.TranslationRotation.Get(id)
+	scale, _ := w.Scale.Get(id)
 
 	w.CopyEntities(id, prefab(prefabRef.Filename))
 	// TODO: actually compose these rather than override!
-	w.LocalTranslationRotation.Set(id, translationRotation)
-	w.LocalScale.Set(id, scale)
+	w.TranslationRotation.Set(id, translationRotation)
+	w.Scale.Set(id, scale)
 
 	// TODO: we also need to take velocity into account
 }
@@ -119,11 +119,11 @@ func (dst *Columns) CopyEntities(id ecs.ID, src *Columns) {
 	if v, ok := src.Entity.Get(1); ok {
 		dst.Entity.Set(id, v)
 	}
-	if v, ok := src.LocalTranslationRotation.Get(1); ok {
-		dst.LocalTranslationRotation.Set(id, v)
+	if v, ok := src.TranslationRotation.Get(1); ok {
+		dst.TranslationRotation.Set(id, v)
 	}
-	if v, ok := src.LocalScale.Get(1); ok {
-		dst.LocalScale.Set(id, v)
+	if v, ok := src.Scale.Get(1); ok {
+		dst.Scale.Set(id, v)
 	}
 	if v, ok := src.RenderingGeometry.Get(1); ok {
 		dst.RenderingGeometry.Set(id, v)

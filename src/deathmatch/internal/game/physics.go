@@ -106,7 +106,7 @@ func (w *Scene) updatePhysicsShadow() {
 	}
 
 	for id, layer := range ecs.All(&w.CollisionLayer) {
-		translationRotation, _ := w.LocalTranslationRotation.Get(id)
+		translationRotation, _ := w.TranslationRotation.Get(id)
 		velocity, _ := w.Velocity.Get(id)
 		filter, _ := w.PhysicsFilter.Get(id)
 
@@ -233,7 +233,7 @@ func (w *Scene) physicsStep(Δt time.Duration) {
 
 		pos, rot, linVel, angVel := w.physicsSystem.WritebackBody(bodyID)
 
-		w.LocalTranslationRotation.Set(entityID, TranslationRotation{Translation: pos, Rotation: rot})
+		w.TranslationRotation.Set(entityID, TranslationRotation{Translation: pos, Rotation: rot})
 
 		// TODO: don't store velocity back for kinematic bodies
 		w.Velocity.Set(entityID, Velocity{Linear: linVel, Angular: angVel})

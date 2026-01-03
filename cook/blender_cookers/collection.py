@@ -71,11 +71,11 @@ def cook_objects_into(context, xform, collection, cooked_scene):
 
         # TODO: use matrix_local
         T, R, S = (xform @ obj.matrix_world).decompose()
-        comps['LocalTranslationRotation'] = {
+        comps['TranslationRotation'] = {
             'Translation': T,
             'Rotation': R,
         }
-        comps['LocalScale'] = S
+        comps['Scale'] = S
 
         if __should_cook_object_data(obj):
             geometry = context.path_for_datablock(obj)

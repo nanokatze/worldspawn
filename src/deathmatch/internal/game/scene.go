@@ -60,12 +60,12 @@ type Columns struct {
 	Parent ecs.Column[ecs.ID]
 	// Children ecs.ComponentStore[map[ecs.ID] // map[ecs.ID]struct{} ?
 
-	// Do not access this column directly, use {Get,Set}{Local,Global}TRS
+	// Do not access this column directly; use {Get,Set}{Local,Global}TRS
 	// instead.
-	LocalTranslationRotation ecs.Column[TranslationRotation]
-	// Do not access this column directly, use {Get,Set}{Local,Global}TRS
+	TranslationRotation ecs.Column[TranslationRotation]
+	// Do not access this column directly; use {Get,Set}{Local,Global}TRS
 	// instead.
-	LocalScale ecs.Column[geometry.Vec3]
+	Scale ecs.Column[geometry.Vec3]
 
 	Velocity ecs.Column[Velocity]
 
@@ -202,11 +202,11 @@ func (scene *Scene) SetParent(id, parent ecs.ID) {
 }
 
 func (scene *Scene) GetLocalTRS(id ecs.ID) (geometry.DTRS3, bool) {
-	tr, ok := scene.LocalTranslationRotation.Get(id)
+	tr, ok := scene.TranslationRotation.Get(id)
 	if !ok {
 		return geometry.DTRS3One(), false
 	}
-	s, ok := scene.LocalScale.Get(id)
+	s, ok := scene.Scale.Get(id)
 	if !ok {
 		s = geometry.Vec3Broadcast(1)
 	}
@@ -215,7 +215,7 @@ func (scene *Scene) GetLocalTRS(id ecs.ID) (geometry.DTRS3, bool) {
 
 // TODO: should we blow up if we have no parent? That doesn't seem very sensible TBH.
 func (scene *Scene) SetLocalTRS(id ecs.ID, trs geometry.DTRS3) {
-	scene.LocalTranslationRotation.Set(id, TranslationRotation{trs.T, trs.R})
+	scene.TranslationRotation.Set(id, TranslationRotation{trs.T, trs.R})
 	// TODO: scale
 }
 
