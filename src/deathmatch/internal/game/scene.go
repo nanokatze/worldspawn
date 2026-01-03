@@ -449,6 +449,12 @@ func (w *Scene) Step(updateParams *UpdateParams) {
 		}
 	}
 
+	w.DeleteEntities()
+}
+
+// TODO: rename to make it clear that we're deleting things already marked for
+// deletion.
+func (w *Scene) DeleteEntities() {
 	// TODO: would we benefit from (optionally) checking whether any entities
 	// have dangling references to other entities?
 
