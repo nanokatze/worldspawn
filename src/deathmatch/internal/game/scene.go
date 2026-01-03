@@ -96,10 +96,6 @@ type Columns struct {
 	PhysicsMassOverride    ecs.Column[float32] // TODO: remove "Physics" prefix from these
 	PhysicsInertiaOverride ecs.Column[geometry.Mat4x4]
 
-	// TODO: unify these
-	ViewPunch         ecs.Column[geometry.Rot3]
-	ViewPunchVelocity ecs.Column[geometry.Vec3]
-
 	PlayerSpawn ecs.Column[struct{}]
 
 	DeleteAfter ecs.Column[Time]
