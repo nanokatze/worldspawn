@@ -97,7 +97,7 @@ type ContactEvent struct {
 // uncrouch the player
 
 // Always execute this system before systems performing physics queries!!!
-func (w *Scene) worldToPhysics() {
+func (w *Scene) updatePhysicsShadow() {
 	for id := range ecs.All(&w.physicsBodyExists) {
 		if _, ok := w.CollisionLayer.Get(id); !ok {
 			w.physicsSystem.RemoveBody(physics.BodyID(id))

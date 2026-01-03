@@ -288,7 +288,7 @@ func (w *Scene) Step(updateParams *UpdateParams) {
 		}
 	}
 
-	w.worldToPhysics()
+	w.updatePhysicsShadow()
 	w.physicsStep(updateParams.Δt)
 
 	for id, entity := range ecs.All(&w.Entity) {
