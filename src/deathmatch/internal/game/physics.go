@@ -97,8 +97,7 @@ type ContactEvent struct {
 // uncrouch the player
 
 // Always execute this system before systems performing physics queries!!!
-// TODO: a more descriptive name
-func worldToPhysics(w *Scene) {
+func (w *Scene) worldToPhysics() {
 	for id := range ecs.All(&w.physicsBodyExists) {
 		if _, ok := w.CollisionLayer.Get(id); !ok {
 			w.physicsSystem.RemoveBody(physics.BodyID(id))
@@ -225,7 +224,7 @@ func getShape(w *Scene, id ecs.ID) *physics.Shape {
 }
 
 // TODO: we could split this back so that we can run stuff in parallel
-func physicsStep(w *Scene, Δt time.Duration) {
+func (w *Scene) physicsStep(Δt time.Duration) {
 	w.physicsSystem.SetGravity(w.Globals().Gravity)
 	w.physicsSystem.Update(float32(durationToFloatSeconds(Δt)))
 
