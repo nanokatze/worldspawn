@@ -268,10 +268,10 @@ func SceneGetEntity[T any](w *Scene, id ecs.ID) (T, bool) {
 }
 
 func (w *Scene) HandleInput(id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
-	if entity, ok := SceneGetEntity[Player](w, id); ok {
-		entity.PlayerSubstep(w, id, cmd, info)
+	if player, ok := SceneGetEntity[Player](w, id); ok {
+		player.PlayerSubstep(w, id, cmd, info)
 	} else {
-		info.Logger.Warn(fmt.Sprintf("entity does not exist or does not implement %s", reflect.TypeFor[Player]().Name()), "id", id)
+		info.Logger.Warn(fmt.Sprintf("entity does not exist or is not %s", reflect.TypeFor[Player]().Name()), "id", id)
 	}
 }
 
