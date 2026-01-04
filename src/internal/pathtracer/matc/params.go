@@ -8,12 +8,11 @@ import (
 	"worldspawn/internal/pathtracer/internal/material"
 )
 
-// TODO: should this be called paramLayout?
-type ParamsLayout struct {
-	structType reflect.Type
+type ParamsTuple struct {
+	typ reflect.Type // TODO: rename so that it's clear that it's refle4ct.Type
 }
 
-func LayoutParams(paramTypes []compiler.Type) ParamsLayout {
+func MakeParamsTuple(paramTypes []compiler.Type) ParamsTuple {
 	fields := make([]reflect.StructField, len(paramTypes))
 	for i, t := range paramTypes {
 		fields[i] = reflect.StructField{
@@ -21,7 +20,7 @@ func LayoutParams(paramTypes []compiler.Type) ParamsLayout {
 			Type: asdasd(t),
 		}
 	}
-	return ParamsLayout{structType: reflect.StructOf(fields)}
+	return ParamsTuple{typ: reflect.StructOf(fields)}
 }
 
 // TODO: naming
@@ -34,21 +33,21 @@ func asdasd(t compiler.Type) reflect.Type {
 	panic("bad")
 }
 
-func (layout ParamsLayout) Num() int {
-	if layout.structType == nil {
+func (layout ParamsTuple) Num() int {
+	if layout.typ == nil {
 		return 0
 	}
-	return layout.structType.NumField()
+	return layout.typ.NumField()
 }
 
 // TODO: make these use int as well?
-func (layout ParamsLayout) Size() int {
-	if layout.structType == nil {
+func (layout ParamsTuple) Size() int {
+	if layout.typ == nil {
 		return 0
 	}
-	return int(layout.structType.Size())
+	return int(layout.typ.Size())
 }
 
-func (layout ParamsLayout) Offset(i int) int {
-	return int(layout.structType.Field(int(i)).Offset)
+func (layout ParamsTuple) Offset(i int) int {
+	return int(layout.typ.Field(int(i)).Offset)
 }

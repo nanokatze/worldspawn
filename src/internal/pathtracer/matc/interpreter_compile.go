@@ -68,7 +68,7 @@ type InterpretedMaterial struct {
 // TODO: AOVs. Either the user can specify aov name -> offset mapping at compile
 // time, we can do the remapping later somehow
 // TODO: allow printing stuff for debugging somehow
-func CompileInterpretedMaterial(paramsLayout ParamsLayout, sea *compiler.Sea, c *compiler.Class, log io.Writer) *InterpretedMaterial {
+func CompileInterpretedMaterial(params ParamsTuple, sea *compiler.Sea, c *compiler.Class, log io.Writer) *InterpretedMaterial {
 	sea2 := compiler.NewSea()
 
 	// TODO: dump representation to log if we have log
@@ -95,7 +95,7 @@ func CompileInterpretedMaterial(paramsLayout ParamsLayout, sea *compiler.Sea, c 
 		}
 	}
 
-	assembled := assemble(sched, regm, paramsLayout)
+	assembled := assemble(sched, regm, params)
 	if log != nil {
 		fmt.Fprintln(log, "disassembly")
 		for i := 0; i < len(assembled); {

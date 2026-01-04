@@ -23,7 +23,7 @@ func TestXxx(t *testing.T) {
 		AttributeDescriptorType{}, // color
 	}
 
-	paramStruct := LayoutParams(paramTypes)
+	paramStruct := MakeParamsTuple(paramTypes)
 
 	normal := b.Value2(OpInterpLoadShadingNormal, core.ArrayType{3, core.Int32}, nil)
 

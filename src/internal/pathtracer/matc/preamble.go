@@ -23,12 +23,12 @@ type Preamble func(dst []byte, props PropertyBag)
 
 // TODO: instead of a single PropertyBag we should take separate lambdas and
 // stuff tbh.
-// TODO: pass ParamsLayout to the preamble rather than during preamble
+// TODO: pass ParamStructLayout to the preamble rather than during preamble
 // compilation?
-func CompilePreamble(paramsLayout ParamsLayout, preamble []string) Preamble {
+func CompilePreamble(params ParamsTuple, preamble []string) Preamble {
 	preamble = slices.Clone(preamble)
 	return func(dst []byte, props PropertyBag) {
-		dst2 := reflect.NewAt(paramsLayout.structType, unsafe.Pointer(unsafe.SliceData(dst))).Elem()
+		dst2 := reflect.NewAt(params.typ, unsafe.Pointer(unsafe.SliceData(dst))).Elem()
 		for i, f := range preamble {
 			var v [4]float32
 			if !props.UniformAttribute(f, &v) {

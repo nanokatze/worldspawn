@@ -134,7 +134,7 @@ func getmaterial(identifier string) material {
 			params[i] = wmaterial.Type(header.Params[i])
 		}
 
-		paramsLayout := matc.LayoutParams(params)
+		paramsTuple := matc.MakeParamsTuple(params)
 
 		sea := compiler.NewSea()
 		b := &compiler.Builder{
@@ -147,8 +147,8 @@ func getmaterial(identifier string) material {
 			goto bail
 		}
 
-		m.preamble = matc.CompilePreamble(paramsLayout, header.Preamble)
-		m.material = pathtracer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(paramsLayout, sea, ir, nil))
+		m.preamble = matc.CompilePreamble(paramsTuple, header.Preamble)
+		m.material = pathtracer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(paramsTuple, sea, ir, nil))
 	}
 	materialcache[identifier] = m
 	return m
@@ -185,7 +185,7 @@ var errorMaterial = sync.OnceValue(func() *pathtracer.InterpretedMaterial {
 		b.Value2(matc.OpDFWeightedSum, matc.EDFType{}, nil),
 	)
 
-	return pathtracer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(matc.ParamsLayout{}, sea, program, nil))
+	return pathtracer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(matc.ParamsTuple{}, sea, program, nil))
 })
 
 type fileBackedMesh struct {

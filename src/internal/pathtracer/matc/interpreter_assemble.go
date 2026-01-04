@@ -6,8 +6,8 @@ import (
 )
 
 type assembler struct {
-	paramsLayout ParamsLayout
-	code         []uint32
+	params ParamsTuple
+	code   []uint32
 }
 
 // TODO: move to a different file? perhaps back to mc?
@@ -15,9 +15,9 @@ func packinstr(op material.A, dst, src0, src1 uint32) uint32 {
 	return uint32(op) | uint32(dst)<<8 | uint32(src0)<<16 | uint32(src1)<<24
 }
 
-func assemble(schedule []*compiler.Class, regm map[*compiler.Class]regRange, paramsLayout ParamsLayout) []uint32 {
+func assemble(schedule []*compiler.Class, regm map[*compiler.Class]regRange, paramStruct ParamsTuple) []uint32 {
 	as := assembler{}
-	as.paramsLayout = paramsLayout
+	as.params = paramStruct
 
 	for _, class := range schedule {
 		v := class.Value()
