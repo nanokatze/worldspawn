@@ -136,7 +136,7 @@ func gpuInit() {
 			instanceExtensions["VK_EXT_debug_utils"] = struct{}{}
 		}
 
-		instanceExtensionsSlice := slices.Collect(maps.Keys(instanceExtensions))
+		instanceExtensionsSlice := slices.Sorted(maps.Keys(instanceExtensions))
 
 		if err := vk.CreateInstance(pinned(&pinner, &vk.InstanceCreateInfo{
 			SType: vk.STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
