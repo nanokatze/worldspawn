@@ -4,8 +4,8 @@ import "math"
 
 type Mat4x4 [4][4]float32
 
-func Mat4x4Identity() (A Mat4x4) {
-	for i := 0; i < 4; i++ {
+func Mat4x4One() (A Mat4x4) {
+	for i := range 4 {
 		A[i][i] = 1
 	}
 	return A

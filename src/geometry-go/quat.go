@@ -12,7 +12,7 @@ var quatMulTab = [4][4]uint8{
 
 type quat[T constraints.Float] [4]T
 
-func imaginaryQuat[T constraints.Float](imag gvec3[T]) quat[T] {
+func quatFromVec3[T constraints.Float](imag gvec3[T]) quat[T] {
 	return quat[T]{imag[0], imag[1], imag[2]}
 }
 

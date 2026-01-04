@@ -51,12 +51,12 @@ func (a Rot3) NLerp(b Rot3, t float32) Rot3 {
 // TODO: rename to Rotate32 probably
 func (a Rot3) Rotate(v Vec3) Vec3 {
 	q := quat[float32](a)
-	return q.Mul(imaginaryQuat(v)).Mul(q.Conj()).Imag()
+	return q.Mul(quatFromVec3(v)).Mul(q.Conj()).Imag()
 }
 
 func (a Rot3) Rotate64(v DVec3) DVec3 {
 	q := quat[float64](convert4[float64](a))
-	return q.Mul(imaginaryQuat(v)).Mul(q.Conj()).Imag()
+	return q.Mul(quatFromVec3(v)).Mul(q.Conj()).Imag()
 }
 
 // TODO: conversion routine to Mat4x4
