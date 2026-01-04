@@ -155,7 +155,7 @@ func (swapchain *Swapchain) reconfigure(config *SwapchainConfig) *Swapchain {
 	}
 }
 
-func (swapchain *Swapchain) Image(index uint32) *Image {
+func (swapchain *Swapchain) Image(index int) *Image {
 	return swapchain.images[index]
 }
 
