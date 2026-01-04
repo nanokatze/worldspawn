@@ -10,12 +10,13 @@ import (
 	"worldspawn/physics"
 )
 
-// TODO: rename to BeforePhysics
+// TODO: kill these interfaces?
+// TODO: if we don't kill these interfaces, rename to something else
+
 type UpdateBeforePhysics interface {
 	UpdateBeforePhysics(w *Scene, id ecs.ID, info *UpdateParams)
 }
 
-// TODO: rename to AfterPhysics
 type UpdateAfterPhysics interface {
 	UpdateAfterPhysics(w *Scene, id ecs.ID, info *UpdateParams)
 }

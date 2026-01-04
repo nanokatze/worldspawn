@@ -2,6 +2,7 @@ package game
 
 import (
 	"time"
+
 	"worldspawn/geometry-go"
 	"worldspawn/internal/ecs"
 )
@@ -48,6 +49,6 @@ func (weapon WeaponSniperRifle) WeaponCreateGeometry(scene *Scene, parent ecs.ID
 	return root
 }
 
-func (weapon WeaponSniperRifle) WeaponSubstep(scene *Scene, weaponID ecs.ID, shootpos geometry.DTRS3, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.ID) {
+func (weapon WeaponSniperRifle) WeaponSubstep(scene *Scene, weaponID ecs.ID, shooterID ecs.ID, shootpos geometry.DTRS3, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.ID) {
 	return nil
 }

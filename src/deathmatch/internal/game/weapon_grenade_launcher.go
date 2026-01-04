@@ -51,14 +51,14 @@ func (weapon WeaponGrenadeLauncher) WeaponCreateGeometry(scene *Scene, parent ec
 	scene.SetParent(root, parent)
 	scene.SetLocalTRS(root, grenadeLauncherStats.ViewGeometryTRS)
 	scene.Entity.Set(root, Testburger{
-		BaseColor: [4]float32{0.8, 0.8, 0.8, 1}, // pretend it's a team color
+		BaseColor: [4]float32{1, 1, 1, 1}, // pretend it's a team color
 	})
 	scene.RenderingGeometry.Set(root, grenadeLauncherStats.RenderingGeometry)
 
 	return root
 }
 
-func (weapon WeaponGrenadeLauncher) WeaponSubstep(scene *Scene, weaponID ecs.ID, shootpos geometry.DTRS3, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.ID) {
+func (weapon WeaponGrenadeLauncher) WeaponSubstep(scene *Scene, weaponID ecs.ID, shooterID ecs.ID, shootpos geometry.DTRS3, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.ID) {
 	if buttons&WeaponTrigger != 0 {
 		if !weapon.NextAttack.After(scene.Now) {
 			if !info.Speculating {
@@ -70,6 +70,8 @@ func (weapon WeaponGrenadeLauncher) WeaponSubstep(scene *Scene, weaponID ecs.ID,
 				}))
 				// TODO: consider velocity set on the prefab?
 				scene.Velocity.Set(projectile, Velocity{Linear: shootpos.R.Rotate(geometry.Vec3{0, grenadeLauncherStats.MuzzleVelocity, 0})})
+				scene.CollisionLayer.Set(projectile, PhysicsLayerProjectiles)
+				scene.PhysicsFilter.Set(projectile, []ecs.ID{shooterID})
 				// TODO: new idea for cosmetic offset: we could trace a ray like TF2 does
 				// and make the decay time be how long it takes to reach the wall!
 				// scene.CosmeticOffset.Set(projectile, CosmeticOffset{
@@ -78,12 +80,6 @@ func (weapon WeaponGrenadeLauncher) WeaponSubstep(scene *Scene, weaponID ecs.ID,
 				// 	EndTime:   scene.Now.Add(300 * time.Millisecond),
 				// })
 				// scene.DeleteCosmeticOffsetOnContact.Set(projectile, struct{}{})
-				scene.CollisionLayer.Set(projectile, PhysicsLayerProjectiles)
-				// TODO: which entities to ignore (players might be made out of many
-				// entities) and how (some entities are bounding boxes for physics, others
-				// can be e.g. hitboxes etc) should be specified through WeaponAim
-				// scene.PhysicsFilter.Set(projectile, []ecs.Entity{playerID})
-				// scene.PhysicsInertiaOverride.Store(projectile, geometry.Mat4x4Diagonal(geometry.Vec4Broadcast(1)))
 			}
 
 			weapon.NextAttack = scene.Now.Add(grenadeLauncherStats.CycleDuration)

@@ -38,6 +38,7 @@ type (
 	InputCmdReleaseButton Button
 )
 
+// TODO: replace with buttons?
 type Slot int8
 
 var InputCmdTypes = []reflect.Type{
@@ -167,7 +168,7 @@ func (player Player) PlayerSubstep(w *Scene, id ecs.ID, cmd TimestampedInputCmd,
 			S: geometry.Vec3Broadcast(1),
 		})
 
-		updateVisual := weapon.WeaponSubstep(w, player.ActiveWeapon, shootpos, buttons, info)
+		updateVisual := weapon.WeaponSubstep(w, player.ActiveWeapon, id, shootpos, buttons, info)
 		if updateVisual != nil {
 			updateVisual(w, player.ActiveWeaponViewmodel)
 		}

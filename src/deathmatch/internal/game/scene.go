@@ -103,6 +103,8 @@ type Columns struct {
 
 	Delete ecs.Column[struct{}]
 
+	// Renderer columns
+
 	CosmeticOffset                ecs.Column[CosmeticOffset]
 	DeleteCosmeticOffsetOnContact ecs.Column[struct{}]
 
