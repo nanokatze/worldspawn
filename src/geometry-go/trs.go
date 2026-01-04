@@ -19,7 +19,7 @@ func DTRS3One() DTRS3 {
 
 func (x DTRS3) Mul(y DTRS3) DTRS3 {
 	return DTRS3{
-		T: x.T.Add(y.R.Rotate64(y.T)),
+		T: x.T.Add(x.R.Rotate64(y.T)),
 		R: x.R.Mul(y.R),
 		S: Vec3Broadcast(1),
 	}
