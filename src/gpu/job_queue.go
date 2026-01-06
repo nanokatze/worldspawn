@@ -22,7 +22,7 @@ type Job interface {
 
 type JobQueue struct {
 	currentBatch *jobBatch // do not access directly; use b() instead
-	done         *WaitGroup
+	idle         *WaitGroup
 	// TODO: add some sort of mechanism so that things can't be enqueued while
 	// we have a render pass using this job queue
 }
@@ -37,7 +37,7 @@ func (jq *JobQueue) b() *jobBatch {
 	if jq.currentBatch == nil {
 		jq.currentBatch = new(jobBatch)
 	}
-	jq.done = nil // TODO: should be caller's responsibility
+	jq.idle = nil // TODO: should be caller's responsibility
 	return jq.currentBatch
 }
 
@@ -47,9 +47,9 @@ func (jq *JobQueue) prepareForEnqueueWait() {
 	if jq.currentBatch == nil || jq.currentBatch.empty() {
 		return
 	}
-	done := jq.Idle()
+	idle := jq.Idle()
 	jq.currentBatch = nil
-	done.enqueueWaitIntoBatch(jq.b())
+	idle.enqueueWaitIntoBatch(jq.b())
 }
 
 func (jq *JobQueue) Enqueue(job Job) {
@@ -67,14 +67,14 @@ func (jq *JobQueue) Cleanup(f func()) {
 // TODO: make this thread safe? (i.e. protect with sync.Once)
 // TODO: should return an interface { EnqueueWait(*JobQueue); Wait() }
 func (jq *JobQueue) Idle() *WaitGroup {
-	if jq.done == nil {
+	if jq.idle == nil {
 		wg := new(WaitGroup)
 		wg.Add(1)
 		wg.EnqueueDone(jq)
 		jq.currentBatch = nil // TODO: should not be necessary
-		jq.done = wg
+		jq.idle = wg
 	}
-	return jq.done
+	return jq.idle
 }
 
 func WaitForIdle(jq *JobQueue) {
