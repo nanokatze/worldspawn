@@ -1,7 +1,6 @@
 package gpu
 
 import (
-	"fmt"
 	"log"
 	"maps"
 	"math/bits"
@@ -110,9 +109,7 @@ func gpuInit() {
 		defer pinner.Unpin()
 
 		layers, err := enumerate(vk.EnumerateInstanceLayerProperties)
-		if err != nil {
-			panic(fmt.Sprintf("gpu: vkEnumerateInstanceLayerProperties: %v", err))
-		}
+		must(err)
 
 		var instanceLayers []string
 		for _, layer := range layers {
@@ -138,7 +135,7 @@ func gpuInit() {
 
 		instanceExtensionsSlice := slices.Sorted(maps.Keys(instanceExtensions))
 
-		if err := vk.CreateInstance(pinned(&pinner, &vk.InstanceCreateInfo{
+		must(vk.CreateInstance(pinned(&pinner, &vk.InstanceCreateInfo{
 			SType: vk.STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
 			PApplicationInfo: pinned(&pinner, &vk.ApplicationInfo{
 				SType:            vk.STRUCTURE_TYPE_APPLICATION_INFO,
@@ -149,18 +146,14 @@ func gpuInit() {
 			PPEnabledLayerNames:     pinnedCStringSlice(&pinner, instanceLayers),
 			EnabledExtensionCount:   uint32(len(instanceExtensionsSlice)),
 			PPEnabledExtensionNames: pinnedCStringSlice(&pinner, instanceExtensionsSlice),
-		}), nil, &instance); err != nil {
-			panic(fmt.Sprintf("gpu: vkCreateInstance: %v", err))
-		}
+		}), nil, &instance))
 
 		vkFns.InstanceFuncs.Init(instance)
 
 		physicalDevices, err := enumerate(func(len *uint32, data *vk.PhysicalDevice) error {
 			return vkFns.EnumeratePhysicalDevices(instance, len, data)
 		})
-		if err != nil {
-			panic(fmt.Sprintf("gpu: vkEnumeratePhysicalDevices: %v", err))
-		}
+		must(err)
 		physicalDevice = physicalDevices[0]
 
 		props := vk.PhysicalDeviceProperties2{
@@ -295,16 +288,14 @@ func gpuInit() {
 
 		pinner.Pin(&enabledDeviceFeatures)
 
-		if err := vkFns.CreateDevice(physicalDevice, &vk.DeviceCreateInfo{
+		must(vkFns.CreateDevice(physicalDevice, &vk.DeviceCreateInfo{
 			SType:                   vk.STRUCTURE_TYPE_DEVICE_CREATE_INFO,
 			PNext:                   unsafe.Pointer(&enabledDeviceFeatures.PhysicalDeviceFeatures2),
 			QueueCreateInfoCount:    uint32(len(queueCreateInfos)),
 			PQueueCreateInfos:       pinnedSliceData(&pinner, queueCreateInfos),
 			EnabledExtensionCount:   uint32(len(enabledDeviceExtensionsSlice)),
 			PPEnabledExtensionNames: pinnedCStringSlice(&pinner, enabledDeviceExtensionsSlice),
-		}, &device); err != nil {
-			panic(fmt.Sprintf("gpu: vkCreateDevice: %v", err))
-		}
+		}, &device))
 
 		vkFns.DeviceFuncs.Init(device)
 
@@ -314,7 +305,7 @@ func gpuInit() {
 			}
 		}
 
-		if err := vkFns.CreateDescriptorSetLayout(device, &vk.DescriptorSetLayoutCreateInfo{
+		must(vkFns.CreateDescriptorSetLayout(device, &vk.DescriptorSetLayoutCreateInfo{
 			SType: vk.STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
 			PNext: unsafe.Pointer(pinned(&pinner, &vk.DescriptorSetLayoutBindingFlagsCreateInfo{
 				SType:        vk.STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO,
@@ -347,11 +338,9 @@ func gpuInit() {
 					StageFlags:      vk.ShaderStageFlags(vk.SHADER_STAGE_ALL),
 				},
 			}),
-		}, nil, &descriptorSetLayout); err != nil {
-			panic(fmt.Sprintf("gpu: vkCreateDescriptorSetLayout: %v", err))
-		}
+		}, nil, &descriptorSetLayout))
 
-		if err := vkFns.CreatePipelineLayout(device, &vk.PipelineLayoutCreateInfo{
+		must(vkFns.CreatePipelineLayout(device, &vk.PipelineLayoutCreateInfo{
 			SType:                  vk.STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 			SetLayoutCount:         1,
 			PSetLayouts:            pinned(&pinner, &descriptorSetLayout),
@@ -361,12 +350,10 @@ func gpuInit() {
 				Offset:     0,
 				Size:       maxShaderArgsSize,
 			}),
-		}, nil, &pipelineLayout); err != nil {
-			panic(fmt.Sprintf("gpu: vkCreatePipelineLayout: %v", err))
-		}
+		}, nil, &pipelineLayout))
 
 		var descriptorPool vk.DescriptorPool
-		if err := vkFns.CreateDescriptorPool(device, &vk.DescriptorPoolCreateInfo{
+		must(vkFns.CreateDescriptorPool(device, &vk.DescriptorPoolCreateInfo{
 			SType:         vk.STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
 			Flags:         vk.DescriptorPoolCreateFlags(vk.DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT),
 			MaxSets:       1,
@@ -376,18 +363,14 @@ func gpuInit() {
 				{Type: vk.DESCRIPTOR_TYPE_SAMPLED_IMAGE, DescriptorCount: 1e6},
 				{Type: vk.DESCRIPTOR_TYPE_STORAGE_IMAGE, DescriptorCount: 1e6},
 			}),
-		}, nil, &descriptorPool); err != nil {
-			panic(fmt.Sprintf("gpu: vkCreateDescriptorPool: %v", err))
-		}
+		}, nil, &descriptorPool))
 
-		if err := vkFns.AllocateDescriptorSets(device, &vk.DescriptorSetAllocateInfo{
+		must(vkFns.AllocateDescriptorSets(device, &vk.DescriptorSetAllocateInfo{
 			SType:              vk.STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
 			DescriptorPool:     descriptorPool,
 			DescriptorSetCount: 1,
 			PSetLayouts:        pinned(&pinner, &descriptorSetLayout),
-		}, &descriptorSet); err != nil {
-			panic(fmt.Sprintf("gpu: vkAllocateDescriptorSets: %v", err))
-		}
+		}, &descriptorSet))
 	})
 }
 

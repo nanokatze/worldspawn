@@ -1,7 +1,6 @@
 package gpu
 
 import (
-	"fmt"
 	"runtime"
 	"unsafe"
 
@@ -55,12 +54,10 @@ func BeginRendering(jq *JobQueue, config *RenderingConfig) *RenderPass {
 	rp.cb = cb.Vk()
 	rp.Cleanup(func() { cbcaches[queueFamily].Put(cb) })
 
-	if err := vkFns.BeginCommandBuffer(rp.cb, &vk.CommandBufferBeginInfo{
+	must(vkFns.BeginCommandBuffer(rp.cb, &vk.CommandBufferBeginInfo{
 		SType: vk.STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
 		Flags: vk.CommandBufferUsageFlags(vk.COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT),
-	}); err != nil {
-		panic(fmt.Sprintf("gpu: vkBeginCommandBuffer: %v", err))
-	}
+	}))
 
 	renderingInfo := &vk.RenderingInfo{
 		SType:      vk.STRUCTURE_TYPE_RENDERING_INFO,
@@ -288,7 +285,7 @@ func (job *renderPassJob) Exec(q *CommandQueue) {
 
 func newRenderingVkImageView(img *Image, usage vk.ImageUsageFlags) vk.ImageView {
 	var vkImageView vk.ImageView
-	if err := vkFns.CreateImageView(device, &vk.ImageViewCreateInfo{
+	must(vkFns.CreateImageView(device, &vk.ImageViewCreateInfo{
 		SType: vk.STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 		PNext: unsafe.Pointer(&vk.ImageViewUsageCreateInfo{
 			SType: vk.STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO,
@@ -298,9 +295,7 @@ func newRenderingVkImageView(img *Image, usage vk.ImageUsageFlags) vk.ImageView 
 		ViewType:         img.dim.vkImageViewType(),
 		Format:           img.format,
 		SubresourceRange: img.vkImageSubresourceRange(),
-	}, nil, &vkImageView); err != nil {
-		panic(fmt.Sprintf("gpu: vkCreateImageView: %v", err))
-	}
+	}, nil, &vkImageView))
 	return vkImageView
 }
 

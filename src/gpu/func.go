@@ -1,7 +1,6 @@
 package gpu
 
 import (
-	"fmt"
 	"runtime"
 	"unsafe"
 
@@ -35,7 +34,7 @@ func NewFunc(blob []byte, stage vk.ShaderStageFlagBits, entry string) *Func {
 		vk.SHADER_STAGE_FRAGMENT_BIT,
 		vk.SHADER_STAGE_COMPUTE_BIT:
 		var vkShader vk.ShaderEXT
-		if err := vkFns.CreateShadersEXT(device, 1, &vk.ShaderCreateInfoEXT{
+		must(vkFns.CreateShadersEXT(device, 1, &vk.ShaderCreateInfoEXT{
 			SType:                  vk.STRUCTURE_TYPE_SHADER_CREATE_INFO_EXT,
 			Stage:                  stage,
 			NextStage:              nextStages(stage),
@@ -51,9 +50,7 @@ func NewFunc(blob []byte, stage vk.ShaderStageFlagBits, entry string) *Func {
 				Offset:     0,
 				Size:       maxShaderArgsSize,
 			}),
-		}, nil, &vkShader); err != nil {
-			panic(fmt.Sprintf("gpu: vkCreateShadersEXT: %v", err))
-		}
+		}, nil, &vkShader))
 		return &Func{stage: stage, vk: uint64(vkShader), entry: entry}
 
 	case vk.SHADER_STAGE_RAYGEN_BIT_KHR,
@@ -63,7 +60,7 @@ func NewFunc(blob []byte, stage vk.ShaderStageFlagBits, entry string) *Func {
 		vk.SHADER_STAGE_INTERSECTION_BIT_KHR,
 		vk.SHADER_STAGE_CALLABLE_BIT_KHR:
 		var vkPipeline vk.Pipeline
-		if err := vkFns.CreateRayTracingPipelinesKHR(device, vk.NULL_HANDLE, vk.NULL_HANDLE, 1, &vk.RayTracingPipelineCreateInfoKHR{
+		must(vkFns.CreateRayTracingPipelinesKHR(device, vk.NULL_HANDLE, vk.NULL_HANDLE, 1, &vk.RayTracingPipelineCreateInfoKHR{
 			SType:      vk.STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR,
 			Flags:      vk.PipelineCreateFlags(vk.PIPELINE_CREATE_LIBRARY_BIT_KHR),
 			StageCount: uint32(1),
@@ -84,9 +81,7 @@ func NewFunc(blob []byte, stage vk.ShaderStageFlagBits, entry string) *Func {
 			}),
 			Layout:                       pipelineLayout,
 			MaxPipelineRayRecursionDepth: 1, // part of the lib interface. Just make it dynamic
-		}, nil, &vkPipeline); err != nil {
-			panic(fmt.Sprintf("gpu: vkCreateRayTracingPipelinesKHR: %v", err))
-		}
+		}, nil, &vkPipeline))
 		return &Func{stage: stage, vk: uint64(vkPipeline), entry: entry}
 
 	default:

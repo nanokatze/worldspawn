@@ -197,9 +197,7 @@ func NewImage(config *ImageConfig) *Image {
 
 	size := roundUpDeviceAllocationSize(int(requirements.Size))
 
-	if err := vkFns.CreateImage(device, imageCreateInfo, nil, &base.vkImage); err != nil {
-		panic(fmt.Sprintf("gpu: vkCreateImage: %v", err))
-	}
+	must(vkFns.CreateImage(device, imageCreateInfo, nil, &base.vkImage))
 
 	memoryTypeIndex := findMemoryTypeIndex(requirements.MemoryTypeBits, 0)
 
@@ -215,24 +213,20 @@ func NewImage(config *ImageConfig) *Image {
 	if base.memory == nil {
 		var allocation deviceMemory
 		allocation.size = size
-		if err := vkFns.AllocateMemory(device, &vk.MemoryAllocateInfo{
+		must(vkFns.AllocateMemory(device, &vk.MemoryAllocateInfo{
 			SType:           vk.STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
 			AllocationSize:  vk.DeviceSize(size),
 			MemoryTypeIndex: uint32(memoryTypeIndex),
-		}, nil, &allocation.memory); err != nil {
-			panic(fmt.Sprintf("gpu: vkAllocateMemory: %v", err))
-		}
+		}, nil, &allocation.memory))
 		base.memory = &allocation
 	}
 
-	if err := vkFns.BindImageMemory2(device, 1, &vk.BindImageMemoryInfo{
+	must(vkFns.BindImageMemory2(device, 1, &vk.BindImageMemoryInfo{
 		SType:        vk.STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO,
 		Image:        base.vkImage,
 		Memory:       base.memory.memory,
 		MemoryOffset: 0,
-	}); err != nil {
-		panic(fmt.Sprintf("gpu: vkBindImageMemory2: %v", err))
-	}
+	}))
 
 	base.dim = config.Dim
 	base.extent = vkExtent3DFromInt3(config.Extent)

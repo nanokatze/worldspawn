@@ -4,14 +4,10 @@ import (
 	"fmt"
 	"math"
 	"runtime"
-	"sync"
-	"sync/atomic"
 	"unsafe"
 
 	"worldspawn/gpu/vk"
 )
-
-// TODO: merge this file entirely into job_queue.go
 
 // TODO: put this inside schedulerState?
 var cqs [32][]*CommandQueue
@@ -26,11 +22,9 @@ type CommandQueue struct {
 	garbage []func()
 
 	// TODO: rename this to somehing like "in-flight garbage"
-	callbacksMu sync.Mutex
-	callbacks   []semaphoreSignalCallback // TODO: make this a linked queue
+	callbacks chan semaphoreSignalCallback
 
 	vkSemaphore vk.Semaphore
-	tail        atomic.Uint64 // TODO: is this actually necessary?
 	head        uint64
 
 	id int
@@ -52,16 +46,14 @@ func newSubmissionQueue(queueFamily, queueIndex uint32) *CommandQueue {
 	defer pinner.Unpin()
 
 	var vkSemaphore vk.Semaphore
-	if err := vkFns.CreateSemaphore(device, &vk.SemaphoreCreateInfo{
+	must(vkFns.CreateSemaphore(device, &vk.SemaphoreCreateInfo{
 		SType: vk.STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
 		PNext: unsafe.Pointer(pinned(&pinner, &vk.SemaphoreTypeCreateInfo{
 			SType:         vk.STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
 			SemaphoreType: vk.SEMAPHORE_TYPE_TIMELINE,
 			InitialValue:  0,
 		})),
-	}, nil, &vkSemaphore); err != nil {
-		panic(fmt.Sprintf("gpu: vkCreateSemaphore: %v", err))
-	}
+	}, nil, &vkSemaphore))
 
 	var vkQueue vk.Queue
 	vkFns.GetDeviceQueue2(device, &vk.DeviceQueueInfo2{
@@ -71,6 +63,7 @@ func newSubmissionQueue(queueFamily, queueIndex uint32) *CommandQueue {
 	}, &vkQueue)
 
 	q := &CommandQueue{
+		callbacks:   make(chan semaphoreSignalCallback, 10),
 		vkSemaphore: vkSemaphore,
 		queueFamily: queueFamily,
 		waits:       make(map[int]uint64),
@@ -82,24 +75,10 @@ func newSubmissionQueue(queueFamily, queueIndex uint32) *CommandQueue {
 	cqsflat = append(cqsflat, q)
 
 	go func() {
-		ctr := uint64(0)
 		for {
-			waitSemaphore(q.vkSemaphore, ctr)
-			q.tail.Store(ctr)
-			for {
-				q.callbacksMu.Lock()
-				var cb func()
-				if len(q.callbacks) > 0 && q.callbacks[0].value <= ctr {
-					cb = q.callbacks[0].f
-					q.callbacks = q.callbacks[1:]
-				}
-				q.callbacksMu.Unlock()
-				if cb == nil {
-					break
-				}
-				cb()
-			}
-			ctr++
+			cb := <-q.callbacks
+			waitSemaphore(q.vkSemaphore, cb.value)
+			cb.f()
 		}
 	}()
 
@@ -141,12 +120,10 @@ func (q *CommandQueue) ensurecb() {
 
 	// TODO: outline this
 	cb := cbcaches[queueFamily].Get()
-	if err := vkFns.BeginCommandBuffer(cb.Vk(), &vk.CommandBufferBeginInfo{
+	must(vkFns.BeginCommandBuffer(cb.Vk(), &vk.CommandBufferBeginInfo{
 		SType: vk.STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
 		Flags: vk.CommandBufferUsageFlags(vk.COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT),
-	}); err != nil {
-		panic(fmt.Sprintf("gpu: vkBeginCommandBuffer: %v", err))
-	}
+	}))
 
 	q.cb = cb.Vk()
 	q.Cleanup(func() { cbcaches[queueFamily].Put(cb) })
@@ -174,9 +151,7 @@ func (q *CommandQueue) actuallyflushcb() {
 	// TODO: outline this
 	// TODO: defer closing cmdbufs until right before submission? That would
 	// let us prepend barriers nicely
-	if err := vkFns.EndCommandBuffer(q.cb); err != nil {
-		panic(fmt.Sprintf("gpu: vkEndCommandBuffer: %v", err))
-	}
+	must(vkFns.EndCommandBuffer(q.cb))
 	q.cmdBufs = append(q.cmdBufs,
 		vk.CommandBufferSubmitInfo{
 			SType:         vk.STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
@@ -218,8 +193,6 @@ func (q *CommandQueue) submit() {
 
 		p := cqsflat[id]
 
-		// if p.tail.Load()
-
 		waits = append(waits,
 			vk.SemaphoreSubmitInfo{
 				SType:     vk.STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
@@ -235,23 +208,13 @@ func (q *CommandQueue) submit() {
 	garbage := q.garbage
 	q.garbage = nil
 
-	// Append the callback before submitting so that we don't miss the signal.
-	q.callbacksMu.Lock()
-	q.callbacks = append(q.callbacks,
-		semaphoreSignalCallback{
-			value: q.head + 1,
-			f: func() {
-				for _, g := range garbage {
-					g()
-				}
-			},
-		})
-	q.callbacksMu.Unlock()
+	signal := q.head + 1
+	q.head++
 
 	// TODO: submit is a bit expensive (on the order of 20 microseconds), we
 	// might want to consider running a separate goroutine for submit calls. Or
 	// for any calls on CommandQueue at all actually.
-	if err := vkFns.QueueSubmit2(q.vkQueue, 1, &vk.SubmitInfo2{
+	must(vkFns.QueueSubmit2(q.vkQueue, 1, &vk.SubmitInfo2{
 		SType:                    vk.STRUCTURE_TYPE_SUBMIT_INFO_2,
 		WaitSemaphoreInfoCount:   uint32(len(waits)),
 		PWaitSemaphoreInfos:      pinnedSliceData(&pinner, waits),
@@ -261,26 +224,31 @@ func (q *CommandQueue) submit() {
 		PSignalSemaphoreInfos: pinned(&pinner, &vk.SemaphoreSubmitInfo{
 			SType:     vk.STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
 			Semaphore: q.vkSemaphore,
-			Value:     q.head + 1,
+			Value:     signal,
 			StageMask: vk.PipelineStageFlags2(vk.PIPELINE_STAGE_2_ALL_COMMANDS_BIT),
 		}),
-	}, vk.NULL_HANDLE); err != nil {
-		panic(fmt.Sprintf("gpu: vkQueueSubmit2: %v", err))
-	}
-	q.head++
+	}, vk.NULL_HANDLE))
+
 	q.waits[q.id] = q.head
+
+	q.callbacks <- semaphoreSignalCallback{
+		value: signal,
+		f: func() {
+			for _, g := range garbage {
+				g()
+			}
+		},
+	}
 }
 
 func waitSemaphore(semaphore vk.Semaphore, value uint64) {
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
 
-	if err := vkFns.WaitSemaphores(device, &vk.SemaphoreWaitInfo{
+	must(vkFns.WaitSemaphores(device, &vk.SemaphoreWaitInfo{
 		SType:          vk.STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
 		SemaphoreCount: 1,
 		PSemaphores:    pinned(&pinner, &semaphore),
 		PValues:        pinned(&pinner, &value),
-	}, math.MaxUint64); err != nil {
-		panic(fmt.Sprintf("gpu: vkWaitSemaphores: %v", err))
-	}
+	}, math.MaxUint64))
 }

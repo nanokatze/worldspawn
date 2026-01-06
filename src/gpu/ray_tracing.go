@@ -1,7 +1,6 @@
 package gpu
 
 import (
-	"fmt"
 	"runtime"
 	"slices"
 	"structs"
@@ -77,7 +76,7 @@ func newRayTracingShaderGroup(_type vk.RayTracingShaderGroupTypeKHR,
 	}
 
 	var vkPipeline vk.Pipeline
-	if err := vkFns.CreateRayTracingPipelinesKHR(device, vk.NULL_HANDLE, vk.NULL_HANDLE, 1, &vk.RayTracingPipelineCreateInfoKHR{
+	must(vkFns.CreateRayTracingPipelinesKHR(device, vk.NULL_HANDLE, vk.NULL_HANDLE, 1, &vk.RayTracingPipelineCreateInfoKHR{
 		SType:      vk.STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR,
 		Flags:      vk.PipelineCreateFlags(vk.PIPELINE_CREATE_LIBRARY_BIT_KHR),
 		GroupCount: 1,
@@ -94,14 +93,10 @@ func newRayTracingShaderGroup(_type vk.RayTracingShaderGroupTypeKHR,
 		}),
 		Layout:                       pipelineLayout,
 		MaxPipelineRayRecursionDepth: 1, // part of the lib interface
-	}, nil, &vkPipeline); err != nil {
-		panic(fmt.Sprintf("gpu: vkCreateRayTracingPipelinesKHR: %v", err))
-	}
+	}, nil, &vkPipeline))
 
 	var handle RayTracingShaderGroupHandle
-	if err := vkFns.GetRayTracingShaderGroupHandlesKHR(device, vkPipeline, 0, 1, int(unsafe.Sizeof(handle)), unsafe.Pointer(&handle)); err != nil {
-		panic(fmt.Sprintf("gpu: vkGetRayTracingShaderGroupHandlesKHR: %v", err))
-	}
+	must(vkFns.GetRayTracingShaderGroupHandlesKHR(device, vkPipeline, 0, 1, int(unsafe.Sizeof(handle)), unsafe.Pointer(&handle)))
 
 	return &RayTracingShaderGroup{vk: vkPipeline, handle: handle}
 }
@@ -137,7 +132,7 @@ func LinkRayTracingShaderGroups(shaderGroups ...*RayTracingShaderGroup) *RayTrac
 	}
 
 	var vkPipeline vk.Pipeline
-	if err := vkFns.CreateRayTracingPipelinesKHR(device, vk.NULL_HANDLE, vk.NULL_HANDLE, 1, &vk.RayTracingPipelineCreateInfoKHR{
+	must(vkFns.CreateRayTracingPipelinesKHR(device, vk.NULL_HANDLE, vk.NULL_HANDLE, 1, &vk.RayTracingPipelineCreateInfoKHR{
 		SType: vk.STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR,
 		PLibraryInfo: pinned(&pinner, &vk.PipelineLibraryCreateInfoKHR{
 			SType:        vk.STRUCTURE_TYPE_PIPELINE_LIBRARY_CREATE_INFO_KHR,
@@ -151,9 +146,7 @@ func LinkRayTracingShaderGroups(shaderGroups ...*RayTracingShaderGroup) *RayTrac
 		}),
 		Layout:                       pipelineLayout,
 		MaxPipelineRayRecursionDepth: 1, // this would have to be user-provided
-	}, nil, &vkPipeline); err != nil {
-		panic(fmt.Sprintf("gpu: vkCreateRayTracingPipelinesKHR: %v", err))
-	}
+	}, nil, &vkPipeline))
 
 	return &RayTracingPipeline{vk: vkPipeline}
 }

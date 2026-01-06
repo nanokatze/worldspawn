@@ -1,7 +1,6 @@
 package gpu
 
 import (
-	"fmt"
 	"runtime"
 	"structs"
 	"unsafe"
@@ -249,15 +248,13 @@ func newVkAccelerationStructureAt(address UnsafePointer, size int) vk.Accelerati
 	buffer, offset := bufferAndOffset(address)
 
 	var as vk.AccelerationStructureKHR
-	if err := vkFns.CreateAccelerationStructureKHR(device, &vk.AccelerationStructureCreateInfoKHR{
+	must(vkFns.CreateAccelerationStructureKHR(device, &vk.AccelerationStructureCreateInfoKHR{
 		SType:  vk.STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
 		Buffer: buffer,
 		Offset: offset,
 		Size:   vk.DeviceSize(size),
 		Type:   vk.ACCELERATION_STRUCTURE_TYPE_GENERIC_KHR,
-	}, nil, &as); err != nil {
-		panic(fmt.Sprintf("gpu: vkCreateAccelerationStructureKHR: %v", err))
-	}
+	}, nil, &as))
 
 	asAddr := vkFns.GetAccelerationStructureDeviceAddressKHR(device, &vk.AccelerationStructureDeviceAddressInfoKHR{
 		SType:                 vk.STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,

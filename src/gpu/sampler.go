@@ -1,7 +1,6 @@
 package gpu
 
 import (
-	"fmt"
 	"runtime"
 
 	"worldspawn/gpu/vk"
@@ -22,9 +21,7 @@ func NewSampler(config *vk.SamplerCreateInfo) Sampler {
 	index := samplerSlots.Alloc(&samplerAllocHint)
 
 	var vkSampler vk.Sampler
-	if err := vkFns.CreateSampler(device, config, nil, &vkSampler); err != nil {
-		panic(fmt.Sprintf("gpu: vkCreateSampler: %v", err))
-	}
+	must(vkFns.CreateSampler(device, config, nil, &vkSampler))
 
 	vkFns.UpdateDescriptorSets(device,
 		1, &vk.WriteDescriptorSet{

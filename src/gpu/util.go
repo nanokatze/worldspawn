@@ -14,6 +14,13 @@ import (
 	"worldspawn/gpu/vk"
 )
 
+func must(err error) {
+	// TODO: dump various debug things here if we get to this point?
+	if err != nil {
+		panic(err)
+	}
+}
+
 // TODO: rename to something else
 func cached[T, U any](f func(T) U) func(T) U {
 	var m sync.Map

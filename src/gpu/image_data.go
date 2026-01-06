@@ -1,7 +1,6 @@
 package gpu
 
 import (
-	"fmt"
 	"unsafe"
 	"worldspawn/gpu/vk"
 	"worldspawn/gpu/vk/formatutil"
@@ -43,7 +42,7 @@ func (base *imageData) getShaderDescriptor(
 	descriptorType vk.DescriptorType,
 	outImageView *vk.ImageView,
 	outDescriptor pointerToDescriptor) {
-	if err := vkFns.CreateImageView(device, &vk.ImageViewCreateInfo{
+	must(vkFns.CreateImageView(device, &vk.ImageViewCreateInfo{
 		SType: vk.STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 		PNext: unsafe.Pointer(&vk.ImageViewUsageCreateInfo{
 			SType: vk.STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO,
@@ -59,9 +58,7 @@ func (base *imageData) getShaderDescriptor(
 			BaseArrayLayer: uint32(baseLayer),
 			LayerCount:     uint32(layers),
 		},
-	}, nil, outImageView); err != nil {
-		panic(fmt.Sprintf("gpu: vkCreateImageView: %v", err))
-	}
+	}, nil, outImageView))
 
 	vkFns.UpdateDescriptorSets(device,
 		1, &vk.WriteDescriptorSet{

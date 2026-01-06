@@ -175,23 +175,17 @@ func malloc(size int, flags uint32) UnsafePointer {
 		MemoryTypeIndex: uint32(memoryTypeIndex),
 	}
 	var memory vk.DeviceMemory
-	if err := vkFns.AllocateMemory(device, memoryAllocateInfo, nil, &memory); err != nil {
-		panic(fmt.Sprintf("gpu: vkAllocateMemory: %v", err))
-	}
+	must(vkFns.AllocateMemory(device, memoryAllocateInfo, nil, &memory))
 
 	var buffer vk.Buffer
-	if err := vkFns.CreateBuffer(device, bufferCreateInfo, nil, &buffer); err != nil {
-		panic(fmt.Sprintf("gpu: vkCreateBuffer: %v", err))
-	}
+	must(vkFns.CreateBuffer(device, bufferCreateInfo, nil, &buffer))
 
-	if err := vkFns.BindBufferMemory2(device, 1, &vk.BindBufferMemoryInfo{
+	must(vkFns.BindBufferMemory2(device, 1, &vk.BindBufferMemoryInfo{
 		SType:        vk.STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO,
 		Buffer:       buffer,
 		Memory:       memory,
 		MemoryOffset: 0,
-	}); err != nil {
-		panic(fmt.Sprintf("gpu: vkBindBufferMemory2: %v", err))
-	}
+	}))
 
 	deviceAddr := uint64(vkFns.GetBufferDeviceAddress(device, &vk.BufferDeviceAddressInfo{
 		SType:  vk.STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
@@ -200,9 +194,7 @@ func malloc(size int, flags uint32) UnsafePointer {
 
 	var hostAddr uintptr
 	if flags&hostMapped != 0 {
-		if err := vkFns.MapMemory(device, memory, 0, vk.DeviceSize(size), 0, (*unsafe.Pointer)(unsafe.Pointer(&hostAddr))); err != nil {
-			panic(fmt.Sprintf("gpu: vkMapMemory: %v", err))
-		}
+		must(vkFns.MapMemory(device, memory, 0, vk.DeviceSize(size), 0, (*unsafe.Pointer)(unsafe.Pointer(&hostAddr))))
 	}
 
 	allocsMu.Lock()
