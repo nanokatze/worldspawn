@@ -13,6 +13,8 @@ type TimestampedInputCmd struct {
 	Cmd  InputCmd
 }
 
+// TODO: we need two types of InputCmds: passthrough to Character, and
+// administrative things like Respawn, etc.
 type InputCmd any
 
 type Button int8
@@ -49,11 +51,7 @@ var InputCmdTypes = []reflect.Type{
 	reflect.TypeFor[Slot](),
 }
 
-// TODO: split into an entity representing the actual player, and the character
-// that can walk and stuff?
 type Player struct {
-	ID string // TODO: set this to name for now
-
 	Score struct {
 		Kills  int32
 		Deaths int32
@@ -85,6 +83,6 @@ func (w *Scene) HandleInput(playerID ecs.ID, cmd TimestampedInputCmd, info *Upda
 
 // TODO: make this into a proper pass
 func (player Player) PlayerUpdate(w *Scene, id ecs.ID, info *UpdateParams) {
-	character := mustOk(SceneGetEntity[Character](w, player.Character))
-	character.CharacterUpdate(w, player.Character, info)
+	char := mustOk(SceneGetEntity[Character](w, player.Character))
+	char.CharacterUpdate(w, player.Character, info)
 }

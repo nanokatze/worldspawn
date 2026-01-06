@@ -54,12 +54,10 @@ type Columns struct {
 	// Name ecs.ComponentStore[string]
 
 	// TODO: explore if we can make CreateEntity set this component
-	CreationTime ecs.Column[Time]
+	//CreationTime ecs.Column[Time]
 
+	// TODO: split into transform and deletion hierarchies?
 	Parent ecs.Column[ecs.ID]
-	// Children ecs.ComponentStore[map[ecs.ID] // map[ecs.ID]struct{} ?
-
-	// ParentTransform ecs.Column[ID]
 	// Do not access this column directly; use {Get,Set}{Local,Global}TRS
 	// instead.
 	TranslationRotation ecs.Column[TranslationRotation]
@@ -86,21 +84,15 @@ type Columns struct {
 	PhysicsMassOverride    ecs.Column[float32] // TODO: remove "Physics" prefix from these
 	PhysicsInertiaOverride ecs.Column[geometry.Mat4x4]
 
-	PlayerSpawn ecs.Column[struct{}]
-
-	DeleteAfter ecs.Column[Time]
-
-	// Timer ecs.ComponentStore[time.Duration]
-
 	// TODO: generalize to all events, including damage etc?
 	ContactEvents ecs.Column[[]ContactEvent]
 
-	// TODO: rename to just Collection?
+	Timer ecs.Column[Time]
+
+	// TODO: kill this column and handle it at prefab instantination
 	CollectionInstance ecs.Column[CollectionInstance]
 
 	// TODO: rename, to e.g. Logic? Or Any?
-	// TODO: I'm kinda again contemplating killing this off in favor of more
-	// domain-specific things
 	Entity ecs.Column[Entity]
 
 	Delete ecs.Column[struct{}]
@@ -114,8 +106,8 @@ type Columns struct {
 
 	RenderingGeometry ecs.Column[string]
 
-	// TODO: rename to SoundEmitter
-	SoundEffect ecs.Column[SoundEmitter]
+	SoundEffect      ecs.Column[SoundEmitter] // TODO: should be a simple filename string
+	SoundEffectState ecs.Column[LoopedSound]
 }
 
 type Scene struct {
@@ -221,10 +213,13 @@ func (scene *Scene) GetLocalTRS(id ecs.ID) (geometry.DTRS3, bool) {
 	return geometry.DTRS3{tr.Translation, tr.Rotation, s}, true
 }
 
-// TODO: should we blow up if we have no parent? That doesn't seem very sensible TBH.
 func (scene *Scene) SetLocalTRS(id ecs.ID, trs geometry.DTRS3) {
 	scene.TranslationRotation.Set(id, TranslationRotation{trs.T, trs.R})
-	// TODO: scale
+	if trs.S == geometry.Vec3Broadcast(1) {
+		scene.Scale.Delete(id)
+	} else {
+		scene.Scale.Set(id, trs.S)
+	}
 }
 
 // TODO: separate deletion and transform hierarchies?
@@ -249,7 +244,7 @@ func (scene *Scene) SetGlobalTRS(id ecs.ID, trs geometry.DTRS3) {
 	scene.SetLocalTRS(id, trs)
 }
 
-func SceneGetEntity[T any](w *Scene, id ecs.ID) (T, bool) {
+func SceneGetEntity[T Entity](w *Scene, id ecs.ID) (T, bool) {
 	entity, _ := w.Entity.Get(id)
 	entityT, ok := entity.(T)
 	if !ok {
@@ -285,6 +280,7 @@ func (w *Scene) Step(updateParams *UpdateParams) {
 		}
 	}
 
+	// TODO: move into updatePhysicsShadow?
 	for id, entity := range ecs.All(&w.Entity) {
 		if entity, ok := entity.(UpdateBeforePhysics); ok {
 			entity.UpdateBeforePhysics(w, id, updateParams)
@@ -300,103 +296,6 @@ func (w *Scene) Step(updateParams *UpdateParams) {
 		}
 	}
 
-	/*
-		ecs.Range(
-			w.ContactEvents,
-			func(entityID ecs.ID, contactEvents []ContactEvent) {
-				for _, ce := range contactEvents {
-					switch ce.Type {
-					case 1:
-						w.SoundEffect.Store(entityID, SoundEffect{
-							Effect:   "grenade_launcher_fire.wav",
-							PlayTime: w.Time + Δt + time.Duration(rand.Int63n(int64(10*time.Millisecond))),
-						})
-					}
-				}
-			})
-	*/
-
-	// for
-
-	// TODO: we want a unique primary component here, something with Grenade in
-	// the name perhaps
-	/*
-		ecs.Range2(
-			w.ContactEvents, w.Explosive,
-			func(entityID ecs.ID, contactEvents []ContactEvent, explosive DamageAndKnockback) {
-				for _, ce := range contactEvents {
-					switch ce.Type {
-					case 1:
-						// BUG: move the following to its own system
-
-						positionRotation, _ := w.PositionRotation.Load(entityID)
-
-						ecs.Range(
-							w.PhysicsMotionType,
-							func(entityID2 ecs.ID, motionType PhysicsMotionType) {
-								// Should we only apply this stuff to dynamic
-								// objects, and kinematic objects should be opted in
-								// on per object basis? Or should objects be opted
-								// out of knockback? For example we don't want
-								// payload cart to get any knockback.
-								if motionType == PhysicsMotionStatic {
-									return
-								}
-								if entityID == entityID2 {
-									return
-								}
-
-								positionRotation2, _ := w.PositionRotation.Load(entityID2)
-								velocity, _ := w.Velocity.Load(entityID2)
-
-								// TODO: I'm really not sure how to best gauge
-								// distance and what would be a good way to
-								// implement explosions
-								hello := positionRotation2.Position.Add(geometry.DVec3{Z: 0.8}).Sub(positionRotation.Position).Vec3()
-
-								a, _ := w.DistanceBasedImpactMultiplierTable.Load(entityID)
-
-								len := hello.Length()
-
-								var impactMultiplier float32
-								for _, e := range a {
-									if len >= e.Distance {
-										impactMultiplier = e.Multiplier
-									}
-								}
-
-								if impactMultiplier > 0 {
-									// TODO: pick a direction somehow if len == 0
-									dir := hello.Scale(1.0 / len)
-
-									force := dir.Scale(explosive.Knockback * impactMultiplier)
-
-									// TODO: make it depend on the mass and other things probably?
-
-									velocity.Linear = velocity.Linear.Add(force)
-									w.Velocity.Store(entityID2, velocity)
-								}
-							})
-
-						// Schedule this entity for removal
-						w.Remove.Store(entity, struct{}{})
-
-						// TODO: we could reuse the current entity for an effect. Should we?
-
-						effect := w.AllocEntityID()
-						w.PositionRotation.Store(effect, positionRotation)
-						w.SoundEffect.Store(effect, SoundEffect{
-							Effect:   "later.wav",
-							PlayTime: w.Time + Δt,
-						})
-						// TODO: remove affect after a while
-
-						return
-					}
-				}
-			})
-	*/
-
 	for id, v := range ecs.Join(&w.ContactEvents, &w.DeleteCosmeticOffsetOnContact) {
 		for _, ce := range v.V1 {
 			if ce.Type == 1 {
@@ -406,31 +305,23 @@ func (w *Scene) Step(updateParams *UpdateParams) {
 		}
 	}
 
-	for id, deleteAfter := range ecs.All(&w.DeleteAfter) {
-		if deleteAfter.Before(w.Now) {
-			w.Delete.Set(id, struct{}{})
+	w.processTimers(updateParams)
+
+	for id, a := range ecs.All(&w.SoundEffectState) {
+		soundEffect, _ := w.SoundEffect.Get(id)
+		if soundEffect.PlayTime.Add(time.Duration(a.LengthInSamples * 1e9 / 48000)).After(w.Now) {
+			continue
 		}
+
+		soundEffect.Effect = a.Sound
+		soundEffect.Attenuation = a.Attenuation
+		soundEffect.PlayTime = w.Now
+		w.SoundEffect.Set(id, soundEffect)
 	}
 
 	w.DeleteEntities()
 
 	w.ContactEvents.Clear()
-}
-
-// TODO: this probs should be global? and moved to dropped_weapon.go.......
-// TODO: use weaponState in place of weapon?
-func (w *Scene) CreateDroppedWeapon(weaponID ecs.ID, info *UpdateParams) ecs.ID {
-	weapon := mustOk(SceneGetEntity[Weapon](w, weaponID))
-
-	dropped := w.CreateEntity(info)
-	w.SetGlobalTRS(dropped, geometry.DTRS3One())
-	w.Entity.Set(dropped, DroppedWeapon{Weapon: weaponID})
-
-	weapon.WeaponCreateGeometry(w, dropped, info)
-
-	w.SetParent(weaponID, dropped)
-
-	return dropped
 }
 
 func mustOk[T any](v T, ok bool) T {
@@ -478,12 +369,9 @@ func (w *Scene) DeleteEntities() {
 
 	// Remove entities that were scheduled for removal
 	{
+		// TODO: delete entities in bulk?
 		for id := range ecs.All(&w.Delete) {
-			// TODO: delete bodies in bulk
-			if _, ok := w.physicsBodyExists.Get(id); ok {
-				w.physicsSystem.RemoveBody(physics.BodyID(id))
-			}
-			w.Table.Delete(id)
+			w.DeleteEntityImmediately(id)
 		}
 
 		for range ecs.All(&w.Delete) {

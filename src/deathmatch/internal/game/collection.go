@@ -140,7 +140,4 @@ func (dst *Columns) CopyEntities(id ecs.ID, src *Columns) {
 	if v, ok := src.GravityFactor.Get(1); ok {
 		dst.GravityFactor.Set(id, v)
 	}
-	if v, ok := src.PlayerSpawn.Get(1); ok {
-		dst.PlayerSpawn.Set(id, v)
-	}
 }

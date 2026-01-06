@@ -30,7 +30,7 @@ var playerStats = struct {
 	JumpVelocity:                4,
 }
 
-// TODO: turn this into an interface
+// TODO: turn this into an interface?
 type Character struct {
 	// FirstPersonCamera is always a descendant of the Character,
 	FirstPersonCamera ecs.ID
@@ -55,27 +55,27 @@ type Character struct {
 func (Character) entity() {}
 
 // TODO: this should accept its own input things.
-func (character Character) CharacterSubstep(w *Scene, id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
+func (char Character) CharacterSubstep(w *Scene, id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
 	var switchToWeapon ecs.ID
 	switch cmd := cmd.Cmd.(type) {
 	case InputCmdDLookX:
-		character.Look[0] = float32(math.Mod(float64(character.Look[0]+float32(cmd)), 1))
+		char.Look[0] = float32(math.Mod(float64(char.Look[0]+float32(cmd)), 1))
 	case InputCmdDLookY:
-		character.Look[1] = min(max(character.Look[1]+float32(cmd), -0.25), 0.25)
+		char.Look[1] = min(max(char.Look[1]+float32(cmd), -0.25), 0.25)
 	case InputCmdMoveX:
-		character.Move[0] = float32(cmd)
+		char.Move[0] = float32(cmd)
 	case InputCmdMoveY:
-		character.Move[1] = float32(cmd)
+		char.Move[1] = float32(cmd)
 	case InputCmdPressButton:
-		character.Buttons |= uint64(1) << cmd
+		char.Buttons |= uint64(1) << cmd
 	case InputCmdReleaseButton:
-		character.Buttons &^= uint64(1) << cmd
+		char.Buttons &^= uint64(1) << cmd
 	case Slot:
-		if !(0 <= int(cmd) && int(cmd) < len(character.Slots)) {
+		if !(0 <= int(cmd) && int(cmd) < len(char.Slots)) {
 			break
 		}
 
-		switchToWeapon = character.Slots[cmd]
+		switchToWeapon = char.Slots[cmd]
 
 	default:
 		// TODO: we should not hit this with nil either
@@ -84,8 +84,8 @@ func (character Character) CharacterSubstep(w *Scene, id ecs.ID, cmd Timestamped
 		}
 	}
 
-	if !w.IsEntityValid(character.ActiveWeapon) && switchToWeapon == 0 {
-		for _, slot := range character.Slots {
+	if !w.IsEntityValid(char.ActiveWeapon) && switchToWeapon == 0 {
+		for _, slot := range char.Slots {
 			if slot != 0 {
 				switchToWeapon = slot
 				break
@@ -94,73 +94,71 @@ func (character Character) CharacterSubstep(w *Scene, id ecs.ID, cmd Timestamped
 	}
 
 	// TODO: rewrite this
-	if w.IsEntityValid(switchToWeapon) && character.ActiveWeapon != switchToWeapon {
+	if w.IsEntityValid(switchToWeapon) && char.ActiveWeapon != switchToWeapon {
 		// TODO: for weapon sway we would need to introduce another entity
 		// (basically hands) which we would move around and actually use to
 		// implement sway with.
 		// TODO: make weapon switching predicted when we make CreateEntity work in speculative mode
 		if !info.Speculating {
-			character.ActiveWeapon = 0
+			char.ActiveWeapon = 0
 
-			// TODO: don't delete the view and worldmodel entities but just hide
-			// them?
-			if w.IsEntityValid(character.ActiveWeaponViewmodel) {
-				w.Delete.Set(character.ActiveWeaponViewmodel, struct{}{})
+			if w.IsEntityValid(char.ActiveWeaponViewmodel) {
+				w.Delete.Set(char.ActiveWeaponViewmodel, struct{}{})
 			}
-			character.ActiveWeaponViewmodel = 0
+			char.ActiveWeaponViewmodel = 0
 
 			// Now we can switch the weapons
 
 			if weapon, ok := SceneGetEntity[Weapon](w, switchToWeapon); ok {
-				character.ActiveWeaponViewmodel = weapon.WeaponCreateGeometry(w, character.Hands, info)
+				char.ActiveWeaponViewmodel = weapon.WeaponCreateGeometry(w, char.Hands, info)
 
-				w.Visibility.Set(character.ActiveWeaponViewmodel, Visibility{Mask: 0b01, Camera: character.FirstPersonCamera})
+				w.Visibility.Set(char.ActiveWeaponViewmodel, Visibility{Mask: 0b01, Camera: char.FirstPersonCamera})
 
-				character.ActiveWeapon = switchToWeapon
+				char.ActiveWeapon = switchToWeapon
 			}
 		}
 	}
 
 	// TODO: under some conditions we should autoselect a gun for the player
 
-	if weapon, ok := SceneGetEntity[Weapon](w, character.ActiveWeapon); ok {
+	if weapon, ok := SceneGetEntity[Weapon](w, char.ActiveWeapon); ok {
 		var buttons WeaponButtons
-		if character.Buttons&uint64(1<<ButtonAttack) != 0 {
+		if char.Buttons&uint64(1<<ButtonAttack) != 0 {
 			buttons |= WeaponTrigger
 		}
 
 		shootpos, _ := w.GetGlobalTRS(id)
 		shootpos = shootpos.Mul(geometry.DTRS3{
 			T: geometry.DVec3{0, 0, float64(playerStats.StandingViewHeight)},
-			R: geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, -1}, 2*math.Pi*character.Look[0]).Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, 2*math.Pi*character.Look[1])),
+			R: geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, -1}, 2*math.Pi*char.Look[0]).Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, 2*math.Pi*char.Look[1])),
 			S: geometry.Vec3Broadcast(1),
 		})
 
-		updateVisual := weapon.WeaponSubstep(w, character.ActiveWeapon, id, shootpos, buttons, info)
+		updateVisual := weapon.WeaponSubstep(w, char.ActiveWeapon, id, shootpos, buttons, info)
 		if updateVisual != nil {
-			updateVisual(w, character.ActiveWeaponViewmodel)
+			updateVisual(w, char.ActiveWeaponViewmodel)
 		}
 	}
 
 	// TODO: avoid unnecessary updates
-	w.Entity.Set(id, character)
+	w.Entity.Set(id, char)
 
 	// TODO: factor this out
-	w.SetLocalTRS(character.FirstPersonCamera, geometry.DTRS3{
+	w.SetLocalTRS(char.FirstPersonCamera, geometry.DTRS3{
 		T: geometry.DVec3{0, 0, float64(playerStats.StandingViewHeight)},
-		R: geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, -1}, 2*math.Pi*character.Look[0]).Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, 2*math.Pi*character.Look[1])),
+		R: geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, -1}, 2*math.Pi*char.Look[0]).Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, 2*math.Pi*char.Look[1])),
 		S: geometry.Vec3Broadcast(1),
 	})
 }
 
-func (character Character) CharacterUpdate(w *Scene, id ecs.ID, info *UpdateParams) {
+func (char Character) CharacterUpdate(w *Scene, id ecs.ID, info *UpdateParams) {
 	// TODO: do not call this here, properly move stuff from PlayerSubstep to here
-	character.CharacterSubstep(w, id, TimestampedInputCmd{}, info)
+	char.CharacterSubstep(w, id, TimestampedInputCmd{}, info)
 
 	velocity, _ := w.Velocity.Get(id)
 
 	// TODO: more elaborate viewmodel sway
-	w.SetLocalTRS(character.Hands, geometry.DTRS3{
+	w.SetLocalTRS(char.Hands, geometry.DTRS3{
 		T: geometry.DVec3{0, math.Sin(float64(w.Now)/1e9*6) * 0.03 * min(float64(velocity.Linear.Length()/6), 1), 0},
 		R: geometry.Rot3One(),
 		S: geometry.Vec3Broadcast(1),
@@ -169,34 +167,34 @@ func (character Character) CharacterUpdate(w *Scene, id ecs.ID, info *UpdatePara
 
 var _ UpdateBeforePhysics = Character{}
 
-func (character Character) UpdateBeforePhysics(w *Scene, id ecs.ID, info *UpdateParams) {
+func (char Character) UpdateBeforePhysics(w *Scene, id ecs.ID, info *UpdateParams) {
 	trs, _ := w.GetGlobalTRS(id)
 	velocity, _ := w.Velocity.Get(id)
 
-	rotation := trs.R.Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, -1}, 2*math.Pi*character.Look[0]))
+	rotation := trs.R.Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, -1}, 2*math.Pi*char.Look[0]))
 
-	move := character.Move
+	move := char.Move
 	if lenSq := move.LengthSq(); lenSq > 1 {
 		move = move.Scale(1 / float32(math.Sqrt(float64(lenSq))))
 	}
 
 	localVel := rotation.Inverse().Rotate(velocity.Linear)
-	if character.Supported {
+	if char.Supported {
 		localVel[0] = move[0] * playerStats.WalkVelocity
 		localVel[1] = move[1] * playerStats.WalkVelocity
-		if character.Buttons&(1<<ButtonJump) != 0 {
+		if char.Buttons&(1<<ButtonJump) != 0 {
 			localVel[2] = 4
 		}
 	}
 	velocity.Linear = rotation.Rotate(localVel)
 
-	if !character.Supported {
+	if !char.Supported {
 		velocity.Linear = velocity.Linear.Add(w.Globals().Gravity.Scale(float32(durationToFloatSeconds(info.Δt))))
 	}
 
-	velocity.Linear = character.asdasd(w, id, velocity.Linear, info.Δt)
+	velocity.Linear = char.asdasd(w, id, velocity.Linear, info.Δt)
 
-	w.Entity.Set(id, character)
+	w.Entity.Set(id, char)
 	w.Velocity.Set(id, velocity)
 }
 
@@ -208,7 +206,7 @@ func planeSignedDistance(plane geometry.Vec4, point geometry.Vec3) float32 {
 	return point.Dot(planeNormal(plane)) + plane[3]
 }
 
-func (character *Character) asdasd(w *Scene, id ecs.ID, velocity geometry.Vec3, Δt time.Duration) geometry.Vec3 {
+func (char *Character) asdasd(w *Scene, id ecs.ID, velocity geometry.Vec3, Δt time.Duration) geometry.Vec3 {
 	trs, _ := w.GetGlobalTRS(id)
 
 	up := geometry.Vec3{0, 0, 1}
@@ -227,7 +225,7 @@ func (character *Character) asdasd(w *Scene, id ecs.ID, velocity geometry.Vec3, 
 		hits)
 	hits = hits[:n]
 
-	character.Supported = false
+	char.Supported = false
 
 	for _, contact := range hits {
 		normal := contact.Normal.Scale(-1)
@@ -244,7 +242,7 @@ func (character *Character) asdasd(w *Scene, id ecs.ID, velocity geometry.Vec3, 
 				})
 			}
 		} else {
-			character.Supported = true
+			char.Supported = true
 		}
 		planes = append(planes, geometry.Vec4{
 			normal[0],

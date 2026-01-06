@@ -15,7 +15,7 @@ const (
 )
 
 type Weapon interface {
-	weapon()
+	Entity
 
 	// TODO: delegate creating the entity to the caller? That way some callers
 	// could attach additional stuff if they so desire. But idk.

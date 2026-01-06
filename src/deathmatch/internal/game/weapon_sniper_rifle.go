@@ -25,11 +25,9 @@ type WeaponSniperRifle struct {
 	NextAttack time.Duration
 }
 
-func (WeaponSniperRifle) entity() {}
-
 var _ Weapon = WeaponSniperRifle{}
 
-func (WeaponSniperRifle) weapon() {}
+func (WeaponSniperRifle) entity() {}
 
 func (weapon WeaponSniperRifle) WeaponCreateGeometry(scene *Scene, parent ecs.ID, info *UpdateParams) ecs.ID {
 	root := scene.CreateEntity(info)
@@ -37,16 +35,16 @@ func (weapon WeaponSniperRifle) WeaponCreateGeometry(scene *Scene, parent ecs.ID
 	scene.SetLocalTRS(root, sniperRifleStats.ViewGeometryTRS)
 	scene.RenderingGeometry.Set(root, sniperRifleStats.RenderingGeometry)
 
-	// sound := scene.CreateEntity(info)
+	sound := scene.CreateEntity(info)
 	// scene.CreationTime.Set(sound, scene.Now)
-	// scene.SetParent(sound, root)
-	// scene.SetLocalTRS(sound, geometry.DTRS3One())
-	// guh := LoopedSound{
-	// 	Sound:       "lamphum.wav",
-	// 	Attenuation: 0.1,
-	// }
-	// guh.Init()
-	// scene.Entity.Set(sound, guh)
+	scene.SetParent(sound, root)
+	scene.SetLocalTRS(sound, geometry.DTRS3One())
+	guh := LoopedSound{
+		Sound:       "lamphum.wav", // TODO: don't bother setting it here pls
+		Attenuation: 0.1,
+	}
+	guh.Init()
+	scene.SoundEffectState.Set(sound, guh)
 
 	return root
 }

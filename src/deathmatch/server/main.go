@@ -475,8 +475,10 @@ func spawnplayer(w *game.Scene, info *game.UpdateParams) ecs.ID {
 	character := w.CreateEntity(info)
 
 	var playerSpawns []ecs.ID
-	for id := range ecs.All(&w.PlayerSpawn) {
-		playerSpawns = append(playerSpawns, id)
+	for id, entity := range ecs.All(&w.Entity) {
+		if _, ok := entity.(game.PlayerSpawn); ok {
+			playerSpawns = append(playerSpawns, id)
+		}
 	}
 	t, _ := w.GetGlobalTRS(playerSpawns[rand.IntN(len(playerSpawns))])
 

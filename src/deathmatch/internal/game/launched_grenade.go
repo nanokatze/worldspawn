@@ -20,26 +20,20 @@ type LaunchedGrenade struct{}
 
 func (LaunchedGrenade) entity() {}
 
-var _ UpdateAfterPhysics = LaunchedGrenade{}
-
-func (grenade LaunchedGrenade) UpdateAfterPhysics(w *Scene, id ecs.ID, info *UpdateParams) {
-	creationTime, _ := w.CreationTime.Get(id)
-	explosionTime := creationTime.Add(grenadeStats.FuseDuration)
-	if explosionTime.After(w.Now) {
-		return
-	}
+func (grenade LaunchedGrenade) TimerExpired(w *Scene, grenadeID ecs.ID, info *UpdateParams) {
+	trs := mustOk(w.GetGlobalTRS(grenadeID))
 
 	if !info.Speculating {
-		effect := w.CreateEntity(info)
-		trs, _ := w.GetGlobalTRS(id)
-		w.SetGlobalTRS(effect, trs)
-		w.SoundEffect.Set(effect, SoundEmitter{
+		eff := w.CreateEntity(info)
+		w.SetGlobalTRS(eff, trs)
+		w.Timer.Set(eff, w.Now.Add(2*time.Second))
+		w.Entity.Set(eff, DeleteAfter{})
+		w.SoundEffect.Set(eff, SoundEmitter{
 			Effect:      grenadeStats.ExplosionSound,
 			Attenuation: 1,
 			PlayTime:    w.Now.Add(info.Δt),
 		})
-		w.DeleteAfter.Set(effect, w.Now.Add(2*time.Second))
 	}
 
-	w.Delete.Set(id, struct{}{})
+	w.Delete.Set(grenadeID, struct{}{})
 }

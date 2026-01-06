@@ -13,6 +13,22 @@ type DroppedWeapon struct {
 
 func (DroppedWeapon) entity() {}
 
+// TODO: this probs should be global? and moved to dropped_weapon.go.......
+// TODO: use weaponState in place of weapon?
+func (w *Scene) CreateDroppedWeapon(weaponID ecs.ID, info *UpdateParams) ecs.ID {
+	weapon := mustOk(SceneGetEntity[Weapon](w, weaponID))
+
+	dropped := w.CreateEntity(info)
+	w.SetGlobalTRS(dropped, geometry.DTRS3One())
+	w.Entity.Set(dropped, DroppedWeapon{Weapon: weaponID})
+
+	weapon.WeaponCreateGeometry(w, dropped, info)
+
+	w.SetParent(weaponID, dropped)
+
+	return dropped
+}
+
 // TODO: move handling of this into Character
 func (dropped DroppedWeapon) UpdateBeforePhysics(w *Scene, ourID ecs.ID, info *UpdateParams) {
 	trsOurs := mustOk(w.GetGlobalTRS(ourID))

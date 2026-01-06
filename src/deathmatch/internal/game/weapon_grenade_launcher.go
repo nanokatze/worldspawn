@@ -41,11 +41,9 @@ type WeaponGrenadeLauncher struct {
 	NextAttack Time
 }
 
-func (WeaponGrenadeLauncher) entity() {}
-
 var _ Weapon = WeaponGrenadeLauncher{}
 
-func (WeaponGrenadeLauncher) weapon() {}
+func (WeaponGrenadeLauncher) entity() {}
 
 // TODO: rename to CreateRenderingGeometry
 func (weapon WeaponGrenadeLauncher) WeaponCreateGeometry(scene *Scene, parent ecs.ID, info *UpdateParams) ecs.ID {
@@ -65,7 +63,7 @@ func (weapon WeaponGrenadeLauncher) WeaponSubstep(scene *Scene, weaponID ecs.ID,
 		if !weapon.NextAttack.After(scene.Now) {
 			if !info.Speculating {
 				projectile := scene.SpawnPrefab(grenadeLauncherStats.Projectile, 0, info)
-				scene.CreationTime.Set(projectile, scene.Now)
+				// scene.CreationTime.Set(projectile, scene.Now)
 				scene.SetGlobalTRS(projectile, shootpos.Mul(geometry.DTRS3{
 					R: geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, math.Pi/2),
 					S: geometry.Vec3Broadcast(1),
@@ -74,6 +72,7 @@ func (weapon WeaponGrenadeLauncher) WeaponSubstep(scene *Scene, weaponID ecs.ID,
 				scene.Velocity.Set(projectile, Velocity{Linear: shootpos.R.Rotate(geometry.Vec3{0, grenadeLauncherStats.MuzzleVelocity, 0})})
 				scene.CollisionLayer.Set(projectile, PhysicsLayerProjectiles)
 				scene.PhysicsFilter.Set(projectile, []ecs.ID{shooterID})
+				scene.Timer.Set(projectile, scene.Now.Add(grenadeStats.FuseDuration))
 				// TODO: new idea for cosmetic offset: we could trace a ray like TF2 does
 				// and make the decay time be how long it takes to reach the wall!
 				// scene.CosmeticOffset.Set(projectile, CosmeticOffset{
