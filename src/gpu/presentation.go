@@ -202,7 +202,7 @@ func (swapchain *Swapchain) Present(jq *JobQueue, index int) {
 		index:     uint32(index),
 	})
 
-	jq.WaitForIdle()
+	WaitForIdle(jq)
 }
 
 func (job *presentJob) Info() JobInfo {

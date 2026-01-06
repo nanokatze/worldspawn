@@ -18,7 +18,7 @@ func BenchmarkRoundTrip(b *testing.B) {
 	for b.Loop() {
 		var jq JobQueue
 		jq.Enqueue(&nopJob{})
-		jq.WaitForIdle()
+		WaitForIdle(&jq)
 	}
 }
 
@@ -103,7 +103,7 @@ func TestJobQueueWaitOnSatisfiedWaitGroup(t *testing.T) {
 
 	wg.EnqueueWait(&jq)
 
-	jq.WaitForIdle()
+	WaitForIdle(&jq)
 }
 
 func TestJobQueueWaitOnWaitGroupThatWillBeSatisfiedByHost(t *testing.T) {
@@ -119,7 +119,7 @@ func TestJobQueueWaitOnWaitGroupThatWillBeSatisfiedByHost(t *testing.T) {
 		wg.Done()
 	}()
 
-	jq.WaitForIdle()
+	WaitForIdle(&jq)
 }
 
 func TestJobQueueWaitTwiceOnWaitGroupThatWillBeSatisfiedByHost(t *testing.T) {
@@ -136,7 +136,7 @@ func TestJobQueueWaitTwiceOnWaitGroupThatWillBeSatisfiedByHost(t *testing.T) {
 		wg.Done()
 	}()
 
-	jq.WaitForIdle()
+	WaitForIdle(&jq)
 }
 
 // TODO: a more elaborate test
@@ -150,6 +150,6 @@ func TestJobQueueChained(t *testing.T) {
 	linky.EnqueueWait(&jq2)
 	linky.EnqueueDone(&jq0)
 
-	jq1.WaitForIdle()
-	jq2.WaitForIdle()
+	WaitForIdle(&jq1)
+	WaitForIdle(&jq2)
 }

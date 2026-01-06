@@ -304,7 +304,7 @@ func (w *mainWindow) redrawLocked() bool {
 	presentationOk := w.swapchain.Present2(jq, w.swapchainImage)
 
 	// TODO: frames-in-flight
-	jq.WaitForIdle()
+	gpu.WaitForIdle(jq)
 
 	return presentationOk
 }

@@ -53,7 +53,7 @@ type _FrameData struct {
 var blueNoise = sync.OnceValue(func() *gpu.Image {
 	var wg gpu.WaitGroup
 
-	var jq gpu.JobQueue
+	jq := new(gpu.JobQueue)
 
 	gpuImg := gpu.NewImage(&gpu.ImageConfig{
 		Dim:       gpu.ImageDim2D,
@@ -64,13 +64,13 @@ var blueNoise = sync.OnceValue(func() *gpu.Image {
 		Format:    vk.FORMAT_R16G16B16A16_UNORM, // TODO: we actually only use RG at most
 		Usage:     gpu.ImageUsageSampling,
 	})
-	gpuImg.EnqueueInit(&jq)
+	gpuImg.EnqueueInit(jq)
 
 	// TODO: can we please not use png
 	for i := range gpuImg.Layers() {
 		wg.Add(1)
 
-		jq := jq.Fork()
+		jq := gpu.Fork(jq)
 
 		func() {
 			// TODO: come up where non-game data should live. Maybe embed this?

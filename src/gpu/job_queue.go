@@ -21,20 +21,23 @@ type Job interface {
 }
 
 type JobQueue struct {
-	currentBatch *jobBatch // use b() to access
-	donewg       *WaitGroup
+	currentBatch *jobBatch // do not access directly; use b() instead
+	done         *WaitGroup
 	// TODO: add some sort of mechanism so that things can't be enqueued while
 	// we have a render pass using this job queue
+}
+
+func Fork(jq *JobQueue) *JobQueue {
+	child := new(JobQueue)
+	jq.Idle().EnqueueWait(child)
+	return child
 }
 
 func (jq *JobQueue) b() *jobBatch {
 	if jq.currentBatch == nil {
 		jq.currentBatch = new(jobBatch)
 	}
-	// We might be about to have a job enqueued. Reset done so a new sync object
-	// ordered to be signaled after the new jobs complete is created if
-	// necessary.
-	jq.donewg = nil
+	jq.done = nil // TODO: should be caller's responsibility
 	return jq.currentBatch
 }
 
@@ -44,7 +47,7 @@ func (jq *JobQueue) prepareForEnqueueWait() {
 	if jq.currentBatch == nil || jq.currentBatch.empty() {
 		return
 	}
-	done := jq.done()
+	done := jq.Idle()
 	jq.currentBatch = nil
 	done.enqueueWaitIntoBatch(jq.b())
 }
@@ -58,25 +61,24 @@ func (jq *JobQueue) Cleanup(f func()) {
 	jq.b().enqueueCleanup(f)
 }
 
-func (jq *JobQueue) done() *WaitGroup {
-	if jq.donewg == nil {
+// Returns a sync object that is signaled after all of the enqueued jobs
+// complete.
+//
+// TODO: make this thread safe? (i.e. protect with sync.Once)
+// TODO: should return an interface { EnqueueWait(*JobQueue); Wait() }
+func (jq *JobQueue) Idle() *WaitGroup {
+	if jq.done == nil {
 		wg := new(WaitGroup)
 		wg.Add(1)
 		wg.EnqueueDone(jq)
-		jq.donewg = wg
+		jq.currentBatch = nil // TODO: should not be necessary
+		jq.done = wg
 	}
-	return jq.donewg
+	return jq.done
 }
 
-// TODO: make it a global function and expose done()?
-func (jq *JobQueue) Fork() *JobQueue {
-	child := new(JobQueue)
-	jq.done().EnqueueWait(child)
-	return child
-}
-
-func (jq *JobQueue) WaitForIdle() {
-	jq.done().Wait()
+func WaitForIdle(jq *JobQueue) {
+	jq.Idle().Wait()
 }
 
 // TODO: region api for debug tooling and stuff

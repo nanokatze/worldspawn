@@ -52,7 +52,7 @@ func TestImageCopy1(t *testing.T) {
 		a, [3]int{0, 0, 0},
 		b, [3]int{0, 0, 0},
 		[3]int{1, 1, 1})
-	jq.WaitForIdle()
+	WaitForIdle(&jq)
 }
 
 func TestImageCopy3(t *testing.T) {
@@ -83,7 +83,7 @@ func TestImageCopy3(t *testing.T) {
 		a, [3]int{},
 		b, [3]int{},
 		[3]int{4, 4, 1})
-	jq.WaitForIdle()
+	WaitForIdle(&jq)
 }
 
 func TestImageCopy2(t *testing.T) {
@@ -114,7 +114,7 @@ func TestImageCopy2(t *testing.T) {
 		img2, [3]int{0, 0, 0},
 		tmp, 0, 0,
 		[3]int{2, 2, 1})
-	jq.WaitForIdle()
+	WaitForIdle(&jq)
 }
 
 func completeMipChainLength(width, height, depth uint32) int {

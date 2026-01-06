@@ -266,7 +266,7 @@ func loadmesh(filename string) *fileBackedMesh {
 
 	var jq gpu.JobQueue
 	inner.BuildAccel(&jq)
-	jq.WaitForIdle()
+	gpu.WaitForIdle(&jq)
 
 	return &fileBackedMesh{materials, inner}
 }
