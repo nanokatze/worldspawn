@@ -68,6 +68,7 @@ func (jq *JobQueue) done() *WaitGroup {
 	return jq.donewg
 }
 
+// TODO: make it a global function and expose done()?
 func (jq *JobQueue) Fork() *JobQueue {
 	child := new(JobQueue)
 	jq.done().EnqueueWait(child)

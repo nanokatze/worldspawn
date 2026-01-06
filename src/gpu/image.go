@@ -4,18 +4,11 @@ import (
 	"fmt"
 	"log"
 	"runtime"
-	"sync"
 	"unsafe"
 
 	"worldspawn/gpu/vk"
 	"worldspawn/gpu/vk/formatutil"
 )
-
-// TODO: move all image stuff into a subpackage
-
-var imageDescAllocHint int64
-var imageDescAlloc = newSlotAlloc(1e6) // allocate either at NewImage() or gpuInit()
-var imageViews = make([]vk.ImageView, 1e6)
 
 type ImageDim int // uint8?
 
@@ -97,39 +90,6 @@ func (usage ImageUsage) vkImageUsageFlags(format Format) vk.ImageUsageFlags {
 	return vkUsage
 }
 
-type imageData struct {
-	vkImage vk.Image
-
-	// TODO: review which of these fields we need
-	dim       ImageDim
-	extent    vk.Extent3D
-	layers    uint32
-	mipLevels uint32
-	format    Format
-	usage     ImageUsage
-
-	memory *deviceMemory // TODO: replace with an UnsafePointer and length
-}
-
-func (base *imageData) destroy() {
-	vkFns.DestroyImage(device, base.vkImage, nil)
-
-	allocPoolMu.Lock()
-	allocPool[base.memory.size] = append(allocPool[base.memory.size], base.memory)
-	allocPoolMu.Unlock()
-}
-
-type imageDescriptors struct {
-	sampling, loadStore uint32
-}
-
-func (descriptors imageDescriptors) destroy() {
-	vkFns.DestroyImageView(device, imageViews[descriptors.sampling], nil)
-	imageDescAlloc.Free(int(descriptors.sampling))
-	vkFns.DestroyImageView(device, imageViews[descriptors.loadStore], nil)
-	imageDescAlloc.Free(int(descriptors.loadStore))
-}
-
 type Image struct {
 	base        *imageData // TODO: rename to data?
 	descriptors imageDescriptors
@@ -202,6 +162,12 @@ func (config *ImageConfig) vkImageCreateInfo(queueFamilies []uint32, createInfo 
 		InitialLayout:         vk.IMAGE_LAYOUT_UNDEFINED,
 	}
 }
+
+/*
+func importImage(config *ImageConfig, vkImage vk.Image) *Image {
+	return nil
+}
+*/
 
 func NewImage(config *ImageConfig) *Image {
 	var pinner runtime.Pinner
@@ -316,6 +282,7 @@ func newImage(
 
 	img := &Image{
 		base:         base,
+		descriptors:  newImageDescriptors(base, dim, format, baseLayer, layers, baseMipLevel, mipLevels),
 		dim:          dim,
 		format:       format,
 		baseLayer:    uint32(baseLayer),
@@ -324,85 +291,6 @@ func newImage(
 		mipLevels:    uint8(mipLevels),
 		extent:       vkExtent3DFromInt3(extent),
 	}
-
-	allowedUsages := getImageFormatAllowedShaderUsages(format)
-
-	sampling := base.usage&ImageUsageSampling != 0 && allowedUsages.Sampling
-	loadStore := base.usage&ImageUsageLoadStore != 0 && allowedUsages.LoadStore
-
-	var imageViewCreateInfo *vk.ImageViewCreateInfo
-	if sampling || loadStore {
-		usage := vk.ImageUsageFlags(0)
-		if sampling {
-			usage |= vk.ImageUsageFlags(vk.IMAGE_USAGE_SAMPLED_BIT)
-		}
-		if loadStore {
-			usage |= vk.ImageUsageFlags(vk.IMAGE_USAGE_STORAGE_BIT)
-		}
-
-		imageViewCreateInfo = &vk.ImageViewCreateInfo{
-			SType: vk.STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-			PNext: unsafe.Pointer(&vk.ImageViewUsageCreateInfo{
-				SType: vk.STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO,
-				Usage: usage,
-			}),
-			Image:            img.base.vkImage,
-			ViewType:         img.dim.vkImageViewType(),
-			Format:           img.format,
-			SubresourceRange: img.vkImageSubresourceRange(),
-		}
-	}
-
-	if sampling {
-		img.descriptors.sampling = uint32(imageDescAlloc.Alloc(&imageDescAllocHint))
-
-		var vkView vk.ImageView
-		if err := vkFns.CreateImageView(device, imageViewCreateInfo, nil, &vkView); err != nil {
-			panic(fmt.Sprintf("gpu: vkCreateImageView: %v", err))
-		}
-		imageViews[img.descriptors.sampling] = vkView
-
-		vkFns.UpdateDescriptorSets(device,
-			1, &vk.WriteDescriptorSet{
-				SType:           vk.STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-				DstSet:          descriptorSet,
-				DstBinding:      1,
-				DstArrayElement: uint32(img.descriptors.sampling),
-				DescriptorCount: 1,
-				DescriptorType:  vk.DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-				PImageInfo: &vk.DescriptorImageInfo{
-					ImageView:   vkView,
-					ImageLayout: vk.IMAGE_LAYOUT_GENERAL,
-				},
-			},
-			0, nil)
-	}
-
-	if loadStore {
-		img.descriptors.loadStore = uint32(imageDescAlloc.Alloc(&imageDescAllocHint))
-
-		var vkView vk.ImageView
-		if err := vkFns.CreateImageView(device, imageViewCreateInfo, nil, &vkView); err != nil {
-			panic(fmt.Sprintf("gpu: vkCreateImageView: %v", err))
-		}
-		imageViews[img.descriptors.loadStore] = vkView
-
-		vkFns.UpdateDescriptorSets(device,
-			1, &vk.WriteDescriptorSet{
-				SType:           vk.STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-				DstSet:          descriptorSet,
-				DstBinding:      2,
-				DstArrayElement: uint32(img.descriptors.loadStore),
-				DescriptorCount: 1,
-				DescriptorType:  vk.DESCRIPTOR_TYPE_STORAGE_IMAGE,
-				PImageInfo: &vk.DescriptorImageInfo{
-					ImageView:   vkView,
-					ImageLayout: vk.IMAGE_LAYOUT_GENERAL,
-				},
-			},
-			0, nil)
-	}
-
 	if img.descriptors != (imageDescriptors{}) {
 		img.cleanup = runtime.AddCleanup(img, imageDescriptors.destroy, img.descriptors)
 	}
@@ -439,82 +327,6 @@ func (img *Image) Layers() int { return int(img.layers) }
 
 func (img *Image) Extent() [3]int { return int3FromVkExtent3D(img.extent) }
 
-func (img *Image) EnqueueInit(jq *JobQueue) {
-	img.enqueueTransitionLayout(jq, vk.IMAGE_LAYOUT_UNDEFINED, vk.IMAGE_LAYOUT_GENERAL)
-}
-
-// TODO: move to its own file I guess. Or idk.
-type transitionImageLayoutJob struct {
-	imageData        *imageData
-	subresourceRange vk.ImageSubresourceRange
-	oldLayout        vk.ImageLayout
-	newLayout        vk.ImageLayout
-}
-
-func (img *Image) enqueueTransitionLayout(jq *JobQueue, oldLayout, newLayout vk.ImageLayout) {
-	jq.Enqueue(&transitionImageLayoutJob{
-		imageData:        img.base,
-		subresourceRange: img.vkImageSubresourceRange(),
-		oldLayout:        oldLayout,
-		newLayout:        newLayout,
-	})
-}
-
-var driverID = sync.OnceValue(func() vk.DriverId {
-	var pinner runtime.Pinner
-	defer pinner.Unpin()
-
-	props12 := vk.PhysicalDeviceVulkan12Properties{
-		SType: vk.STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_PROPERTIES,
-	}
-	props10 := vk.PhysicalDeviceProperties2{
-		SType: vk.STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
-		PNext: unsafe.Pointer(pinned(&pinner, &props12)),
-	}
-	vkFns.GetPhysicalDeviceProperties2(physicalDevice, &props10)
-
-	return props12.DriverID
-})
-
-func (job *transitionImageLayoutJob) Info() JobInfo {
-	// VUID-vkCmdPipelineBarrier2-commandBuffer-cmdpool
-	// The VkCommandPool that commandBuffer was allocated from must support
-	// transfer, graphics, compute, decode, or encode operations
-	families := queueFamilies.Mask(0b100)
-	if driverID() == vk.DRIVER_ID_MESA_RADV && job.newLayout == vk.IMAGE_LAYOUT_PRESENT_SRC_KHR {
-		// WA: RADV does not implement transition to PRESENT_SRC on queues that
-		// don't support compute.
-		families = queueFamilies.Mask(0b010)
-	}
-	return JobInfo{QueueFamilies: families}
-}
-
-// TODO: group these jobs so we can poke vkCmdPipelineBarrier2 less. On RADV
-// there's device overheads arising from our current usage pattern, on the
-// transfer-only queue.
-func (job *transitionImageLayoutJob) Exec(q *CommandQueue) {
-	q.Commands(func(cb vk.CommandBuffer) {
-		var pinner runtime.Pinner
-		defer pinner.Unpin()
-
-		imageMemoryBarrier := &vk.ImageMemoryBarrier2{
-			SType:            vk.STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
-			OldLayout:        job.oldLayout,
-			NewLayout:        job.newLayout,
-			Image:            job.imageData.vkImage,
-			SubresourceRange: job.subresourceRange,
-		}
-		pinner.Pin(imageMemoryBarrier)
-
-		vkFns.CmdPipelineBarrier2(cb,
-			&vk.DependencyInfo{
-				SType:                   vk.STRUCTURE_TYPE_DEPENDENCY_INFO,
-				ImageMemoryBarrierCount: 1,
-				PImageMemoryBarriers:    imageMemoryBarrier,
-			})
-	})
-}
-
 func (img *Image) SamplingDescriptor() SamplingView {
 	if img.descriptors.sampling == 0 {
 		panic("no descriptor")
@@ -527,6 +339,10 @@ func (img *Image) LoadStoreDescriptor() StorageView {
 		panic("no descriptor")
 	}
 	return StorageView{img.descriptors.loadStore}
+}
+
+func (img *Image) EnqueueInit(jq *JobQueue) {
+	img.enqueueTransitionLayout(jq, vk.IMAGE_LAYOUT_UNDEFINED, vk.IMAGE_LAYOUT_GENERAL)
 }
 
 func (img *Image) vkImageSubresourceRange() vk.ImageSubresourceRange {

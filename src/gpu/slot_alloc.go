@@ -14,7 +14,6 @@ type slotAlloc struct{ bs bitset.Bitset }
 func newSlotAlloc(len int) slotAlloc {
 	bs := bitset.Make(len)
 	bs.Set(0)
-
 	return slotAlloc{bs: bs}
 }
 

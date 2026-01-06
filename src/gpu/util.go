@@ -8,9 +8,23 @@ import (
 	"math/bits"
 	"reflect"
 	"runtime"
+	"sync"
 	"unsafe"
+
 	"worldspawn/gpu/vk"
 )
+
+// TODO: rename to something else
+func cached[T, U any](f func(T) U) func(T) U {
+	var m sync.Map
+	return func(k T) U {
+		v, ok := m.Load(k)
+		if !ok {
+			v, _ = m.LoadOrStore(k, f(k))
+		}
+		return v.(U)
+	}
+}
 
 func ones32(x uint32) iter.Seq[int] {
 	return func(yield func(int) bool) {
@@ -61,28 +75,6 @@ func byteSliceToString(s []byte) string {
 	return string(s[:bytes.IndexByte(s, 0)])
 }
 
-// TODO: remove pinned* stuff
-func pinned[T any](pinner *runtime.Pinner, p *T) *T {
-	pinner.Pin(p)
-	return p
-}
-
-func pinnedSliceData[T any](pinner *runtime.Pinner, s []T) *T {
-	return pinned(pinner, unsafe.SliceData(s))
-}
-
-func pinnedCString(pinner *runtime.Pinner, s string) *byte {
-	return pinned(pinner, cstring(s))
-}
-
-func pinnedCStringSlice(pinner *runtime.Pinner, l []string) **byte {
-	ll := make([]*byte, len(l))
-	for i, s := range l {
-		ll[i] = pinnedCString(pinner, s)
-	}
-	return pinnedSliceData(pinner, ll)
-}
-
 // TODO: rename
 func asbytes(q any) []byte {
 	p := reflect.ValueOf(q)
@@ -108,4 +100,26 @@ func fprintcallers(w io.Writer, callers []uintptr) {
 			break
 		}
 	}
+}
+
+// TODO: remove pinned* stuff
+func pinned[T any](pinner *runtime.Pinner, p *T) *T {
+	pinner.Pin(p)
+	return p
+}
+
+func pinnedSliceData[T any](pinner *runtime.Pinner, s []T) *T {
+	return pinned(pinner, unsafe.SliceData(s))
+}
+
+func pinnedCString(pinner *runtime.Pinner, s string) *byte {
+	return pinned(pinner, cstring(s))
+}
+
+func pinnedCStringSlice(pinner *runtime.Pinner, l []string) **byte {
+	ll := make([]*byte, len(l))
+	for i, s := range l {
+		ll[i] = pinnedCString(pinner, s)
+	}
+	return pinnedSliceData(pinner, ll)
 }
