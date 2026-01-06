@@ -1,7 +1,6 @@
 package game
 
 import (
-	"fmt"
 	"io/fs"
 	"log/slog"
 	"reflect"
@@ -60,6 +59,7 @@ type Columns struct {
 	Parent ecs.Column[ecs.ID]
 	// Children ecs.ComponentStore[map[ecs.ID] // map[ecs.ID]struct{} ?
 
+	// ParentTransform ecs.Column[ID]
 	// Do not access this column directly; use {Get,Set}{Local,Global}TRS
 	// instead.
 	TranslationRotation ecs.Column[TranslationRotation]
@@ -99,6 +99,8 @@ type Columns struct {
 	CollectionInstance ecs.Column[CollectionInstance]
 
 	// TODO: rename, to e.g. Logic? Or Any?
+	// TODO: I'm kinda again contemplating killing this off in favor of more
+	// domain-specific things
 	Entity ecs.Column[Entity]
 
 	Delete ecs.Column[struct{}]
@@ -117,6 +119,8 @@ type Columns struct {
 }
 
 type Scene struct {
+	// TODO: could we move this to somewhere? Either way I would prefer if
+	// things would consult UpdateParams.Now rather than Scene.Params
 	Now Time
 
 	Table *ecs.Table
@@ -196,6 +200,8 @@ func (scene *Scene) SetParent(id, parent ecs.ID) {
 	if parent != 0 {
 		scene.Parent.Set(id, parent)
 	} else {
+		// TODO: our panic behavior should be the same as if we tried to Set
+		// this id. I.e. if this id isn't valid, we should crash.
 		scene.Parent.Delete(id)
 	}
 
@@ -221,9 +227,12 @@ func (scene *Scene) SetLocalTRS(id ecs.ID, trs geometry.DTRS3) {
 	// TODO: scale
 }
 
+// TODO: separate deletion and transform hierarchies?
 func (scene *Scene) GetGlobalTRS(id ecs.ID) (geometry.DTRS3, bool) {
+	if id == 0 {
+		return geometry.DTRS3One(), false
+	}
 	result := geometry.DTRS3One()
-	// TODO: return false for id == 0
 	for id != 0 {
 		trs, ok := scene.GetLocalTRS(id)
 		if !ok {
@@ -259,14 +268,6 @@ type UpdateParams struct {
 	Δt          time.Duration
 	Speculating bool
 	Logger      *slog.Logger
-}
-
-func (w *Scene) HandleInput(id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
-	if player, ok := SceneGetEntity[Player](w, id); ok {
-		player.PlayerSubstep(w, id, cmd, info)
-	} else {
-		info.Logger.Warn(fmt.Sprintf("entity does not exist or is not %s", reflect.TypeFor[Player]().Name()), "id", id)
-	}
 }
 
 // TODO: parallel for in blender for example specifies bulk number for tasks so
@@ -414,6 +415,29 @@ func (w *Scene) Step(updateParams *UpdateParams) {
 	w.DeleteEntities()
 
 	w.ContactEvents.Clear()
+}
+
+// TODO: this probs should be global? and moved to dropped_weapon.go.......
+// TODO: use weaponState in place of weapon?
+func (w *Scene) CreateDroppedWeapon(weaponID ecs.ID, info *UpdateParams) ecs.ID {
+	weapon := mustOk(SceneGetEntity[Weapon](w, weaponID))
+
+	dropped := w.CreateEntity(info)
+	w.SetGlobalTRS(dropped, geometry.DTRS3One())
+	w.Entity.Set(dropped, DroppedWeapon{Weapon: weaponID})
+
+	weapon.WeaponCreateGeometry(w, dropped, info)
+
+	w.SetParent(weaponID, dropped)
+
+	return dropped
+}
+
+func mustOk[T any](v T, ok bool) T {
+	if !ok {
+		panic("not ok")
+	}
+	return v
 }
 
 // TODO: rename to make it clear that we're deleting things already marked for

@@ -114,11 +114,12 @@ func (re *renderer) commitUpdate(update *sceneUpdate) {
 func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration) {
 	conf := config.Load()
 
-	player, _ := w.Entity.Get(playerID)
-	fpsCharacter, _ := player.(game.Player)
-
 	update := re.beginUpdate()
 	defer re.commitUpdate(update)
+
+	fpsCharacter, _ := game.SceneGetEntity[game.Player](w, playerID)
+
+	camera := fpsCharacter.Camera(w)
 
 	{
 		for i := range update.Parent {
@@ -166,14 +167,10 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 
 			i := id.Index()
 
-			mask := uint8(0b11)
-			if visibility, ok := w.Visibility.Get(id); ok {
-				switch visibility.Mode {
-				case 1:
-					mask = 0b01
-				case 2:
-					mask = 0b10
-				}
+			visibility, _ := w.Visibility.Get(id)
+			mask := visibility.Mask & 0b11
+			if visibility.Camera != camera {
+				mask ^= 0b11
 			}
 			update.Mask[i] = mask
 
@@ -199,16 +196,18 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 			t0game: t0,
 			t1game: t1,
 		}
+
+		// TODO: also the camera itself might not be valid or w/e
+		update.cameraTransform = camera.Index()
 		update.camera = pathtracer.Camera{
 			FieldOfView:   float32(geometry.Radians(67.5)),
 			NearClipPlane: 0.01,
 		}
-		update.cameraTransform = fpsCharacter.Camera.Index()
 	}
 
 	// Ughhhhhhh
 	{
-		camera := update.Transform(fpsCharacter.Camera.Index(), 0)
+		camera := update.Transform(camera.Index(), 0)
 		cameraPos := geometry.Vec3{camera[0][3], camera[1][3], camera[2][3]}
 
 		scene := re.sfxScene

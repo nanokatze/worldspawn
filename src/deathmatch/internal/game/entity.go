@@ -5,6 +5,7 @@ import "reflect"
 type Entity interface{ entity() }
 
 var EntityTypes = []reflect.Type{
+	reflect.TypeFor[Character](),
 	reflect.TypeFor[DroppedWeapon](),
 	reflect.TypeFor[LaunchedGrenade](),
 	reflect.TypeFor[LoopedSound](),

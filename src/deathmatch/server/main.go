@@ -472,24 +472,25 @@ func readInputCmds(r io.Reader, cmds *[]game.TimestampedInputCmd) error {
 }
 
 func spawnplayer(w *game.Scene, info *game.UpdateParams) ecs.ID {
-	player := w.CreateEntity(info)
+	character := w.CreateEntity(info)
 
 	var playerSpawns []ecs.ID
 	for id := range ecs.All(&w.PlayerSpawn) {
 		playerSpawns = append(playerSpawns, id)
 	}
-
-	// meh
 	t, _ := w.GetGlobalTRS(playerSpawns[rand.IntN(len(playerSpawns))])
-	w.SetGlobalTRS(player, t)
-	w.CollisionGeometry.Set(player, "FPSCharacter")
-	w.CollisionLayer.Set(player, game.PhysicsLayerMovingKinematic)
-	w.PhysicsMassOverride.Set(player, 100)
-	w.Visibility.Set(player, game.Visibility{Mode: 2})
-	w.RenderingGeometry.Set(player, "testcharacter4/geometries/TestCharacter4")
 
 	camera := w.CreateEntity(info)
-	w.SetParent(camera, player)
+
+	// meh
+	w.SetGlobalTRS(character, t)
+	w.CollisionGeometry.Set(character, "FPSCharacter")
+	w.CollisionLayer.Set(character, game.PhysicsLayerMovingKinematic)
+	w.PhysicsMassOverride.Set(character, 100)
+	w.Visibility.Set(character, game.Visibility{Mask: 0b10, Camera: camera})
+	w.RenderingGeometry.Set(character, "testcharacter4/geometries/TestCharacter4")
+
+	w.SetParent(camera, character)
 	// TODO: poke a method on Player to perform this
 	w.SetLocalTRS(camera, geometry.DTRS3{
 		T: geometry.DVec3{0, 0, 1.9 - 0.1}, // standing height
@@ -501,28 +502,14 @@ func spawnplayer(w *game.Scene, info *game.UpdateParams) ecs.ID {
 	w.SetParent(hands, camera)
 	w.SetLocalTRS(hands, geometry.DTRS3One())
 
-	slots := [4]ecs.ID{}
+	w.Entity.Set(character, game.Character{
+		FirstPersonCamera: camera,
+		Hands:             hands,
+	})
 
-	{
-		gun := w.CreateEntity(info)
-		w.SetParent(gun, player)
-		w.Entity.Set(gun, game.WeaponGrenadeLauncher{})
-
-		slots[0] = gun
-	}
-
-	{
-		gun := w.CreateEntity(info)
-		w.SetParent(gun, player)
-		w.Entity.Set(gun, game.WeaponSniperRifle{})
-
-		slots[1] = gun
-	}
-
+	player := w.CreateEntity(info)
 	w.Entity.Set(player, game.Player{
-		Camera: camera,
-		Slots:  slots,
-		Hands:  hands,
+		Character: character,
 	})
 
 	return player
@@ -593,6 +580,36 @@ func main() {
 			s.scene.Entity.Set(obj, tmp)
 		}
 	*/
+
+	{
+		info := &game.UpdateParams{Logger: slog.Default()}
+
+		weapon := s.scene.CreateEntity(info)
+		s.scene.Entity.Set(weapon, game.WeaponGrenadeLauncher{})
+
+		// Aaand "drop" the weapon
+
+		dropped := s.scene.CreateDroppedWeapon(weapon, info)
+		s.scene.SetGlobalTRS(dropped, geometry.DTRS3{
+			T: geometry.DVec3{0, 0, 1},
+			R: geometry.Rot3One(),
+			S: geometry.Vec3Broadcast(1),
+		})
+	}
+
+	{
+		info := &game.UpdateParams{Logger: slog.Default()}
+
+		weapon := s.scene.CreateEntity(info)
+		s.scene.Entity.Set(weapon, game.WeaponSniperRifle{})
+
+		dropped := s.scene.CreateDroppedWeapon(weapon, info)
+		s.scene.SetGlobalTRS(dropped, geometry.DTRS3{
+			T: geometry.DVec3{0, -10, 1},
+			R: geometry.Rot3One(),
+			S: geometry.Vec3Broadcast(1),
+		})
+	}
 
 	s.scene.InstantinateCollections()
 

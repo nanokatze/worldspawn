@@ -15,6 +15,10 @@ const (
 )
 
 type Weapon interface {
+	weapon()
+
+	// TODO: delegate creating the entity to the caller? That way some callers
+	// could attach additional stuff if they so desire. But idk.
 	WeaponCreateGeometry(scene *Scene, parent ecs.ID, info *UpdateParams) ecs.ID
 
 	// Returns a function that updates the rendering geometry. TODO: we also

@@ -45,6 +45,8 @@ func (WeaponGrenadeLauncher) entity() {}
 
 var _ Weapon = WeaponGrenadeLauncher{}
 
+func (WeaponGrenadeLauncher) weapon() {}
+
 // TODO: rename to CreateRenderingGeometry
 func (weapon WeaponGrenadeLauncher) WeaponCreateGeometry(scene *Scene, parent ecs.ID, info *UpdateParams) ecs.ID {
 	root := scene.CreateEntity(info)

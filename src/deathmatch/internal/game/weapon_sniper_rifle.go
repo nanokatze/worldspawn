@@ -29,6 +29,8 @@ func (WeaponSniperRifle) entity() {}
 
 var _ Weapon = WeaponSniperRifle{}
 
+func (WeaponSniperRifle) weapon() {}
+
 func (weapon WeaponSniperRifle) WeaponCreateGeometry(scene *Scene, parent ecs.ID, info *UpdateParams) ecs.ID {
 	root := scene.CreateEntity(info)
 	scene.SetParent(root, parent)
