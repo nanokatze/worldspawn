@@ -15,6 +15,7 @@ type features struct {
 	vk.PhysicalDeviceVulkan14Features
 	vk.PhysicalDeviceMaintenance7FeaturesKHR
 	vk.PhysicalDeviceMaintenance8FeaturesKHR
+	vk.PhysicalDeviceMaintenance9FeaturesKHR
 	vk.PhysicalDeviceShaderObjectFeaturesEXT
 	vk.PhysicalDeviceMeshShaderFeaturesEXT
 	vk.PhysicalDeviceImageViewMinLodFeaturesEXT
@@ -26,16 +27,12 @@ type features struct {
 	vk.PhysicalDeviceRayTracingPositionFetchFeaturesKHR
 }
 
-var enabledDeviceExtensions = map[string]struct{}{}
-var enabledDeviceFeatures = features{}
-
-// TODO: make it a standalone method?
-func (features *features) prepareForDeviceCreate() {
+func (features *features) init(skipzero bool) {
 	rfeatures := reflect.ValueOf(features).Elem()
 
 	for i, j := 0, -1; i < rfeatures.Type().NumField(); i++ {
 		f := rfeatures.Field(i)
-		if f.IsZero() {
+		if skipzero && f.IsZero() {
 			continue
 		}
 
@@ -50,12 +47,12 @@ func (features *features) prepareForDeviceCreate() {
 	}
 }
 
-// TODO: rename these to Require ...?
-
-func EnableDeviceExtension(extension string) {
-	enabledDeviceExtensions[extension] = struct{}{}
+func (features *features) Get(name string) bool {
+	rv := reflect.ValueOf(features).Elem().FieldByName(name)
+	return rv.IsValid() && *rv.Addr().Interface().(*vk.Bool32) != vk.FALSE
 }
 
-func EnableDeviceFeature(feature string) {
-	reflect.ValueOf(&enabledDeviceFeatures).Elem().FieldByName(feature).SetUint(1)
+func (features *features) Set(name string) {
+	rv := reflect.ValueOf(features).Elem().FieldByName(name)
+	*rv.Addr().Interface().(*vk.Bool32) = vk.TRUE
 }

@@ -1,8 +1,9 @@
 package gpu
 
 import (
-	"crypto/rand"
+	cryptorand "crypto/rand"
 	"fmt"
+	"math/rand/v2"
 	"runtime"
 	"slices"
 	"structs"
@@ -149,7 +150,6 @@ func malloc(size int, flags uint32) UnsafePointer {
 				vk.BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
 				vk.BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
 				vk.BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR),
-		SharingMode: vk.SHARING_MODE_EXCLUSIVE, // TODO: should be concurrent if we're using more queue families
 	})
 
 	requirements := &vk.MemoryRequirements2{
@@ -197,11 +197,13 @@ func malloc(size int, flags uint32) UnsafePointer {
 	if flags&hostMapped != 0 {
 		must(vkFns.MapMemory(device, memory, 0, vk.DeviceSize(size), 0, (*unsafe.Pointer)(unsafe.Pointer(&hostAddr))))
 
+		// TODO: an env var for this
+		// TODO: make it work for non-hostMapped allocs too. We'd have to use a
+		// dispatch in these cases.
 		if false {
-			// TODO: make this opt-in. Or alternatively just make sure we zero
-			// things out.
-			hehe := unsafe.Slice((*byte)(unsafe.Pointer(hostAddr)), size)
-			rand.Read(hehe)
+			var seed [32]byte
+			cryptorand.Read(seed[:])
+			rand.NewChaCha8(seed).Read(unsafe.Slice((*byte)(unsafe.Pointer(hostAddr)), size))
 		}
 	}
 
