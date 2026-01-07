@@ -119,7 +119,11 @@ func NewScene(n int, maxPartsPerMesh int) *Scene {
 	instances := gpu.MakeSliceUncached[materialParams](n * maxPartsPerMesh)
 	accelInstances := gpu.MakeSliceUncached[gpu.AccelInstance](n)
 
+	clear(accelInstances.Value())
+
 	emissiveInstances := gpu.MakeSliceUncached[emissiveInstance](n)
+
+	clear(emissiveInstances.Value())
 
 	// TODO: make pipeline be relinked when some material is created or removed
 	// or whatever.
