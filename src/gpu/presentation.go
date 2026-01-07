@@ -127,22 +127,7 @@ func (swapchain *Swapchain) reconfigure(config *SwapchainConfig) *Swapchain {
 
 	images := make([]*Image, len(vkImages))
 	for i, vkImage := range vkImages {
-		// TODO: we should introduce an Image constructor for imported/foreign
-		// images.
-		imageData := new(imageData)
-		imageData.vkImage = vkImage
-		imageData.dim = ImageDim2D
-		imageData.extent = vkExtent3DFromInt3(config.Extent)
-		imageData.layers = uint32(config.Layers)
-		imageData.mipLevels = 1
-		imageData.format = config.Format
-		imageData.usage = config.Usage
-		images[i] = newImage(
-			imageData,
-			imageData.dim,
-			imageData.format,
-			0, int(imageData.mipLevels),
-			0, int(imageData.layers))
+		images[i] = importImage(config.ImageConfig, vkImage)
 	}
 
 	return &Swapchain{

@@ -122,8 +122,7 @@ type ImageConfig struct {
 	MipLevels int
 	Samples   uint32 // TODO: remove multisampled images altogether from our abstraction?
 	Format    Format
-	// TODO: rename into something like "AdditionalUsage"?
-	Usage ImageUsage // TODO: a separate stencil usage? We could also pack usage for stencil into the high bits
+	Usage     ImageUsage // TODO: a separate stencil usage? We could also pack usage for stencil into the high bits
 }
 
 func (config *ImageConfig) vkImageCreateInfo(queueFamilies []uint32, createInfo *vk.ImageCreateInfo) {
@@ -162,12 +161,6 @@ func (config *ImageConfig) vkImageCreateInfo(queueFamilies []uint32, createInfo 
 		InitialLayout:         vk.IMAGE_LAYOUT_UNDEFINED,
 	}
 }
-
-/*
-func importImage(config *ImageConfig, vkImage vk.Image) *Image {
-	return nil
-}
-*/
 
 func NewImage(config *ImageConfig) *Image {
 	var pinner runtime.Pinner
@@ -251,6 +244,23 @@ func NewImage(config *ImageConfig) *Image {
 		0, int(base.mipLevels))
 	tmp.ownsBase = true
 	return tmp
+}
+
+func importImage(config *ImageConfig, vkImage vk.Image) *Image {
+	base := new(imageData)
+	base.vkImage = vkImage
+	base.dim = config.Dim
+	base.extent = vkExtent3DFromInt3(config.Extent)
+	base.layers = uint32(config.Layers)
+	base.mipLevels = uint32(config.MipLevels)
+	base.format = config.Format
+	base.usage = config.Usage
+	return newImage(
+		base,
+		config.Dim,
+		config.Format,
+		0, config.Layers,
+		0, config.MipLevels)
 }
 
 func newImage(
@@ -352,11 +362,12 @@ func (img *Image) vkImageSubresourceRange() vk.ImageSubresourceRange {
 // TODO: rename to "Free" or something like that and document that it's not
 // necessary for the user to call it.
 func (img *Image) Destroy() {
+	// Stop the cleanup first.
+	img.cleanup.Stop()
+
 	img.descriptors.destroy()
 
 	if img.ownsBase {
 		img.base.destroy()
 	}
-
-	img.cleanup.Stop()
 }
