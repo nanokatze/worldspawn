@@ -165,6 +165,7 @@ func gpuInit() {
 		// Actually let's not and just use println(stuff) gated behind an envvar?
 		log.Print("GPU: ", byteSliceToString(props.DeviceName[:]))
 
+		EnableDeviceFeature("ImageCubeArray")
 		EnableDeviceFeature("SamplerAnisotropy")
 		EnableDeviceFeature("ShaderInt64")
 		EnableDeviceFeature("ShaderInt16")
