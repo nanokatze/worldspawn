@@ -1,6 +1,7 @@
 package gpu
 
 import (
+	"crypto/rand"
 	"fmt"
 	"runtime"
 	"slices"
@@ -195,6 +196,13 @@ func malloc(size int, flags uint32) UnsafePointer {
 	var hostAddr uintptr
 	if flags&hostMapped != 0 {
 		must(vkFns.MapMemory(device, memory, 0, vk.DeviceSize(size), 0, (*unsafe.Pointer)(unsafe.Pointer(&hostAddr))))
+
+		if false {
+			// TODO: make this opt-in. Or alternatively just make sure we zero
+			// things out.
+			hehe := unsafe.Slice((*byte)(unsafe.Pointer(hostAddr)), size)
+			rand.Read(hehe)
+		}
 	}
 
 	allocsMu.Lock()
