@@ -7,6 +7,7 @@ import (
 	"log"
 	"maps"
 	"math"
+	"os"
 	"path"
 	"sync"
 	"unsafe"
@@ -147,8 +148,14 @@ func getmaterial(identifier string) material {
 			goto bail
 		}
 
+		debuglog := io.Writer(nil)
+		// This material bugs out
+		if identifier == "weapons/grenade_launcher/materials/Anodized_Aluminium" {
+			debuglog = os.Stderr
+		}
+
 		m.preamble = matc.CompilePreamble(paramsTuple, header.Preamble)
-		m.material = pathtracer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(paramsTuple, sea, ir, nil))
+		m.material = pathtracer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(paramsTuple, sea, ir, debuglog))
 	}
 	materialcache[identifier] = m
 	return m
