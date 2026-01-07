@@ -72,19 +72,19 @@ func texture(filename string) *pathtracer.Texture {
 		for i, l := range textureHeader.MipLevels {
 			wg.Add(1)
 
-			var jq gpu.JobQueue
+			jq := new(gpu.JobQueue)
 
 			tmp := gpu.MakeSliceUncached[byte](int(l.Len))
-			enqueueReadAt(&jq, f.(io.ReaderAt), tmp, int64(l.Off))
+			enqueueReadAt(jq, f.(io.ReaderAt), tmp, int64(l.Off))
 
 			img := t.Image.SubImage(
 				t.Image.Dim(),
 				t.Image.Format(),
 				0, layers,
 				i, i+1)
-			img.EnqueueInit(&jq)
+			img.EnqueueInit(jq)
 
-			gpu.EnqueueCopyMemoryToImage(&jq,
+			gpu.EnqueueCopyMemoryToImage(jq,
 				img, [3]int{},
 				tmp, 0, 0,
 				img.Extent())
@@ -93,7 +93,7 @@ func texture(filename string) *pathtracer.Texture {
 
 			jq.Cleanup(func() { gpu.Free(gpu.UnsafePointer(gpu.SliceData(tmp))) })
 
-			wg.EnqueueDone(&jq)
+			wg.EnqueueDone(jq)
 		}
 		// Wait for upload to complete before closing the file. TODO: spawn a
 		// goroutine to close the file instead, and just have the renderer block
@@ -264,9 +264,9 @@ func loadmesh(filename string) *fileBackedMesh {
 
 	inner.InitAccel()
 
-	var jq gpu.JobQueue
-	inner.BuildAccel(&jq)
-	gpu.WaitForIdle(&jq)
+	jq := new(gpu.JobQueue)
+	inner.BuildAccel(jq)
+	gpu.WaitForIdle(jq)
 
 	return &fileBackedMesh{materials, inner}
 }
