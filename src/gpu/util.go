@@ -49,12 +49,12 @@ func ones32(x uint32) iter.Seq[int] {
 	}
 }
 
-func splat3[T any](x T) [3]T {
+func broadcast3[T any](x T) [3]T {
 	return [3]T{x, x, x}
 }
 
 func minify3(extent [3]int, level int) [3]int {
-	return int3(extent).Rsh(splat3(level)).Max(splat3(1))
+	return int3(extent).Rsh(broadcast3(level)).Max(broadcast3(1))
 }
 
 // TODO: change this to be in terms of [3]int?
@@ -75,7 +75,7 @@ func vkExtent3DFromInt3(a [3]int) vk.Extent3D {
 }
 
 func int3DivRoundUp(a, b [3]int) [3]int {
-	return int3(a).Add(b).Sub(splat3(1)).Div(b)
+	return int3(a).Add(b).Sub(broadcast3(1)).Div(b)
 }
 
 func byteSliceToString(s []byte) string {

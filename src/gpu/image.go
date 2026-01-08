@@ -278,7 +278,7 @@ func newImage(
 		// 1, 1, 1.
 		// TODO: check that formatClass is uncompressed, while baseFormatClass
 		// is compressed instead of this hack
-		if formatBlockExtent(format) != splat3(1) {
+		if formatBlockExtent(format) != broadcast3(1) {
 			panic(fmt.Sprintf("cannot create a %v view of a %v class image", format, baseFormatClass))
 		}
 		extent = int3DivRoundUp(extent, formatBlockExtent(base.format))
