@@ -18,7 +18,7 @@ import (
 
 	"worldspawn/deathmatch/internal/game"
 	"worldspawn/sdl"
-	"worldspawn/sdlapp"
+	"worldspawn/sdlrouter"
 )
 
 func init() {
@@ -79,9 +79,7 @@ func main() {
 
 	go new(mainWindow).Run()
 
-	if err := sdlapp.Main(); err != nil {
-		panic(err)
-	}
+	sdlrouter.Main()
 }
 
 func osDirFSFlag(f *flag.FlagSet, p *fs.FS, name string, dir string, usage string) {

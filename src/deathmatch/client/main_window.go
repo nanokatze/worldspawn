@@ -16,7 +16,7 @@ import (
 	sfx "worldspawn/internal/fuckwwise"
 	"worldspawn/internal/pathtracer"
 	"worldspawn/sdl"
-	"worldspawn/sdlapp"
+	"worldspawn/sdlrouter"
 )
 
 // TODO: see if we can kill this and fold things back into main()
@@ -45,13 +45,13 @@ func (w *mainWindow) Run() {
 	// like gioui windows, we could let the user set the size and we'd set the
 	// title.
 	// TODO: it would also maybe be nice to tie windows with their swapchains.
-	sdlWindow := sdlapp.CreateWindow(
+	sdlWindow := sdlrouter.CreateWindow(
 		sdl.WithBooleanProperty(sdl.PROP_WINDOW_CREATE_VULKAN_BOOLEAN, true),
 		sdl.WithBooleanProperty(sdl.PROP_WINDOW_CREATE_HIGH_PIXEL_DENSITY_BOOLEAN, true),
 	)
 
 	sdlWindow.SetTitle("Wo̅r̅l̅d̅s̅p̅a̅w̅n̅")
-	sdlWindow.SetBordered(false)
+	sdlWindow.SetBordered(true)
 	// TODO: minimum window size as a safeguard?
 	sdlWindow.SetResizable(true)
 	sdlWindow.SetSize(conf.Presentation.Resolution[0], conf.Presentation.Resolution[1])
@@ -102,7 +102,7 @@ func (w *mainWindow) Run() {
 	}()
 
 	for {
-		event := <-sdlapp.Events(sdlWindow)
+		event := <-sdlrouter.Events(sdlWindow)
 
 		conf := config.Load()
 

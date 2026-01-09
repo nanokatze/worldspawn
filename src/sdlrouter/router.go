@@ -1,4 +1,4 @@
-package sdlapp
+package sdlrouter
 
 import (
 	"sync"
@@ -51,14 +51,14 @@ func Events(w *sdl.Window) <-chan sdl.Event {
 	return ch
 }
 
-func Main() error {
+func Main() {
 	<-router.inited
 
 eventLoop:
 	for {
 		event, err := sdl.WaitEvent()
 		if err != nil {
-			return err
+			panic(err)
 		}
 
 		router.mu.Lock()
@@ -87,6 +87,4 @@ eventLoop:
 		}
 		ch <- event
 	}
-
-	return nil
 }
