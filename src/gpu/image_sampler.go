@@ -6,12 +6,9 @@ import (
 	"worldspawn/gpu/vk"
 )
 
-// TODO: move this file into image.go tbh
-
+// TODO: rename to ImageSampler
 type Sampler struct{ handle uint32 }
 
-var samplerAllocHint int64
-var samplerSlots = newSlotAlloc(2e3)
 var samplerObjects = make([]vk.Sampler, 2e3)
 
 func NewSampler(config *vk.SamplerCreateInfo) Sampler {

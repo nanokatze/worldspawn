@@ -28,8 +28,8 @@ import (
 type _Device struct {
 	vk                vk.Device
 	topology          queues
-	enabledExtensions map[string]struct{}
-	enabledFeatures   map[string]struct{}
+	haveExts map[string]struct{}
+	haveFeatures   map[string]struct{}
 }
 
 func (device *_Device) Vk() vk.Device { return device.vk }
@@ -39,23 +39,41 @@ func (device *_Device) HaveExtension(ext string) bool { panic("not implemented")
 func (device *_Device) HaveFeature(feature string) bool { panic("not implemented") }
 */
 
-// TODO: record stack traces of where these features were enabled?
-var requestedDeviceExtensions = map[string]struct{}{}
+var (
+	appName    string = "Worldspawn" // TODO: should not have a default. These should be set by the linker.
+	appVersion uint32
+)
 
-var requestedDeviceFeatures = map[string]bool{}
+// TODO: rename
+type extensions map[string]bool
 
-// TODO: make these device options? So we'd e.g. do SetDeviceOption()
-func DeviceExtension(extension string, required bool) {
-	requestedDeviceExtensions[extension] = struct{}{}
-}
-
-func DeviceFeature(feature string, required bool) {
-	if !requestedDeviceFeatures[feature] {
-		requestedDeviceFeatures[feature] = required
+// TODO: record where the ext was requested
+func (exts extensions) Add(ext string, need bool) {
+	if !exts[ext] {
+		exts[ext] = need
 	}
 }
 
-// type requirementsMap map[string]bool
+// TODO: plop these into a struct
+var (
+	wantInstanceExts   = extensions{}
+	wantDeviceExts     = extensions{}
+	wantDeviceFeatures = extensions{}
+)
+
+// TODO: prefix these with WantVulkan..., e.g. WantVulkanDeviceExtension?
+
+func WantInstanceExtension(extension string) {
+	wantInstanceExts.Add(extension, false)
+}
+
+func WantDeviceExtension(extension string) {
+	wantDeviceExts.Add(extension, false)
+}
+
+func WantDeviceFeature(feature string) {
+	wantDeviceFeatures.Add(feature, false)
+}
 
 var instance vk.Instance
 var physicalDevice vk.PhysicalDevice
@@ -78,44 +96,23 @@ func gpuInit() {
 		var pinner runtime.Pinner
 		defer pinner.Unpin()
 
-		layers, err := enumerate(vk.EnumerateInstanceLayerProperties)
-		must(err)
+		WantInstanceExtension("VK_KHR_surface")
+		WantInstanceExtension("VK_KHR_wayland_surface")
+		WantInstanceExtension("VK_KHR_xlib_surface")
+		WantInstanceExtension("VK_EXT_debug_utils")
 
-		var instanceLayers []string
-		for _, layer := range layers {
-			switch byteSliceToString(layer.LayerName[:]) {
-			case "VK_LAYER_KHRONOS_shader_object":
-				// log.Println("VK_LAYER_KHRONOS_shader_object found, enabling")
-				// instanceLayers = append(instanceLayers, "VK_LAYER_KHRONOS_shader_object")
-			}
-		}
-
-		// TODO: we want to make additional extensions require-able by other
-		// components. Do we let external things register a callback and
-		// populate extensions here?
-
-		instanceExtensions := map[string]struct{}{
-			"VK_KHR_surface":         {},
-			"VK_KHR_wayland_surface": {},
-			"VK_KHR_xlib_surface":    {},
-		}
-		if true {
-			instanceExtensions["VK_EXT_debug_utils"] = struct{}{}
-		}
-
-		instanceExtensionsSlice := slices.Sorted(maps.Keys(instanceExtensions))
+		instanceExts := slices.Sorted(maps.Keys(wantInstanceExts))
 
 		must(vk.CreateInstance(pinned(&pinner, &vk.InstanceCreateInfo{
 			SType: vk.STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
 			PApplicationInfo: pinned(&pinner, &vk.ApplicationInfo{
-				SType:            vk.STRUCTURE_TYPE_APPLICATION_INFO,
-				PApplicationName: pinnedCString(&pinner, "Worldspawn"),
-				ApiVersion:       vk.API_VERSION_1_4,
+				SType:              vk.STRUCTURE_TYPE_APPLICATION_INFO,
+				PApplicationName:   pinnedCString(&pinner, appName),
+				ApplicationVersion: appVersion,
+				ApiVersion:         vk.API_VERSION_1_4,
 			}),
-			EnabledLayerCount:       uint32(len(instanceLayers)),
-			PPEnabledLayerNames:     pinnedCStringSlice(&pinner, instanceLayers),
-			EnabledExtensionCount:   uint32(len(instanceExtensionsSlice)),
-			PPEnabledExtensionNames: pinnedCStringSlice(&pinner, instanceExtensionsSlice),
+			EnabledExtensionCount:   uint32(len(instanceExts)),
+			PPEnabledExtensionNames: pinnedCStringSlice(&pinner, instanceExts),
 		}), nil, &instance))
 
 		vkFns.InstanceFuncs.Init(instance)
@@ -134,92 +131,91 @@ func gpuInit() {
 		println("GPU:", byteSliceToString(props.DeviceName[:]))
 
 		// TODO: move default feature enables somewhere else.
+		// TODO: request almost all core features probably. Or consult a profile
 
-		DeviceFeature("ImageCubeArray", true)
-		DeviceFeature("SamplerAnisotropy", true)
-		DeviceFeature("ShaderInt64", true)
-		DeviceFeature("ShaderInt16", true)
+		WantDeviceFeature("ImageCubeArray")
+		WantDeviceFeature("SamplerAnisotropy")
+		WantDeviceFeature("ShaderInt64")
+		WantDeviceFeature("ShaderInt16")
 
-		DeviceFeature("StorageBuffer16BitAccess", true)
-		DeviceFeature("StoragePushConstant16", true)
+		WantDeviceFeature("StorageBuffer16BitAccess")
+		WantDeviceFeature("StoragePushConstant16")
 
-		DeviceFeature("StorageBuffer8BitAccess", true)
-		DeviceFeature("StoragePushConstant8", true)
-		DeviceFeature("ShaderFloat16", true)
-		DeviceFeature("ShaderInt8", true)
-		DeviceFeature("ShaderSampledImageArrayNonUniformIndexing", true)
-		DeviceFeature("ShaderStorageImageArrayNonUniformIndexing", true)
-		DeviceFeature("DescriptorBindingSampledImageUpdateAfterBind", true)
-		DeviceFeature("DescriptorBindingStorageImageUpdateAfterBind", true)
-		DeviceFeature("DescriptorBindingUpdateUnusedWhilePending", true)
-		DeviceFeature("DescriptorBindingPartiallyBound", true)
-		DeviceFeature("DescriptorBindingVariableDescriptorCount", true)
-		DeviceFeature("RuntimeDescriptorArray", true)
-		DeviceFeature("ScalarBlockLayout", true)
-		DeviceFeature("TimelineSemaphore", true)
-		DeviceFeature("BufferDeviceAddress", true)
-		DeviceFeature("VulkanMemoryModel", true)
+		WantDeviceFeature("StorageBuffer8BitAccess")
+		WantDeviceFeature("StoragePushConstant8")
+		WantDeviceFeature("ShaderFloat16")
+		WantDeviceFeature("ShaderInt8")
+		WantDeviceFeature("ShaderSampledImageArrayNonUniformIndexing")
+		WantDeviceFeature("ShaderStorageImageArrayNonUniformIndexing")
+		WantDeviceFeature("DescriptorBindingSampledImageUpdateAfterBind")
+		WantDeviceFeature("DescriptorBindingStorageImageUpdateAfterBind")
+		WantDeviceFeature("DescriptorBindingUpdateUnusedWhilePending")
+		WantDeviceFeature("DescriptorBindingPartiallyBound")
+		WantDeviceFeature("DescriptorBindingVariableDescriptorCount")
+		WantDeviceFeature("RuntimeDescriptorArray")
+		WantDeviceFeature("ScalarBlockLayout")
+		WantDeviceFeature("TimelineSemaphore")
+		WantDeviceFeature("BufferDeviceAddress")
+		WantDeviceFeature("VulkanMemoryModel")
 		// Not sure we actually need these
-		// DeviceFeature("VulkanMemoryModelDeviceScope", true)
-		// DeviceFeature("VulkanMemoryModelAvailabilityVisibilityChains", true)
+		// DeviceFeature("VulkanMemoryModelDeviceScope")
+		// DeviceFeature("VulkanMemoryModelAvailabilityVisibilityChains")
 
 		// TODO: we also might need demote and discard, subgroup size control,
 		// compute full subgroups
-		DeviceFeature("Synchronization2", true)
-		DeviceFeature("DynamicRendering", true)
-		DeviceFeature("Maintenance4", true)
+		WantDeviceFeature("Synchronization2")
+		WantDeviceFeature("DynamicRendering")
+		WantDeviceFeature("Maintenance4")
 
-		DeviceFeature("Maintenance5", true)
-		DeviceFeature("Maintenance6", true)
+		WantDeviceFeature("Maintenance5")
+		WantDeviceFeature("Maintenance6")
 
-		DeviceExtension("VK_KHR_maintenance7", true)
-		DeviceFeature("Maintenance7", true)
+		WantDeviceExtension("VK_KHR_maintenance7")
+		WantDeviceFeature("Maintenance7")
 
-		DeviceExtension("VK_KHR_maintenance8", true)
-		DeviceFeature("Maintenance8", true)
+		WantDeviceExtension("VK_KHR_maintenance8")
+		WantDeviceFeature("Maintenance8")
 
-		DeviceExtension("VK_KHR_maintenance9", true)
-		DeviceFeature("Maintenance9", true)
+		// We depend maintenance9 to avoid specifying sharing mode for buffers and
+		wantDeviceExts.Add("VK_KHR_maintenance9", true)
+		wantDeviceFeatures.Add("Maintenance9", true)
 
-		DeviceExtension("VK_KHR_calibrated_timestamps", true)
+		wantDeviceExts.Add("VK_EXT_shader_object", true)
+		wantDeviceFeatures.Add("ShaderObject", true)
 
-		DeviceExtension("VK_EXT_shader_object", true)
-		DeviceFeature("ShaderObject", true)
+		WantDeviceExtension("VK_EXT_image_view_min_lod")
+		WantDeviceFeature("MinLod")
 
-		DeviceExtension("VK_EXT_image_view_min_lod", false)
-		DeviceFeature("MinLod", false)
+		WantDeviceExtension("VK_EXT_mesh_shader")
+		WantDeviceFeature("TaskShader")
+		WantDeviceFeature("MeshShader")
 
-		// TODO: gate on whether we have these features
-		DeviceExtension("VK_EXT_mesh_shader", false)
-		DeviceFeature("TaskShader", false)
-		DeviceFeature("MeshShader", false)
+		WantDeviceExtension("VK_KHR_deferred_host_operations")
 
-		DeviceExtension("VK_KHR_deferred_host_operations", false)
+		WantDeviceExtension("VK_KHR_acceleration_structure")
+		WantDeviceFeature("AccelerationStructure")
 
-		DeviceExtension("VK_KHR_acceleration_structure", false)
-		DeviceFeature("AccelerationStructure", false)
+		WantDeviceExtension("VK_KHR_pipeline_library")
 
-		DeviceExtension("VK_KHR_pipeline_library", false)
+		WantDeviceExtension("VK_EXT_pipeline_library_group_handles")
+		WantDeviceFeature("PipelineLibraryGroupHandles")
 
-		DeviceExtension("VK_EXT_pipeline_library_group_handles", false)
-		DeviceFeature("PipelineLibraryGroupHandles", false)
+		WantDeviceExtension("VK_KHR_ray_tracing_pipeline")
+		WantDeviceFeature("RayTracingPipeline")
 
-		DeviceExtension("VK_KHR_ray_tracing_pipeline", false)
-		DeviceFeature("RayTracingPipeline", false)
+		WantDeviceExtension("VK_KHR_ray_query")
+		WantDeviceFeature("RayQuery")
 
-		DeviceExtension("VK_KHR_ray_query", false)
-		DeviceFeature("RayQuery", false)
+		WantDeviceExtension("VK_KHR_ray_tracing_maintenance1")
+		WantDeviceFeature("RayTracingMaintenance1")
 
-		DeviceExtension("VK_KHR_ray_tracing_maintenance1", false)
-		DeviceFeature("RayTracingMaintenance1", false)
+		WantDeviceExtension("VK_KHR_ray_tracing_position_fetch")
+		WantDeviceFeature("RayTracingPositionFetch")
 
-		DeviceExtension("VK_KHR_ray_tracing_position_fetch", false)
-		DeviceFeature("RayTracingPositionFetch", false)
+		// WantDeviceExtension("VK_EXT_external_memory_host")
 
-		// DeviceExtension("VK_EXT_external_memory_host", false)
-
-		DeviceExtension("VK_KHR_swapchain", false)
-		DeviceExtension("VK_KHR_swapchain_mutable_format", false)
+		WantDeviceExtension("VK_KHR_swapchain")
+		WantDeviceExtension("VK_KHR_swapchain_mutable_format")
 
 		var availableFeatures features
 		availableFeatures.init(false)
@@ -227,10 +223,10 @@ func gpuInit() {
 		vkFns.GetPhysicalDeviceFeatures2(physicalDevice, &availableFeatures.PhysicalDeviceFeatures2)
 
 		var enabledFeatures features
-		// TODO: subset things to just the available features
-		for _, feature := range slices.Sorted(maps.Keys(requestedDeviceFeatures)) {
+		// TODO: rewrite this to be less ugly
+		for _, feature := range slices.Sorted(maps.Keys(wantDeviceFeatures)) {
 			if !availableFeatures.Get(feature) {
-				if requestedDeviceFeatures[feature] {
+				if wantDeviceFeatures[feature] {
 					panic("don't have required feature " + feature)
 				}
 				continue
@@ -258,7 +254,7 @@ func gpuInit() {
 			}
 		})
 
-		enabledDeviceExtensionsSlice := slices.Sorted(maps.Keys(requestedDeviceExtensions))
+		enabledDeviceExtensionsSlice := slices.Sorted(maps.Keys(wantDeviceExts))
 
 		pinner.Pin(&enabledFeatures)
 

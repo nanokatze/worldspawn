@@ -1,26 +1,20 @@
 package gpu
 
 import (
+	"unsafe"
+
 	"worldspawn/gpu/vk"
+	"worldspawn/gpu/vk/formatutil"
 )
 
-// TODO: rename these
-
-var imageDescAlloc = newSlotAlloc(1e6) // allocate either at NewImage() or gpuInit()
-var imageDescAllocHint int64           // can we m ake this per-thread?
 var imageViews = make([]vk.ImageView, 1e6)
 
 type imageDescriptors struct {
 	sampling, loadStore uint32
 }
 
-func newImageDescriptors(
-	base *imageData,
-	dim ImageDim,
-	format Format,
-	baseLayer, layers int,
-	baseMipLevel, mipLevels int) imageDescriptors {
-	formatProps := getFormatImageProperties(format)
+func newImageDescriptors(base *imageData, config *subImageConfig) imageDescriptors {
+	formatProps := getFormatImageProperties(config.Format)
 	if !formatProps.Supported {
 		panic("unsupported format")
 	}
@@ -29,43 +23,22 @@ func newImageDescriptors(
 
 	var descriptors imageDescriptors
 	if usage&ImageUsageSampling != 0 {
-		descriptors.sampling = newImageDescriptor(
-			base,
-			dim,
-			format,
-			baseLayer, layers,
-			baseMipLevel, mipLevels,
-			vk.DESCRIPTOR_TYPE_SAMPLED_IMAGE)
+		descriptors.sampling = newImageDescriptor(base, config, vk.DESCRIPTOR_TYPE_SAMPLED_IMAGE)
 	}
 	if usage&ImageUsageLoadStore != 0 {
-		descriptors.loadStore = newImageDescriptor(
-			base,
-			dim,
-			format,
-			baseLayer, layers,
-			baseMipLevel, mipLevels,
-			vk.DESCRIPTOR_TYPE_STORAGE_IMAGE)
+		descriptors.loadStore = newImageDescriptor(base, config, vk.DESCRIPTOR_TYPE_STORAGE_IMAGE)
 	}
 	return descriptors
 }
 
-func newImageDescriptor(
-	base *imageData,
-	dim ImageDim,
-	format Format,
-	baseLayer, layers int,
-	baseMipLevel, mipLevels int,
-	descriptorType vk.DescriptorType) uint32 {
+func newImageDescriptor(base *imageData, config *subImageConfig, descriptorType vk.DescriptorType) uint32 {
 	dstBinding := uint32(1)
 	if descriptorType == vk.DESCRIPTOR_TYPE_STORAGE_IMAGE {
 		dstBinding = 2
 	}
-	descriptor := uint32(imageDescAlloc.Alloc(&imageDescAllocHint))
-	base.getShaderDescriptor(
-		dim,
-		format,
-		baseLayer, layers,
-		baseMipLevel, mipLevels,
+	descriptor := uint32(resourceDescAlloc.Alloc(&resourceDescAllocHint))
+	base.shaderDescriptor(
+		config,
 		descriptorType,
 		&imageViews[descriptor],
 		pointerToDescriptor{
@@ -78,7 +51,59 @@ func newImageDescriptor(
 
 func (descriptors imageDescriptors) destroy() {
 	vkFns.DestroyImageView(device, imageViews[descriptors.sampling], nil)
-	imageDescAlloc.Free(int(descriptors.sampling))
+	resourceDescAlloc.Free(int(descriptors.sampling))
 	vkFns.DestroyImageView(device, imageViews[descriptors.loadStore], nil)
-	imageDescAlloc.Free(int(descriptors.loadStore))
+	resourceDescAlloc.Free(int(descriptors.loadStore))
+}
+
+type pointerToDescriptor struct {
+	Set          vk.DescriptorSet
+	Binding      uint32
+	ArrayElement uint32
+}
+
+func (base *imageData) shaderDescriptor(config *subImageConfig, descriptorType vk.DescriptorType, imageView *vk.ImageView, descriptor pointerToDescriptor) {
+	must(vkFns.CreateImageView(device, &vk.ImageViewCreateInfo{
+		SType: vk.STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+		PNext: unsafe.Pointer(&vk.ImageViewUsageCreateInfo{
+			SType: vk.STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO,
+			Usage: imageUsageFromDescriptorType(descriptorType),
+		}),
+		Image:    base.vkImage,
+		ViewType: config.Dim.vkImageViewType(),
+		Format:   config.Format,
+		SubresourceRange: vk.ImageSubresourceRange{
+			AspectMask:     formatutil.Aspects(config.Format),
+			BaseMipLevel:   uint32(config.BaseMipLevel),
+			LevelCount:     uint32(config.MipLevels),
+			BaseArrayLayer: uint32(config.BaseLayer),
+			LayerCount:     uint32(config.Layers),
+		},
+	}, nil, imageView))
+
+	vkFns.UpdateDescriptorSets(device,
+		1, &vk.WriteDescriptorSet{
+			SType:           vk.STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+			DstSet:          descriptor.Set,
+			DstBinding:      descriptor.Binding,
+			DstArrayElement: descriptor.ArrayElement,
+			DescriptorCount: 1,
+			DescriptorType:  descriptorType,
+			PImageInfo: &vk.DescriptorImageInfo{
+				ImageView:   *imageView,
+				ImageLayout: vk.IMAGE_LAYOUT_GENERAL,
+			},
+		},
+		0, nil)
+}
+
+func imageUsageFromDescriptorType(descriptorType vk.DescriptorType) vk.ImageUsageFlags {
+	switch descriptorType {
+	case vk.DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+		return vk.ImageUsageFlags(vk.IMAGE_USAGE_SAMPLED_BIT)
+	case vk.DESCRIPTOR_TYPE_STORAGE_IMAGE:
+		return vk.ImageUsageFlags(vk.IMAGE_USAGE_STORAGE_BIT)
+	default:
+		panic("unreachable")
+	}
 }

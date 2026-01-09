@@ -125,7 +125,7 @@ type ImageConfig struct {
 	Usage     ImageUsage // TODO: a separate stencil usage? We could also pack usage for stencil into the high bits
 }
 
-func (config *ImageConfig) vkImageCreateInfo(queueFamilies []uint32, createInfo *vk.ImageCreateInfo) {
+func (config *ImageConfig) vkImageCreateInfo(createInfo *vk.ImageCreateInfo) {
 	flags := vk.ImageCreateFlags(0)
 
 	flags |= vk.ImageCreateFlags(vk.IMAGE_CREATE_EXTENDED_USAGE_BIT)
@@ -156,8 +156,8 @@ func (config *ImageConfig) vkImageCreateInfo(queueFamilies []uint32, createInfo 
 		Tiling:                vk.IMAGE_TILING_OPTIMAL,
 		Usage:                 config.Usage.vkImageUsageFlags(config.Format),
 		SharingMode:           vk.SHARING_MODE_CONCURRENT,
-		QueueFamilyIndexCount: uint32(len(queueFamilies)),
-		PQueueFamilyIndices:   unsafe.SliceData(queueFamilies),
+		QueueFamilyIndexCount: uint32(len(queueFamilies.probe)),
+		PQueueFamilyIndices:   unsafe.SliceData(queueFamilies.probe),
 		InitialLayout:         vk.IMAGE_LAYOUT_UNDEFINED,
 	}
 }
@@ -171,7 +171,7 @@ func NewImage(config *ImageConfig) *Image {
 	base := new(imageData)
 
 	imageCreateInfo := new(vk.ImageCreateInfo)
-	config.vkImageCreateInfo(queueFamilies.probe, imageCreateInfo)
+	config.vkImageCreateInfo(imageCreateInfo)
 
 	pinner.Pin(imageCreateInfo)
 	pinner.Pin(imageCreateInfo.PQueueFamilyIndices)
@@ -236,12 +236,14 @@ func NewImage(config *ImageConfig) *Image {
 			struct{}{})
 	*/
 
-	tmp := newImage(
+	tmp := newSubImage(
 		base,
-		base.dim,
-		base.format,
-		0, int(base.layers),
-		0, int(base.mipLevels))
+		&subImageConfig{
+			Dim:       config.Dim,
+			Format:    config.Format,
+			Layers:    config.Layers,
+			MipLevels: config.MipLevels,
+		})
 	tmp.ownsBase = true
 	return tmp
 }
@@ -255,22 +257,28 @@ func importImage(config *ImageConfig, vkImage vk.Image) *Image {
 	base.mipLevels = uint32(config.MipLevels)
 	base.format = config.Format
 	base.usage = config.Usage
-	return newImage(
+	return newSubImage(
 		base,
-		config.Dim,
-		config.Format,
-		0, config.Layers,
-		0, config.MipLevels)
+		&subImageConfig{
+			Dim:       config.Dim,
+			Format:    config.Format,
+			Layers:    config.Layers,
+			MipLevels: config.MipLevels,
+		})
 }
 
-func newImage(
-	base *imageData,
-	dim ImageDim,
-	format Format,
-	baseLayer, layers int,
-	baseMipLevel, mipLevels int) *Image {
-	extent := minify3(int3FromVkExtent3D(base.extent), baseMipLevel)
-	formatClass := formatutil.Describe(format).Class
+type subImageConfig struct {
+	Dim          ImageDim
+	Format       Format
+	BaseLayer    int
+	Layers       int
+	BaseMipLevel int
+	MipLevels    int
+}
+
+func newSubImage(base *imageData, config *subImageConfig) *Image {
+	extent := minify3(int3FromVkExtent3D(base.extent), config.BaseMipLevel)
+	formatClass := formatutil.Describe(config.Format).Class
 	baseFormatClass := formatutil.Describe(base.format).Class
 	if formatClass != baseFormatClass {
 		// Format classes differ, this can only be possible if we're
@@ -278,21 +286,21 @@ func newImage(
 		// 1, 1, 1.
 		// TODO: check that formatClass is uncompressed, while baseFormatClass
 		// is compressed instead of this hack
-		if formatBlockExtent(format) != broadcast3(1) {
-			panic(fmt.Sprintf("cannot create a %v view of a %v class image", format, baseFormatClass))
+		if formatBlockExtent(config.Format) != broadcast3(1) {
+			panic(fmt.Sprintf("cannot create a %v view of a %v class image", config.Format, baseFormatClass))
 		}
 		extent = int3DivRoundUp(extent, formatBlockExtent(base.format))
 	}
 
 	img := &Image{
 		base:         base,
-		descriptors:  newImageDescriptors(base, dim, format, baseLayer, layers, baseMipLevel, mipLevels),
-		dim:          dim,
-		format:       format,
-		baseLayer:    uint32(baseLayer),
-		layers:       uint32(layers),
-		baseMipLevel: uint8(baseMipLevel),
-		mipLevels:    uint8(mipLevels),
+		descriptors:  newImageDescriptors(base, config),
+		dim:          config.Dim,
+		format:       config.Format,
+		baseLayer:    uint32(config.BaseLayer),
+		layers:       uint32(config.Layers),
+		baseMipLevel: uint8(config.BaseMipLevel),
+		mipLevels:    uint8(config.MipLevels),
 		extent:       vkExtent3DFromInt3(extent),
 	}
 	if img.descriptors != (imageDescriptors{}) {
@@ -315,12 +323,16 @@ func (img *Image) SubImage(
 	baseMipLevel, endMipLevel int) *Image {
 	// TODO: SubImage-specific validation
 
-	return newImage(
+	return newSubImage(
 		img.base,
-		dim,
-		format,
-		int(img.baseLayer)+baseLayer, endLayer-baseLayer,
-		int(img.baseMipLevel)+baseMipLevel, endMipLevel-baseMipLevel)
+		&subImageConfig{
+			Dim:          dim,
+			Format:       format,
+			BaseLayer:    int(img.baseLayer) + baseLayer,
+			Layers:       endLayer - baseLayer,
+			BaseMipLevel: int(img.baseMipLevel) + baseMipLevel,
+			MipLevels:    endMipLevel - baseMipLevel,
+		})
 }
 
 func (img *Image) Dim() ImageDim { return img.dim }
