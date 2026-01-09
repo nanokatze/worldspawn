@@ -49,6 +49,15 @@ func ones32(x uint32) iter.Seq[int] {
 	}
 }
 
+// TODO: move elsewhere
+func vkBool32(x bool) vk.Bool32 {
+	if x {
+		return vk.TRUE
+	} else {
+		return vk.FALSE
+	}
+}
+
 func broadcast3[T any](x T) [3]T {
 	return [3]T{x, x, x}
 }
@@ -57,7 +66,6 @@ func minify3(extent [3]int, level int) [3]int {
 	return int3(extent).Rsh(broadcast3(level)).Max(broadcast3(1))
 }
 
-// TODO: change this to be in terms of [3]int?
 func int3FromVkOffset3D(offset vk.Offset3D) [3]int {
 	return [3]int{int(offset.X), int(offset.Y), int(offset.Z)}
 }

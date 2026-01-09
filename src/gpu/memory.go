@@ -89,12 +89,15 @@ func (p UnsafePointer) Value() unsafe.Pointer {
 	return nil
 }
 
+// Needs to be public for rendering. We should make it private as soon as we
+// can.
+//
 // TODO: change this to simply return *deviceMemory + offset as different
 // callers might want different things, and rename accordingly. We'll need to
 // add some methods on the *deviceMemory to handle nil case more conveniently.
 //
 // TODO: make this a standalone module-internal function
-func bufferAndOffset(p UnsafePointer) (buffer vk.Buffer, offset vk.DeviceSize) {
+func BufferAndOffset(p UnsafePointer) (buffer vk.Buffer, offset vk.DeviceSize) {
 	allocsMu.Lock()
 	defer allocsMu.Unlock()
 

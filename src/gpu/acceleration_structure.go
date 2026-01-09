@@ -245,7 +245,7 @@ func newVkAccelerationStructureAt(address UnsafePointer, size int) vk.Accelerati
 
 	// TODO: we could probably replace size with the remaining buffer size.
 
-	buffer, offset := bufferAndOffset(address)
+	buffer, offset := BufferAndOffset(address)
 
 	var as vk.AccelerationStructureKHR
 	must(vkFns.CreateAccelerationStructureKHR(device, &vk.AccelerationStructureCreateInfoKHR{

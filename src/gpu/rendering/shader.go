@@ -1,9 +1,10 @@
-package gpu
+package rendering
 
 import (
 	"runtime"
 	"unsafe"
 
+	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
 )
 
@@ -27,8 +28,6 @@ func NewFunc(blob []byte, stage vk.ShaderStageFlagBits, entry string) *Func {
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
 
-	gpuInit()
-
 	// TODO: outline the cases into separate functions and clean this up
 
 	switch stage {
@@ -45,7 +44,7 @@ func NewFunc(blob []byte, stage vk.ShaderStageFlagBits, entry string) *Func {
 			PCode:                  unsafe.Pointer(pinnedSliceData(&pinner, blob)),
 			PName:                  pinnedCString(&pinner, entry),
 			SetLayoutCount:         1,
-			PSetLayouts:            pinned(&pinner, &DescriptorSetLayout),
+			PSetLayouts:            pinned(&pinner, &gpu.DescriptorSetLayout),
 			PushConstantRangeCount: 1,
 			PPushConstantRanges: pinned(&pinner, &vk.PushConstantRange{
 				StageFlags: vk.ShaderStageFlags(vk.SHADER_STAGE_ALL),
@@ -54,37 +53,6 @@ func NewFunc(blob []byte, stage vk.ShaderStageFlagBits, entry string) *Func {
 			}),
 		}, nil, &vkShader))
 		return &Func{stage: stage, vk: uint64(vkShader), entry: entry}
-
-	case vk.SHADER_STAGE_RAYGEN_BIT_KHR,
-		vk.SHADER_STAGE_ANY_HIT_BIT_KHR,
-		vk.SHADER_STAGE_CLOSEST_HIT_BIT_KHR,
-		vk.SHADER_STAGE_MISS_BIT_KHR,
-		vk.SHADER_STAGE_INTERSECTION_BIT_KHR,
-		vk.SHADER_STAGE_CALLABLE_BIT_KHR:
-		var vkPipeline vk.Pipeline
-		must(vkFns.CreateRayTracingPipelinesKHR(device, vk.NULL_HANDLE, vk.NULL_HANDLE, 1, &vk.RayTracingPipelineCreateInfoKHR{
-			SType:      vk.STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR,
-			Flags:      vk.PipelineCreateFlags(vk.PIPELINE_CREATE_LIBRARY_BIT_KHR),
-			StageCount: uint32(1),
-			PStages: pinned(&pinner, &vk.PipelineShaderStageCreateInfo{
-				SType: vk.STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-				PNext: unsafe.Pointer(pinned(&pinner, &vk.ShaderModuleCreateInfo{
-					SType:    vk.STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-					CodeSize: len(blob),
-					PCode:    (*uint32)(unsafe.Pointer(pinnedSliceData(&pinner, blob))),
-				})),
-				Stage: stage,
-				PName: pinnedCString(&pinner, entry),
-			}),
-			PLibraryInterface: pinned(&pinner, &vk.RayTracingPipelineInterfaceCreateInfoKHR{
-				SType:                          vk.STRUCTURE_TYPE_RAY_TRACING_PIPELINE_INTERFACE_CREATE_INFO_KHR,
-				MaxPipelineRayPayloadSize:      maxPipelineRayPayloadSize,      // TODO: should be specified by the user
-				MaxPipelineRayHitAttributeSize: maxPipelineRayHitAttributeSize, // TODO: should be specified by the user
-			}),
-			Layout:                       pipelineLayout,
-			MaxPipelineRayRecursionDepth: 1, // part of the lib interface. Just make it dynamic
-		}, nil, &vkPipeline))
-		return &Func{stage: stage, vk: uint64(vkPipeline), entry: entry}
 
 	default:
 		panic("unsupported shader stage")
@@ -98,10 +66,6 @@ func (f *Func) String() string {
 
 func (f *Func) vkShader() vk.ShaderEXT {
 	return vk.ShaderEXT(f.vk)
-}
-
-func (f *Func) vkPipeline() vk.Pipeline {
-	return vk.Pipeline(f.vk)
 }
 
 func nextStages(stage vk.ShaderStageFlagBits) vk.ShaderStageFlags {

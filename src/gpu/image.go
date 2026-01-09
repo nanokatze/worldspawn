@@ -335,6 +335,10 @@ func (img *Image) SubImage(
 		})
 }
 
+func (img *Image) Vk() (vk.Image, vk.ImageSubresourceRange) {
+	return img.base.vkImage, img.vkImageSubresourceRange()
+}
+
 func (img *Image) Dim() ImageDim { return img.dim }
 
 func (img *Image) Format() Format { return img.format }
@@ -361,6 +365,7 @@ func (img *Image) EnqueueInit(jq *JobQueue) {
 	img.enqueueTransitionLayout(jq, vk.IMAGE_LAYOUT_UNDEFINED, vk.IMAGE_LAYOUT_GENERAL)
 }
 
+// TODO: remove in favor of Vk()?
 func (img *Image) vkImageSubresourceRange() vk.ImageSubresourceRange {
 	return vk.ImageSubresourceRange{
 		AspectMask:     formatutil.Aspects(img.format),

@@ -49,8 +49,8 @@ func (job *copyJob) Exec(q *CommandQueue) {
 		var pinner runtime.Pinner
 		defer pinner.Unpin()
 
-		dstBuffer, dstOffset := bufferAndOffset(job.dst)
-		srcBuffer, srcOffset := bufferAndOffset(job.src)
+		dstBuffer, dstOffset := BufferAndOffset(job.dst)
+		srcBuffer, srcOffset := BufferAndOffset(job.src)
 
 		region := &vk.BufferCopy2{
 			SType:     vk.STRUCTURE_TYPE_BUFFER_COPY_2,

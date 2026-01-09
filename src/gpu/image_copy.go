@@ -192,7 +192,7 @@ func (job *copyMemoryToImageJob) Exec(q *CommandQueue) {
 		var pinner runtime.Pinner
 		defer pinner.Unpin()
 
-		srcBuffer, srcOffset := bufferAndOffset(job.src)
+		srcBuffer, srcOffset := BufferAndOffset(job.src)
 
 		region := &vk.BufferImageCopy2{
 			SType:             vk.STRUCTURE_TYPE_BUFFER_IMAGE_COPY_2,
@@ -284,7 +284,7 @@ func (job *copyImageToMemoryJob) Exec(q *CommandQueue) {
 		var pinner runtime.Pinner
 		defer pinner.Unpin()
 
-		dstBuffer, dstOffset := bufferAndOffset(job.dst)
+		dstBuffer, dstOffset := BufferAndOffset(job.dst)
 
 		region := &vk.BufferImageCopy2{
 			SType:             vk.STRUCTURE_TYPE_BUFFER_IMAGE_COPY_2,

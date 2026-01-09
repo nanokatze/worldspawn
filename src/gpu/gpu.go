@@ -80,7 +80,7 @@ var physicalDevice vk.PhysicalDevice
 var queueFamilies *queues
 var device vk.Device
 
-var descriptorSetLayout vk.DescriptorSetLayout
+var DescriptorSetLayout vk.DescriptorSetLayout
 var descriptorSet vk.DescriptorSet
 var pipelineLayout vk.PipelineLayout
 
@@ -90,6 +90,17 @@ var vkFns struct {
 }
 
 var gpuInitOnce sync.Once
+
+// TODO: should not exist
+func BestQueueFamily(flags vk.QueueFlags) int {
+	return queueFamilies.MinimumCapable(flags)
+}
+
+// TODO: fix
+func Device() vk.Device {
+	gpuInit()
+	return device
+}
 
 func gpuInit() {
 	gpuInitOnce.Do(func() {
@@ -308,12 +319,12 @@ func gpuInit() {
 					StageFlags:      vk.ShaderStageFlags(vk.SHADER_STAGE_ALL),
 				},
 			}),
-		}, nil, &descriptorSetLayout))
+		}, nil, &DescriptorSetLayout))
 
 		must(vkFns.CreatePipelineLayout(device, &vk.PipelineLayoutCreateInfo{
 			SType:                  vk.STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 			SetLayoutCount:         1,
-			PSetLayouts:            pinned(&pinner, &descriptorSetLayout),
+			PSetLayouts:            pinned(&pinner, &DescriptorSetLayout),
 			PushConstantRangeCount: 1,
 			PPushConstantRanges: pinned(&pinner, &vk.PushConstantRange{
 				StageFlags: vk.ShaderStageFlags(vk.SHADER_STAGE_ALL),
@@ -339,7 +350,7 @@ func gpuInit() {
 			SType:              vk.STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
 			DescriptorPool:     descriptorPool,
 			DescriptorSetCount: 1,
-			PSetLayouts:        pinned(&pinner, &descriptorSetLayout),
+			PSetLayouts:        pinned(&pinner, &DescriptorSetLayout),
 		}, &descriptorSet))
 	})
 }

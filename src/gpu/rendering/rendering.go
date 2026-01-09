@@ -1,9 +1,11 @@
-package gpu
+package rendering
 
 import (
 	"runtime"
+	"sync"
 	"unsafe"
 
+	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
 )
 
@@ -18,7 +20,7 @@ type RenderingConfig struct {
 
 // TODO: rename to RenderingAttachment?
 type Attachment struct {
-	Image *Image
+	Image *gpu.Image
 
 	LoadOp  vk.AttachmentLoadOp
 	StoreOp vk.AttachmentStoreOp
@@ -33,12 +35,25 @@ type RenderPass struct {
 	garbage     []func()
 	queueFamily int
 
-	jq *JobQueue
+	jq *gpu.JobQueue
+}
+
+var device vk.Device
+
+var vkFns vk.DeviceFuncs
+
+var initOnce sync.Once
+
+func initDevice() {
+	initOnce.Do(func() {
+		device = gpu.Device()
+		vkFns.Init(device)
+	})
 }
 
 // TODO: think of a variant that supports concurrent recording.
-func BeginRendering(jq *JobQueue, config *RenderingConfig) *RenderPass {
-	gpuInit()
+func BeginRendering(jq *gpu.JobQueue, config *RenderingConfig) *RenderPass {
+	initDevice()
 
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
@@ -47,7 +62,7 @@ func BeginRendering(jq *JobQueue, config *RenderingConfig) *RenderPass {
 	rp.jq = jq
 
 	// TODO: stop using the deprecated MinimumCapable
-	queueFamily := queueFamilies.MinimumCapable(0b001)
+	queueFamily := gpu.BestQueueFamily(0b001)
 	rp.queueFamily = queueFamily
 
 	cb := cbcaches[queueFamily].Get()
@@ -104,13 +119,7 @@ func BeginRendering(jq *JobQueue, config *RenderingConfig) *RenderPass {
 
 	vkFns.CmdBeginRendering(rp.cb, renderingInfo)
 
-	vkFns.CmdBindDescriptorSets(
-		rp.cb,
-		vk.PIPELINE_BIND_POINT_GRAPHICS,
-		pipelineLayout,
-		0,
-		1, &descriptorSet,
-		0, nil)
+	gpu.BindDescriptorSet(rp.cb, vk.PIPELINE_BIND_POINT_GRAPHICS)
 
 	// Graphics state we don't map from our abstraction goes here
 
@@ -120,9 +129,9 @@ func BeginRendering(jq *JobQueue, config *RenderingConfig) *RenderPass {
 }
 
 // TODO: remove when we can use ms only
-func (rp *RenderPass) SetIndexBuffer(indexType vk.IndexType, indexBuffer UnsafePointer) {
+func (rp *RenderPass) SetIndexBuffer(indexType vk.IndexType, indexBuffer gpu.UnsafePointer) {
 	if indexBuffer != vk.NULL_HANDLE {
-		buffer, offset := bufferAndOffset(indexBuffer)
+		buffer, offset := gpu.BufferAndOffset(indexBuffer)
 		vkFns.CmdBindIndexBuffer(rp.cb, buffer, offset, indexType)
 	} else {
 		// needs maintenance6: vkProcs.CmdBindIndexBuffer(rp.cb_, vk.NULL_HANDLE, 0, 0)
@@ -224,13 +233,7 @@ func (rp *RenderPass) SetShader(stage vk.ShaderStageFlagBits, shader *Func) {
 }
 
 func (rp *RenderPass) SetShaderArgs(p any) {
-	args := asbytes(p)
-	vkFns.CmdPushConstants(
-		rp.cb,
-		pipelineLayout,
-		vk.ShaderStageFlags(vk.SHADER_STAGE_ALL),
-		0,
-		uint32(len(args)), unsafe.Pointer(unsafe.SliceData(args)))
+	gpu.PushConstants(rp.cb, asbytes(p))
 }
 
 func (rp *RenderPass) Draw(vertexCount uint32, instanceCount uint32, firstVertex uint32, firstInstance uint32) {
@@ -267,13 +270,13 @@ type renderPassJob struct {
 	queueFamily int
 }
 
-func (job *renderPassJob) Info() JobInfo {
-	return JobInfo{
+func (job *renderPassJob) Info() gpu.JobInfo {
+	return gpu.JobInfo{
 		QueueFamilies: 1 << job.queueFamily,
 	}
 }
 
-func (job *renderPassJob) Exec(q *CommandQueue) {
+func (job *renderPassJob) Exec(q *gpu.CommandQueue) {
 	q.CommandBuffer(job.cb)
 
 	q.Cleanup(func() {
@@ -283,7 +286,24 @@ func (job *renderPassJob) Exec(q *CommandQueue) {
 	})
 }
 
-func newRenderingVkImageView(img *Image, usage vk.ImageUsageFlags) vk.ImageView {
+func vkImageViewType(dim gpu.ImageDim) vk.ImageViewType {
+	switch dim {
+	case gpu.ImageDim1D:
+		return vk.IMAGE_VIEW_TYPE_1D_ARRAY
+	case gpu.ImageDim2D:
+		return vk.IMAGE_VIEW_TYPE_2D_ARRAY
+	case gpu.ImageDimCube:
+		return vk.IMAGE_VIEW_TYPE_CUBE_ARRAY
+	case gpu.ImageDim3D:
+		return vk.IMAGE_VIEW_TYPE_3D
+	default:
+		panic("unreachable")
+	}
+}
+
+func newRenderingVkImageView(img *gpu.Image, usage vk.ImageUsageFlags) vk.ImageView {
+	vkImage, vkImageSubresourceRange := img.Vk()
+
 	var vkImageView vk.ImageView
 	must(vkFns.CreateImageView(device, &vk.ImageViewCreateInfo{
 		SType: vk.STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -291,10 +311,10 @@ func newRenderingVkImageView(img *Image, usage vk.ImageUsageFlags) vk.ImageView 
 			SType: vk.STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO,
 			Usage: usage,
 		}),
-		Image:            img.base.vkImage,
-		ViewType:         img.dim.vkImageViewType(),
-		Format:           img.format,
-		SubresourceRange: img.vkImageSubresourceRange(),
+		Image:            vkImage,
+		ViewType:         vkImageViewType(img.Dim()), // TODO: I think only VK_IMAGE_VIEW_TYPE_2D_ARRAY is possible?
+		Format:           img.Format(),
+		SubresourceRange: vkImageSubresourceRange,
 	}, nil, &vkImageView))
 	return vkImageView
 }
