@@ -117,12 +117,12 @@ type hitRecord struct {
 // TODO: we'll probs end up needing to take a struct with params
 func NewScene(n int, maxPartsPerMesh int) *Scene {
 	instances := gpu.MakeSliceUncached[materialParams](n * maxPartsPerMesh)
-	accelInstances := gpu.MakeSliceUncached[gpu.AccelInstance](n)
+	clear(instances.Value())
 
+	accelInstances := gpu.MakeSliceUncached[gpu.AccelInstance](n)
 	clear(accelInstances.Value())
 
 	emissiveInstances := gpu.MakeSliceUncached[emissiveInstance](n)
-
 	clear(emissiveInstances.Value())
 
 	// TODO: make pipeline be relinked when some material is created or removed
