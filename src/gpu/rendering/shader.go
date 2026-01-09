@@ -11,6 +11,7 @@ import (
 // TODO: should use gpu's definition
 const maxShaderArgsSize = 256
 
+// TODO: stronger typing?
 type Shader struct {
 	vk vk.ShaderEXT
 

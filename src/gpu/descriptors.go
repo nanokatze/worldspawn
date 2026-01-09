@@ -3,13 +3,14 @@ package gpu
 import (
 	"unsafe"
 
+	"worldspawn/gpu/internal/slotalloc"
 	"worldspawn/gpu/vk"
 )
 
-var resourceDescAlloc = newSlotAlloc(1e6) // TODO: allocate at runtime
+var resourceDescAlloc = slotalloc.New(1e6) // TODO: allocate at runtime
 var resourceDescAllocHint int64
 
-var samplerSlots = newSlotAlloc(2e3) // TODO: allocate at runtime
+var samplerSlots = slotalloc.New(2e3) // TODO: allocate at runtime
 var samplerAllocHint int64
 
 // TODO: should be moved into runtime, not be visible in the base package

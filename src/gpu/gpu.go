@@ -91,7 +91,12 @@ var vkFns struct {
 
 var gpuInitOnce sync.Once
 
-// TODO: should not exist
+// TODO: should be a method on _Device
+func QueueFamilies(flags vk.QueueFlags) queueFamilyMask {
+	return queueFamilies.Mask(flags)
+}
+
+// TODO: kill
 func BestQueueFamily(flags vk.QueueFlags) int {
 	return queueFamilies.MinimumCapable(flags)
 }
@@ -281,8 +286,8 @@ func gpuInit() {
 		vkFns.DeviceFuncs.Init(device)
 
 		for _, family := range queueFamilies.All() {
-			for i := range queueFamilies.props[family].QueueCount {
-				newSubmissionQueue(family, i)
+			for i := range queueFamilies.counts[family] {
+				newSubmissionQueue(family, uint32(i))
 			}
 		}
 

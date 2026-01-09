@@ -9,12 +9,18 @@ import (
 
 const maxQueueFamilies = 32
 
+// TODO: rename
+type queueFamilyMask = uint32
+
 // TODO: rename to deviceTopology
 type queues struct {
 	props  [maxQueueFamilies]vk.QueueFamilyProperties2 // TODO: remove
 	flags  [maxQueueFamilies]vk.QueueFlags
 	counts [maxQueueFamilies]int
-	probe  []uint32 // TODO: should be int
+	// TODO: I think probe can be different depending on use case (e.g. for
+	// copies crossing pcie we might want to try out the transfer-only queue
+	// first, while for other copies we would prefer compute I think.)
+	probe []uint32 // TODO: should be int
 }
 
 func defaultQueues() *queues {
@@ -66,13 +72,10 @@ func defaultQueues() *queues {
 
 // TODO: make these methods be methods on the _Device struct instead and give them better names
 
-func (families *queues) Mask(wantQueueFlags vk.QueueFlags) uint32 {
-	var mask uint32
-	for i, props := range families.props {
-		if props.QueueCount == 0 {
-			continue
-		}
-		if props.QueueFlags&wantQueueFlags == wantQueueFlags {
+func (families *queues) Mask(flags vk.QueueFlags) queueFamilyMask {
+	var mask queueFamilyMask
+	for i := range maxQueueFamilies {
+		if families.flags[i]&flags == flags && families.counts[i] > 0 {
 			mask |= 1 << i
 		}
 	}

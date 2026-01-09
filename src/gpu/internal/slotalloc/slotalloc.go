@@ -1,4 +1,4 @@
-package gpu
+package slotalloc
 
 import (
 	"fmt"
@@ -8,17 +8,16 @@ import (
 	"worldspawn/gpu/internal/bitset"
 )
 
-// TODO: move the entire thing in internal/slot_alloc or something?
-type slotAlloc struct{ bs bitset.Bitset }
+type SlotAlloc struct{ bs bitset.Bitset }
 
-func newSlotAlloc(len int) slotAlloc {
+func New(len int) SlotAlloc {
 	bs := bitset.Make(len)
 	bs.Set(0)
-	return slotAlloc{bs: bs}
+	return SlotAlloc{bs: bs}
 }
 
 // TODO: can we somehow make hint per-g/per-m?
-func (a slotAlloc) Alloc(hint *int64) int {
+func (a SlotAlloc) Alloc(hint *int64) int {
 	h := atomic.LoadInt64(hint)
 
 	i0 := int(h)
@@ -54,7 +53,7 @@ func (a slotAlloc) Alloc(hint *int64) int {
 	return i
 }
 
-func (a *slotAlloc) Free(i int) {
+func (a SlotAlloc) Free(i int) {
 	if i == 0 {
 		return
 	}
