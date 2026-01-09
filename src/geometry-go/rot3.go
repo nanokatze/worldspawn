@@ -4,6 +4,8 @@ import (
 	"math"
 )
 
+// TODO: kill quat and generate RotN types
+
 // TODO: rename this package to linalg? or smallblas. or la. idk. lamath. mathla.
 
 type Rot3 [4]float32

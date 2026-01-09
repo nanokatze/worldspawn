@@ -2,19 +2,11 @@ package geometry
 
 import "math"
 
-type Mat4x4 [4][4]float32
-
-func Mat4x4One() (A Mat4x4) {
-	for i := range 4 {
-		A[i][i] = 1
-	}
-	return A
-}
-
 // TODO: make it clear that it's reverse-z
 // TODO: make the api be closer to VkViewport, so we could specify a "slice" of
 // frustum (not centered around 0) ?
 // TODO: we'll need to review our math with RT
+// TODO: move this out of here and into pathtracer?
 func Mat4x4InfinitePerspective(fov, aspect, near float32) Mat4x4 {
 	return Mat4x4{
 		{1 / float32(math.Tan(float64(fov/2))) / aspect, 0, 0, 0},
@@ -24,21 +16,8 @@ func Mat4x4InfinitePerspective(fov, aspect, near float32) Mat4x4 {
 	}
 }
 
-func (A Mat4x4) Mul4x4(B Mat4x4) (C Mat4x4) {
-	// TODO: replace this with a more general gemm/matmul
-	// NOTE: Go doesn't unroll loops for now and in the future will unroll only
-	// with PGO, see what we can do about that.
-	for i := 0; i < 4; i++ {
-		for j := 0; j < 4; j++ {
-			for k := 0; k < 4; k++ {
-				C[i][j] += A[i][k] * B[k][j]
-			}
-		}
-	}
-	return C
-}
-
-func (A Mat4x4) Inverse() (A_inv Mat4x4) {
+// TODO: generate this
+func (A mat4x4[T]) Inverse() (A_inv mat4x4[T]) {
 	// TODO: write a generalized routine for computing inverse that can be
 	// unrolled and use it to replace this thing
 
@@ -67,7 +46,7 @@ func (A Mat4x4) Inverse() (A_inv Mat4x4) {
 		A[0][3]*(A[1][0]*A1223-A[1][1]*A0223+A[1][2]*A0123)
 	det := 1 / invDet
 
-	return Mat4x4{
+	return mat4x4[T]{
 		{
 			det * (A[1][1]*A2323 - A[1][2]*A1323 + A[1][3]*A1223),
 			det * -(A[0][1]*A2323 - A[0][2]*A1323 + A[0][3]*A1223),
