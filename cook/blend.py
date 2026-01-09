@@ -131,7 +131,7 @@ def main(m, o, blend, datablock_type, datablock_name):
 
         with open('build.ninja', 'w') as f:
             f.write('rule blend\n')
-            f.write('  command = python3.11 ../../cook/blend.py -o $o $in $datablock_type $datablock_name\n')
+            f.write('  command = python3.11 ../cook/blend.py -o $o $in $datablock_type $datablock_name\n')
             for product, (datablock_type, datablock_name, depends) in dset.produces.items():
                 f.write('\n')
                 f.write(f'build {product}: blend {" ".join(depends)}\n')

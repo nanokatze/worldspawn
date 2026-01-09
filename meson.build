@@ -34,4 +34,9 @@ jolt_options.add_cmake_defines({
 jolt_dep = cmake.subproject('JoltPhysics', options : jolt_options).dependency('Jolt')
 go_env.append('CGO_LDFLAGS', '"-L@0@"'.format(meson.current_build_dir() / 'subprojects/JoltPhysics'), separator : ' ')
 
-subdir('src')
+go_src_dir = meson.current_source_dir() # TODO: rename
+
+subdir('physics')
+
+subdir('deathmatch/client')
+subdir('deathmatch/server')

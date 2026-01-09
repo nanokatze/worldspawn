@@ -25,7 +25,7 @@ import (
 )
 
 func init() {
-	osDirFSFlag(flag.CommandLine, &game.Data, "data", "data/cooked", "a")
+	osDirFSFlag(flag.CommandLine, &game.Data, "data", "cooked", "a")
 }
 
 var sdlHints = [][2]string{

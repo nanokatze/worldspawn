@@ -33,7 +33,7 @@ import (
 	"worldspawn/internal/nice"
 )
 
-var dataDir = flag.String("data", "data/cooked", "a")
+var dataDir = flag.String("data", "cooked", "a")
 
 // TODO: rewrite all of this garbage so that it's cleaner
 
