@@ -2,6 +2,7 @@ package gpu
 
 import (
 	"unsafe"
+
 	"worldspawn/gpu/vk"
 )
 
@@ -22,7 +23,7 @@ func BindDescriptorSet(cb vk.CommandBuffer, bindPoint vk.PipelineBindPoint) {
 		0, nil)
 }
 
-// TODO: kill this asap
+// TODO: kill this as soon as we can
 func PushConstants(cb vk.CommandBuffer, args []byte) {
 	vkFns.CmdPushConstants(
 		cb,

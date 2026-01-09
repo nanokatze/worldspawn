@@ -119,7 +119,7 @@ const (
 )
 
 // TODO: see if we can/should pass unsafe.Pointer for hostAddr
-// TODO:
+// TODO: this will have to become public at one point
 func malloc(size int, flags uint32) UnsafePointer {
 	// TODO: handle size=0
 	if size <= 0 {

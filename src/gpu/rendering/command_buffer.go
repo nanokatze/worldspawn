@@ -38,8 +38,6 @@ func (cb *commandBuffer) Vk() vk.CommandBuffer {
 	return cb.vk
 }
 
-// TODO: move this to another file?
-// TODO: I still don't like how we do cache
 type commandBufferCache struct {
 	queueFamily uint32
 
@@ -47,8 +45,6 @@ type commandBufferCache struct {
 	cache []*commandBuffer
 }
 
-// TODO: move the definition into gpu.go
-// TODO: initialize this in gpuInit instead?
 var cbcaches [32]commandBufferCache
 
 func init() {

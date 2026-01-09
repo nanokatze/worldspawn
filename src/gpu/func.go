@@ -32,14 +32,11 @@ func NewFunc(blob []byte, stage vk.ShaderStageFlagBits, entry string) *Func {
 	// TODO: outline the cases into separate functions and clean this up
 
 	switch stage {
-	case vk.SHADER_STAGE_VERTEX_BIT,
-		vk.SHADER_STAGE_FRAGMENT_BIT,
-		vk.SHADER_STAGE_COMPUTE_BIT:
+	case vk.SHADER_STAGE_COMPUTE_BIT:
 		var vkShader vk.ShaderEXT
 		must(vkFns.CreateShadersEXT(device, 1, &vk.ShaderCreateInfoEXT{
 			SType:                  vk.STRUCTURE_TYPE_SHADER_CREATE_INFO_EXT,
-			Stage:                  stage,
-			NextStage:              nextStages(stage),
+			Stage:                  vk.SHADER_STAGE_COMPUTE_BIT,
 			CodeType:               vk.SHADER_CODE_TYPE_SPIRV_EXT,
 			CodeSize:               len(blob),
 			PCode:                  unsafe.Pointer(pinnedSliceData(&pinner, blob)),
@@ -102,20 +99,4 @@ func (f *Func) vkShader() vk.ShaderEXT {
 
 func (f *Func) vkPipeline() vk.Pipeline {
 	return vk.Pipeline(f.vk)
-}
-
-func nextStages(stage vk.ShaderStageFlagBits) vk.ShaderStageFlags {
-	switch stage {
-	case vk.SHADER_STAGE_VERTEX_BIT:
-		return vk.ShaderStageFlags(vk.SHADER_STAGE_FRAGMENT_BIT)
-
-	case vk.SHADER_STAGE_FRAGMENT_BIT:
-		return 0
-
-	case vk.SHADER_STAGE_COMPUTE_BIT:
-		return 0
-
-	default:
-		panic("unreachable")
-	}
 }
