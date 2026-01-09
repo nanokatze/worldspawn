@@ -346,7 +346,7 @@ bool closesthit(
         let u = sampler.Get1D();
         let b = sampler.Get2D();
         if (material.Flags() & (BSDFFlags::Diffuse | BSDFFlags::Glossy)) {
-            let L = sampleDirectLight(vampire, hitpos, normal, wo, material, u, b);
+            let L = sampleDirectLight(path.vampire && vampire, hitpos, normal, wo, material, u, b);
 
             path.L += path.beta * L;
         }

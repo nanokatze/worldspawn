@@ -48,7 +48,7 @@ class WorldspawnSceneSettings(bpy.types.PropertyGroup):
 _COMPONENTS = {
     'CollisionLayer': (0, ''),
     'PhysicsMassOverride': (1.0, ''),
-    'PlayerSpawn': ({}, 'struct{}'),
+    # 'Entity': (None, {})
 }
 
 # TODO: prefab support

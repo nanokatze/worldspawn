@@ -1,2 +1,7 @@
 /cooked
 __pycache__
+/pkg
+/garbage
+/shaders
+/slang-stdlib.bin
+/subprojects

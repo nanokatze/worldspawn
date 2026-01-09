@@ -17,6 +17,8 @@ import (
 
 // TODO: make Column an interface and make iterators work over that?
 
+// TODO: rename to Query, Query2, Query3, etc?
+
 func All[T any](c *Column[T]) iter.Seq2[ID, T] {
 	return func(yield func(k ID, v T) bool) {
 		bitset.And(c.valid)(func(i int) bool {

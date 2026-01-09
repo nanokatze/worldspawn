@@ -6,7 +6,8 @@ import (
 	"worldspawn/internal/compiler"
 )
 
-// TODO: rename Array to Vector?
+// TODO: rename Array to Vec. We might also want to add an untyped bit vector or
+// w/e type. Alternatively I guess we could just use a big IntN
 
 type ArrayType struct {
 	N int64

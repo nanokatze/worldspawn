@@ -1,0 +1,6 @@
+khronos_validation.validate_core = true
+#khronos_validation.validate_sync = true
+#khronos_validation.gpuav_enable = true
+khronos_validation.debug_action = VK_DBG_LAYER_ACTION_LOG_MSG
+khronos_validation.report_flags = error,warn,perf,info,warn
+khronos_validation.log_filename = /dev/stderr

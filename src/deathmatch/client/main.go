@@ -8,7 +8,10 @@ import (
 	"flag"
 	"fmt"
 	"io/fs"
+	"log"
 	"log/slog"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"runtime"
 
@@ -40,6 +43,10 @@ var sdlSubsystems = []sdl.InitFlags{
 var messagePrinter = message.NewPrinter(language.English)
 
 func main() {
+	go func() {
+		log.Println(http.ListenAndServe("[::]:6060", nil))
+	}()
+
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
@@ -67,7 +74,7 @@ func main() {
 
 	for _, subsystem := range sdlSubsystems {
 		if err := sdl.InitSubSystem(subsystem); err != nil {
-			panic(fmt.Sprintf("failed to initialize SDL %v subsystem : %v", subsystem, err))
+			panic(fmt.Sprintf("failed to initialize SDL %v subsystem: %v", subsystem, err))
 		}
 	}
 
