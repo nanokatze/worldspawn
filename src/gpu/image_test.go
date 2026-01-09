@@ -19,8 +19,9 @@ func TestImageExtent(t *testing.T) {
 	defer img.Destroy()
 
 	for i := range 4 {
-		t.Log(img.SubImage(img.Dim(), img.Format(), 0, 1, i, i+1).Extent())
-		t.Log(img.SubImage(img.Dim(), vk.FORMAT_R32G32B32A32_UINT, 0, 1, i, i+1).Extent())
+		t.Log(
+			img.SubImage(img.Dim(), img.Format(), 0, 1, i, i+1).Extent(),
+			img.SubImage(img.Dim(), vk.FORMAT_R32G32B32A32_UINT, 0, 1, i, i+1).Extent())
 	}
 }
 

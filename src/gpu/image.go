@@ -289,7 +289,7 @@ func newSubImage(base *imageData, config *subImageConfig) *Image {
 		if formatBlockExtent(config.Format) != ([3]int{1, 1, 1}) {
 			panic(fmt.Sprintf("cannot create a %v view of a %v class image", config.Format, baseFormatClass))
 		}
-		extent = divRoundUp3(extent, formatBlockExtent(base.format))
+		extent = divByBlockExtentRoundUp(extent, base.format)
 	}
 
 	img := &Image{

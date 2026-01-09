@@ -34,11 +34,11 @@ func EnqueueCopyImage(
 	extent [3]int) {
 	dstAspects := formatutil.Aspects(dst.format)
 	dstMipLevel := int(dst.baseMipLevel)
-	dstOffsetBlocks := int3(dstOffset).Div(formatBlockExtent(dst.format))
+	dstOffsetBlocks := divByBlockExtent(dstOffset, dst.format)
 	srcAspects := formatutil.Aspects(src.format)
 	srcMipLevel := int(src.baseMipLevel)
-	srcOffsetBlocks := int3(srcOffset).Div(formatBlockExtent(src.format))
-	extentBlocks := divRoundUp3(extent, formatBlockExtent(src.format))
+	srcOffsetBlocks := divByBlockExtent(srcOffset, src.format)
+	extentBlocks := divByBlockExtentRoundUp(extent, src.format)
 
 	dstOffsetBase, _ := copyRectInTexels(
 		dst.base.format, int3FromVkExtent3D(dst.base.extent),
@@ -148,8 +148,8 @@ func EnqueueCopyMemoryToImage(
 
 	dstAspects := formatutil.Aspects(dst.format)
 	dstMipLevel := int(dst.baseMipLevel)
-	dstOffsetBlocks := int3(dstOffset).Div(formatBlockExtent(dst.format))
-	extentBlocks := divRoundUp3(extent, formatBlockExtent(dst.format))
+	dstOffsetBlocks := divByBlockExtent(dstOffset, dst.format)
+	extentBlocks := divByBlockExtentRoundUp(extent, dst.format)
 
 	dstOffsetBase, extentBase := copyRectInTexels(
 		dst.base.format, int3FromVkExtent3D(dst.base.extent),
@@ -240,8 +240,8 @@ func EnqueueCopyImageToMemory(
 	extent [3]int) {
 	srcAspects := formatutil.Aspects(src.format)
 	srcMipLevel := int(src.baseMipLevel)
-	srcOffsetBlocks := int3(srcOffset).Div(formatBlockExtent(src.format))
-	extentBlocks := divRoundUp3(extent, formatBlockExtent(src.format))
+	srcOffsetBlocks := divByBlockExtent(srcOffset, src.format)
+	extentBlocks := divByBlockExtentRoundUp(extent, src.format)
 
 	srcOffsetBase, extentBase := copyRectInTexels(
 		src.base.format, int3FromVkExtent3D(src.base.extent),
@@ -316,10 +316,10 @@ func (job *copyImageToMemoryJob) Exec(q *CommandQueue) {
 // TODO: pass granularities array, queueFamilies explicitly?
 func chooseQueueFamiliesForImageCopy(
 	format Format, imageExtent [3]int,
-	aspects vk.ImageAspectFlags, level int,
+	aspects vk.ImageAspectFlags, mipLevel int,
 	offsetBlocks, extentBlocks [3]int) uint32 {
-	levelExtent := minify3(imageExtent, level)
-	levelExtentBlocks := divRoundUp3(levelExtent, formatBlockExtent(format))
+	levelExtent := minify3(imageExtent, mipLevel)
+	levelExtentBlocks := divByBlockExtentRoundUp(levelExtent, format)
 
 	families := queueFamilies.Mask(0b100)
 
@@ -336,8 +336,8 @@ func chooseQueueFamiliesForImageCopy(
 			granularity := int3FromVkExtent3D(queueFamilies.props[family].MinImageTransferGranularity)
 
 			if granularity == ([3]int{}) ||
-				int3(offsetBlocks).Mod(granularity) != ([3]int{}) ||
-				int3(extentBlocks).Mod(granularity) != ([3]int{}) {
+				mod3(offsetBlocks, granularity) != ([3]int{}) ||
+				mod3(extentBlocks, granularity) != ([3]int{}) {
 				families &^= 1 << family
 			}
 		}
@@ -348,11 +348,32 @@ func chooseQueueFamiliesForImageCopy(
 
 func copyRectInTexels(
 	format Format, imageExtent [3]int,
-	level int,
+	mipLevel int,
 	offsetBlocks, extentBlocks [3]int) ([3]int, [3]int) {
-	blockExtent := int3FromVkExtent3D(formatutil.Describe(format).BlockExtent)
+	blockExtent := formatBlockExtent(format)
+	levelExtent := minify3(imageExtent, mipLevel)
 
-	offset := int3(offsetBlocks).Mul(blockExtent)
-	extent := int3(extentBlocks).Mul(blockExtent).Min(int3(minify3(imageExtent, level)).Sub(offset))
+	offset := mul3(offsetBlocks, blockExtent)
+	extent := min3(mul3(extentBlocks, blockExtent), sub3(levelExtent, offset))
 	return offset, extent
+}
+
+// TODO: optimize for block sides? We don't need the general division here.
+
+func divByBlockExtent(x [3]int, yFormat Format) [3]int {
+	y := formatBlockExtent(yFormat)
+	return [3]int{
+		x[0] / y[0],
+		x[1] / y[1],
+		x[2] / y[2],
+	}
+}
+
+func divByBlockExtentRoundUp(x [3]int, yFormat Format) [3]int {
+	y := formatBlockExtent(yFormat)
+	return [3]int{
+		(x[0] + y[0] - 1) / y[0],
+		(x[1] + y[1] - 1) / y[1],
+		(x[2] + y[2] - 1) / y[2],
+	}
 }

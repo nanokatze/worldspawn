@@ -58,42 +58,9 @@ func vkBool32(x bool) vk.Bool32 {
 	}
 }
 
-func int3FromVkOffset3D(from vk.Offset3D) [3]int {
-	return [3]int{int(from.X), int(from.Y), int(from.Z)}
-}
-
-func int3FromVkExtent3D(from vk.Extent3D) [3]int {
-	return [3]int{int(from.Width), int(from.Height), int(from.Depth)}
-}
-
-func vkOffset3DFromInt3(from [3]int) vk.Offset3D {
-	return vk.Offset3D{X: int32(from[0]), Y: int32(from[1]), Z: int32(from[2])}
-}
-
-func vkExtent3DFromInt3(from [3]int) vk.Extent3D {
-	return vk.Extent3D{Width: uint32(from[0]), Height: uint32(from[1]), Depth: uint32(from[2])}
-}
-
-func minify(x int, level int) int {
-	return max(x>>level, 1)
-}
-
-func minify3(x [3]int, level int) [3]int {
-	return [3]int{
-		minify(x[0], level),
-		minify(x[1], level),
-		minify(x[2], level),
-	}
-}
-
-func divRoundUp(x, y int) int { return (x + y - 1) / y }
-
-func divRoundUp3(x, y [3]int) [3]int {
-	return [3]int{
-		divRoundUp(x[0], y[0]),
-		divRoundUp(x[1], y[1]),
-		divRoundUp(x[2], y[2]),
-	}
+// max(floor(x / 2^p), 1)
+func minify(x int, p int) int {
+	return max(x>>p, 1)
 }
 
 func byteSliceToString(s []byte) string {
