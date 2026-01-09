@@ -58,32 +58,42 @@ func vkBool32(x bool) vk.Bool32 {
 	}
 }
 
-func broadcast3[T any](x T) [3]T {
-	return [3]T{x, x, x}
+func int3FromVkOffset3D(from vk.Offset3D) [3]int {
+	return [3]int{int(from.X), int(from.Y), int(from.Z)}
 }
 
-func minify3(extent [3]int, level int) [3]int {
-	return int3(extent).Rsh(broadcast3(level)).Max(broadcast3(1))
+func int3FromVkExtent3D(from vk.Extent3D) [3]int {
+	return [3]int{int(from.Width), int(from.Height), int(from.Depth)}
 }
 
-func int3FromVkOffset3D(offset vk.Offset3D) [3]int {
-	return [3]int{int(offset.X), int(offset.Y), int(offset.Z)}
+func vkOffset3DFromInt3(from [3]int) vk.Offset3D {
+	return vk.Offset3D{X: int32(from[0]), Y: int32(from[1]), Z: int32(from[2])}
 }
 
-func int3FromVkExtent3D(extent vk.Extent3D) [3]int {
-	return [3]int{int(extent.Width), int(extent.Height), int(extent.Depth)}
+func vkExtent3DFromInt3(from [3]int) vk.Extent3D {
+	return vk.Extent3D{Width: uint32(from[0]), Height: uint32(from[1]), Depth: uint32(from[2])}
 }
 
-func vkOffset3DFromInt3(a [3]int) vk.Offset3D {
-	return vk.Offset3D{X: int32(a[0]), Y: int32(a[1]), Z: int32(a[2])}
+func minify(x int, level int) int {
+	return max(x>>level, 1)
 }
 
-func vkExtent3DFromInt3(a [3]int) vk.Extent3D {
-	return vk.Extent3D{Width: uint32(a[0]), Height: uint32(a[1]), Depth: uint32(a[2])}
+func minify3(x [3]int, level int) [3]int {
+	return [3]int{
+		minify(x[0], level),
+		minify(x[1], level),
+		minify(x[2], level),
+	}
 }
 
-func int3DivRoundUp(a, b [3]int) [3]int {
-	return int3(a).Add(b).Sub(broadcast3(1)).Div(b)
+func divRoundUp(x, y int) int { return (x + y - 1) / y }
+
+func divRoundUp3(x, y [3]int) [3]int {
+	return [3]int{
+		divRoundUp(x[0], y[0]),
+		divRoundUp(x[1], y[1]),
+		divRoundUp(x[2], y[2]),
+	}
 }
 
 func byteSliceToString(s []byte) string {

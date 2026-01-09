@@ -38,7 +38,7 @@ func EnqueueCopyImage(
 	srcAspects := formatutil.Aspects(src.format)
 	srcMipLevel := int(src.baseMipLevel)
 	srcOffsetBlocks := int3(srcOffset).Div(formatBlockExtent(src.format))
-	extentBlocks := int3DivRoundUp(extent, formatBlockExtent(src.format))
+	extentBlocks := divRoundUp3(extent, formatBlockExtent(src.format))
 
 	dstOffsetBase, _ := copyRectInTexels(
 		dst.base.format, int3FromVkExtent3D(dst.base.extent),
@@ -120,8 +120,6 @@ func (job *copyImageJob) Exec(q *CommandQueue) {
 	})
 }
 
-// uint8 in memory<->image copies to be kinda in-line with Go's image API
-
 // TODO: equip Pointers in these copies with length?
 
 type copyMemoryToImageJob struct {
@@ -144,14 +142,14 @@ type copyMemoryToImageJob struct {
 func EnqueueCopyMemoryToImage(
 	jq *JobQueue,
 	dst *Image, dstOffset [3]int,
-	src Slice[uint8], srcRowLength, srcImageHeight int,
+	src Slice[byte], srcRowLength, srcImageHeight int,
 	extent [3]int) {
 	// TODO: validation
 
 	dstAspects := formatutil.Aspects(dst.format)
 	dstMipLevel := int(dst.baseMipLevel)
 	dstOffsetBlocks := int3(dstOffset).Div(formatBlockExtent(dst.format))
-	extentBlocks := int3DivRoundUp(extent, formatBlockExtent(dst.format))
+	extentBlocks := divRoundUp3(extent, formatBlockExtent(dst.format))
 
 	dstOffsetBase, extentBase := copyRectInTexels(
 		dst.base.format, int3FromVkExtent3D(dst.base.extent),
@@ -237,13 +235,13 @@ type copyImageToMemoryJob struct {
 
 func EnqueueCopyImageToMemory(
 	jq *JobQueue,
-	dst Slice[uint8], dstRowLength, dstImageHeight int,
+	dst Slice[byte], dstRowLength, dstImageHeight int,
 	src *Image, srcOffset [3]int,
 	extent [3]int) {
 	srcAspects := formatutil.Aspects(src.format)
 	srcMipLevel := int(src.baseMipLevel)
 	srcOffsetBlocks := int3(srcOffset).Div(formatBlockExtent(src.format))
-	extentBlocks := int3DivRoundUp(extent, formatBlockExtent(src.format))
+	extentBlocks := divRoundUp3(extent, formatBlockExtent(src.format))
 
 	srcOffsetBase, extentBase := copyRectInTexels(
 		src.base.format, int3FromVkExtent3D(src.base.extent),
@@ -321,7 +319,7 @@ func chooseQueueFamiliesForImageCopy(
 	aspects vk.ImageAspectFlags, level int,
 	offsetBlocks, extentBlocks [3]int) uint32 {
 	levelExtent := minify3(imageExtent, level)
-	levelExtentBlocks := int3DivRoundUp(levelExtent, formatBlockExtent(format))
+	levelExtentBlocks := divRoundUp3(levelExtent, formatBlockExtent(format))
 
 	families := queueFamilies.Mask(0b100)
 
@@ -332,7 +330,7 @@ func chooseQueueFamiliesForImageCopy(
 		families &= queueFamilies.Mask(0b001)
 	}
 
-	entire := offsetBlocks == ([3]int{}) && extentBlocks == levelExtentBlocks
+	entire := offsetBlocks == [3]int{} && extentBlocks == levelExtentBlocks
 	if !entire {
 		for family := range ones32(families &^ queueFamilies.Mask(0b010)) {
 			granularity := int3FromVkExtent3D(queueFamilies.props[family].MinImageTransferGranularity)

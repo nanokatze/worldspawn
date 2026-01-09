@@ -286,10 +286,10 @@ func newSubImage(base *imageData, config *subImageConfig) *Image {
 		// 1, 1, 1.
 		// TODO: check that formatClass is uncompressed, while baseFormatClass
 		// is compressed instead of this hack
-		if formatBlockExtent(config.Format) != broadcast3(1) {
+		if formatBlockExtent(config.Format) != ([3]int{1, 1, 1}) {
 			panic(fmt.Sprintf("cannot create a %v view of a %v class image", config.Format, baseFormatClass))
 		}
-		extent = int3DivRoundUp(extent, formatBlockExtent(base.format))
+		extent = divRoundUp3(extent, formatBlockExtent(base.format))
 	}
 
 	img := &Image{
