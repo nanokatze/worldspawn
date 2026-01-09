@@ -16,7 +16,7 @@ import (
 	"worldspawn/internal/fuckwwise/opusfile"
 	"worldspawn/internal/fuckwwise/wav"
 	"worldspawn/internal/pathtracer"
-	"worldspawn/sdl"
+	"worldspawn/internal/sdl"
 )
 
 type sceneUpdate struct {

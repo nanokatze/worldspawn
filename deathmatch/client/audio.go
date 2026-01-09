@@ -9,7 +9,7 @@ import (
 	"worldspawn/geometry-go"
 	sfx "worldspawn/internal/fuckwwise"
 	"worldspawn/internal/fuckwwise/interpolators"
-	"worldspawn/sdl"
+	"worldspawn/internal/sdl"
 )
 
 // TODO: output related stuff back to main.go?

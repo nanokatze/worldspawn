@@ -20,8 +20,8 @@ import (
 	"golang.org/x/text/message"
 
 	"worldspawn/deathmatch/internal/game"
-	"worldspawn/sdl"
-	"worldspawn/sdlrouter"
+	"worldspawn/internal/sdl"
+	"worldspawn/internal/sdlrouter"
 )
 
 func init() {

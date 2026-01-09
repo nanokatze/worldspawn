@@ -8,7 +8,7 @@ import (
 
 	"worldspawn/gpu/sdl_vulkan"
 	"worldspawn/gpu/vk"
-	"worldspawn/sdl"
+	"worldspawn/internal/sdl"
 )
 
 // TODO: experiment with and propose "displayable image" extension to VK WG.

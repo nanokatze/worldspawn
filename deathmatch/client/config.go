@@ -5,7 +5,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"worldspawn/sdl"
+	"worldspawn/internal/sdl"
 )
 
 type QualityConfig struct {

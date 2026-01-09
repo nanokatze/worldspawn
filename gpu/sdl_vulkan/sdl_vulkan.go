@@ -14,7 +14,7 @@ import "C"
 import (
 	"unsafe"
 
-	"worldspawn/sdl"
+	"worldspawn/internal/sdl"
 )
 
 type Instance uintptr

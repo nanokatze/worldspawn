@@ -3,7 +3,7 @@ package sdlrouter
 import (
 	"sync"
 
-	"worldspawn/sdl"
+	"worldspawn/internal/sdl"
 )
 
 // TODO: flatten into globals

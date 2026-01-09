@@ -1,6 +1,6 @@
 package actionset
 
-import "worldspawn/sdl"
+import "worldspawn/internal/sdl"
 
 type ActionSet struct {
 	Keys                 map[sdl.Keycode]int32

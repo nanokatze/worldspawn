@@ -15,8 +15,8 @@ import (
 	"worldspawn/gpu/vk"
 	sfx "worldspawn/internal/fuckwwise"
 	"worldspawn/internal/pathtracer"
-	"worldspawn/sdl"
-	"worldspawn/sdlrouter"
+	"worldspawn/internal/sdl"
+	"worldspawn/internal/sdlrouter"
 )
 
 // TODO: see if we can kill this and fold things back into main()
