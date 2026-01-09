@@ -40,7 +40,7 @@ func packGeometry(geo _Geometry) geometryPacked {
 		geo.Rotation = geometry.Rot3One()
 	}
 	if geo.Scale == (geometry.Vec3{}) {
-		geo.Scale = geometry.Vec3Broadcast(1)
+		geo.Scale = geometry.Vec3Ones()
 	}
 
 	buf, err := nice.Marshal(&geo)

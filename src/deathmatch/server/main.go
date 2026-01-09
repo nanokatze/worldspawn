@@ -497,7 +497,7 @@ func spawnplayer(w *game.Scene, info *game.UpdateParams) ecs.ID {
 	w.SetLocalTRS(camera, geometry.DTRS3{
 		T: geometry.DVec3{0, 0, 1.9 - 0.1}, // standing height
 		R: geometry.Rot3One(),
-		S: geometry.Vec3Broadcast(1),
+		S: geometry.Vec3Ones(),
 	})
 
 	hands := w.CreateEntity(info)
@@ -574,7 +574,7 @@ func main() {
 		{
 			obj := s.scene.CreateEntity()
 			s.scene.TranslationRotation.Set(obj, game.TranslationRotationOne())
-			s.scene.Scale.Set(obj, geometry.Vec3Broadcast(1))
+			s.scene.Scale.Set(obj, geometry.Vec3Ones())
 			tmp := game.LoopedSound{
 				Sound: "lamphum.wav",
 			}
@@ -595,7 +595,7 @@ func main() {
 		s.scene.SetGlobalTRS(dropped, geometry.DTRS3{
 			T: geometry.DVec3{0, 0, 1},
 			R: geometry.Rot3One(),
-			S: geometry.Vec3Broadcast(1),
+			S: geometry.Vec3Ones(),
 		})
 	}
 
@@ -609,7 +609,7 @@ func main() {
 		s.scene.SetGlobalTRS(dropped, geometry.DTRS3{
 			T: geometry.DVec3{0, -10, 1},
 			R: geometry.Rot3One(),
-			S: geometry.Vec3Broadcast(1),
+			S: geometry.Vec3Ones(),
 		})
 	}
 

@@ -46,20 +46,18 @@ import (
 
 type {{$gvecD}}[T constraints.Float] [{{.D}}]T
 
-// TODO: rename to Splat?
-func {{$gvecD}}Broadcast[T constraints.Float](x T) {{$gvecD}}[T] {
+func {{$gvecD}}Ones[T constraints.Float]() {{$gvecD}}[T] {
 	return {{$gvecD}}[T]{
 		{{- range .D}}
-		x,
+		1,
 		{{- end}}
 	}
 }
 
-// Or Vec{{.D}}Convert?
-func ConvertVec{{.D}}[T, U constraints.Float](a {{$gvecD}}[U]) {{$gvecD}}[T] {
-	return {{$gvecD}}[T]{
+func Vec{{.D}}Convert[To, From constraints.Float](a {{$gvecD}}[From]) {{$gvecD}}[To] {
+	return {{$gvecD}}[To]{
 		{{- range .D}}
-		T(a[{{.}}]),
+		To(a[{{.}}]),
 		{{- end}}
 	}
 }

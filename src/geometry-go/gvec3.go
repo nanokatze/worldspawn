@@ -10,21 +10,19 @@ import (
 
 type gvec3[T constraints.Float] [3]T
 
-// TODO: rename to Splat?
-func gvec3Broadcast[T constraints.Float](x T) gvec3[T] {
+func gvec3Ones[T constraints.Float]() gvec3[T] {
 	return gvec3[T]{
-		x,
-		x,
-		x,
+		1,
+		1,
+		1,
 	}
 }
 
-// Or Vec3Convert?
-func ConvertVec3[T, U constraints.Float](a gvec3[U]) gvec3[T] {
-	return gvec3[T]{
-		T(a[0]),
-		T(a[1]),
-		T(a[2]),
+func Vec3Convert[To, From constraints.Float](a gvec3[From]) gvec3[To] {
+	return gvec3[To]{
+		To(a[0]),
+		To(a[1]),
+		To(a[2]),
 	}
 }
 

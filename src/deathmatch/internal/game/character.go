@@ -131,7 +131,7 @@ func (char Character) CharacterSubstep(w *Scene, id ecs.ID, cmd TimestampedInput
 		shootpos = shootpos.Mul(geometry.DTRS3{
 			T: geometry.DVec3{0, 0, float64(playerStats.StandingViewHeight)},
 			R: geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, -1}, 2*math.Pi*char.Look[0]).Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, 2*math.Pi*char.Look[1])),
-			S: geometry.Vec3Broadcast(1),
+			S: geometry.Vec3Ones(),
 		})
 
 		updateVisual := weapon.WeaponSubstep(w, char.ActiveWeapon, id, shootpos, buttons, info)
@@ -147,7 +147,7 @@ func (char Character) CharacterSubstep(w *Scene, id ecs.ID, cmd TimestampedInput
 	w.SetLocalTRS(char.FirstPersonCamera, geometry.DTRS3{
 		T: geometry.DVec3{0, 0, float64(playerStats.StandingViewHeight)},
 		R: geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, -1}, 2*math.Pi*char.Look[0]).Mul(geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, 2*math.Pi*char.Look[1])),
-		S: geometry.Vec3Broadcast(1),
+		S: geometry.Vec3Ones(),
 	})
 }
 
@@ -161,7 +161,7 @@ func (char Character) CharacterUpdate(w *Scene, id ecs.ID, info *UpdateParams) {
 	w.SetLocalTRS(char.Hands, geometry.DTRS3{
 		T: geometry.DVec3{0, math.Sin(float64(w.Now)/1e9*6) * 0.03 * min(float64(velocity.Linear.Length()/6), 1), 0},
 		R: geometry.Rot3One(),
-		S: geometry.Vec3Broadcast(1),
+		S: geometry.Vec3Ones(),
 	})
 }
 
@@ -278,7 +278,7 @@ func (char *Character) asdasd(w *Scene, id ecs.ID, velocity geometry.Vec3, Δt t
 			getShape(shape),
 			positionRotation.Position,
 			positionRotation.Rotation,
-			geometry.Vec3Broadcast(1),
+			geometry.Vec3Ones(),
 			velocity.Linear.Scale(float32(durationToFloatSeconds(Δt))),
 			physics.QueryFilter{Ignore: physics.BodyID(id)})
 	*/

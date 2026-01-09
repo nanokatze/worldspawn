@@ -208,14 +208,14 @@ func (scene *Scene) GetLocalTRS(id ecs.ID) (geometry.DTRS3, bool) {
 	}
 	s, ok := scene.Scale.Get(id)
 	if !ok {
-		s = geometry.Vec3Broadcast(1)
+		s = geometry.Vec3Ones()
 	}
 	return geometry.DTRS3{tr.Translation, tr.Rotation, s}, true
 }
 
 func (scene *Scene) SetLocalTRS(id ecs.ID, trs geometry.DTRS3) {
 	scene.TranslationRotation.Set(id, TranslationRotation{trs.T, trs.R})
-	if trs.S == geometry.Vec3Broadcast(1) {
+	if trs.S == geometry.Vec3Ones() {
 		scene.Scale.Delete(id)
 	} else {
 		scene.Scale.Set(id, trs.S)

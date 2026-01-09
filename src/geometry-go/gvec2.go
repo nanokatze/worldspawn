@@ -10,19 +10,17 @@ import (
 
 type gvec2[T constraints.Float] [2]T
 
-// TODO: rename to Splat?
-func gvec2Broadcast[T constraints.Float](x T) gvec2[T] {
+func gvec2Ones[T constraints.Float]() gvec2[T] {
 	return gvec2[T]{
-		x,
-		x,
+		1,
+		1,
 	}
 }
 
-// Or Vec2Convert?
-func ConvertVec2[T, U constraints.Float](a gvec2[U]) gvec2[T] {
-	return gvec2[T]{
-		T(a[0]),
-		T(a[1]),
+func Vec2Convert[To, From constraints.Float](a gvec2[From]) gvec2[To] {
+	return gvec2[To]{
+		To(a[0]),
+		To(a[1]),
 	}
 }
 

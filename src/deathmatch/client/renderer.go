@@ -144,7 +144,7 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 
 			tmp, _ := w.GetLocalTRS(id)
 			// TODO: we should not record cosmetic offset into renderer.transformT0
-			transformT1 := geometry.TRS3{geometry.ConvertVec3[float32](tmp.T).Add(offset), tmp.R, tmp.S}
+			transformT1 := geometry.TRS3{geometry.Vec3Convert[float32](tmp.T).Add(offset), tmp.R, tmp.S}
 
 			transformT0 := re.lastTransform[i]
 			if re.lastGen[i] != id.Generation() {
@@ -220,7 +220,7 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 			trs, _ := w.GetGlobalTRS(id)
 
 			xform := geometry.TRS3{
-				T: geometry.ConvertVec3[float32](trs.T), // TODO: we should also be applying cosmetic offset like in video
+				T: geometry.Vec3Convert[float32](trs.T), // TODO: we should also be applying cosmetic offset like in video
 				R: trs.R,
 				S: trs.S,
 			}.Mat4x4()

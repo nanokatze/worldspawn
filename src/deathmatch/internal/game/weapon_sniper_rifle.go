@@ -15,7 +15,7 @@ var sniperRifleStats = struct {
 	ViewGeometryTRS: geometry.DTRS3{
 		T: geometry.DVec3{0.15, 0.4, -0.225},
 		R: geometry.Rot3One(),
-		S: geometry.Vec3Broadcast(1),
+		S: geometry.Vec3Ones(),
 	},
 
 	RenderingGeometry: "weapons/sniper_rifle/geometries/Sniper_Rifle_001",
