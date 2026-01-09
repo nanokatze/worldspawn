@@ -1,7 +1,6 @@
 package game
 
 import (
-	"fmt"
 	"reflect"
 
 	"worldspawn/internal/ecs"
@@ -72,11 +71,7 @@ func (player Player) Camera(w *Scene) ecs.ID {
 }
 
 func (w *Scene) HandleInput(playerID ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
-	player, ok := SceneGetEntity[Player](w, playerID)
-	if !ok {
-		panic(fmt.Sprintf("entity %d does not exist or is not %s", playerID, reflect.TypeFor[Player]().Name()))
-	}
-
+	player := mustOk(SceneGetEntity[Player](w, playerID))
 	char := mustOk(SceneGetEntity[Character](w, player.Character))
 	char.CharacterSubstep(w, player.Character, cmd, info)
 }

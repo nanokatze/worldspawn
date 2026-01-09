@@ -167,7 +167,7 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 
 			i := id.Index()
 
-			visibility, _ := w.Visibility.Get(id)
+			visibility, _ := w.VisibilityMask.Get(id)
 			mask := visibility.Mask & 0b11
 			if visibility.Camera != camera {
 				mask ^= 0b11

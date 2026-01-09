@@ -87,6 +87,7 @@ type Columns struct {
 	// TODO: generalize to all events, including damage etc?
 	ContactEvents ecs.Column[[]ContactEvent]
 
+	// Entities with Timer value must implement the Timer interface.
 	Timer ecs.Column[Time]
 
 	// TODO: kill this column and handle it at prefab instantination
@@ -95,6 +96,7 @@ type Columns struct {
 	// TODO: rename, to e.g. Logic? Or Any?
 	Entity ecs.Column[Entity]
 
+	// TODO: move it out of the Columns struct, there's no reason to replicate this
 	Delete ecs.Column[struct{}]
 
 	// Renderer columns
@@ -102,7 +104,7 @@ type Columns struct {
 	CosmeticOffset                ecs.Column[CosmeticOffset]
 	DeleteCosmeticOffsetOnContact ecs.Column[struct{}]
 
-	Visibility ecs.Column[Visibility]
+	VisibilityMask ecs.Column[VisibilityMask]
 
 	RenderingGeometry ecs.Column[string]
 
@@ -156,6 +158,9 @@ func (w *Scene) IsEntityValid(id ecs.ID) bool { return w.Table.IDs().Exists(id) 
 
 // TODO: do we need client-only entities? I don't think we do with this tbh
 // TODO: make this private?
+// TODO: same as DeleteEntityImmediately, we probably should make a column for
+// creating entities so we can run a processing pass in parallel that then
+// spawns entities. Except this column would have to be of funcs.
 func (w *Scene) CreateEntity(info *UpdateParams) ecs.ID {
 	if info.Speculating {
 		// Create an entity at high index and mark it speculative so that it
@@ -319,8 +324,10 @@ func (w *Scene) Step(updateParams *UpdateParams) {
 		w.SoundEffect.Set(id, soundEffect)
 	}
 
+	// TODO: move this to happen earlier
 	w.DeleteEntities()
 
+	// TODO: move this to happen earlier
 	w.ContactEvents.Clear()
 }
 

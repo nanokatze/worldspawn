@@ -322,7 +322,3 @@ func writeInputCmds(w io.Writer, cmds []game.TimestampedInputCmd) error {
 func (s *Client) Close() {
 	close(s.done)
 }
-
-func durationSeconds(d time.Duration) float64 {
-	return float64(d) / 1e9
-}

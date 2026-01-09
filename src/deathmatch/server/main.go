@@ -170,9 +170,9 @@ func (s *Server) serveConn(conn *quic.Conn, logger *slog.Logger) error {
 			s.mu.Lock()
 			defer s.mu.Unlock()
 
-			// TODO: depending on the type of game, removing the entity is not
-			// necessarily what we want (e.g. we might want to let the AI take
-			// over the control, or put the character to sleep, or ...)
+			// TODO: don't kill Character here
+			player, _ := game.SceneGetEntity[game.Player](s.scene, u.player)
+			s.scene.Delete.Set(player.Character, struct{}{})
 			s.scene.Delete.Set(u.player, struct{}{})
 		}()
 	}
@@ -489,7 +489,7 @@ func spawnplayer(w *game.Scene, info *game.UpdateParams) ecs.ID {
 	w.CollisionGeometry.Set(character, "FPSCharacter")
 	w.CollisionLayer.Set(character, game.PhysicsLayerMovingKinematic)
 	w.PhysicsMassOverride.Set(character, 100)
-	w.Visibility.Set(character, game.Visibility{Mask: 0b10, Camera: camera})
+	w.VisibilityMask.Set(character, game.VisibilityMask{Mask: 0b10, Camera: camera})
 	w.RenderingGeometry.Set(character, "testcharacter4/geometries/TestCharacter4")
 
 	w.SetParent(camera, character)
@@ -615,7 +615,7 @@ func main() {
 
 	s.scene.InstantinateCollections()
 
-	// Reset dirty times
+	// Reset mtimes
 	for _, comp := range s.mtimes.Columns {
 		for j := range comp {
 			comp[j] = s.scene.Now

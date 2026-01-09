@@ -2,20 +2,19 @@ package game
 
 import "worldspawn/internal/ecs"
 
+// TODO: rename
+type Timer interface {
+	Entity
+
+	TimerExpired(w *Scene, id ecs.ID, info *UpdateParams)
+}
+
 func (w *Scene) processTimers(updateParams *UpdateParams) {
-	// TODO: assert that these entities implement TimerExpired interface, rather
-	// than doing a join over them.
-	for id, v := range ecs.Join(&w.Timer, &w.Entity) {
-		if v.V1.After(w.Now) {
+	for id, deadline := range ecs.All(&w.Timer) {
+		if deadline.After(w.Now) {
 			continue
 		}
 
-		timerExpired, ok := SceneGetEntity[interface {
-			Entity
-			TimerExpired(w *Scene, id ecs.ID, info *UpdateParams)
-		}](w, id)
-		if ok {
-			timerExpired.TimerExpired(w, id, updateParams)
-		}
+		mustOk(SceneGetEntity[Timer](w, id)).TimerExpired(w, id, updateParams)
 	}
 }

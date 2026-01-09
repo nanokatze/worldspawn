@@ -11,7 +11,7 @@ import (
 )
 
 // TODO: give this a better name
-type Visibility struct {
+type VisibilityMask struct {
 	Mask uint8
 	// TODO: replace with an arbitrary int64 id so we can have the same cameras
 	// share visibility sets? Or should this be a set of ids/ecs.IDs?

@@ -112,7 +112,7 @@ func (char Character) CharacterSubstep(w *Scene, id ecs.ID, cmd TimestampedInput
 			if weapon, ok := SceneGetEntity[Weapon](w, switchToWeapon); ok {
 				char.ActiveWeaponViewmodel = weapon.WeaponCreateGeometry(w, char.Hands, info)
 
-				w.Visibility.Set(char.ActiveWeaponViewmodel, Visibility{Mask: 0b01, Camera: char.FirstPersonCamera})
+				w.VisibilityMask.Set(char.ActiveWeaponViewmodel, VisibilityMask{Mask: 0b01, Camera: char.FirstPersonCamera})
 
 				char.ActiveWeapon = switchToWeapon
 			}
