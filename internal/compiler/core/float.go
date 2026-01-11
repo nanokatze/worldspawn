@@ -1,20 +1,9 @@
 package core
 
-import (
-	"fmt"
+import "worldspawn/internal/compiler"
 
-	"worldspawn/internal/compiler"
-)
-
-// TODO: introduce an op to convert between FloatType and Int
-type FloatType struct {
-	E int
-	M int
-}
-
-func (t FloatType) String() string { return fmt.Sprintf("Float[%d,%d]", t.E, t.M) }
-
-var FloatE8M23 compiler.Type = FloatType{8, 23}
+// TODO: each float op should describe how the float should be interpreted and
+// other things (like the result not ever being nan etc)
 
 var (
 	OpFAdd = defOp("FAdd", nil)

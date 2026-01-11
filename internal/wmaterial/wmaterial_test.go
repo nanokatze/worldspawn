@@ -34,7 +34,7 @@ func TestXxx(t *testing.T) {
  "Args": ["bsdf", "edf"]}
 ]`)
 	sea := compiler.NewSea()
-	b := &compiler.Builder{Sea: sea, Rules: append(append([]compiler.RewriteRule(nil), core.Rules...), matc.InterpreterLowerings...)}
+	b := &compiler.Builder{Sea: sea, Rules: append(append([]compiler.RewriteRule(nil), core.Rules...), matc.LowerToInterpreter...)}
 	ir, err := Parse(b, src)
 	if err != nil {
 		t.Fatal(err)

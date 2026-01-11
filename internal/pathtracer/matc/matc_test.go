@@ -2,13 +2,14 @@ package matc
 
 import (
 	"math"
+	"os"
 	"testing"
 
 	"worldspawn/internal/compiler"
 	"worldspawn/internal/compiler/core"
 )
 
-var allRules = append(append([]compiler.RewriteRule(nil), core.Rules...), InterpreterLowerings...)
+var allRules = append(append([]compiler.RewriteRule(nil), core.Rules...), LowerToInterpreter...)
 
 func TestXxx(t *testing.T) {
 	sea := compiler.NewSea()
@@ -25,13 +26,13 @@ func TestXxx(t *testing.T) {
 
 	paramStruct := MakeParamsTuple(paramTypes)
 
-	normal := b.Value2(OpInterpLoadShadingNormal, core.ArrayType{3, core.Int32}, nil)
+	normal := b.Value2(OpInterpLoadShadingNormal, core.Bits96, nil)
 
 	uv := LoadAttribute(b, LoadParameter(b, AttributeDescriptorType{}, 0))
-	u := core.ArrayExtract(b, uv, 0)
-	v := core.ArrayExtract(b, uv, 1)
+	u := core.Extract(b, core.Bits32, uv, 0)
+	v := core.Extract(b, core.Bits32, uv, 32)
 
-	one := core.IConst(b, core.Int32, int64(math.Float32bits(1)))
+	one := core.Const(b, core.Bits32, uint64(math.Float32bits(1)))
 
 	fractU := u
 	fractV := v
@@ -45,14 +46,14 @@ func TestXxx(t *testing.T) {
 
 	selector := b.Value2(
 		OpInterpFLessOrEqualE8M23,
-		core.Int32,
+		core.Bits32,
 		nil,
 		idk3,
-		core.IConst(b, core.Int32, int64(math.Float32bits(0.025))))
+		core.Const(b, core.Bits32, uint64(math.Float32bits(0.025))))
 
 	color := LoadAttribute(b, LoadParameter(b, AttributeDescriptorType{}, 1))
 
-	white := core.MakeArray(b, core.Int32, one, one, one, one)
+	white := core.Pack(b, one, one, one, one)
 
 	final := core.CondSelect(b, white, color, selector)
 
@@ -67,7 +68,7 @@ func TestXxx(t *testing.T) {
 		b.Value2(OpDFWeightedSum, EDFType{}, nil),
 	)
 
-	compiled := CompileInterpretedMaterial(paramStruct, sea, program, nil)
+	compiled := CompileInterpretedMaterial(paramStruct, sea, program, os.Stderr)
 
 	t.Log(compiled.ABI)
 }
@@ -80,10 +81,10 @@ func TestXxx2(t *testing.T) {
 		Rules: allRules,
 	}
 
-	emission_r := core.IConst(b, core.Int32, int64(math.Float32bits(10.0)))
-	emission_g := core.IConst(b, core.Int32, int64(math.Float32bits(10.0)))
-	emission_b := core.IConst(b, core.Int32, int64(math.Float32bits(10.0)))
-	emissionSpectrum := core.MakeArray(b, core.Int32, emission_r, emission_g, emission_b)
+	emission_r := core.Const(b, core.Bits32, uint64(math.Float32bits(10.0)))
+	emission_g := core.Const(b, core.Bits32, uint64(math.Float32bits(10.0)))
+	emission_b := core.Const(b, core.Bits32, uint64(math.Float32bits(10.0)))
+	emissionSpectrum := core.Pack(b, emission_r, emission_g, emission_b)
 	program := b.Value2(
 		OpMakeSurface,
 		core.NothingType{},

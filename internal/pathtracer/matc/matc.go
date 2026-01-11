@@ -37,7 +37,7 @@ func (AttributeDescriptorType) String() string { return "AttributeDescriptor" }
 var OpLoadAttribute = defOp("LoadAttribute", nil)
 
 func LoadAttribute(b *compiler.Builder, arg *compiler.Class) *compiler.Class {
-	return b.Value2(OpLoadAttribute, core.ArrayType{4, core.Int32}, nil, arg)
+	return b.Value2(OpLoadAttribute, core.Bits128, nil, arg)
 }
 
 type TextureDescriptorType struct{}

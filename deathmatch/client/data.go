@@ -140,7 +140,7 @@ func getmaterial(identifier string) material {
 		sea := compiler.NewSea()
 		b := &compiler.Builder{
 			Sea:   sea,
-			Rules: append(append([]compiler.RewriteRule(nil), core.Rules...), matc.InterpreterLowerings...),
+			Rules: append(append([]compiler.RewriteRule(nil), core.Rules...), matc.LowerToInterpreter...),
 		}
 		ir, err := wmaterial.Parse(b, header.Program)
 		if err != nil {
@@ -172,7 +172,7 @@ var errorMaterial = sync.OnceValue(func() *pathtracer.InterpretedMaterial {
 	sea := compiler.NewSea()
 	b := &compiler.Builder{
 		Sea:   sea,
-		Rules: append(append([]compiler.RewriteRule(nil), core.Rules...), matc.InterpreterLowerings...),
+		Rules: append(append([]compiler.RewriteRule(nil), core.Rules...), matc.LowerToInterpreter...),
 	}
 
 	/*

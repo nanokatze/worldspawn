@@ -158,15 +158,11 @@ func regs(t compiler.Type) int {
 		return 0
 	}
 
-	if arr, ok := t.(core.ArrayType); ok {
-		return regs(arr.T) * int(arr.N)
-	}
-
-	bits := t.(core.IntType)
-	if bits.N != 32 {
+	bits := t.(core.BitsType)
+	if bits.N%32 != 0 {
 		panic("wtf")
 	}
-	return 1
+	return int(bits.N / 32)
 }
 
 // TODO: come up with a nicer way to represent schedule. Needs to be a linked
