@@ -117,7 +117,7 @@ var blueNoise = sync.OnceValue(func() *gpu.Image {
 })
 
 var raygen = sync.OnceValue(func() *gpu.RayTracingShaderGroup {
-	return gpu.NewGeneralRayTracingShaderGroup(gpu.NewFunc(mustReadFile("shaders/scene_render.spv"), vk.SHADER_STAGE_RAYGEN_BIT_KHR, "raygen"))
+	return gpu.NewGeneralRayTracingShaderGroup(gpu.NewFunc(mustReadFile("shaders/pathtracer_scene_render.spv"), vk.SHADER_STAGE_RAYGEN_BIT_KHR, "raygen"))
 })
 
 func mustReadFile(filename string) []byte {
