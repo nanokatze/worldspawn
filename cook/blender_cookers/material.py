@@ -87,7 +87,7 @@ class Compiler:
             case bpy.types.ShaderNodeAttribute():
                 param_idx = self.__add_param('AttributeDescriptor', node.attribute_name)
                 descriptor = self.__builder.value('LoadParameter', 'AttributeDescriptor', param_idx)
-                value = self.__builder.value('LoadAttribute', 'Array[4, Int[32]]', None, descriptor)
+                value = self.__builder.value('LoadAttribute', 'Bits[128]', None, descriptor)
 
                 match output_name:
                     case 'Color':
@@ -100,8 +100,8 @@ class Compiler:
                 red = self.__compile_input_socket(node_inputs['Red'], self.__socket_default_value)
                 green = self.__compile_input_socket(node_inputs['Green'], self.__socket_default_value)
                 blue = self.__compile_input_socket(node_inputs['Blue'], self.__socket_default_value)
-                alpha = self.__builder.value('IConst', 'Int[32]', util.float32_bits(1))
-                return self.__builder.value('MakeArray', 'Array[4, Int[32]]', None, red, green, blue, alpha)
+                alpha = self.__builder.value('Const', 'Bits[32]', util.float32_bits(1))
+                return self.__builder.value('Pack', 'Bits[128]', None, red, green, blue, alpha)
 
             case bpy.types.ShaderNodeEmission():
                 # TODO: stop doing this
@@ -114,7 +114,7 @@ class Compiler:
                 in_normal = node_inputs['Normal']
 
                 # TODO: properly translate from node_inputs['Normal']
-                normal = self.__builder.value('LoadShadingNormal', 'Array[3, Int[32]]', None)
+                normal = self.__builder.value('LoadShadingNormal', 'Bits[96]', None)
 
                 base_color = self.__compile_input_socket(in_base_color, self.__socket_default_value)
 
@@ -160,14 +160,14 @@ class Compiler:
     def __socket_default_value(self, socket):
         match socket:
             case bpy.types.NodeSocketColor():
-                r = self.__builder.value('IConst', 'Int[32]', util.float32_bits(socket.default_value[0]))
-                g = self.__builder.value('IConst', 'Int[32]', util.float32_bits(socket.default_value[1]))
-                b = self.__builder.value('IConst', 'Int[32]', util.float32_bits(socket.default_value[2]))
-                a = self.__builder.value('IConst', 'Int[32]', util.float32_bits(socket.default_value[3]))
-                return self.__builder.value('MakeArray', 'Array[4, Int[32]]', None, r, g, b, a)
+                r = self.__builder.value('Const', 'Bits[32]', util.float32_bits(socket.default_value[0]))
+                g = self.__builder.value('Const', 'Bits[32]', util.float32_bits(socket.default_value[1]))
+                b = self.__builder.value('Const', 'Bits[32]', util.float32_bits(socket.default_value[2]))
+                a = self.__builder.value('Const', 'Bits[32]', util.float32_bits(socket.default_value[3]))
+                return self.__builder.value('Pack', 'Bits[128]', None, r, g, b, a)
 
             case bpy.types.NodeSocketFloatFactor():
-                return self.__builder.value('IConst', 'Int[32]', util.float32_bits(socket.default_value))
+                return self.__builder.value('Const', 'Bits[32]', util.float32_bits(socket.default_value))
 
             case _:
                 assert False, 'unsupported socket type {}'.format(type(socket))

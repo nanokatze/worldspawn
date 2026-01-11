@@ -34,14 +34,14 @@ func Type(typ string) compiler.Type {
 		return core.NothingType{}
 	case "AttributeDescriptor":
 		return matc.AttributeDescriptorType{}
-	case "Int[32]":
+	case "Bits[32]":
 		return core.Bits32
-	case "Int[64]", "Array[2, Int[32]]":
+	case "Bits[64]":
 		return core.Bits64
-	case "Int[96]", "Array[3, Int[32]]":
-		return core.BitsType{96}
-	case "Int[128]", "Array[4, Int[32]]":
-		return core.BitsType{128}
+	case "Bits[96]":
+		return core.Bits96
+	case "Bits[128]":
+		return core.Bits128
 	case "BSDF":
 		return matc.BSDFType{}
 	case "EDF":
@@ -52,24 +52,21 @@ func Type(typ string) compiler.Type {
 }
 
 var opByName = map[string]compiler.Op{
-	"ArrayExtract":      core.OpExtract,
+	"Const":             core.OpConst,
 	"DFWeightedSum":     matc.OpDFWeightedSum,
 	"DiffuseBSDF":       matc.OpDiffuseBSDF,
-	"IConst":            core.OpConst,
+	"Extract":           core.OpExtract,
 	"LoadAttribute":     matc.OpLoadAttribute,
 	"LoadParameter":     matc.OpLoadParameter,
 	"LoadShadingNormal": matc.OpInterpLoadShadingNormal,
-	"MakeArray":         core.OpPack,
 	"MakeSurface":       matc.OpMakeSurface,
+	"Pack":              core.OpPack,
 	"UniformEDF":        matc.OpUniformEDF,
 }
 
 var opImmParser = map[compiler.Op]func(imm string) (any, error){
-	core.OpConst: func(imm string) (any, error) { return strconv.ParseUint(imm, 10, 64) },
-	core.OpExtract: func(imm string) (any, error) {
-		idx, err := strconv.ParseInt(imm, 10, 64)
-		return idx * 32, err
-	},
+	core.OpConst:         func(imm string) (any, error) { return strconv.ParseUint(imm, 10, 64) },
+	core.OpExtract:       func(imm string) (any, error) { return strconv.ParseInt(imm, 10, 64) },
 	matc.OpLoadParameter: func(imm string) (any, error) { return strconv.ParseInt(imm, 10, 64) },
 }
 
