@@ -10,70 +10,85 @@ import (
 // TODO: should rowLength and imageHeight arguments be in bytes rather than texels?
 // TODO: rename rowLength and imageHeight into rowStride and image/layerStride?
 
+// TODO: replace vk.{Offset,Extent}3D with [3]uint32?
+
+func offset3(x []int) [3]int {
+	tmp := [3]int{0, 0, 0}
+	copy(tmp[:], x)
+	return tmp
+}
+
+func extent3(x []int) [3]int {
+	tmp := [3]int{1, 1, 1}
+	copy(tmp[:], x)
+	return tmp
+}
+
 type copyImageJob struct {
-	dst           *imageData
-	dstAspects    vk.ImageAspectFlags
-	dstBaseLayer  uint32
-	dstLayers     uint32
-	dstMipLevel   uint8
-	dstOffset     vk.Offset3D
-	src           *imageData
-	srcAspects    vk.ImageAspectFlags
-	srcBaseLayer  uint32
-	srcLayers     uint32
-	srcMipLevel   uint8
-	srcOffset     vk.Offset3D
-	extent        vk.Extent3D
-	queueFamilies uint32
+	dst                 *imageData
+	dstAspects          vk.ImageAspectFlags
+	dstSubresourceRange subresourceRange
+	dstOffset           vk.Offset3D
+	src                 *imageData
+	srcAspects          vk.ImageAspectFlags
+	srcSubresourceRange subresourceRange
+	srcOffset           vk.Offset3D
+	extent              vk.Extent3D
+	queueFamilies       uint32
 }
 
 func EnqueueCopyImage(
 	jq *JobQueue,
+	dst *Image, dstOffset []int,
+	src *Image, srcOffset []int,
+	extent []int) {
+	enqueueCopyImage(jq, dst, offset3(dstOffset), src, offset3(srcOffset), extent3(extent))
+}
+
+func enqueueCopyImage(
+	jq *JobQueue,
 	dst *Image, dstOffset [3]int,
 	src *Image, srcOffset [3]int,
 	extent [3]int) {
-	dstAspects := formatutil.Aspects(dst.format)
-	dstMipLevel := int(dst.baseMipLevel)
-	dstOffsetBlocks := divByBlockExtent(dstOffset, dst.format)
-	srcAspects := formatutil.Aspects(src.format)
-	srcMipLevel := int(src.baseMipLevel)
-	srcOffsetBlocks := divByBlockExtent(srcOffset, src.format)
 	extentBlocks := divByBlockExtentRoundUp(extent, src.format)
 
+	dstAspects := formatutil.Aspects(dst.format)
+	dstMip := dst.subresourceRange.FirstMip()
+	dstOffsetBlocks := divByBlockExtent(dstOffset, dst.format)
 	dstOffsetBase, _ := copyRectInTexels(
-		dst.base.format, int3FromVkExtent3D(dst.base.extent),
-		dstMipLevel,
+		dst.data.format, dst.data.extent,
+		dstMip,
 		dstOffsetBlocks, extentBlocks)
+	dstFamilies := chooseQueueFamiliesForImageCopy(
+		dst.data.format, dst.data.extent,
+		dstAspects, dstMip,
+		dstOffsetBlocks, extentBlocks)
+
+	srcAspects := formatutil.Aspects(src.format)
+	srcMip := src.subresourceRange.FirstMip()
+	srcOffsetBlocks := divByBlockExtent(srcOffset, src.format)
 	srcOffsetBase, extentBase := copyRectInTexels(
-		src.base.format, int3FromVkExtent3D(src.base.extent),
-		srcMipLevel,
+		src.data.format, src.data.extent,
+		srcMip,
+		srcOffsetBlocks, extentBlocks)
+	srcFamilies := chooseQueueFamiliesForImageCopy(
+		src.data.format, src.data.extent,
+		srcAspects, srcMip,
 		srcOffsetBlocks, extentBlocks)
 
-	dstFamilies := chooseQueueFamiliesForImageCopy(
-		dst.base.format, int3FromVkExtent3D(dst.base.extent),
-		dstAspects, dstMipLevel,
-		dstOffsetBlocks, extentBlocks)
-	srcFamilies := chooseQueueFamiliesForImageCopy(
-		src.base.format, int3FromVkExtent3D(src.base.extent),
-		srcAspects, srcMipLevel,
-		srcOffsetBlocks, extentBlocks)
 	families := dstFamilies & srcFamilies
 
 	jq.Enqueue(&copyImageJob{
-		dst:           dst.base,
-		dstAspects:    dstAspects,
-		dstBaseLayer:  dst.baseLayer,
-		dstLayers:     dst.layers,
-		dstMipLevel:   uint8(dstMipLevel),
-		dstOffset:     vkOffset3DFromInt3(dstOffsetBase),
-		src:           src.base,
-		srcAspects:    formatutil.Aspects(src.format),
-		srcBaseLayer:  src.baseLayer,
-		srcLayers:     src.layers,
-		srcMipLevel:   uint8(srcMipLevel),
-		srcOffset:     vkOffset3DFromInt3(srcOffsetBase),
-		extent:        vkExtent3DFromInt3(extentBase),
-		queueFamilies: families,
+		dst:                 dst.data,
+		dstAspects:          dstAspects,
+		dstSubresourceRange: dst.subresourceRange,
+		dstOffset:           vkOffset3DFromInt3(dstOffsetBase),
+		src:                 src.data,
+		srcAspects:          formatutil.Aspects(src.format),
+		srcSubresourceRange: src.subresourceRange,
+		srcOffset:           vkOffset3DFromInt3(srcOffsetBase),
+		extent:              vkExtent3DFromInt3(extentBase),
+		queueFamilies:       families,
 	})
 }
 
@@ -92,16 +107,16 @@ func (job *copyImageJob) Exec(q *CommandQueue) {
 			SType: vk.STRUCTURE_TYPE_IMAGE_COPY_2,
 			SrcSubresource: vk.ImageSubresourceLayers{
 				AspectMask:     job.srcAspects,
-				MipLevel:       uint32(job.srcMipLevel),
-				BaseArrayLayer: job.srcBaseLayer,
-				LayerCount:     job.srcLayers,
+				MipLevel:       uint32(job.srcSubresourceRange.FirstMip()),
+				BaseArrayLayer: uint32(job.srcSubresourceRange.FirstLayer()),
+				LayerCount:     uint32(job.srcSubresourceRange.Layers()),
 			},
 			SrcOffset: job.srcOffset,
 			DstSubresource: vk.ImageSubresourceLayers{
 				AspectMask:     job.dstAspects,
-				MipLevel:       uint32(job.dstMipLevel),
-				BaseArrayLayer: job.dstBaseLayer,
-				LayerCount:     job.dstLayers,
+				MipLevel:       uint32(job.dstSubresourceRange.FirstMip()),
+				BaseArrayLayer: uint32(job.dstSubresourceRange.FirstLayer()),
+				LayerCount:     uint32(job.dstSubresourceRange.Layers()),
 			},
 			DstOffset: job.dstOffset,
 			Extent:    job.extent,
@@ -123,17 +138,15 @@ func (job *copyImageJob) Exec(q *CommandQueue) {
 // TODO: equip Pointers in these copies with length?
 
 type copyMemoryToImageJob struct {
-	dst            *imageData
-	dstAspects     vk.ImageAspectFlags
-	dstBaseLayer   uint32
-	dstLayers      uint32
-	dstMipLevel    uint8
-	dstOffset      vk.Offset3D
-	src            UnsafePointer
-	srcRowLength   uint32
-	srcImageHeight uint32
-	extent         vk.Extent3D
-	queueFamilies  uint32
+	dst                 *imageData
+	dstAspects          vk.ImageAspectFlags
+	dstSubresourceRange subresourceRange
+	dstOffset           vk.Offset3D
+	src                 UnsafePointer
+	srcRowLength        uint32
+	srcImageHeight      uint32
+	extent              vk.Extent3D
+	queueFamilies       uint32
 }
 
 // Only the first mip level is copied.
@@ -141,41 +154,47 @@ type copyMemoryToImageJob struct {
 // TODO: better comment
 func EnqueueCopyMemoryToImage(
 	jq *JobQueue,
+	dst *Image, dstOffset []int,
+	src Slice[byte], srcRowLength, srcImageHeight int,
+	extent []int) {
+	enqueueCopyMemoryToImage(jq, dst, offset3(dstOffset), src, srcRowLength, srcImageHeight, extent3(extent))
+}
+
+func enqueueCopyMemoryToImage(
+	jq *JobQueue,
 	dst *Image, dstOffset [3]int,
 	src Slice[byte], srcRowLength, srcImageHeight int,
 	extent [3]int) {
 	// TODO: validation
 
-	dstAspects := formatutil.Aspects(dst.format)
-	dstMipLevel := int(dst.baseMipLevel)
-	dstOffsetBlocks := divByBlockExtent(dstOffset, dst.format)
 	extentBlocks := divByBlockExtentRoundUp(extent, dst.format)
 
+	dstAspects := formatutil.Aspects(dst.format)
+	dstMip := dst.subresourceRange.FirstMip()
+	dstOffsetBlocks := divByBlockExtent(dstOffset, dst.format)
 	dstOffsetBase, extentBase := copyRectInTexels(
-		dst.base.format, int3FromVkExtent3D(dst.base.extent),
-		dstMipLevel,
+		dst.data.format, dst.data.extent,
+		dstMip,
 		dstOffsetBlocks, extentBlocks)
 
 	families := chooseQueueFamiliesForImageCopy(
-		dst.base.format, int3FromVkExtent3D(dst.base.extent),
-		dstAspects, dstMipLevel,
+		dst.data.format, dst.data.extent,
+		dstAspects, dstMip,
 		dstOffsetBlocks, extentBlocks)
 
 	// BUG: we need to exclude the transfer-only queue family if the src isn't
 	// aligned to a 4-byte boundary.
 
 	jq.Enqueue(&copyMemoryToImageJob{
-		dst:            dst.base,
-		dstAspects:     dstAspects,
-		dstBaseLayer:   dst.baseLayer,
-		dstLayers:      dst.layers,
-		dstMipLevel:    uint8(dstMipLevel),
-		dstOffset:      vkOffset3DFromInt3(dstOffsetBase),
-		src:            UnsafePointer(SliceData(src)),
-		srcRowLength:   uint32(srcRowLength),
-		srcImageHeight: uint32(srcImageHeight),
-		extent:         vkExtent3DFromInt3(extentBase),
-		queueFamilies:  families,
+		dst:                 dst.data,
+		dstAspects:          dstAspects,
+		dstSubresourceRange: dst.subresourceRange,
+		dstOffset:           vkOffset3DFromInt3(dstOffsetBase),
+		src:                 UnsafePointer(SliceData(src)),
+		srcRowLength:        uint32(srcRowLength),
+		srcImageHeight:      uint32(srcImageHeight),
+		extent:              vkExtent3DFromInt3(extentBase),
+		queueFamilies:       families,
 	})
 }
 
@@ -199,9 +218,9 @@ func (job *copyMemoryToImageJob) Exec(q *CommandQueue) {
 			BufferImageHeight: uint32(job.srcImageHeight),
 			ImageSubresource: vk.ImageSubresourceLayers{
 				AspectMask:     job.dstAspects,
-				MipLevel:       uint32(job.dstMipLevel),
-				BaseArrayLayer: job.dstBaseLayer,
-				LayerCount:     job.dstLayers,
+				MipLevel:       uint32(job.dstSubresourceRange.FirstMip()),
+				BaseArrayLayer: uint32(job.dstSubresourceRange.FirstLayer()),
+				LayerCount:     uint32(job.dstSubresourceRange.Layers()),
 			},
 			ImageOffset: job.dstOffset,
 			ImageExtent: job.extent,
@@ -220,54 +239,57 @@ func (job *copyMemoryToImageJob) Exec(q *CommandQueue) {
 }
 
 type copyImageToMemoryJob struct {
-	dst            UnsafePointer
-	dstRowLength   uint32
-	dstImageHeight uint32
-	src            *imageData
-	srcAspects     vk.ImageAspectFlags
-	srcBaseLayer   uint32
-	srcLayers      uint32
-	srcMipLevel    uint8
-	srcOffset      vk.Offset3D
-	extent         vk.Extent3D
-	queueFamilies  uint32
+	dst                 UnsafePointer
+	dstRowLength        uint32
+	dstImageHeight      uint32
+	src                 *imageData
+	srcAspects          vk.ImageAspectFlags
+	srcSubresourceRange subresourceRange
+	srcOffset           vk.Offset3D
+	extent              vk.Extent3D
+	queueFamilies       uint32
 }
 
 func EnqueueCopyImageToMemory(
 	jq *JobQueue,
 	dst Slice[byte], dstRowLength, dstImageHeight int,
+	src *Image, srcOffset []int,
+	extent []int) {
+	enqueueCopyImageToMemory(jq, dst, dstRowLength, dstImageHeight, src, offset3(srcOffset), extent3(extent))
+}
+
+func enqueueCopyImageToMemory(
+	jq *JobQueue,
+	dst Slice[byte], dstRowLength, dstImageHeight int,
 	src *Image, srcOffset [3]int,
 	extent [3]int) {
-	srcAspects := formatutil.Aspects(src.format)
-	srcMipLevel := int(src.baseMipLevel)
-	srcOffsetBlocks := divByBlockExtent(srcOffset, src.format)
 	extentBlocks := divByBlockExtentRoundUp(extent, src.format)
 
+	srcAspects := formatutil.Aspects(src.format)
+	srcMip := src.subresourceRange.FirstMip()
+	srcOffsetBlocks := divByBlockExtent(srcOffset, src.format)
 	srcOffsetBase, extentBase := copyRectInTexels(
-		src.base.format, int3FromVkExtent3D(src.base.extent),
-		srcMipLevel,
+		src.data.format, src.data.extent,
+		srcMip,
 		srcOffsetBlocks, extentBlocks)
-
 	families := chooseQueueFamiliesForImageCopy(
-		src.base.format, int3FromVkExtent3D(src.base.extent),
-		srcAspects, srcMipLevel,
+		src.data.format, src.data.extent,
+		srcAspects, srcMip,
 		srcOffsetBlocks, extentBlocks)
 
 	// BUG: we need to exclude the transfer-only queue family if the src isn't
 	// aligned to a 4-byte boundary.
 
 	jq.Enqueue(&copyImageToMemoryJob{
-		dst:            UnsafePointer(SliceData(dst)),
-		dstRowLength:   uint32(dstRowLength),
-		dstImageHeight: uint32(dstImageHeight),
-		src:            src.base,
-		srcAspects:     srcAspects,
-		srcBaseLayer:   src.baseLayer,
-		srcLayers:      src.layers,
-		srcMipLevel:    uint8(srcMipLevel),
-		srcOffset:      vkOffset3DFromInt3(srcOffsetBase),
-		extent:         vkExtent3DFromInt3(extentBase),
-		queueFamilies:  families,
+		dst:                 UnsafePointer(SliceData(dst)),
+		dstRowLength:        uint32(dstRowLength),
+		dstImageHeight:      uint32(dstImageHeight),
+		src:                 src.data,
+		srcAspects:          srcAspects,
+		srcSubresourceRange: src.subresourceRange,
+		srcOffset:           vkOffset3DFromInt3(srcOffsetBase),
+		extent:              vkExtent3DFromInt3(extentBase),
+		queueFamilies:       families,
 	})
 }
 
@@ -291,9 +313,9 @@ func (job *copyImageToMemoryJob) Exec(q *CommandQueue) {
 			BufferImageHeight: uint32(job.dstImageHeight),
 			ImageSubresource: vk.ImageSubresourceLayers{
 				AspectMask:     job.srcAspects,
-				MipLevel:       uint32(job.srcMipLevel),
-				BaseArrayLayer: job.srcBaseLayer,
-				LayerCount:     job.srcLayers,
+				MipLevel:       uint32(job.srcSubresourceRange.FirstMip()),
+				BaseArrayLayer: uint32(job.srcSubresourceRange.FirstLayer()),
+				LayerCount:     uint32(job.srcSubresourceRange.Layers()),
 			},
 			ImageOffset: job.srcOffset,
 			ImageExtent: job.extent,
@@ -316,9 +338,9 @@ func (job *copyImageToMemoryJob) Exec(q *CommandQueue) {
 // TODO: pass granularities array, queueFamilies explicitly?
 func chooseQueueFamiliesForImageCopy(
 	format Format, imageExtent [3]int,
-	aspects vk.ImageAspectFlags, mipLevel int,
+	aspects vk.ImageAspectFlags, mip int,
 	offsetBlocks, extentBlocks [3]int) uint32 {
-	levelExtent := minify3(imageExtent, mipLevel)
+	levelExtent := minify3(imageExtent, mip)
 	levelExtentBlocks := divByBlockExtentRoundUp(levelExtent, format)
 
 	families := queueFamilies.Mask(0b100)
@@ -348,10 +370,10 @@ func chooseQueueFamiliesForImageCopy(
 
 func copyRectInTexels(
 	format Format, imageExtent [3]int,
-	mipLevel int,
+	mip int,
 	offsetBlocks, extentBlocks [3]int) ([3]int, [3]int) {
 	blockExtent := formatBlockExtent(format)
-	levelExtent := minify3(imageExtent, mipLevel)
+	levelExtent := minify3(imageExtent, mip)
 
 	offset := mul3(offsetBlocks, blockExtent)
 	extent := min3(mul3(extentBlocks, blockExtent), sub3(levelExtent, offset))

@@ -5,7 +5,8 @@ import (
 	"worldspawn/gpu/vk"
 )
 
-// TODO: neural textures? We might need to keep this Texture stuff.
+// TODO: neural textures? We might need to keep this Texture stuff, but creation
+// and memory management should be on the user, just like with Mesh.
 
 type Texture struct {
 	Image *gpu.Image
@@ -14,27 +15,11 @@ type Texture struct {
 func NewTexture(_type vk.ImageViewType, extent [3]int, mipLevels, layers int, format gpu.Format) *Texture {
 	texture := new(Texture)
 
-	// TODO: should be sparse
-	texture.Image = gpu.NewImage(&gpu.ImageConfig{
-		Dim:       vkImageViewTypeToDimension(_type),
-		Extent:    extent,
-		Layers:    layers,
-		MipLevels: mipLevels,
-		Samples:   1,
-		Format:    format,
-		Usage:     gpu.ImageUsageSampling,
-	})
+	texture.Image = gpu.NewImage(format, extent[:2], gpu.WithLayers{0, layers}, gpu.WithMips{0, mipLevels}, gpu.WithUsage(vk.IMAGE_USAGE_SAMPLED_BIT))
+
+	if _type == vk.IMAGE_VIEW_TYPE_CUBE || _type == vk.IMAGE_VIEW_TYPE_CUBE_ARRAY {
+		texture.Image = texture.Image.SubImage(gpu.ViewAs(gpu.ImageDimCube))
+	}
 
 	return texture
-}
-
-func vkImageViewTypeToDimension(viewType vk.ImageViewType) gpu.ImageDim {
-	switch viewType {
-	case vk.IMAGE_VIEW_TYPE_2D, vk.IMAGE_VIEW_TYPE_2D_ARRAY:
-		return gpu.ImageDim2D
-	case vk.IMAGE_VIEW_TYPE_CUBE, vk.IMAGE_VIEW_TYPE_CUBE_ARRAY:
-		return gpu.ImageDimCube
-	default:
-		panic("unreachable")
-	}
 }

@@ -78,15 +78,11 @@ func texture(filename string) *pathtracer.Texture {
 			tmp := gpu.MakeSliceUncached[byte](int(l.Len))
 			enqueueReadAt(jq, f.(io.ReaderAt), tmp, int64(l.Off))
 
-			img := t.Image.SubImage(
-				t.Image.Dim(),
-				t.Image.Format(),
-				0, layers,
-				i, i+1)
+			img := t.Image.SubImage(gpu.WithMips{i, i + 1})
 			img.EnqueueInit(jq)
 
 			gpu.EnqueueCopyMemoryToImage(jq,
-				img, [3]int{},
+				img, nil,
 				tmp, 0, 0,
 				img.Extent())
 

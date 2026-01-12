@@ -379,11 +379,15 @@ type DeviceFuncs struct {
 	C_WaitSemaphores                           *[0]byte
 }
 
+func getDeviceProcAddr(device Device, name string) *[0]byte {
+	return C.vkGetDeviceProcAddr(transmute[Device, C.VkDevice](device), (*C.char)(unsafe.Pointer(unsafe.StringData(name+"\x00"))))
+}
+
 // TODO: pass vkGetDeviceProcAddr
 func (funcs *DeviceFuncs) Init(device Device) {
 	rprocs := reflect.ValueOf(funcs).Elem()
 	for i := range rprocs.NumField() {
-		*rprocs.Field(i).Addr().Interface().(**[0]byte) = C.vkGetDeviceProcAddr(transmute[Device, C.VkDevice](device), (*C.char)(unsafe.Pointer(unsafe.StringData("vk"+rprocs.Type().Field(i).Name[2:]+"\x00"))))
+		*rprocs.Field(i).Addr().Interface().(**[0]byte) = getDeviceProcAddr(device, "vk"+rprocs.Type().Field(i).Name[2:])
 	}
 }
 

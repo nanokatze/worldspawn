@@ -39,13 +39,11 @@ func (swapchain *Swapchain) Present2(jq *JobQueue, image *Image) bool {
 		panic(fmt.Sprintf("gpu: vkResetFences: %v", err))
 	}
 
-	extent := int3FromVkExtent3D(image.base.extent)
-
 	swapchain.images[index].EnqueueInit(jq)
 	EnqueueCopyImage(jq,
-		swapchain.images[index], [3]int{},
-		image, [3]int{},
-		extent)
+		swapchain.images[index], nil,
+		image, nil,
+		image.Extent())
 	swapchain.images[index].enqueueTransitionLayout(jq, vk.IMAGE_LAYOUT_GENERAL, vk.IMAGE_LAYOUT_PRESENT_SRC_KHR)
 
 	// TODO: properly sync this so all vkQueuePresents to this swapchain are in

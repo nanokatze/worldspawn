@@ -18,7 +18,7 @@ type transitionImageLayoutJob struct {
 
 func (img *Image) enqueueTransitionLayout(jq *JobQueue, oldLayout, newLayout vk.ImageLayout) {
 	jq.Enqueue(&transitionImageLayoutJob{
-		imageData:        img.base,
+		imageData:        img.data,
 		subresourceRange: img.vkImageSubresourceRange(),
 		oldLayout:        oldLayout,
 		newLayout:        newLayout,
@@ -27,7 +27,7 @@ func (img *Image) enqueueTransitionLayout(jq *JobQueue, oldLayout, newLayout vk.
 
 // RADV does not implement transition to PRESENT_SRC on queues that don't
 // support compute. This is a driver bug.
-var transitionToPresentSrcOnTransferQueueBroken = sync.OnceValue(func() bool {
+var transitionToPresentSrcOnTransferQueueIsBroken = sync.OnceValue(func() bool {
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
 
@@ -48,7 +48,7 @@ func (job *transitionImageLayoutJob) Info() JobInfo {
 	// The VkCommandPool that commandBuffer was allocated from must support
 	// transfer, graphics, compute, decode, or encode operations
 	families := queueFamilies.Mask(0b100)
-	if job.newLayout == vk.IMAGE_LAYOUT_PRESENT_SRC_KHR && transitionToPresentSrcOnTransferQueueBroken() {
+	if job.newLayout == vk.IMAGE_LAYOUT_PRESENT_SRC_KHR && transitionToPresentSrcOnTransferQueueIsBroken() {
 		families = queueFamilies.Mask(0b010)
 	}
 	return JobInfo{QueueFamilies: families}

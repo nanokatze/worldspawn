@@ -8,6 +8,8 @@ import (
 	"worldspawn/gpu/vk"
 )
 
+// TODO: use "threadgroups" instead of "workgroups"? Or just groups.
+
 type dispatchWorkgroupsJob struct {
 	groups [3]uint32
 	kernel *Func
@@ -15,18 +17,22 @@ type dispatchWorkgroupsJob struct {
 }
 
 // TODO: shorter name?
-func EnqueueParallelForWorkgroups(jq *JobQueue, groups [3]int, kernel *Func, args any) {
-	var validatedGroups [3]uint32
-	if err := validateDispatchGrid(groups[:], validatedGroups[:]); err != nil {
+func ParallelForWorkgroups(jq *JobQueue, groups []int, f *Func, args any) {
+	if err := validateDispatchGrid2(groups); err != nil {
+		if err == errEmptyGrid {
+			return
+		}
 		panic(err)
 	}
-	if slices.Contains(validatedGroups[:], 0) {
-		return
+
+	groups32 := [3]uint32{1, 1, 1}
+	for i, d := range groups {
+		groups32[i] = uint32(d)
 	}
 
 	jq.Enqueue(&dispatchWorkgroupsJob{
-		groups: validatedGroups,
-		kernel: kernel,
+		groups: groups32,
+		kernel: f,
 		args:   slices.Clone(asbytes(args)),
 	})
 }
@@ -39,42 +45,60 @@ func (*dispatchWorkgroupsJob) Info() JobInfo {
 
 func (job *dispatchWorkgroupsJob) Exec(q *CommandQueue) {
 	q.Commands(func(cb vk.CommandBuffer) {
+		BindDescriptorSet(cb, vk.PIPELINE_BIND_POINT_COMPUTE)
+
 		vkFns.CmdBindShadersEXT(
 			cb,
 			1,
 			unsafe.SliceData([]vk.ShaderStageFlagBits{vk.SHADER_STAGE_COMPUTE_BIT}),
 			unsafe.SliceData([]vk.ShaderEXT{job.kernel.vkShader()}))
 
-		vkFns.CmdBindDescriptorSets(
-			cb,
-			vk.PIPELINE_BIND_POINT_COMPUTE,
-			pipelineLayout,
-			0,
-			1, &descriptorSet,
-			0, nil)
-
-		args := job.args // wtf???
 		vkFns.CmdPushConstants(
 			cb,
 			pipelineLayout,
 			vk.ShaderStageFlags(vk.SHADER_STAGE_ALL),
 			0,
-			uint32(len(args)), unsafe.Pointer(&args))
+			uint32(len(job.args)), unsafe.Pointer(unsafe.SliceData(job.args[:])))
 
 		vkFns.CmdDispatch(cb, job.groups[0], job.groups[1], job.groups[2])
 	})
 }
 
-// TODO: swap grid and validated?
-func validateDispatchGrid(grid []int, validated []uint32) error {
-	if len(grid) != len(validated) {
-		return errors.New("horrible")
-	}
+var errEmptyGrid = errors.New("empty grid")
+
+// TODO: kill
+func validateDispatchGrid(validated []uint32, grid []int) error {
+	empty := false
 	for i, d := range grid {
 		if d < 0 {
 			return errors.New("bad")
 		}
+		if d == 0 {
+			empty = true
+		}
 		validated[i] = uint32(d)
+	}
+	for i := len(grid); i < len(validated); i++ {
+		validated[i] = 1
+	}
+	if empty {
+		return errEmptyGrid
+	}
+	return nil
+}
+
+// TODO: limits etc validation
+// TODO: rename just to validateGrid
+func validateDispatchGrid2(grid []int) error {
+	product := 1
+	for _, d := range grid {
+		if d < 0 {
+			return errors.New("bad")
+		}
+		product *= d
+	}
+	if product == 0 {
+		return errEmptyGrid
 	}
 	return nil
 }

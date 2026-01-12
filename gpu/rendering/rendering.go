@@ -61,19 +61,19 @@ func Begin(jq *gpu.JobQueue, config *Config) *Pass {
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
 
-	rp := new(Pass)
-	rp.jq = jq
+	pass := new(Pass)
+	pass.jq = jq
 
 	// TODO: get a mask of GRAPHICS-capable queue families, the permutation and
 	// find the lsb. We could also just find the first set bit because it's
 	queueFamily := gpu.BestQueueFamily(vk.QueueFlags(vk.QUEUE_GRAPHICS_BIT))
-	rp.queueFamily = queueFamily
+	pass.queueFamily = queueFamily
 
 	cb := cbcaches[queueFamily].Get()
-	rp.cb = cb.Vk()
-	rp.Cleanup(func() { cbcaches[queueFamily].Put(cb) })
+	pass.cb = cb.Vk()
+	pass.Cleanup(func() { cbcaches[queueFamily].Put(cb) })
 
-	must(vkFns.BeginCommandBuffer(rp.cb, &vk.CommandBufferBeginInfo{
+	must(vkFns.BeginCommandBuffer(pass.cb, &vk.CommandBufferBeginInfo{
 		SType: vk.STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
 		Flags: vk.CommandBufferUsageFlags(vk.COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT),
 	}))
@@ -99,7 +99,7 @@ func Begin(jq *gpu.JobQueue, config *Config) *Pass {
 
 		// TODO: have a single function for all of the temporary image views
 		// here
-		rp.garbage = append(rp.garbage, func() { vkFns.DestroyImageView(device, vkImageView, nil) })
+		pass.garbage = append(pass.garbage, func() { vkFns.DestroyImageView(device, vkImageView, nil) })
 	}
 	renderingInfo.ColorAttachmentCount = uint32(len(colorAttachments))
 	renderingInfo.PColorAttachments = pinnedSliceData(&pinner, colorAttachments)
@@ -118,150 +118,159 @@ func Begin(jq *gpu.JobQueue, config *Config) *Pass {
 			ClearValue:  attachment.ClearValue,
 		})
 
-		rp.garbage = append(rp.garbage, func() { vkFns.DestroyImageView(device, vkImageView, nil) })
+		pass.garbage = append(pass.garbage, func() { vkFns.DestroyImageView(device, vkImageView, nil) })
 	}
 
-	vkFns.CmdBeginRendering(rp.cb, renderingInfo)
+	vkFns.CmdBeginRendering(pass.cb, renderingInfo)
 
-	gpu.BindDescriptorSet(rp.cb, vk.PIPELINE_BIND_POINT_GRAPHICS)
+	gpu.BindDescriptorSet(pass.cb, vk.PIPELINE_BIND_POINT_GRAPHICS)
 
 	// Graphics state we don't map from our abstraction goes here
 
-	vkFns.CmdSetVertexInputEXT(rp.cb, 0, nil, 0, nil)
+	vkFns.CmdSetVertexInputEXT(pass.cb, 0, nil, 0, nil)
 
-	return rp
+	return pass
 }
 
 // TODO: remove when we can use ms only
-func (rp *Pass) SetIndexBuffer(indexType vk.IndexType, indexBuffer gpu.UnsafePointer) {
+func (pass *Pass) SetIndexBuffer(indexType vk.IndexType, indexBuffer gpu.UnsafePointer) {
 	if indexBuffer != vk.NULL_HANDLE {
 		buffer, offset := gpu.BufferAndOffset(indexBuffer)
-		vkFns.CmdBindIndexBuffer(rp.cb, buffer, offset, indexType)
+		vkFns.CmdBindIndexBuffer(pass.cb, buffer, offset, indexType)
 	} else {
 		// needs maintenance6: vkProcs.CmdBindIndexBuffer(rp.cb_, vk.NULL_HANDLE, 0, 0)
 	}
 }
 
-func (rp *Pass) SetPrimitiveTopology(primitiveTopology vk.PrimitiveTopology) {
-	vkFns.CmdSetPrimitiveTopologyEXT(rp.cb, primitiveTopology)
+func (pass *Pass) SetPrimitiveTopology(primitiveTopology vk.PrimitiveTopology) {
+	vkFns.CmdSetPrimitiveTopologyEXT(pass.cb, primitiveTopology)
 }
 
-func (rp *Pass) SetPrimitiveRestartEnable(primitiveRestartEnable bool) {
-	vkFns.CmdSetPrimitiveRestartEnableEXT(rp.cb, vkBool32(primitiveRestartEnable))
+func (pass *Pass) SetPrimitiveRestartEnable(primitiveRestartEnable bool) {
+	vkFns.CmdSetPrimitiveRestartEnableEXT(pass.cb, vkBool32(primitiveRestartEnable))
 }
 
-func (rp *Pass) SetViewports(viewports []vk.Viewport) {
-	vkFns.CmdSetViewportWithCountEXT(rp.cb, uint32(len(viewports)), unsafe.SliceData(viewports))
+func (pass *Pass) SetViewports(viewports []vk.Viewport) {
+	vkFns.CmdSetViewportWithCountEXT(pass.cb, uint32(len(viewports)), unsafe.SliceData(viewports))
 }
 
-func (rp *Pass) SetScissors(scissors []vk.Rect2D) {
-	vkFns.CmdSetScissorWithCountEXT(rp.cb, uint32(len(scissors)), unsafe.SliceData(scissors))
+func (pass *Pass) SetScissors(scissors []vk.Rect2D) {
+	vkFns.CmdSetScissorWithCountEXT(pass.cb, uint32(len(scissors)), unsafe.SliceData(scissors))
 }
 
-func (rp *Pass) SetRasterizerDiscardEnable(rasterizerDiscardEnable bool) {
-	vkFns.CmdSetRasterizerDiscardEnableEXT(rp.cb, vkBool32(rasterizerDiscardEnable))
+func (pass *Pass) SetRasterizerDiscardEnable(rasterizerDiscardEnable bool) {
+	vkFns.CmdSetRasterizerDiscardEnableEXT(pass.cb, vkBool32(rasterizerDiscardEnable))
 }
 
-func (rp *Pass) SetPolygonMode(polygonMode vk.PolygonMode) {
-	vkFns.CmdSetPolygonModeEXT(rp.cb, polygonMode)
+func (pass *Pass) SetPolygonMode(polygonMode vk.PolygonMode) {
+	vkFns.CmdSetPolygonModeEXT(pass.cb, polygonMode)
 }
 
-func (rp *Pass) SetCullMode(cullMode vk.CullModeFlags) {
-	vkFns.CmdSetCullModeEXT(rp.cb, cullMode)
+func (pass *Pass) SetCullMode(cullMode vk.CullModeFlags) {
+	vkFns.CmdSetCullModeEXT(pass.cb, cullMode)
 }
 
-func (rp *Pass) SetFrontFace(frontFace vk.FrontFace) {
-	vkFns.CmdSetFrontFaceEXT(rp.cb, frontFace)
+func (pass *Pass) SetFrontFace(frontFace vk.FrontFace) {
+	vkFns.CmdSetFrontFaceEXT(pass.cb, frontFace)
 }
 
-func (rp *Pass) SetDepthBiasEnable(depthBiasEnable bool) {
-	vkFns.CmdSetDepthBiasEnableEXT(rp.cb, vkBool32(depthBiasEnable))
+func (pass *Pass) SetDepthBiasEnable(depthBiasEnable bool) {
+	vkFns.CmdSetDepthBiasEnableEXT(pass.cb, vkBool32(depthBiasEnable))
 }
 
-func (rp *Pass) SetRasterizationSamples(samples int) {
-	vkFns.CmdSetRasterizationSamplesEXT(rp.cb, vk.SampleCountFlagBits(samples))
+func (pass *Pass) SetRasterizationSamples(samples int) {
+	vkFns.CmdSetRasterizationSamplesEXT(pass.cb, vk.SampleCountFlagBits(samples))
 }
 
-func (rp *Pass) SetSampleMask(sampleMask uint32) {
-	vkFns.CmdSetSampleMaskEXT(rp.cb, 1, (*vk.SampleMask)(&sampleMask))
+func (pass *Pass) SetSampleMask(sampleMask uint32) {
+	vkFns.CmdSetSampleMaskEXT(pass.cb, 1, (*vk.SampleMask)(&sampleMask))
 }
 
-func (rp *Pass) SetAlphaToCoverageEnable(alphaToCoverageEnable bool) {
-	vkFns.CmdSetAlphaToCoverageEnableEXT(rp.cb, vkBool32(alphaToCoverageEnable))
+func (pass *Pass) SetAlphaToCoverageEnable(alphaToCoverageEnable bool) {
+	vkFns.CmdSetAlphaToCoverageEnableEXT(pass.cb, vkBool32(alphaToCoverageEnable))
 }
 
-func (rp *Pass) SetDepthTestEnable(depthTestEnable bool) {
-	vkFns.CmdSetDepthTestEnableEXT(rp.cb, vkBool32(depthTestEnable))
+func (pass *Pass) SetDepthTestEnable(depthTestEnable bool) {
+	vkFns.CmdSetDepthTestEnableEXT(pass.cb, vkBool32(depthTestEnable))
 }
 
-func (rp *Pass) SetDepthWriteEnable(depthWriteEnable bool) {
-	vkFns.CmdSetDepthWriteEnableEXT(rp.cb, vkBool32(depthWriteEnable))
+func (pass *Pass) SetDepthWriteEnable(depthWriteEnable bool) {
+	vkFns.CmdSetDepthWriteEnableEXT(pass.cb, vkBool32(depthWriteEnable))
 }
 
-func (rp *Pass) SetDepthCompareOp(depthCompareOp vk.CompareOp) {
-	vkFns.CmdSetDepthCompareOpEXT(rp.cb, depthCompareOp)
+func (pass *Pass) SetDepthCompareOp(depthCompareOp vk.CompareOp) {
+	vkFns.CmdSetDepthCompareOpEXT(pass.cb, depthCompareOp)
 }
 
-func (rp *Pass) SetDepthBoundsTestEnable(depthBoundsTestEnable bool) {
-	vkFns.CmdSetDepthBoundsTestEnableEXT(rp.cb, vkBool32(depthBoundsTestEnable))
+func (pass *Pass) SetDepthBoundsTestEnable(depthBoundsTestEnable bool) {
+	vkFns.CmdSetDepthBoundsTestEnableEXT(pass.cb, vkBool32(depthBoundsTestEnable))
 }
 
-func (rp *Pass) SetStencilTestEnable(stencilTestEnable bool) {
-	vkFns.CmdSetStencilTestEnableEXT(rp.cb, vkBool32(stencilTestEnable))
+func (pass *Pass) SetStencilTestEnable(stencilTestEnable bool) {
+	vkFns.CmdSetStencilTestEnableEXT(pass.cb, vkBool32(stencilTestEnable))
 }
 
-func (rp *Pass) SetColorBlendEnable(attachmentIndex int, colorBlendEnable bool) {
+func (pass *Pass) SetColorBlendEnable(attachmentIndex int, colorBlendEnable bool) {
 	tmp := vkBool32(colorBlendEnable)
-	vkFns.CmdSetColorBlendEnableEXT(rp.cb, uint32(attachmentIndex), 1, &tmp)
+	vkFns.CmdSetColorBlendEnableEXT(pass.cb, uint32(attachmentIndex), 1, &tmp)
 }
 
-func (rp *Pass) SetColorBlendEquation(attachmentIndex int, colorBlendEquation vk.ColorBlendEquationEXT) {
-	vkFns.CmdSetColorBlendEquationEXT(rp.cb, uint32(attachmentIndex), 1, &colorBlendEquation)
+func (pass *Pass) SetColorBlendEquation(attachmentIndex int, colorBlendEquation vk.ColorBlendEquationEXT) {
+	vkFns.CmdSetColorBlendEquationEXT(pass.cb, uint32(attachmentIndex), 1, &colorBlendEquation)
 }
 
-func (rp *Pass) SetColorWriteMask(attachmentIndex int, colorWriteMask uint32) {
-	vkFns.CmdSetColorWriteMaskEXT(rp.cb, uint32(attachmentIndex), 1, (*vk.ColorComponentFlags)(&colorWriteMask))
+func (pass *Pass) SetColorWriteMask(attachmentIndex int, colorWriteMask uint32) {
+	vkFns.CmdSetColorWriteMaskEXT(pass.cb, uint32(attachmentIndex), 1, (*vk.ColorComponentFlags)(&colorWriteMask))
 }
 
-func (rp *Pass) SetBlendConstants(blendConstants [4]float32) {
+func (pass *Pass) SetBlendConstants(blendConstants [4]float32) {
 	panic("not implemented")
 	// vkFns.CmdSetBlendConstants(rp.cb, &blendConstants)
 }
 
-func (rp *Pass) SetShader(stage vk.ShaderStageFlagBits, shader *Shader) {
+// TODO: these should take stronger-typed Shader things
+func (pass *Pass) SetVertexShader(shader *Shader) {
+	pass.setShader(vk.SHADER_STAGE_VERTEX_BIT, shader)
+}
+
+func (pass *Pass) SetFragmentShader(shader *Shader) {
+	pass.setShader(vk.SHADER_STAGE_FRAGMENT_BIT, shader)
+}
+
+func (pass *Pass) setShader(stage vk.ShaderStageFlagBits, shader *Shader) {
 	vkShader := shader.vkShader()
-	vkFns.CmdBindShadersEXT(rp.cb, 1, &stage, &vkShader)
+	vkFns.CmdBindShadersEXT(pass.cb, 1, &stage, &vkShader)
 }
 
-func (rp *Pass) SetShaderArgs(p any) {
-	gpu.PushConstants(rp.cb, asbytes(p))
+func (pass *Pass) SetShaderArgs(p any) {
+	gpu.PushConstants(pass.cb, asbytes(p))
 }
 
-func (rp *Pass) Draw(vertexCount uint32, instanceCount uint32, firstVertex uint32, firstInstance uint32) {
-	vkFns.CmdDraw(rp.cb, vertexCount, instanceCount, firstVertex, firstInstance)
+func (pass *Pass) Draw(vertexCount uint32, instanceCount uint32, firstVertex uint32, firstInstance uint32) {
+	vkFns.CmdDraw(pass.cb, vertexCount, instanceCount, firstVertex, firstInstance)
 }
 
-func (rp *Pass) DrawIndexed(indexCount uint32, instanceCount uint32, firstIndex uint32, vertexOffset int32, firstInstance uint32) {
-	vkFns.CmdDrawIndexed(rp.cb, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance)
+func (pass *Pass) DrawIndexed(indexCount uint32, instanceCount uint32, firstIndex uint32, vertexOffset int32, firstInstance uint32) {
+	vkFns.CmdDrawIndexed(pass.cb, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance)
 }
 
 // TODO: renderpass barrier
 
-func (rp *Pass) Cleanup(f func()) {
-	rp.garbage = append(rp.garbage, f)
+func (pass *Pass) Cleanup(f func()) {
+	pass.garbage = append(pass.garbage, f)
 }
 
-func (rp *Pass) End() {
-	vkFns.CmdEndRendering(rp.cb)
+func (pass *Pass) End() {
+	vkFns.CmdEndRendering(pass.cb)
 
-	rp.jq.Enqueue(&job{
-		cb:          rp.cb,
-		garbage:     rp.garbage,
-		queueFamily: int(rp.queueFamily),
+	pass.jq.Enqueue(&job{
+		cb:          pass.cb,
+		garbage:     pass.garbage,
+		queueFamily: int(pass.queueFamily),
 	})
 
 	// Zero out to help diagnose misuse
-	*rp = Pass{}
+	*pass = Pass{}
 }
 
 type job struct {
@@ -303,7 +312,7 @@ func vkImageViewType(dim gpu.ImageDim) vk.ImageViewType {
 }
 
 func newRenderingVkImageView(img *gpu.Image, usage vk.ImageUsageFlags) vk.ImageView {
-	vkImage, vkImageSubresourceRange := img.Vk()
+	vkImage, vkImageSubresourceRange := img.VkImage()
 
 	var vkImageView vk.ImageView
 	must(vkFns.CreateImageView(device, &vk.ImageViewCreateInfo{

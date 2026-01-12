@@ -11,7 +11,8 @@ import (
 // TODO: should use gpu's definition
 const maxShaderArgsSize = 256
 
-// TODO: stronger typing?
+// TODO: stronger typing? i.e. type per stage.
+// TODO: rename back to Func or whatever
 type Shader struct {
 	vk vk.ShaderEXT
 

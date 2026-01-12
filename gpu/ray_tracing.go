@@ -198,20 +198,24 @@ type traceRaysJob struct {
 
 func EnqueueTraceRays(
 	jq *JobQueue,
-	threads [3]int,
+	threads []int,
 	pipeline *RayTracingPipeline,
 	sbt ShaderBindingTable,
 	args any) {
-	var validatedThreads [3]uint32
-	if err := validateDispatchGrid(threads[:], validatedThreads[:]); err != nil {
+	if err := validateDispatchGrid2(threads); err != nil {
+		if err == errEmptyGrid {
+			return
+		}
 		panic(err)
 	}
-	if slices.Contains(validatedThreads[:], 0) {
-		return
+
+	threads32 := [3]uint32{1, 1, 1}
+	for i, d := range threads {
+		threads32[i] = uint32(d)
 	}
 
 	jq.Enqueue(&traceRaysJob{
-		threads:  validatedThreads,
+		threads:  threads32,
 		pipeline: pipeline,
 		sbt:      sbt,
 		args:     slices.Clone(asbytes(args)),
@@ -229,15 +233,9 @@ func (job *traceRaysJob) Exec(q *CommandQueue) {
 		var pinner runtime.Pinner
 		defer pinner.Unpin()
 
-		vkFns.CmdBindPipeline(cb, vk.PIPELINE_BIND_POINT_RAY_TRACING_KHR, job.pipeline.vk)
+		BindDescriptorSet(cb, vk.PIPELINE_BIND_POINT_RAY_TRACING_KHR)
 
-		vkFns.CmdBindDescriptorSets(
-			cb,
-			vk.PIPELINE_BIND_POINT_RAY_TRACING_KHR,
-			pipelineLayout,
-			0,
-			1, &descriptorSet,
-			0, nil)
+		vkFns.CmdBindPipeline(cb, vk.PIPELINE_BIND_POINT_RAY_TRACING_KHR, job.pipeline.vk)
 
 		pinner.Pin(unsafe.SliceData(job.args))
 		vkFns.CmdPushConstants(

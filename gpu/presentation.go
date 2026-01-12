@@ -11,8 +11,6 @@ import (
 	"worldspawn/internal/sdl"
 )
 
-// TODO: experiment with and propose "displayable image" extension to VK WG.
-
 // TODO: move this garbage to its own sdl_swapchain containment package. We
 // could perhaps also get rid of sdl_vulkan that way.
 
@@ -27,9 +25,11 @@ type Swapchain struct {
 }
 
 type SwapchainConfig struct {
-	Window     *sdl.Window
-	ColorSpace vk.ColorSpaceKHR
-	*ImageConfig
+	Window       *sdl.Window
+	ColorSpace   vk.ColorSpaceKHR
+	Format       vk.Format
+	Extent       [2]int
+	ImageOptions []ImageOption
 	OldSwapchain *Swapchain
 }
 
@@ -92,6 +92,8 @@ func (swapchain *Swapchain) reconfigure(config *SwapchainConfig) *Swapchain {
 	// TODO: properly choose minImageCount, or let the user do it
 	minImageCount := uint32(4)
 
+	imgConf := joinImageOptions(config.Format, config.Extent[:], config.ImageOptions...)
+
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
 
@@ -104,8 +106,8 @@ func (swapchain *Swapchain) reconfigure(config *SwapchainConfig) *Swapchain {
 		ImageFormat:           config.Format,
 		ImageColorSpace:       config.ColorSpace,
 		ImageExtent:           vk.Extent2D{Width: uint32(config.Extent[0]), Height: uint32(config.Extent[1])},
-		ImageArrayLayers:      uint32(config.Layers),
-		ImageUsage:            config.Usage.vkImageUsageFlags(config.Format),
+		ImageArrayLayers:      uint32(imgConf.Layers),
+		ImageUsage:            imgConf.Usages,
 		ImageSharingMode:      vk.SHARING_MODE_CONCURRENT,
 		QueueFamilyIndexCount: uint32(len(queueFamilies.All())),
 		PQueueFamilyIndices:   pinnedSliceData(&pinner, queueFamilies.All()),
@@ -127,7 +129,7 @@ func (swapchain *Swapchain) reconfigure(config *SwapchainConfig) *Swapchain {
 
 	images := make([]*Image, len(vkImages))
 	for i, vkImage := range vkImages {
-		images[i] = importImage(config.ImageConfig, vkImage)
+		images[i] = newImageFromVkImage(vkImage, config.Format, config.Extent[:], config.ImageOptions...)
 	}
 
 	return &Swapchain{

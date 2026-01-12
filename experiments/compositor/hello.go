@@ -5,16 +5,14 @@ package main
 import (
 	"fmt"
 	"log"
-	"math"
 	"net/http"
 	_ "net/http/pprof"
 	"sync"
 
-	"worldspawn/experiments/compositor"
 	"worldspawn/gpu"
-	"worldspawn/gpu/rendering"
 	"worldspawn/gpu/vk"
-	"worldspawn/sdl"
+	"worldspawn/internal/postprocess"
+	"worldspawn/internal/sdl"
 )
 
 /*
@@ -50,50 +48,52 @@ func main() {
 
 	var swapchain *gpu.Swapchain
 
-	compositionPipeline := compositor.Pipeline{
-		Program: []uint32{
-			0,
-		},
-	}
+	// compositionPipeline := compositor.Pipeline{
+	// 	Program: []uint32{
+	// 		0,
+	// 	},
+	// }
 
 	redrawLocked := func() bool {
-		var jq gpu.JobQueue
+		jq := new(gpu.JobQueue)
 
 		swapchainImageIndex := swapchain.Acquire()
 		if swapchainImageIndex == -1 {
 			return false
 		}
+
 		swapchainImage := swapchain.Image(swapchainImageIndex)
+		swapchainImage.EnqueueInit(jq)
 
-		swapchainImage.EnqueueInit(&jq)
+		// compositionPipeline.Run(jq)
 
-		compositionPipeline.Run(&jq)
-
-		func() {
-			rp := rendering.Begin(&jq,
-				&rendering.Config{
-					ColorAttachments: []rendering.Attachment{
-						{
-							Image:   swapchainImage,
-							LoadOp:  vk.ATTACHMENT_LOAD_OP_CLEAR,
-							StoreOp: vk.ATTACHMENT_STORE_OP_STORE,
-							ClearValue: [4]uint32{
-								math.Float32bits(0.1),
-								math.Float32bits(0),
-								math.Float32bits(0),
-								math.Float32bits(1),
+		/*
+			func() {
+				rp := rendering.Begin(&jq,
+					&rendering.Config{
+						ColorAttachments: []rendering.Attachment{
+							{
+								Image:   swapchainImage,
+								LoadOp:  vk.ATTACHMENT_LOAD_OP_CLEAR,
+								StoreOp: vk.ATTACHMENT_STORE_OP_STORE,
+								ClearValue: [4]uint32{
+									math.Float32bits(0.1),
+									math.Float32bits(0),
+									math.Float32bits(0),
+									math.Float32bits(1),
+								},
 							},
 						},
-					},
-					RenderArea: vk.Rect2D{Extent: vk.Extent2D{Width: uint32(swapchainImage.Extent()[0]), Height: uint32(swapchainImage.Extent()[1])}},
-					LayerCount: 1,
-				})
-			defer rp.End()
-		}()
+						RenderArea: vk.Rect2D{Extent: vk.Extent2D{Width: uint32(swapchainImage.Extent()[0]), Height: uint32(swapchainImage.Extent()[1])}},
+						LayerCount: 1,
+					})
+				defer rp.End()
+			}()
+		*/
 
-		// jq.WaitForIdle()
+		postprocess.Bloom(jq, swapchainImage, nil)
 
-		swapchain.Present(&jq, swapchainImageIndex)
+		swapchain.Present(jq, swapchainImageIndex)
 
 		return true
 	}
@@ -127,19 +127,16 @@ eventLoop:
 		case *sdl.WindowPixelSizeChangedEvent:
 			redrawMu.Lock()
 
-			currentExtent := [3]int{int(e.Data1), int(e.Data2), 1}
+			currentExtent := [2]int{int(e.Data1), int(e.Data2)}
 
 			swapchain = gpu.NewSwapchain(&gpu.SwapchainConfig{
 				Window:     window,
 				ColorSpace: vk.COLOR_SPACE_SRGB_NONLINEAR_KHR,
-				ImageConfig: &gpu.ImageConfig{
-					Dim:       gpu.ImageDim2D,
-					Extent:    currentExtent,
-					Layers:    1,
-					MipLevels: 1,
-					Samples:   1,
-					Format:    vk.FORMAT_R8G8B8A8_SRGB,
-					Usage:     gpu.ImageUsageAttachment,
+				Format:     vk.FORMAT_R8G8B8A8_UNORM,
+				Extent:     currentExtent,
+				ImageOptions: []gpu.ImageOption{
+					gpu.WithUsage(vk.IMAGE_USAGE_COLOR_ATTACHMENT_BIT),
+					gpu.WithUsage(vk.IMAGE_USAGE_STORAGE_BIT),
 				},
 				OldSwapchain: swapchain,
 			})

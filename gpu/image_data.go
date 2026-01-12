@@ -1,27 +1,27 @@
 package gpu
 
-import (
-	"worldspawn/gpu/vk"
-)
+import "worldspawn/gpu/vk"
 
 type imageData struct {
 	vkImage vk.Image
 
 	// TODO: review which of these fields we need
-	dim       ImageDim
-	extent    vk.Extent3D
-	layers    uint32
-	mipLevels uint32
-	format    Format
-	usage     ImageUsage
+	dim    int
+	format Format
+	extent [3]int
+	layers int
+	mips   int
+	// sampleable bool
+	// shaderwritable bool
+	usages vk.ImageUsageFlags // we don't need to store all usages, just sampling and storage
 
 	memory *deviceMemory // TODO: replace with an UnsafePointer and length
 }
 
-func (base *imageData) destroy() {
-	vkFns.DestroyImage(device, base.vkImage, nil)
+func (data *imageData) destroy() {
+	vkFns.DestroyImage(device, data.vkImage, nil)
 
 	allocPoolMu.Lock()
-	allocPool[base.memory.size] = append(allocPool[base.memory.size], base.memory)
+	allocPool[data.memory.size] = append(allocPool[data.memory.size], data.memory)
 	allocPoolMu.Unlock()
 }

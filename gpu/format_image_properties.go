@@ -9,7 +9,7 @@ import (
 
 type formatImageProperties struct {
 	Supported       bool
-	SupportedUsages ImageUsage
+	SupportedUsages vk.ImageUsageFlags
 }
 
 var getFormatImageProperties = cached(func(format Format) formatImageProperties {
@@ -32,14 +32,13 @@ var getFormatImageProperties = cached(func(format Format) formatImageProperties 
 		return formatImageProperties{}
 	}
 
-	supportedUsages := ImageUsage(0)
+	var supportedUsages vk.ImageUsageFlags
 	if testAllSet(props3.OptimalTilingFeatures, vk.FormatFeatureFlags2(vk.FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT)) {
-		supportedUsages |= ImageUsageSampling
+		supportedUsages |= vk.ImageUsageFlags(vk.IMAGE_USAGE_SAMPLED_BIT)
 	}
 	if testAllSet(props3.OptimalTilingFeatures, vk.FormatFeatureFlags2(vk.FORMAT_FEATURE_2_STORAGE_IMAGE_BIT)) {
-		supportedUsages |= ImageUsageLoadStore
+		supportedUsages |= vk.ImageUsageFlags(vk.IMAGE_USAGE_STORAGE_BIT)
 	}
-	// TODO: set ImageUsageAttachment
 
 	return formatImageProperties{
 		Supported:       true,

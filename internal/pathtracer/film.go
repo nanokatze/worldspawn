@@ -3,7 +3,7 @@ package pathtracer
 import "worldspawn/gpu"
 
 type Film struct {
-	Extent [3]int
+	Extent [2]int
 
 	Color *gpu.Image
 

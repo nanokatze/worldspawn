@@ -55,15 +55,8 @@ var blueNoise = sync.OnceValue(func() *gpu.Image {
 
 	jq := new(gpu.JobQueue)
 
-	gpuImg := gpu.NewImage(&gpu.ImageConfig{
-		Dim:       gpu.ImageDim2D,
-		Extent:    [3]int{256, 256, 1},
-		Layers:    8,
-		MipLevels: 1,
-		Samples:   1,
-		Format:    vk.FORMAT_R16G16B16A16_UNORM, // TODO: we actually only use RG at most
-		Usage:     gpu.ImageUsageSampling,
-	})
+	// TODO: we actually only use RG at most
+	gpuImg := gpu.NewImage(vk.FORMAT_R16G16B16A16_UNORM, []int{256, 256}, gpu.WithLayers{0, 8}, gpu.WithUsage(vk.IMAGE_USAGE_SAMPLED_BIT))
 	gpuImg.EnqueueInit(jq)
 
 	// TODO: can we please not use png
@@ -98,14 +91,9 @@ var blueNoise = sync.OnceValue(func() *gpu.Image {
 
 			gpu.EnqueueCopyMemoryToImage(
 				jq,
-				gpuImg.SubImage(
-					gpuImg.Dim(),
-					gpuImg.Format(),
-					i, i+1,
-					0, 1),
-				[3]int{},
+				gpuImg.SubImage(gpu.WithLayers{i, i + 1}), nil,
 				staging, 0, 0,
-				[3]int{imgNRGBA.Rect.Max.X, imgNRGBA.Rect.Max.Y, 1})
+				[]int{imgNRGBA.Rect.Max.X, imgNRGBA.Rect.Max.Y})
 
 			wg.EnqueueDone(jq)
 		}()
@@ -117,7 +105,7 @@ var blueNoise = sync.OnceValue(func() *gpu.Image {
 })
 
 var raygen = sync.OnceValue(func() *gpu.RayTracingShaderGroup {
-	return gpu.NewGeneralRayTracingShaderGroup(gpu.NewFunc(mustReadFile("shaders/pathtracer_scene_render.spv"), vk.SHADER_STAGE_RAYGEN_BIT_KHR, "raygen"))
+	return gpu.NewGeneralRayTracingShaderGroup(gpu.NewRayTracingFunc(mustReadFile("shaders/pathtracer_scene_render.spv"), vk.SHADER_STAGE_RAYGEN_BIT_KHR, "raygen"))
 })
 
 func mustReadFile(filename string) []byte {
@@ -135,17 +123,9 @@ func (scene *Scene) Render(
 	fn uint32,
 	camera *Camera,
 	quality *Quality) {
-	if film.Extent[2] != 1 {
-		panic("film.Extent[2] must be 1")
-	}
-
 	bn := blueNoise()
 
-	bnLayer := bn.SubImage(
-		bn.Dim(),
-		bn.Format(),
-		int(fn)%bn.Layers(), int(fn)%bn.Layers()+1,
-		0, 1)
+	bnLayer := bn.SubImage(gpu.WithLayers{int(fn) % bn.Layers(), int(fn)%bn.Layers() + 1})
 	defer jq.Cleanup(bnLayer.Destroy)
 
 	frameData := gpu.NewUncached[_FrameData]()
@@ -194,13 +174,13 @@ func (scene *Scene) Render(
 	args := struct {
 		Scene  gpu.Pointer[Scene]
 		Camera gpu.Pointer[_FrameData]
-		Out    gpu.StorageView
+		Out    uint32
 	}{
 		Scene:  dscene,
 		Camera: frameData,
 		Out:    film.Color.LoadStoreDescriptor(),
 	}
-	gpu.EnqueueTraceRays(jq, film.Extent, scene.pipeline, scene.sbt, &args)
+	gpu.EnqueueTraceRays(jq, film.Extent[:], scene.pipeline, scene.sbt, &args)
 }
 
 // TODO: move into gpu/vk or at least just gpu?

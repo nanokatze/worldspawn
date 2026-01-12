@@ -13,20 +13,19 @@ type imageDescriptors struct {
 	sampling, loadStore uint32
 }
 
-func newImageDescriptors(base *imageData, config *subImageConfig) imageDescriptors {
+func newImageDescriptors(data *imageData, config *subImageConfig) imageDescriptors {
 	formatProps := getFormatImageProperties(config.Format)
 	if !formatProps.Supported {
 		panic("unsupported format")
 	}
 
-	usage := base.usage & formatProps.SupportedUsages
-
 	var descriptors imageDescriptors
-	if usage&ImageUsageSampling != 0 {
-		descriptors.sampling = newImageDescriptor(base, config, vk.DESCRIPTOR_TYPE_SAMPLED_IMAGE)
+	usages := data.usages & formatProps.SupportedUsages
+	if usages&vk.ImageUsageFlags(vk.IMAGE_USAGE_SAMPLED_BIT) != 0 {
+		descriptors.sampling = newImageDescriptor(data, config, vk.DESCRIPTOR_TYPE_SAMPLED_IMAGE)
 	}
-	if usage&ImageUsageLoadStore != 0 {
-		descriptors.loadStore = newImageDescriptor(base, config, vk.DESCRIPTOR_TYPE_STORAGE_IMAGE)
+	if usages&vk.ImageUsageFlags(vk.IMAGE_USAGE_STORAGE_BIT) != 0 {
+		descriptors.loadStore = newImageDescriptor(data, config, vk.DESCRIPTOR_TYPE_STORAGE_IMAGE)
 	}
 	return descriptors
 }
@@ -62,21 +61,21 @@ type pointerToDescriptor struct {
 	ArrayElement uint32
 }
 
-func (base *imageData) shaderDescriptor(config *subImageConfig, descriptorType vk.DescriptorType, imageView *vk.ImageView, descriptor pointerToDescriptor) {
+func (data *imageData) shaderDescriptor(config *subImageConfig, descriptorType vk.DescriptorType, imageView *vk.ImageView, descriptor pointerToDescriptor) {
 	must(vkFns.CreateImageView(device, &vk.ImageViewCreateInfo{
 		SType: vk.STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 		PNext: unsafe.Pointer(&vk.ImageViewUsageCreateInfo{
 			SType: vk.STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO,
 			Usage: imageUsageFromDescriptorType(descriptorType),
 		}),
-		Image:    base.vkImage,
+		Image:    data.vkImage,
 		ViewType: config.Dim.vkImageViewType(),
 		Format:   config.Format,
 		SubresourceRange: vk.ImageSubresourceRange{
 			AspectMask:     formatutil.Aspects(config.Format),
-			BaseMipLevel:   uint32(config.BaseMipLevel),
-			LevelCount:     uint32(config.MipLevels),
-			BaseArrayLayer: uint32(config.BaseLayer),
+			BaseMipLevel:   uint32(config.FirstMip),
+			LevelCount:     uint32(config.Mips),
+			BaseArrayLayer: uint32(config.FirstLayer),
 			LayerCount:     uint32(config.Layers),
 		},
 	}, nil, imageView))

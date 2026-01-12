@@ -29,22 +29,8 @@ func BenchmarkRoundTrip(b *testing.B) {
 func TestFramesInFlight(t *testing.T) {
 	t.SkipNow()
 
-	A := NewImage(&ImageConfig{
-		Dim:       ImageDim2D,
-		Extent:    [3]int{4096, 4096, 1},
-		Layers:    40,
-		MipLevels: 1,
-		Samples:   1,
-		Format:    vk.FORMAT_R32_UINT,
-	})
-	B := NewImage(&ImageConfig{
-		Dim:       ImageDim2D,
-		Extent:    [3]int{4096, 4096, 1},
-		Layers:    40,
-		MipLevels: 1,
-		Samples:   1,
-		Format:    vk.FORMAT_R32_UINT,
-	})
+	A := NewImage(vk.FORMAT_R32_UINT, []int{4096, 4096}, WithLayers{0, 40})
+	B := NewImage(vk.FORMAT_R32_UINT, []int{4096, 4096}, WithLayers{0, 40})
 
 	type fif struct {
 		wg WaitGroup
@@ -73,9 +59,9 @@ func TestFramesInFlight(t *testing.T) {
 
 		switch i % 2 {
 		case 0:
-			EnqueueCopyImage(&jq, A, [3]int{}, B, [3]int{}, A.Extent())
+			EnqueueCopyImage(&jq, A, nil, B, nil, A.Extent())
 		case 1:
-			EnqueueCopyImage(&jq, B, [3]int{}, A, [3]int{}, A.Extent())
+			EnqueueCopyImage(&jq, B, nil, A, nil, A.Extent())
 		}
 
 		current.wg.Add(1)

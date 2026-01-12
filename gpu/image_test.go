@@ -8,97 +8,57 @@ import (
 )
 
 func TestImageExtent(t *testing.T) {
-	img := NewImage(&ImageConfig{
-		Dim:       ImageDim2D,
-		Extent:    [3]int{15, 15, 1},
-		Layers:    1,
-		MipLevels: completeMipChainLength(15, 15, 1), // TODO: have an option for this?
-		Samples:   1,
-		Format:    vk.FORMAT_BC7_SRGB_BLOCK,
-	})
+	// TODO: introduce WithCompleteMipChain()?
+
+	img := NewImage(vk.FORMAT_BC7_SRGB_BLOCK, []int{15, 15}, WithMips{0, completeMipChainLength(15, 15, 1)})
 	defer img.Destroy()
 
 	for i := range 4 {
 		t.Log(
-			img.SubImage(img.Dim(), img.Format(), 0, 1, i, i+1).Extent(),
-			img.SubImage(img.Dim(), vk.FORMAT_R32G32B32A32_UINT, 0, 1, i, i+1).Extent())
+			img.SubImage(WithMips{i, i + 1}).Extent(),
+			img.SubImage(WithMips{i, i + 1}, WithFormat(vk.FORMAT_R32G32B32A32_UINT)).Extent())
 	}
 }
 
 func TestImageCopy1(t *testing.T) {
-	a := NewImage(&ImageConfig{
-		Dim:       ImageDim2D,
-		Extent:    [3]int{4, 4, 1},
-		Layers:    1,
-		MipLevels: 1,
-		Samples:   1,
-		Format:    vk.FORMAT_BC7_UNORM_BLOCK,
-	})
+	a := NewImage(vk.FORMAT_BC7_UNORM_BLOCK, []int{4, 4})
 	defer a.Destroy()
 
-	b := NewImage(&ImageConfig{
-		Dim:       ImageDim2D,
-		Extent:    [3]int{1, 1, 1},
-		Layers:    1,
-		MipLevels: 1,
-		Samples:   1,
-		Format:    vk.FORMAT_R32G32B32A32_UINT,
-	})
+	b := NewImage(vk.FORMAT_R32G32B32A32_UINT, []int{1, 1})
 	defer b.Destroy()
 
 	var jq JobQueue
 	a.EnqueueInit(&jq)
 	b.EnqueueInit(&jq)
 	EnqueueCopyImage(&jq,
-		a, [3]int{0, 0, 0},
-		b, [3]int{0, 0, 0},
-		[3]int{1, 1, 1})
+		a, nil,
+		b, nil,
+		[]int{1, 1})
 	WaitForIdle(&jq)
 }
 
 func TestImageCopy3(t *testing.T) {
-	a := NewImage(&ImageConfig{
-		Dim:       ImageDim2D,
-		Extent:    [3]int{3, 3, 1},
-		Layers:    1,
-		MipLevels: 1,
-		Samples:   1,
-		Format:    vk.FORMAT_BC7_UNORM_BLOCK,
-	})
+	a := NewImage(vk.FORMAT_BC7_UNORM_BLOCK, []int{3, 3})
 	defer a.Destroy()
 
-	b := NewImage(&ImageConfig{
-		Dim:       ImageDim2D,
-		Extent:    [3]int{4, 4, 1},
-		Layers:    1,
-		MipLevels: 1,
-		Samples:   1,
-		Format:    vk.FORMAT_BC7_UNORM_BLOCK,
-	})
+	b := NewImage(vk.FORMAT_BC7_UNORM_BLOCK, []int{4, 4})
 	defer b.Destroy()
 
 	var jq JobQueue
 	a.EnqueueInit(&jq)
 	b.EnqueueInit(&jq)
 	EnqueueCopyImage(&jq,
-		a, [3]int{},
-		b, [3]int{},
-		[3]int{4, 4, 1})
+		a, nil,
+		b, nil,
+		[]int{4, 4})
 	WaitForIdle(&jq)
 }
 
 func TestImageCopy2(t *testing.T) {
-	img := NewImage(&ImageConfig{
-		Dim:       ImageDim2D,
-		Extent:    [3]int{6, 6, 1},
-		Layers:    1,
-		MipLevels: 1,
-		Samples:   1,
-		Format:    vk.FORMAT_BC7_UNORM_BLOCK,
-	})
+	img := NewImage(vk.FORMAT_BC7_UNORM_BLOCK, []int{6, 6})
 	defer img.Destroy()
 
-	img2 := img.SubImage(img.Dim(), vk.FORMAT_R32G32B32A32_UINT, 0, 1, 0, 1)
+	img2 := img.SubImage(WithFormat(vk.FORMAT_R32G32B32A32_UINT))
 
 	tmp := MakeSliceUncached[byte](2 * 2 * 16)
 	defer Free(UnsafePointer(SliceData(tmp)))
@@ -108,13 +68,13 @@ func TestImageCopy2(t *testing.T) {
 	var jq JobQueue
 	img2.EnqueueInit(&jq)
 	EnqueueCopyMemoryToImage(&jq,
-		img, [3]int{0, 0, 0},
+		img, nil,
 		tmp, 0, 0,
-		[3]int{6, 6, 1})
+		[]int{6, 6})
 	EnqueueCopyMemoryToImage(&jq,
-		img2, [3]int{0, 0, 0},
+		img2, nil,
 		tmp, 0, 0,
-		[3]int{2, 2, 1})
+		[]int{2, 2})
 	WaitForIdle(&jq)
 }
 
