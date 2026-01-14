@@ -20,22 +20,23 @@ type Accel struct {
 	size int
 }
 
+// TODO: rename to AccelGeometry?
 type AccelBuildInput interface {
-	vk(geometry *vk.AccelerationStructureGeometryKHR, primitiveCount *uint32)
+	vkAccelerationStructureGeometry(geometry *vk.AccelerationStructureGeometryKHR, primitiveCount *uint32)
 }
 
 type AccelBuildInputTriangles struct {
-	VertexFormat  Format
+	VertexFormat  vk.Format
 	VertexBuffer  UnsafePointer // ignored by AccelBuildConfig.CalcSizes
 	VertexCount   int
 	VertexStride  int
-	IndexType     IndexType
+	IndexType     vk.IndexType
 	IndexBuffer   UnsafePointer // ignored by AccelBuildConfig.CalcSizes
 	TriangleCount int
 	Transform     Pointer[[3][4]float32] // checked for nil by AccelBuildConfig.CalcSizes
 }
 
-func (triangles *AccelBuildInputTriangles) vk(geometry *vk.AccelerationStructureGeometryKHR, primitiveCount *uint32) {
+func (triangles *AccelBuildInputTriangles) vkAccelerationStructureGeometry(geometry *vk.AccelerationStructureGeometryKHR, primitiveCount *uint32) {
 	*geometry = vk.AccelerationStructureGeometryKHR{
 		SType:        vk.STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
 		GeometryType: vk.GEOMETRY_TYPE_TRIANGLES_KHR,
@@ -67,7 +68,7 @@ type AccelBuildInputInstances struct {
 	InstanceCount uint32
 }
 
-func (instances *AccelBuildInputInstances) vk(geometry *vk.AccelerationStructureGeometryKHR, primitiveCount *uint32) {
+func (instances *AccelBuildInputInstances) vkAccelerationStructureGeometry(geometry *vk.AccelerationStructureGeometryKHR, primitiveCount *uint32) {
 	*geometry = vk.AccelerationStructureGeometryKHR{
 		SType:        vk.STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
 		GeometryType: vk.GEOMETRY_TYPE_INSTANCES_KHR,
@@ -86,7 +87,7 @@ type AccelBuildInputInstancePointers struct {
 	InstanceCount uint32
 }
 
-func (instancePointers *AccelBuildInputInstancePointers) vk(geometry *vk.AccelerationStructureGeometryKHR, primitiveCount *uint32) {
+func (instancePointers *AccelBuildInputInstancePointers) vkAccelerationStructureGeometry(geometry *vk.AccelerationStructureGeometryKHR, primitiveCount *uint32) {
 	*geometry = vk.AccelerationStructureGeometryKHR{
 		SType:        vk.STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
 		GeometryType: vk.GEOMETRY_TYPE_INSTANCES_KHR,
@@ -114,7 +115,7 @@ func (config *AccelBuildConfig) CalcSizes() (int, int, int) {
 	vkGeometries := make([]vk.AccelerationStructureGeometryKHR, len(config.Inputs))
 	vkMaxPrimitiveCounts := make([]uint32, len(config.Inputs))
 	for i, input := range config.Inputs {
-		input.vk(&vkGeometries[i], &vkMaxPrimitiveCounts[i])
+		input.vkAccelerationStructureGeometry(&vkGeometries[i], &vkMaxPrimitiveCounts[i])
 	}
 	pinner.Pin(unsafe.SliceData(vkGeometries))
 	pinner.Pin(unsafe.SliceData(vkMaxPrimitiveCounts))
@@ -183,7 +184,7 @@ func EnqueueAccelBuild(jq *JobQueue, dst UnsafePointer, dstSize int, config *Acc
 	vkGeometries := make([]vk.AccelerationStructureGeometryKHR, len(config.Inputs))
 	vkBuildRanges := make([]vk.AccelerationStructureBuildRangeInfoKHR, len(config.Inputs))
 	for i, input := range config.Inputs {
-		input.vk(&vkGeometries[i], &vkBuildRanges[i].PrimitiveCount)
+		input.vkAccelerationStructureGeometry(&vkGeometries[i], &vkBuildRanges[i].PrimitiveCount)
 	}
 
 	jq.Enqueue(&accelBuildJob{
