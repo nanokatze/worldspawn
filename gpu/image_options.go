@@ -15,9 +15,9 @@ type ViewAs ImageDim
 func (dim ViewAs) apply(config *subImageConfig) { config.Dim = ImageDim(dim) }
 
 // TODO: rename back to Reinterpret?
-type WithFormat Format
+type WithFormat vk.Format
 
-func (format WithFormat) apply(config *subImageConfig) { config.Format = Format(format) }
+func (format WithFormat) apply(config *subImageConfig) { config.Format = vk.Format(format) }
 
 type WithLayers struct{ First, End int }
 
@@ -49,7 +49,7 @@ func (usage WithUsage) apply2(config *imageConfig) {
 
 type imageConfig struct {
 	Dim    int
-	Format Format
+	Format vk.Format
 	Extent [3]int
 	Layers int
 	Mips   int
@@ -72,7 +72,7 @@ func joinImageOptions(format vk.Format, extent []int, opts ...ImageOption) image
 }
 
 type subImageConfig struct {
-	Format     Format
+	Format     vk.Format
 	Dim        ImageDim
 	FirstLayer int
 	Layers     int

@@ -26,11 +26,9 @@ func extent3(x []int) [3]int {
 
 type copyImageJob struct {
 	dst                 *imageData
-	dstAspects          vk.ImageAspectFlags
 	dstSubresourceRange subresourceRange
 	dstOffset           vk.Offset3D
 	src                 *imageData
-	srcAspects          vk.ImageAspectFlags
 	srcSubresourceRange subresourceRange
 	srcOffset           vk.Offset3D
 	extent              vk.Extent3D
@@ -51,7 +49,6 @@ func enqueueCopyImage(
 	src *Image, srcOffset [3]int,
 	extent [3]int) {
 	extentBlocks := divByBlockExtentRoundUp(extent, src.format)
-
 	dstAspects := formatutil.Aspects(dst.format)
 	dstMip := dst.subresourceRange.FirstMip()
 	dstOffsetBlocks := divByBlockExtent(dstOffset, dst.format)
@@ -80,11 +77,9 @@ func enqueueCopyImage(
 
 	jq.Enqueue(&copyImageJob{
 		dst:                 dst.data,
-		dstAspects:          dstAspects,
 		dstSubresourceRange: dst.subresourceRange,
 		dstOffset:           vkOffset3DFromInt3(dstOffsetBase),
 		src:                 src.data,
-		srcAspects:          formatutil.Aspects(src.format),
 		srcSubresourceRange: src.subresourceRange,
 		srcOffset:           vkOffset3DFromInt3(srcOffsetBase),
 		extent:              vkExtent3DFromInt3(extentBase),
@@ -104,22 +99,12 @@ func (job *copyImageJob) Exec(q *CommandQueue) {
 		defer pinner.Unpin()
 
 		region := &vk.ImageCopy2{
-			SType: vk.STRUCTURE_TYPE_IMAGE_COPY_2,
-			SrcSubresource: vk.ImageSubresourceLayers{
-				AspectMask:     job.srcAspects,
-				MipLevel:       uint32(job.srcSubresourceRange.FirstMip()),
-				BaseArrayLayer: uint32(job.srcSubresourceRange.FirstLayer()),
-				LayerCount:     uint32(job.srcSubresourceRange.Layers()),
-			},
-			SrcOffset: job.srcOffset,
-			DstSubresource: vk.ImageSubresourceLayers{
-				AspectMask:     job.dstAspects,
-				MipLevel:       uint32(job.dstSubresourceRange.FirstMip()),
-				BaseArrayLayer: uint32(job.dstSubresourceRange.FirstLayer()),
-				LayerCount:     uint32(job.dstSubresourceRange.Layers()),
-			},
-			DstOffset: job.dstOffset,
-			Extent:    job.extent,
+			SType:          vk.STRUCTURE_TYPE_IMAGE_COPY_2,
+			SrcSubresource: job.srcSubresourceRange.VkImageSubresourceLayers(job.src.format),
+			SrcOffset:      job.srcOffset,
+			DstSubresource: job.dstSubresourceRange.VkImageSubresourceLayers(job.dst.format),
+			DstOffset:      job.dstOffset,
+			Extent:         job.extent,
 		}
 		pinner.Pin(region)
 
@@ -139,7 +124,6 @@ func (job *copyImageJob) Exec(q *CommandQueue) {
 
 type copyMemoryToImageJob struct {
 	dst                 *imageData
-	dstAspects          vk.ImageAspectFlags
 	dstSubresourceRange subresourceRange
 	dstOffset           vk.Offset3D
 	src                 UnsafePointer
@@ -187,7 +171,6 @@ func enqueueCopyMemoryToImage(
 
 	jq.Enqueue(&copyMemoryToImageJob{
 		dst:                 dst.data,
-		dstAspects:          dstAspects,
 		dstSubresourceRange: dst.subresourceRange,
 		dstOffset:           vkOffset3DFromInt3(dstOffsetBase),
 		src:                 UnsafePointer(SliceData(src)),
@@ -216,14 +199,9 @@ func (job *copyMemoryToImageJob) Exec(q *CommandQueue) {
 			BufferOffset:      srcOffset,
 			BufferRowLength:   uint32(job.srcRowLength),
 			BufferImageHeight: uint32(job.srcImageHeight),
-			ImageSubresource: vk.ImageSubresourceLayers{
-				AspectMask:     job.dstAspects,
-				MipLevel:       uint32(job.dstSubresourceRange.FirstMip()),
-				BaseArrayLayer: uint32(job.dstSubresourceRange.FirstLayer()),
-				LayerCount:     uint32(job.dstSubresourceRange.Layers()),
-			},
-			ImageOffset: job.dstOffset,
-			ImageExtent: job.extent,
+			ImageSubresource:  job.dstSubresourceRange.VkImageSubresourceLayers(job.dst.format),
+			ImageOffset:       job.dstOffset,
+			ImageExtent:       job.extent,
 		}
 		pinner.Pin(region)
 
@@ -243,7 +221,6 @@ type copyImageToMemoryJob struct {
 	dstRowLength        uint32
 	dstImageHeight      uint32
 	src                 *imageData
-	srcAspects          vk.ImageAspectFlags
 	srcSubresourceRange subresourceRange
 	srcOffset           vk.Offset3D
 	extent              vk.Extent3D
@@ -285,7 +262,6 @@ func enqueueCopyImageToMemory(
 		dstRowLength:        uint32(dstRowLength),
 		dstImageHeight:      uint32(dstImageHeight),
 		src:                 src.data,
-		srcAspects:          srcAspects,
 		srcSubresourceRange: src.subresourceRange,
 		srcOffset:           vkOffset3DFromInt3(srcOffsetBase),
 		extent:              vkExtent3DFromInt3(extentBase),
@@ -311,14 +287,9 @@ func (job *copyImageToMemoryJob) Exec(q *CommandQueue) {
 			BufferOffset:      dstOffset,
 			BufferRowLength:   uint32(job.dstRowLength),
 			BufferImageHeight: uint32(job.dstImageHeight),
-			ImageSubresource: vk.ImageSubresourceLayers{
-				AspectMask:     job.srcAspects,
-				MipLevel:       uint32(job.srcSubresourceRange.FirstMip()),
-				BaseArrayLayer: uint32(job.srcSubresourceRange.FirstLayer()),
-				LayerCount:     uint32(job.srcSubresourceRange.Layers()),
-			},
-			ImageOffset: job.srcOffset,
-			ImageExtent: job.extent,
+			ImageSubresource:  job.srcSubresourceRange.VkImageSubresourceLayers(job.src.format),
+			ImageOffset:       job.srcOffset,
+			ImageExtent:       job.extent,
 		}
 		pinner.Pin(region)
 
@@ -337,7 +308,7 @@ func (job *copyImageToMemoryJob) Exec(q *CommandQueue) {
 // TODO: provide a mechanism for feedback to the user?
 // TODO: pass granularities array, queueFamilies explicitly?
 func chooseQueueFamiliesForImageCopy(
-	format Format, imageExtent [3]int,
+	format vk.Format, imageExtent [3]int,
 	aspects vk.ImageAspectFlags, mip int,
 	offsetBlocks, extentBlocks [3]int) uint32 {
 	levelExtent := minify3(imageExtent, mip)
@@ -369,7 +340,7 @@ func chooseQueueFamiliesForImageCopy(
 }
 
 func copyRectInTexels(
-	format Format, imageExtent [3]int,
+	format vk.Format, imageExtent [3]int,
 	mip int,
 	offsetBlocks, extentBlocks [3]int) ([3]int, [3]int) {
 	blockExtent := formatBlockExtent(format)
@@ -382,7 +353,7 @@ func copyRectInTexels(
 
 // TODO: optimize for block sides? We don't need the general division here.
 
-func divByBlockExtent(x [3]int, yFormat Format) [3]int {
+func divByBlockExtent(x [3]int, yFormat vk.Format) [3]int {
 	y := formatBlockExtent(yFormat)
 	return [3]int{
 		x[0] / y[0],
@@ -391,7 +362,7 @@ func divByBlockExtent(x [3]int, yFormat Format) [3]int {
 	}
 }
 
-func divByBlockExtentRoundUp(x [3]int, yFormat Format) [3]int {
+func divByBlockExtentRoundUp(x [3]int, yFormat vk.Format) [3]int {
 	y := formatBlockExtent(yFormat)
 	return [3]int{
 		(x[0] + y[0] - 1) / y[0],

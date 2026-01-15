@@ -17,6 +17,7 @@ func Describe(format vk.Format) Description {
 	return formatTable[format]
 }
 
+// TODO: rename to Summarize?
 func FindFormat(description Description) vk.Format {
 	return 0
 }

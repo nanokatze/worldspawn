@@ -60,7 +60,7 @@ type Image struct {
 	descriptors imageDescriptors
 
 	dim              ImageDim
-	format           Format
+	format           vk.Format
 	subresourceRange subresourceRange
 
 	// precomputed stuff
@@ -224,7 +224,7 @@ func newImage(data *imageData, config *subImageConfig) *Image {
 		descriptors:      newImageDescriptors(data, config),
 		dim:              config.Dim,
 		format:           config.Format,
-		subresourceRange: makeSubresourceRange(config.FirstLayer, config.Layers, config.FirstMip, config.Mips),
+		subresourceRange: makeSubresourceRange(formatutil.Aspects(config.Format), config.FirstLayer, config.Layers, config.FirstMip, config.Mips),
 		extent:           vkExtent3DFromInt3(extent),
 	}
 	if img.descriptors != (imageDescriptors{}) {
@@ -263,7 +263,7 @@ func (img *Image) EnqueueInit(jq *JobQueue) {
 
 func (img *Image) Dim() ImageDim { return img.dim }
 
-func (img *Image) Format() Format { return img.format }
+func (img *Image) Format() vk.Format { return img.format }
 
 func (img *Image) Extent() []int {
 	tmp := int3FromVkExtent3D(img.extent)
@@ -289,19 +289,7 @@ func (img *Image) LoadStoreDescriptor() uint32 {
 }
 
 func (img *Image) VkImage() (vk.Image, vk.ImageSubresourceRange) {
-	return img.data.vkImage, vk.ImageSubresourceRange{
-		AspectMask:     formatutil.Aspects(img.format),
-		BaseMipLevel:   uint32(img.subresourceRange.FirstMip()),
-		LevelCount:     uint32(img.subresourceRange.Mips()),
-		BaseArrayLayer: uint32(img.subresourceRange.FirstLayer()),
-		LayerCount:     uint32(img.subresourceRange.Layers()),
-	}
-}
-
-// Deprecated; TODO: remove
-func (img *Image) vkImageSubresourceRange() vk.ImageSubresourceRange {
-	_, sr := img.VkImage()
-	return sr
+	return img.data.vkImage, img.subresourceRange.VkImageSubresourceRange(img.format)
 }
 
 // TODO: rename to "Free" or something like that and document that it's not
@@ -315,4 +303,8 @@ func (img *Image) Destroy() {
 	if img.ownsData {
 		img.data.destroy()
 	}
+}
+
+func formatBlockExtent(format vk.Format) [3]int {
+	return int3FromVkExtent3D(formatutil.Describe(format).BlockExtent)
 }

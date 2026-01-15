@@ -10,7 +10,7 @@ import (
 func TestImageExtent(t *testing.T) {
 	// TODO: introduce WithCompleteMipChain()?
 
-	img := NewImage(vk.FORMAT_BC7_SRGB_BLOCK, []int{15, 15}, WithMips{0, completeMipChainLength(15, 15, 1)})
+	img := NewImage(vk.FORMAT_BC7_SRGB_BLOCK, []int{15, 15}, WithMips{End: completeMipChainLength(15, 15, 1)})
 	defer img.Destroy()
 
 	for i := range 4 {

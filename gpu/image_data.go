@@ -7,7 +7,7 @@ type imageData struct {
 
 	// TODO: review which of these fields we need
 	dim    int
-	format Format
+	format vk.Format
 	extent [3]int
 	layers int
 	mips   int

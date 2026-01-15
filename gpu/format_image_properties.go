@@ -12,7 +12,7 @@ type formatImageProperties struct {
 	SupportedUsages vk.ImageUsageFlags
 }
 
-var getFormatImageProperties = cached(func(format Format) formatImageProperties {
+var getFormatImageProperties = cached(func(format vk.Format) formatImageProperties {
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
 
