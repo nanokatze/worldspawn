@@ -6,12 +6,12 @@ import (
 	"worldspawn/gpu/vk"
 )
 
-// TODO: rename to ImageSampler
-type Sampler struct{ handle uint32 }
+type ImageSampler struct{ descriptor uint32 }
 
 var samplerObjects = make([]vk.Sampler, 2e3)
 
-func NewSampler(config *vk.SamplerCreateInfo) Sampler {
+// TODO: return a pointer?
+func NewSampler(config *vk.SamplerCreateInfo) ImageSampler {
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
 
@@ -33,12 +33,14 @@ func NewSampler(config *vk.SamplerCreateInfo) Sampler {
 		0, nil)
 	samplerObjects[index] = vkSampler
 
-	return Sampler{handle: uint32(index) << 20}
+	return ImageSampler{descriptor: uint32(index) << 20}
 }
 
-func (sampler Sampler) Destroy() {
+// func (sampler ImageSampler) Descriptor() uint32 { return sampler.descriptor }
+
+func (sampler ImageSampler) Destroy() {
 	// TODO: check that the low bits are all zeros
-	index := int(sampler.handle >> 20)
+	index := int(sampler.descriptor >> 20)
 	if index == 0 {
 		return
 	}

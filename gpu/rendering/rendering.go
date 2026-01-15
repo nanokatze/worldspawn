@@ -41,8 +41,7 @@ type Attachment struct {
 	LoadOp  vk.AttachmentLoadOp
 	StoreOp vk.AttachmentStoreOp
 	// When LoadOp is CLEAR, ClearValue specifies the bit pattern that the
-	// samples in this attachment will be set to at the beginning of the render
-	// pass.
+	// samples in this attachment will be set to at the beginning of the pass.
 	ClearValue [4]uint32
 }
 
