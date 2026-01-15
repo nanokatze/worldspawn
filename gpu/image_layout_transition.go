@@ -16,13 +16,13 @@ type transitionImageLayoutJob struct {
 	newLayout        vk.ImageLayout
 }
 
-func (img *Image) enqueueTransitionLayout(jq *JobQueue, oldLayout, newLayout vk.ImageLayout) {
-	jq.Enqueue(&transitionImageLayoutJob{
+func (img *Image) transitionLayout(oldLayout, newLayout vk.ImageLayout) Job {
+	return &transitionImageLayoutJob{
 		imageData:        img.data,
 		subresourceRange: img.subresourceRange,
 		oldLayout:        oldLayout,
 		newLayout:        newLayout,
-	})
+	}
 }
 
 // RADV does not implement transition to PRESENT_SRC on queues that don't

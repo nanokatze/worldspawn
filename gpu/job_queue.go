@@ -20,6 +20,7 @@ type Job interface {
 	Exec(q *CommandQueue)
 }
 
+// TODO: rename to Routine (so that the whole thing reads as gpu.Routine)
 type JobQueue struct {
 	currentBatch *jobBatch // do not access directly; use b() instead
 	idle         *WaitGroup

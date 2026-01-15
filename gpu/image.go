@@ -258,7 +258,7 @@ func (img *Image) SubImage(opts ...SubImageOption) *Image {
 }
 
 func (img *Image) EnqueueInit(jq *JobQueue) {
-	img.enqueueTransitionLayout(jq, vk.IMAGE_LAYOUT_UNDEFINED, vk.IMAGE_LAYOUT_GENERAL)
+	jq.Enqueue(img.transitionLayout(vk.IMAGE_LAYOUT_UNDEFINED, vk.IMAGE_LAYOUT_GENERAL))
 }
 
 func (img *Image) Dim() ImageDim { return img.dim }

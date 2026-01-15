@@ -24,18 +24,85 @@ type RayTracingLibraryInterface struct {
 const maxPipelineRayPayloadSize = 32
 const maxPipelineRayHitAttributeSize = 32
 
+// TODO: these should be different stage to stage
+type RayTracingFunc struct {
+	stage vk.ShaderStageFlagBits
+	vk    uint64 // vk.ShaderEXT or vk.Pipeline
+
+	entry string
+}
+
+// TODO: redo this in style of compute func
+func NewRayTracingFunc(blob []byte, stage vk.ShaderStageFlagBits, entry string) *RayTracingFunc {
+	var pinner runtime.Pinner
+	defer pinner.Unpin()
+
+	gpuInit()
+
+	// TODO: outline the cases into separate functions and clean this up
+
+	switch stage {
+	case vk.SHADER_STAGE_RAYGEN_BIT_KHR,
+		vk.SHADER_STAGE_ANY_HIT_BIT_KHR,
+		vk.SHADER_STAGE_CLOSEST_HIT_BIT_KHR,
+		vk.SHADER_STAGE_MISS_BIT_KHR,
+		vk.SHADER_STAGE_INTERSECTION_BIT_KHR,
+		vk.SHADER_STAGE_CALLABLE_BIT_KHR:
+		var vkPipeline vk.Pipeline
+		must(vkFns.CreateRayTracingPipelinesKHR(device, vk.NULL_HANDLE, vk.NULL_HANDLE, 1, &vk.RayTracingPipelineCreateInfoKHR{
+			SType:      vk.STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR,
+			Flags:      vk.PipelineCreateFlags(vk.PIPELINE_CREATE_LIBRARY_BIT_KHR),
+			StageCount: uint32(1),
+			PStages: pinned(&pinner, &vk.PipelineShaderStageCreateInfo{
+				SType: vk.STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+				PNext: unsafe.Pointer(pinned(&pinner, &vk.ShaderModuleCreateInfo{
+					SType:    vk.STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+					CodeSize: len(blob),
+					PCode:    (*uint32)(unsafe.Pointer(pinnedSliceData(&pinner, blob))),
+				})),
+				Stage: stage,
+				PName: pinnedCString(&pinner, entry),
+			}),
+			PLibraryInterface: pinned(&pinner, &vk.RayTracingPipelineInterfaceCreateInfoKHR{
+				SType:                          vk.STRUCTURE_TYPE_RAY_TRACING_PIPELINE_INTERFACE_CREATE_INFO_KHR,
+				MaxPipelineRayPayloadSize:      maxPipelineRayPayloadSize,      // TODO: should be specified by the user
+				MaxPipelineRayHitAttributeSize: maxPipelineRayHitAttributeSize, // TODO: should be specified by the user
+			}),
+			Layout:                       pipelineLayout,
+			MaxPipelineRayRecursionDepth: 1, // part of the lib interface. Just make it dynamic
+		}, nil, &vkPipeline))
+		return &RayTracingFunc{stage: stage, vk: uint64(vkPipeline), entry: entry}
+
+	default:
+		panic("unsupported shader stage")
+	}
+}
+
+func (f *RayTracingFunc) String() string {
+	// TODO: print more stuff like the file
+	return f.entry
+}
+
+func (f *RayTracingFunc) vkShader() vk.ShaderEXT {
+	return vk.ShaderEXT(f.vk)
+}
+
+func (f *RayTracingFunc) vkPipeline() vk.Pipeline {
+	return vk.Pipeline(f.vk)
+}
+
 type RayTracingShaderGroup struct {
 	vk     vk.Pipeline
 	handle RayTracingShaderGroupHandle
 }
 
-func NewGeneralRayTracingShaderGroup(general *Func) *RayTracingShaderGroup {
+func NewGeneralRayTracingShaderGroup(general *RayTracingFunc) *RayTracingShaderGroup {
 	return newRayTracingShaderGroup(
 		vk.RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR,
 		general, nil, nil, nil)
 }
 
-func NewTrianglesRayTracingShaderGroup(closestHit, anyHit *Func) *RayTracingShaderGroup {
+func NewTrianglesRayTracingShaderGroup(closestHit, anyHit *RayTracingFunc) *RayTracingShaderGroup {
 	return newRayTracingShaderGroup(
 		vk.RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR,
 		nil, closestHit, anyHit, nil)
@@ -43,7 +110,7 @@ func NewTrianglesRayTracingShaderGroup(closestHit, anyHit *Func) *RayTracingShad
 
 // TODO: return an RT pipe + shader group instead?
 func newRayTracingShaderGroup(_type vk.RayTracingShaderGroupTypeKHR,
-	general, closestHit, anyHit, intersection *Func) *RayTracingShaderGroup {
+	general, closestHit, anyHit, intersection *RayTracingFunc) *RayTracingShaderGroup {
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
 

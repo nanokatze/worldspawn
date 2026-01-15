@@ -182,7 +182,7 @@ type presentJob struct {
 }
 
 func (swapchain *Swapchain) Present(jq *JobQueue, index int) {
-	swapchain.images[index].enqueueTransitionLayout(jq, vk.IMAGE_LAYOUT_GENERAL, vk.IMAGE_LAYOUT_PRESENT_SRC_KHR)
+	jq.Enqueue(swapchain.images[index].transitionLayout(vk.IMAGE_LAYOUT_GENERAL, vk.IMAGE_LAYOUT_PRESENT_SRC_KHR))
 
 	jq.Enqueue(&presentJob{
 		swapchain: swapchain,
