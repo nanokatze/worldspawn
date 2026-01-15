@@ -2,22 +2,66 @@ package gpu
 
 import (
 	"errors"
+	"runtime"
 	"slices"
 	"unsafe"
 
 	"worldspawn/gpu/vk"
 )
 
-// TODO: use "threadgroups" instead of "workgroups"? Or just groups.
+type ComputeFuncCode[T any] struct {
+	_  [0]T
+	vk vk.ShaderEXT
+}
 
-type dispatchWorkgroupsJob struct {
+// TODO: do something better pls
+func CompileFunc[T any](blob []byte, entry string) ComputeFuncCode[T] {
+	var pinner runtime.Pinner
+	defer pinner.Unpin()
+
+	gpuInit()
+
+	var vkShader vk.ShaderEXT
+	must(vkFns.CreateShadersEXT(device, 1, &vk.ShaderCreateInfoEXT{
+		SType:                  vk.STRUCTURE_TYPE_SHADER_CREATE_INFO_EXT,
+		Stage:                  vk.SHADER_STAGE_COMPUTE_BIT,
+		CodeType:               vk.SHADER_CODE_TYPE_SPIRV_EXT,
+		CodeSize:               len(blob),
+		PCode:                  unsafe.Pointer(pinnedSliceData(&pinner, blob)),
+		PName:                  pinnedCString(&pinner, entry),
+		SetLayoutCount:         1,
+		PSetLayouts:            pinned(&pinner, &DescriptorSetLayout),
+		PushConstantRangeCount: 1,
+		PPushConstantRanges: pinned(&pinner, &vk.PushConstantRange{
+			StageFlags: vk.ShaderStageFlags(vk.SHADER_STAGE_ALL),
+			Offset:     0,
+			Size:       maxShaderArgsSize,
+		}),
+	}, nil, &vkShader))
+	return ComputeFuncCode[T]{vk: vkShader}
+}
+
+func (f ComputeFuncCode[T]) WithData(data T) ComputeFunc[T] {
+	return ComputeFunc[T]{
+		Code: f,
+		Data: data,
+	}
+}
+
+type ComputeFunc[T any] struct {
+	Code ComputeFuncCode[T]
+	Data T
+}
+
+type dispatchJob struct {
 	groups [3]uint32
-	kernel *Func
+	kernel vk.ShaderEXT
 	args   []byte
 }
 
-// TODO: shorter name?
-func ParallelForWorkgroups(jq *JobQueue, groups []int, f *Func, args any) {
+// TODO: play with the order of arguments?
+// TODO: should take an interface rather than be generic
+func ParallelFor[T any](jq *JobQueue, groups []int, f ComputeFunc[T]) {
 	if err := validateDispatchGrid2(groups); err != nil {
 		if err == errEmptyGrid {
 			return
@@ -30,20 +74,20 @@ func ParallelForWorkgroups(jq *JobQueue, groups []int, f *Func, args any) {
 		groups32[i] = uint32(d)
 	}
 
-	jq.Enqueue(&dispatchWorkgroupsJob{
+	jq.Enqueue(&dispatchJob{
 		groups: groups32,
-		kernel: f,
-		args:   slices.Clone(asbytes(args)),
+		kernel: f.Code.vk,
+		args:   slices.Clone(asbytes(&f.Data)),
 	})
 }
 
-func (*dispatchWorkgroupsJob) Info() JobInfo {
+func (*dispatchJob) Info() JobInfo {
 	return JobInfo{
 		QueueFamilies: queueFamilies.Mask(0b010),
 	}
 }
 
-func (job *dispatchWorkgroupsJob) Exec(q *CommandQueue) {
+func (job *dispatchJob) Exec(q *CommandQueue) {
 	q.Commands(func(cb vk.CommandBuffer) {
 		BindDescriptorSet(cb, vk.PIPELINE_BIND_POINT_COMPUTE)
 
@@ -51,7 +95,7 @@ func (job *dispatchWorkgroupsJob) Exec(q *CommandQueue) {
 			cb,
 			1,
 			unsafe.SliceData([]vk.ShaderStageFlagBits{vk.SHADER_STAGE_COMPUTE_BIT}),
-			unsafe.SliceData([]vk.ShaderEXT{job.kernel.vkShader()}))
+			unsafe.SliceData([]vk.ShaderEXT{job.kernel}))
 
 		vkFns.CmdPushConstants(
 			cb,

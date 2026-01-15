@@ -12,6 +12,8 @@ import (
 
 // TODO: replace vk.{Offset,Extent}3D with [3]uint32?
 
+// TODO: make image copy functions methods on the *Image?
+
 func offset3(x []int) [3]int {
 	tmp := [3]int{0, 0, 0}
 	copy(tmp[:], x)
