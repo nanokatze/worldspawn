@@ -16,8 +16,8 @@ import (
 
 	"worldspawn/deathmatch/internal/game"
 	"worldspawn/gpu"
+	"worldspawn/gpu/imageio/ktx2"
 	"worldspawn/gpu/vk"
-	"worldspawn/image/ktx2"
 	"worldspawn/internal/compiler"
 	"worldspawn/internal/compiler/core"
 	sfx "worldspawn/internal/fuckwwise"
@@ -46,49 +46,36 @@ func texture(filename string) *pathtracer.Texture {
 		}
 		defer f.Close()
 
-		textureHeader, err := ktx2.NewFile(f)
+		d, err := ktx2.NewDecoder(f.(io.ReaderAt))
 		if err != nil {
 			panic(err)
 		}
 
-		viewType := vk.IMAGE_VIEW_TYPE_2D
-		if textureHeader.FaceCount == 6 {
-			viewType = vk.IMAGE_VIEW_TYPE_CUBE
+		conf := d.Config()
+
+		t = new(pathtracer.Texture)
+		t.Image = gpu.NewImage(
+			vk.Format(conf.Format),
+			conf.Extent[:conf.Dim],
+			gpu.WithLayers{End: conf.Layers},
+			gpu.WithMips{End: conf.Mips},
+			gpu.WithUsage(vk.IMAGE_USAGE_SAMPLED_BIT))
+		if conf.Cube {
+			t.Image = t.Image.SubImage(gpu.ViewAs(gpu.ImageDimCube))
 		}
 
-		layers := int(textureHeader.FaceCount) * int(max(textureHeader.LayerCount, 1))
-
-		t = pathtracer.NewTexture(
-			viewType,
-			[3]int{
-				int(textureHeader.Width),
-				int(max(textureHeader.Height, 1)),
-				int(max(textureHeader.Depth, 1)),
-			},
-			len(textureHeader.MipLevels),
-			layers,
-			vk.Format(textureHeader.VkFormat))
-
 		var wg gpu.WaitGroup
-		for i, l := range textureHeader.MipLevels {
+		for i := range conf.Mips {
 			wg.Add(1)
 
 			jq := new(gpu.JobQueue)
 
-			tmp := gpu.MakeSliceUncached[byte](int(l.Len))
-			enqueueReadAt(jq, f.(io.ReaderAt), tmp, int64(l.Off))
-
 			img := t.Image.SubImage(gpu.WithMips{i, i + 1})
 			img.EnqueueInit(jq)
 
-			gpu.EnqueueCopyMemoryToImage(jq,
-				img, nil,
-				tmp, 0, 0,
-				img.Extent())
+			d.EnqueueDecode(jq, img, i)
 
 			jq.Cleanup(img.Destroy)
-
-			jq.Cleanup(func() { gpu.Free(gpu.UnsafePointer(gpu.SliceData(tmp))) })
 
 			wg.EnqueueDone(jq)
 		}

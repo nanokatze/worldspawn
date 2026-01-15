@@ -56,7 +56,7 @@ var blueNoise = sync.OnceValue(func() *gpu.Image {
 	jq := new(gpu.JobQueue)
 
 	// TODO: we actually only use RG at most
-	gpuImg := gpu.NewImage(vk.FORMAT_R16G16B16A16_UNORM, []int{256, 256}, gpu.WithLayers{0, 8}, gpu.WithUsage(vk.IMAGE_USAGE_SAMPLED_BIT))
+	gpuImg := gpu.NewImage(vk.FORMAT_R16G16B16A16_UNORM, []int{256, 256}, gpu.WithLayers{End: 8}, gpu.WithUsage(vk.IMAGE_USAGE_SAMPLED_BIT))
 	gpuImg.EnqueueInit(jq)
 
 	// TODO: can we please not use png

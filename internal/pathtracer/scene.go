@@ -90,7 +90,7 @@ type Scene struct {
 	lightAccel lightAccel
 
 	// TODO: this probs belongs to MaterialLibrary too
-	sampler gpu.Sampler
+	sampler gpu.ImageSampler
 
 	// TODO: append experimental stuff at the end for now: we have a skill issue
 	// in that we need to manually sync host and device type definitions.
