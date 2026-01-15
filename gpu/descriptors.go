@@ -25,9 +25,6 @@ func BindDescriptorSet(cb vk.CommandBuffer, bindPoint vk.PipelineBindPoint) {
 }
 
 // TODO: kill this as soon as we can
-const maxShaderArgsSize = 256
-
-// TODO: kill this as soon as we can
 func PushConstants(cb vk.CommandBuffer, args []byte) {
 	vkFns.CmdPushConstants(
 		cb,

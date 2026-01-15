@@ -44,7 +44,7 @@ func (swapchain *Swapchain) Present2(jq *JobQueue, image *Image) bool {
 		swapchain.images[index], nil,
 		image, nil,
 		image.Extent())
-	jq.Enqueue(swapchain.images[index].transitionLayout(vk.IMAGE_LAYOUT_GENERAL, vk.IMAGE_LAYOUT_PRESENT_SRC_KHR))
+	swapchain.images[index].enqueueTransitionLayout(jq, vk.IMAGE_LAYOUT_GENERAL, vk.IMAGE_LAYOUT_PRESENT_SRC_KHR)
 
 	// TODO: properly sync this so all vkQueuePresents to this swapchain are in
 	// order

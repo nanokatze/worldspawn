@@ -2,128 +2,48 @@ package gpu
 
 import (
 	"errors"
-	"runtime"
 	"slices"
 	"unsafe"
 
 	"worldspawn/gpu/vk"
 )
 
-// TODO: rename to something else
-type ComputeFuncCode[T any] struct {
-	_  [0]T
-	vk vk.ShaderEXT
-}
+// TODO: use "threadgroups" instead of "workgroups"? Or just groups.
 
-// Convenience thing; TODO: probs remove it
-func (code ComputeFuncCode[T]) WithData(data T) ComputeFunc[T] {
-	return ComputeFunc[T]{
-		Code: code,
-		Data: data,
-	}
-}
-
-// TODO: give this a longer name so that we can call an interface ComputeFunc
-type ComputeFunc[T any] struct {
-	Code ComputeFuncCode[T]
-	Data T
-}
-
-// TODO: hide
-func (f ComputeFunc[T]) ParallelFor(grid []int) Job {
-	var grid3 [3]int
-	copy(grid3[:], grid)
-
-	return &dispatchJob{
-		grid:   grid3,
-		kernel: f.Code.vk,
-		args:   slices.Clone(asbytes(&f.Data)),
-	}
-}
-
-/*
-type parallelable interface {
-	parallelFor(grid [3]int) Job
-}
-
-func ParallelFor(grid []int, f parallelable) Job {
-	var grid3 [3]int
-	copy(grid3[:], grid)
-	return f.parallelFor(grid3)
-}
-*/
-
-// TODO: kill off in favor of ParallelFor
-func (f ComputeFunc[T]) Dispatch(jq *JobQueue, grid []int) {
-	grid3 := [3]int{1, 1, 1}
-	copy(grid3[:], grid)
-
-	jq.Enqueue(&dispatchJob{
-		grid:   grid3,
-		kernel: f.Code.vk,
-		args:   slices.Clone(asbytes(&f.Data)),
-	})
-}
-
-/*
-type lazyComputeFunc[T any] struct {
-	_        [0]T
-	compiled vk.ShaderEXT
-	code     string // TODO: we could also replace this with a function to get []byte probs
-}
-
-func (f lazyComputeFunc[T]) Get() vk.ShaderEXT {
-	atomic.Load
-	return f.compiled
-}
-*/
-
-// TODO: should be LazyComputeFunc
-func CompileFunc[T any](blob []byte, entry string) ComputeFuncCode[T] {
-	var pinner runtime.Pinner
-	defer pinner.Unpin()
-
-	gpuInit()
-
-	var vkShader vk.ShaderEXT
-	must(vkFns.CreateShadersEXT(device, 1, &vk.ShaderCreateInfoEXT{
-		SType:                  vk.STRUCTURE_TYPE_SHADER_CREATE_INFO_EXT,
-		Stage:                  vk.SHADER_STAGE_COMPUTE_BIT,
-		CodeType:               vk.SHADER_CODE_TYPE_SPIRV_EXT,
-		CodeSize:               len(blob),
-		PCode:                  unsafe.Pointer(pinnedSliceData(&pinner, blob)),
-		PName:                  pinnedCString(&pinner, entry),
-		SetLayoutCount:         1,
-		PSetLayouts:            pinned(&pinner, &DescriptorSetLayout),
-		PushConstantRangeCount: 1,
-		PPushConstantRanges: pinned(&pinner, &vk.PushConstantRange{
-			StageFlags: vk.ShaderStageFlags(vk.SHADER_STAGE_ALL),
-			Offset:     0,
-			Size:       maxShaderArgsSize,
-		}),
-	}, nil, &vkShader))
-	return ComputeFuncCode[T]{
-		vk: vkShader,
-	}
-}
-
-type dispatchJob struct {
-	grid   [3]int
-	kernel vk.ShaderEXT // TODO: take our own object so that we can debug things etc?
+type dispatchWorkgroupsJob struct {
+	groups [3]uint32
+	kernel *Func
 	args   []byte
 }
 
-func ParallelFor[T any](jq *JobQueue, grid []int, f ComputeFunc[T]) {
-	jq.Enqueue(f.ParallelFor(grid))
+// TODO: shorter name?
+func ParallelForWorkgroups(jq *JobQueue, groups []int, f *Func, args any) {
+	if err := validateDispatchGrid2(groups); err != nil {
+		if err == errEmptyGrid {
+			return
+		}
+		panic(err)
+	}
+
+	groups32 := [3]uint32{1, 1, 1}
+	for i, d := range groups {
+		groups32[i] = uint32(d)
+	}
+
+	jq.Enqueue(&dispatchWorkgroupsJob{
+		groups: groups32,
+		kernel: f,
+		args:   slices.Clone(asbytes(args)),
+	})
 }
 
-func (*dispatchJob) Info() JobInfo {
+func (*dispatchWorkgroupsJob) Info() JobInfo {
 	return JobInfo{
 		QueueFamilies: queueFamilies.Mask(0b010),
 	}
 }
 
-func (job *dispatchJob) Exec(q *CommandQueue) {
+func (job *dispatchWorkgroupsJob) Exec(q *CommandQueue) {
 	q.Commands(func(cb vk.CommandBuffer) {
 		BindDescriptorSet(cb, vk.PIPELINE_BIND_POINT_COMPUTE)
 
@@ -131,7 +51,7 @@ func (job *dispatchJob) Exec(q *CommandQueue) {
 			cb,
 			1,
 			unsafe.SliceData([]vk.ShaderStageFlagBits{vk.SHADER_STAGE_COMPUTE_BIT}),
-			unsafe.SliceData([]vk.ShaderEXT{job.kernel}))
+			unsafe.SliceData([]vk.ShaderEXT{job.kernel.vkShader()}))
 
 		vkFns.CmdPushConstants(
 			cb,
@@ -140,7 +60,7 @@ func (job *dispatchJob) Exec(q *CommandQueue) {
 			0,
 			uint32(len(job.args)), unsafe.Pointer(unsafe.SliceData(job.args[:])))
 
-		vkFns.CmdDispatch(cb, uint32(job.grid[0]), uint32(job.grid[1]), uint32(job.grid[2]))
+		vkFns.CmdDispatch(cb, job.groups[0], job.groups[1], job.groups[2])
 	})
 }
 
