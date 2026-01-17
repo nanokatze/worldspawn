@@ -12,30 +12,28 @@ package gpuwsi
 import "C"
 
 import (
+	"sync"
 	"unsafe"
 
 	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
-	"worldspawn/internal/sdl"
+	"worldspawn/internal/sdl" // TODO: don't depend on this
 )
 
 func init() {
-	// TODO: figure out some way to get these from sdl reliably. I guess we
-	// could just poke C.SDL_Init or whatever.
-	gpu.WantInstanceExtension("VK_KHR_surface")
-	gpu.WantInstanceExtension("VK_KHR_wayland_surface")
-	gpu.WantInstanceExtension("VK_KHR_xlib_surface")
+	for _, ext := range sdlVulkanInstanceExtensions() {
+		gpu.WantInstanceExtension(ext)
+	}
 
 	gpu.WantDeviceExtension("VK_KHR_swapchain")
 	gpu.WantDeviceExtension("VK_KHR_swapchain_mutable_format")
 }
 
-// TODO: hide
-/*
-func InstanceExtensions() []string {
-	if C.SDL_WasInit(C.SDL_INIT_VIDEO) == 0 {
-		return nil
-	}
+var sdlVulkanInstanceExtensions = sync.OnceValue(func() []string {
+	C.SDL_InitSubSystem(C.SDL_INIT_VIDEO)
+	// TODO: also shutdown video system later
+
+	C.SDL_Vulkan_LoadLibrary(nil)
 
 	var n C.Uint32
 	cexts := C.SDL_Vulkan_GetInstanceExtensions(&n)
@@ -45,8 +43,7 @@ func InstanceExtensions() []string {
 		exts[i] = C.GoString(cext)
 	}
 	return exts
-}
-*/
+})
 
 func sdlVulkanCreateSurface(window *sdl.Window, instance vk.Instance, allocator *vk.AllocationCallbacks) (vk.SurfaceKHR, error) {
 	var surface vk.SurfaceKHR

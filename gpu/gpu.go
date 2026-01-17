@@ -101,6 +101,7 @@ func BestQueueFamily(flags vk.QueueFlags) int {
 	return queueFamilies.MinimumCapable(flags)
 }
 
+// TODO: these should probably folded into Device() and Device() be renamed to Init()
 func Instance() vk.Instance {
 	gpuInit()
 	return instance
@@ -257,8 +258,6 @@ func gpuInit() {
 
 		queueFamilies = defaultQueues()
 
-		// println(fmt.Sprintf("queues %d order %d", queueCounts, queueFamilies.probe))
-
 		queueCreateInfos := slices.Collect(func(yield func(vk.DeviceQueueCreateInfo) bool) {
 			for family, count := range queueFamilies.counts {
 				if count == 0 {
@@ -289,9 +288,9 @@ func gpuInit() {
 
 		vkFns.DeviceFuncs.Init(device)
 
-		for _, family := range queueFamilies.All() {
+		for family := range ones32(QueueFamilies(0)) {
 			for i := range queueFamilies.counts[family] {
-				newSubmissionQueue(family, uint32(i))
+				newSubmissionQueue(uint32(family), uint32(i))
 			}
 		}
 

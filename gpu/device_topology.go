@@ -82,10 +82,7 @@ func (families *queues) Mask(flags vk.QueueFlags) queueFamilyMask {
 	return mask
 }
 
+// TODO: kill this
 func (queueFamilies *queues) MinimumCapable(queueFlags vk.QueueFlags) int {
 	return 32 - bits.LeadingZeros32(queueFamilies.Mask(queueFlags)) - 1
-}
-
-func (families *queues) All() []uint32 {
-	return families.probe
 }
