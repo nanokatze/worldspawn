@@ -9,13 +9,15 @@ import (
 	"worldspawn/gpu/vk"
 )
 
-type ComputeFuncCode[T any] struct {
+// TODO: rename to make it clear that it has unbound env. ComputeClosureFunc?
+// ComputeClosureBody?
+type ComputeClosureBody[T any] struct {
 	_  [0]T
 	vk vk.ShaderEXT
 }
 
 // TODO: do something better pls
-func CompileFunc[T any](blob []byte, entry string) ComputeFuncCode[T] {
+func CompileFunc[T any](blob []byte, entry string) ComputeClosureBody[T] {
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
 
@@ -38,19 +40,19 @@ func CompileFunc[T any](blob []byte, entry string) ComputeFuncCode[T] {
 			Size:       maxShaderArgsSize,
 		}),
 	}, nil, &vkShader))
-	return ComputeFuncCode[T]{vk: vkShader}
+	return ComputeClosureBody[T]{vk: vkShader}
 }
 
-func (f ComputeFuncCode[T]) WithData(data T) ComputeFunc[T] {
-	return ComputeFunc[T]{
-		Code: f,
-		Data: data,
+func (body ComputeClosureBody[T]) WithEnv(env T) ComputeClosure[T] {
+	return ComputeClosure[T]{
+		Body: body,
+		Env:  env,
 	}
 }
 
-type ComputeFunc[T any] struct {
-	Code ComputeFuncCode[T]
-	Data T
+type ComputeClosure[T any] struct {
+	Body ComputeClosureBody[T]
+	Env  T
 }
 
 type dispatchJob struct {
@@ -61,7 +63,7 @@ type dispatchJob struct {
 
 // TODO: play with the order of arguments?
 // TODO: should take an interface rather than be generic
-func ParallelFor[T any](jq *JobQueue, groups []int, f ComputeFunc[T]) {
+func ParallelFor[T any](jq *JobQueue, groups []int, f ComputeClosure[T]) {
 	if err := validateDispatchGrid2(groups); err != nil {
 		if err == errEmptyGrid {
 			return
@@ -76,14 +78,14 @@ func ParallelFor[T any](jq *JobQueue, groups []int, f ComputeFunc[T]) {
 
 	jq.Enqueue(&dispatchJob{
 		groups: groups32,
-		kernel: f.Code.vk,
-		args:   slices.Clone(asbytes(&f.Data)),
+		kernel: f.Body.vk,
+		args:   slices.Clone(asbytes(&f.Env)),
 	})
 }
 
 func (*dispatchJob) Info() JobInfo {
 	return JobInfo{
-		QueueFamilies: queueFamilies.Mask(0b010),
+		QueueFamilies: queueFamilies.Mask(vk.QueueFlags(vk.QUEUE_COMPUTE_BIT)),
 	}
 }
 
