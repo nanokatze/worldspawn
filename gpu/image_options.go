@@ -1,10 +1,13 @@
 package gpu
 
-import "worldspawn/gpu/vk"
+import (
+	"worldspawn/gpu/vk"
+	"worldspawn/gpu/vk/formatutil"
+)
 
 // TODO: rename the methods in the option interfaces
 
-type ImageOption interface{ apply2(config *imageConfig) }
+type ImageOption interface{ apply2(config *ImageConfig) }
 
 // TODO: make this public too like ImageOption is
 type SubImageOption interface{ apply(config *subImageConfig) }
@@ -21,7 +24,7 @@ func (format WithFormat) apply(config *subImageConfig) { config.Format = vk.Form
 
 type WithLayers struct{ First, End int }
 
-func (layers WithLayers) apply2(config *imageConfig) {
+func (layers WithLayers) apply2(config *ImageConfig) {
 	config.Layers = layers.End - layers.First
 }
 
@@ -32,7 +35,7 @@ func (layers WithLayers) apply(config *subImageConfig) {
 
 type WithMips struct{ First, End int }
 
-func (mips WithMips) apply2(config *imageConfig) {
+func (mips WithMips) apply2(config *ImageConfig) {
 	config.Mips = mips.End - mips.First
 }
 
@@ -43,11 +46,11 @@ func (mips WithMips) apply(config *subImageConfig) {
 
 type WithUsage vk.ImageUsageFlagBits
 
-func (usage WithUsage) apply2(config *imageConfig) {
+func (usage WithUsage) apply2(config *ImageConfig) {
 	config.Usages |= vk.ImageUsageFlags(usage)
 }
 
-type imageConfig struct {
+type ImageConfig struct {
 	Dim    int
 	Format vk.Format
 	Extent [3]int
@@ -56,8 +59,8 @@ type imageConfig struct {
 	Usages vk.ImageUsageFlags
 }
 
-func joinImageOptions(format vk.Format, extent []int, opts ...ImageOption) imageConfig {
-	var conf imageConfig
+func JoinImageOptions(format vk.Format, extent []int, opts ...ImageOption) ImageConfig {
+	var conf ImageConfig
 	conf.Dim = len(extent)
 	conf.Format = format
 	conf.Extent = extent3(extent)
@@ -72,8 +75,8 @@ func joinImageOptions(format vk.Format, extent []int, opts ...ImageOption) image
 }
 
 type subImageConfig struct {
-	Format     vk.Format
 	Dim        ImageDim
+	Format     vk.Format
 	FirstLayer int
 	Layers     int
 	FirstMip   int
@@ -87,4 +90,8 @@ func joinSubImageOptions(conf *subImageConfig, opts ...SubImageOption) {
 		// TODO: switch over common impls so that we noescape things
 		opt.apply(conf)
 	}
+}
+
+func (conf *subImageConfig) bounds() imageBounds {
+	return makeImageBounds(formatutil.Aspects(conf.Format), conf.FirstLayer, conf.Layers, conf.FirstMip, conf.Mips)
 }

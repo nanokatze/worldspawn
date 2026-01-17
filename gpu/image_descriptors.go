@@ -4,7 +4,6 @@ import (
 	"unsafe"
 
 	"worldspawn/gpu/vk"
-	"worldspawn/gpu/vk/formatutil"
 )
 
 var imageViews = make([]vk.ImageView, 1e6)
@@ -68,16 +67,10 @@ func (data *imageData) shaderDescriptor(config *subImageConfig, descriptorType v
 			SType: vk.STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO,
 			Usage: imageUsageFromDescriptorType(descriptorType),
 		}),
-		Image:    data.vkImage,
-		ViewType: config.Dim.vkImageViewType(),
-		Format:   config.Format,
-		SubresourceRange: vk.ImageSubresourceRange{
-			AspectMask:     formatutil.Aspects(config.Format),
-			BaseMipLevel:   uint32(config.FirstMip),
-			LevelCount:     uint32(config.Mips),
-			BaseArrayLayer: uint32(config.FirstLayer),
-			LayerCount:     uint32(config.Layers),
-		},
+		Image:            data.vkImage,
+		ViewType:         config.Dim.vkImageViewType(),
+		Format:           config.Format,
+		SubresourceRange: config.bounds().VkImageSubresourceRange(config.Format),
 	}, nil, imageView))
 
 	vkFns.UpdateDescriptorSets(device,

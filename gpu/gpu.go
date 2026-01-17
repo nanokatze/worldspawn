@@ -101,6 +101,16 @@ func BestQueueFamily(flags vk.QueueFlags) int {
 	return queueFamilies.MinimumCapable(flags)
 }
 
+func Instance() vk.Instance {
+	gpuInit()
+	return instance
+}
+
+func PhysicalDevice() vk.PhysicalDevice {
+	gpuInit()
+	return physicalDevice
+}
+
 // TODO: fix
 func Device() vk.Device {
 	gpuInit()
@@ -112,9 +122,6 @@ func gpuInit() {
 		var pinner runtime.Pinner
 		defer pinner.Unpin()
 
-		WantInstanceExtension("VK_KHR_surface")
-		WantInstanceExtension("VK_KHR_wayland_surface")
-		WantInstanceExtension("VK_KHR_xlib_surface")
 		WantInstanceExtension("VK_EXT_debug_utils")
 
 		instanceExts := slices.Sorted(maps.Keys(wantInstanceExts))
@@ -229,9 +236,6 @@ func gpuInit() {
 		WantDeviceFeature("RayTracingPositionFetch")
 
 		// WantDeviceExtension("VK_EXT_external_memory_host")
-
-		WantDeviceExtension("VK_KHR_swapchain")
-		WantDeviceExtension("VK_KHR_swapchain_mutable_format")
 
 		var availableFeatures features
 		availableFeatures.init(false)

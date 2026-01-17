@@ -59,9 +59,9 @@ type Image struct {
 	data        *imageData
 	descriptors imageDescriptors
 
-	dim              ImageDim
-	format           vk.Format
-	subresourceRange subresourceRange
+	dim    ImageDim
+	format vk.Format
+	bounds imageBounds
 
 	// precomputed stuff
 
@@ -79,7 +79,7 @@ type Image struct {
 func NewImage(format vk.Format, extent []int, opts ...ImageOption) *Image {
 	gpuInit()
 
-	conf := joinImageOptions(format, extent, opts...)
+	conf := JoinImageOptions(format, extent, opts...)
 
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
@@ -174,9 +174,8 @@ func NewImage(format vk.Format, extent []int, opts ...ImageOption) *Image {
 	return img
 }
 
-// TODO: make public?
-func newImageFromVkImage(vkImage vk.Image, format vk.Format, extent []int, opts ...ImageOption) *Image {
-	conf := joinImageOptions(format, extent, opts...)
+func NewImageFromVkImage(vkImage vk.Image, format vk.Format, extent []int, opts ...ImageOption) *Image {
+	conf := JoinImageOptions(format, extent, opts...)
 
 	return newImageFromData(
 		&imageData{
@@ -220,12 +219,12 @@ func newImage(data *imageData, config *subImageConfig) *Image {
 	}
 
 	img := &Image{
-		data:             data,
-		descriptors:      newImageDescriptors(data, config),
-		dim:              config.Dim,
-		format:           config.Format,
-		subresourceRange: makeSubresourceRange(formatutil.Aspects(config.Format), config.FirstLayer, config.Layers, config.FirstMip, config.Mips),
-		extent:           vkExtent3DFromInt3(extent),
+		data:        data,
+		descriptors: newImageDescriptors(data, config),
+		dim:         config.Dim,
+		format:      config.Format,
+		bounds:      config.bounds(),
+		extent:      vkExtent3DFromInt3(extent),
 	}
 	if img.descriptors != (imageDescriptors{}) {
 		img.cleanup = runtime.AddCleanup(img, imageDescriptors.destroy, img.descriptors)
@@ -247,18 +246,14 @@ func (img *Image) SubImage(opts ...SubImageOption) *Image {
 	conf := subImageConfig{
 		Dim:        img.dim,
 		Format:     img.format,
-		FirstLayer: img.subresourceRange.FirstLayer(),
-		Layers:     img.subresourceRange.Layers(),
-		FirstMip:   img.subresourceRange.FirstMip(),
-		Mips:       img.subresourceRange.Mips(),
+		FirstLayer: img.bounds.FirstLayer(),
+		Layers:     img.bounds.Layers(),
+		FirstMip:   img.bounds.FirstMip(),
+		Mips:       img.bounds.Mips(),
 	}
 	joinSubImageOptions(&conf, opts...)
 
 	return newImage(img.data, &conf)
-}
-
-func (img *Image) EnqueueInit(jq *JobQueue) {
-	img.enqueueTransitionLayout(jq, vk.IMAGE_LAYOUT_UNDEFINED, vk.IMAGE_LAYOUT_GENERAL)
 }
 
 func (img *Image) Dim() ImageDim { return img.dim }
@@ -270,9 +265,13 @@ func (img *Image) Extent() []int {
 	return tmp[:img.dim.dimensions()]
 }
 
-func (img *Image) Layers() int { return img.subresourceRange.Layers() }
+func (img *Image) Layers() int { return img.bounds.Layers() }
 
-func (img *Image) Mips() int { return img.subresourceRange.Mips() }
+func (img *Image) Mips() int { return img.bounds.Mips() }
+
+func (img *Image) EnqueueInit(jq *JobQueue) {
+	img.EnqueueTransitionLayout(jq, vk.IMAGE_LAYOUT_UNDEFINED, vk.IMAGE_LAYOUT_GENERAL)
+}
 
 func (img *Image) SamplingDescriptor() SamplingView {
 	if img.descriptors.sampling == 0 {
@@ -289,7 +288,7 @@ func (img *Image) LoadStoreDescriptor() uint32 {
 }
 
 func (img *Image) VkImage() (vk.Image, vk.ImageSubresourceRange) {
-	return img.data.vkImage, img.subresourceRange.VkImageSubresourceRange(img.format)
+	return img.data.vkImage, img.bounds.VkImageSubresourceRange(img.format)
 }
 
 // TODO: rename to "Free" or something like that and document that it's not

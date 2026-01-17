@@ -1,12 +1,17 @@
-package gpu
+package gpuwsi
 
 import (
 	"fmt"
+	"iter"
 	"log"
 	"math"
+	"math/bits"
 	"runtime"
+	"slices"
+	"sync"
+	"unsafe"
 
-	"worldspawn/gpu/sdl_vulkan"
+	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
 	"worldspawn/internal/sdl"
 )
@@ -18,7 +23,7 @@ type Swapchain struct {
 	vkSurface     vk.SurfaceKHR
 	queueFamilies uint32
 	vkSwapchain   vk.SwapchainKHR
-	images        []*Image
+	images        []*gpu.Image
 
 	// TODO: remove this stuff from here and probably just have a pool of these things
 	acquireFence vk.Fence
@@ -29,7 +34,7 @@ type SwapchainConfig struct {
 	ColorSpace   vk.ColorSpaceKHR
 	Format       vk.Format
 	Extent       [2]int
-	ImageOptions []ImageOption
+	ImageOptions []gpu.ImageOption
 	OldSwapchain *Swapchain
 }
 
@@ -43,20 +48,33 @@ func NewSwapchain(config *SwapchainConfig) *Swapchain {
 	return oldSwapchain.reconfigure(config)
 }
 
+var device vk.Device
+var vkFns struct {
+	vk.InstanceFuncs
+	vk.DeviceFuncs
+}
+var initOnce sync.Once
+
+func gpuInit() {
+	initOnce.Do(func() {
+		device = gpu.Device()
+		vkFns.DeviceFuncs.Init(device)
+	})
+}
+
 func newSwapchain(window *sdl.Window) *Swapchain {
 	gpuInit()
 
-	vkSurface, err := sdl_vulkan.CreateSurface(window, sdl_vulkan.Instance(instance), nil)
+	vkSurface, err := sdlVulkanCreateSurface(window, gpu.Instance(), nil)
 	if err != nil {
 		// TODO: we might want to handle this, actually.
 		panic(fmt.Sprintf("gpu: SDL_Vulkan_CreateSurface: %v", err))
 	}
 
 	var mask uint32
-	// TODO: stop using the deprecated All()
-	for _, family := range queueFamilies.All() {
+	for family := range ones32(gpu.QueueFamilies(0)) {
 		var supported vk.Bool32
-		if err := vkFns.GetPhysicalDeviceSurfaceSupportKHR(physicalDevice, family, vk.SurfaceKHR(vkSurface), &supported); err != nil {
+		if err := vkFns.GetPhysicalDeviceSurfaceSupportKHR(gpu.PhysicalDevice(), uint32(family), vkSurface, &supported); err != nil {
 			panic(fmt.Sprintf("gpu: vkGetPhysicalDeviceSurfaceSupportKHR: %v", err))
 		}
 		// TODO: make a func for converting from Bool32
@@ -83,6 +101,22 @@ func newSwapchain(window *sdl.Window) *Swapchain {
 	}
 }
 
+func ones32(x uint32) iter.Seq[int] {
+	return func(yield func(int) bool) {
+		i := 0
+		for {
+			i += bits.TrailingZeros32(x >> i)
+			if i >= 32 {
+				break
+			}
+			if !yield(i) {
+				return
+			}
+			i++
+		}
+	}
+}
+
 // TODO: add a method to get current swapchain config like e.g. format, extent
 // and everything?
 
@@ -92,7 +126,13 @@ func (swapchain *Swapchain) reconfigure(config *SwapchainConfig) *Swapchain {
 	// TODO: properly choose minImageCount, or let the user do it
 	minImageCount := uint32(4)
 
-	imgConf := joinImageOptions(config.Format, config.Extent[:], config.ImageOptions...)
+	imgConf := gpu.JoinImageOptions(config.Format, config.Extent[:], config.ImageOptions...)
+
+	allQueueFamilies := slices.Collect(func(yield func(uint32) bool) {
+		for family := range ones32(gpu.QueueFamilies(0)) {
+			yield(uint32(family))
+		}
+	})
 
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
@@ -109,8 +149,8 @@ func (swapchain *Swapchain) reconfigure(config *SwapchainConfig) *Swapchain {
 		ImageArrayLayers:      uint32(imgConf.Layers),
 		ImageUsage:            imgConf.Usages,
 		ImageSharingMode:      vk.SHARING_MODE_CONCURRENT,
-		QueueFamilyIndexCount: uint32(len(queueFamilies.All())),
-		PQueueFamilyIndices:   pinnedSliceData(&pinner, queueFamilies.All()),
+		QueueFamilyIndexCount: uint32(len(allQueueFamilies)),
+		PQueueFamilyIndices:   pinnedSliceData(&pinner, allQueueFamilies),
 		PreTransform:          vk.SURFACE_TRANSFORM_IDENTITY_BIT_KHR,
 		CompositeAlpha:        vk.COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
 		PresentMode:           vk.PRESENT_MODE_FIFO_KHR,
@@ -127,9 +167,9 @@ func (swapchain *Swapchain) reconfigure(config *SwapchainConfig) *Swapchain {
 		panic(fmt.Sprintf("gpu: vkGetSwapchainImagesKHR: %v", err))
 	}
 
-	images := make([]*Image, len(vkImages))
+	images := make([]*gpu.Image, len(vkImages))
 	for i, vkImage := range vkImages {
-		images[i] = newImageFromVkImage(vkImage, config.Format, config.Extent[:], config.ImageOptions...)
+		images[i] = gpu.NewImageFromVkImage(vkImage, config.Format, config.Extent[:], config.ImageOptions...)
 	}
 
 	return &Swapchain{
@@ -142,7 +182,7 @@ func (swapchain *Swapchain) reconfigure(config *SwapchainConfig) *Swapchain {
 	}
 }
 
-func (swapchain *Swapchain) Image(index int) *Image {
+func (swapchain *Swapchain) Image(index int) *gpu.Image {
 	return swapchain.images[index]
 }
 
@@ -181,24 +221,24 @@ type presentJob struct {
 	index     uint32
 }
 
-func (swapchain *Swapchain) Present(jq *JobQueue, index int) {
-	swapchain.images[index].enqueueTransitionLayout(jq, vk.IMAGE_LAYOUT_GENERAL, vk.IMAGE_LAYOUT_PRESENT_SRC_KHR)
+func (swapchain *Swapchain) Present(jq *gpu.JobQueue, index int) {
+	swapchain.images[index].EnqueueTransitionLayout(jq, vk.IMAGE_LAYOUT_GENERAL, vk.IMAGE_LAYOUT_PRESENT_SRC_KHR)
 
 	jq.Enqueue(&presentJob{
 		swapchain: swapchain,
 		index:     uint32(index),
 	})
 
-	WaitForIdle(jq)
+	gpu.WaitForIdle(jq)
 }
 
-func (job *presentJob) Info() JobInfo {
-	return JobInfo{
+func (job *presentJob) Info() gpu.JobInfo {
+	return gpu.JobInfo{
 		QueueFamilies: job.swapchain.queueFamilies,
 	}
 }
 
-func (job *presentJob) Exec(q *CommandQueue) {
+func (job *presentJob) Exec(q *gpu.CommandQueue) {
 	// log.Print("execing present job on queue family ", q.queueFamily)
 	q.QueueOperation(func(vkQueue vk.Queue) {
 		var pinner runtime.Pinner
@@ -214,4 +254,36 @@ func (job *presentJob) Exec(q *CommandQueue) {
 			panic(fmt.Sprintf("gpu: vkQueuePresentKHR: %v", err))
 		}
 	})
+}
+
+// TODO: remove pinned* stuff
+func pinned[T any](pinner *runtime.Pinner, p *T) *T {
+	pinner.Pin(p)
+	return p
+}
+
+func pinnedSliceData[T any](pinner *runtime.Pinner, s []T) *T {
+	return pinned(pinner, unsafe.SliceData(s))
+}
+
+// TODO: rename to something better
+// TODO: kill
+func enumerate[T any](f func(len *uint32, data *T) error) ([]T, error) {
+	return enumerate2(nil, f)
+}
+
+// TODO: rename to something better
+func enumerate2[T any](init func([]T), f func(len *uint32, data *T) error) ([]T, error) {
+	var len uint32
+	if err := f(&len, nil); err != nil {
+		return nil, err
+	}
+	data := make([]T, int(len))
+	if init != nil {
+		init(data)
+	}
+	if err := f(&len, unsafe.SliceData(data)); err != nil {
+		return nil, err
+	}
+	return data[:len], nil
 }

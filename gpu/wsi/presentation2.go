@@ -1,10 +1,11 @@
-package gpu
+package gpuwsi
 
 import (
 	"fmt"
 	"math"
 	"sync"
 
+	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
 )
 
@@ -13,7 +14,7 @@ var present2Mu sync.Mutex
 // TODO: experiment with presenting images directly. This will always require a
 // copy on current Vulkan, but will let us sketch out the API. Overall the API
 // should be kinda comparable to wl_surface_attach, i.e. quite minimal.
-func (swapchain *Swapchain) Present2(jq *JobQueue, image *Image) bool {
+func (swapchain *Swapchain) Present2(jq *gpu.JobQueue, image *gpu.Image) bool {
 	present2Mu.Lock()
 	defer present2Mu.Unlock()
 
@@ -40,11 +41,11 @@ func (swapchain *Swapchain) Present2(jq *JobQueue, image *Image) bool {
 	}
 
 	swapchain.images[index].EnqueueInit(jq)
-	EnqueueCopyImage(jq,
+	gpu.EnqueueCopyImage(jq,
 		swapchain.images[index], nil,
 		image, nil,
 		image.Extent())
-	swapchain.images[index].enqueueTransitionLayout(jq, vk.IMAGE_LAYOUT_GENERAL, vk.IMAGE_LAYOUT_PRESENT_SRC_KHR)
+	swapchain.images[index].EnqueueTransitionLayout(jq, vk.IMAGE_LAYOUT_GENERAL, vk.IMAGE_LAYOUT_PRESENT_SRC_KHR)
 
 	// TODO: properly sync this so all vkQueuePresents to this swapchain are in
 	// order

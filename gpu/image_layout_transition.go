@@ -10,18 +10,18 @@ import (
 
 // TODO: also include QFOT capabilities for transfering to/from EXTERNAL/FOREIGN
 type transitionImageLayoutJob struct {
-	imageData        *imageData
-	subresourceRange subresourceRange
-	oldLayout        vk.ImageLayout
-	newLayout        vk.ImageLayout
+	imageData   *imageData
+	imageBounds imageBounds
+	oldLayout   vk.ImageLayout
+	newLayout   vk.ImageLayout
 }
 
-func (img *Image) enqueueTransitionLayout(jq *JobQueue, oldLayout, newLayout vk.ImageLayout) {
+func (img *Image) EnqueueTransitionLayout(jq *JobQueue, oldLayout, newLayout vk.ImageLayout) {
 	jq.Enqueue(&transitionImageLayoutJob{
-		imageData:        img.data,
-		subresourceRange: img.subresourceRange,
-		oldLayout:        oldLayout,
-		newLayout:        newLayout,
+		imageData:   img.data,
+		imageBounds: img.bounds,
+		oldLayout:   oldLayout,
+		newLayout:   newLayout,
 	})
 }
 
@@ -67,7 +67,7 @@ func (job *transitionImageLayoutJob) Exec(q *CommandQueue) {
 			OldLayout:        job.oldLayout,
 			NewLayout:        job.newLayout,
 			Image:            job.imageData.vkImage,
-			SubresourceRange: job.subresourceRange.VkImageSubresourceRange(job.imageData.format),
+			SubresourceRange: job.imageBounds.VkImageSubresourceRange(job.imageData.format),
 		}
 		pinner.Pin(imageMemoryBarrier)
 

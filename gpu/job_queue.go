@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// TODO: rename to something more specific?
+// TODO: rename to something more specific? JobHeader maybe?
 type JobInfo struct {
 	// QueueFamilies is the set of queue families this job can be executed on
 	QueueFamilies uint32
@@ -20,6 +20,7 @@ type Job interface {
 	Exec(q *CommandQueue)
 }
 
+// TODO: rename to just "Queue"?
 type JobQueue struct {
 	currentBatch *jobBatch // do not access directly; use b() instead
 	idle         *WaitGroup
