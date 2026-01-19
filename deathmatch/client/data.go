@@ -57,8 +57,8 @@ func texture(filename string) *pathtracer.Texture {
 		t.Image = gpu.NewImage(
 			vk.Format(conf.Format),
 			conf.Extent[:conf.Dim],
-			gpu.WithLayers{End: conf.Layers},
-			gpu.WithMips{End: conf.Mips},
+			gpu.WithLayers2(conf.Layers),
+			gpu.WithMips2(conf.Mips),
 			gpu.WithUsage(vk.IMAGE_USAGE_SAMPLED_BIT))
 		if conf.Cube {
 			t.Image = t.Image.SubImage(gpu.ViewAs(gpu.ImageDimCube))

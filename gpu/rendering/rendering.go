@@ -1,5 +1,6 @@
 // TODO: rename? Good candidates I can think of are "draw" and "drawing" (this
 // one I like better)
+// TODO: prefix with gpu?
 package rendering
 
 import (

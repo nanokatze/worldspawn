@@ -1,4 +1,4 @@
-package gpuwsi
+package gpuwsi // TODO: give this package a nicer name
 
 import (
 	"fmt"
@@ -15,9 +15,6 @@ import (
 	"worldspawn/gpu/vk"
 	"worldspawn/internal/sdl"
 )
-
-// TODO: move this garbage to its own sdl_swapchain containment package. We
-// could perhaps also get rid of sdl_vulkan that way.
 
 type Swapchain struct {
 	vkSurface     vk.SurfaceKHR
