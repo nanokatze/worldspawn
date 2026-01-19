@@ -181,8 +181,8 @@ func gpuInit() {
 		WantDeviceFeature("TimelineSemaphore")
 		WantDeviceFeature("BufferDeviceAddress")
 		WantDeviceFeature("VulkanMemoryModel")
+		WantDeviceFeature("VulkanMemoryModelDeviceScope")
 		// Not sure we actually need these
-		// DeviceFeature("VulkanMemoryModelDeviceScope")
 		// DeviceFeature("VulkanMemoryModelAvailabilityVisibilityChains")
 
 		// TODO: we also might need demote and discard, subgroup size control,
