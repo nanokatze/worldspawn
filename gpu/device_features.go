@@ -7,7 +7,7 @@ import (
 )
 
 // TODO: autogenerate this
-type features struct {
+type deviceFeatures struct {
 	vk.PhysicalDeviceFeatures2
 	vk.PhysicalDeviceVulkan11Features
 	vk.PhysicalDeviceVulkan12Features
@@ -27,7 +27,7 @@ type features struct {
 	vk.PhysicalDeviceRayTracingPositionFetchFeaturesKHR
 }
 
-func (features *features) init(skipzero bool) {
+func (features *deviceFeatures) init(skipzero bool) {
 	rfeatures := reflect.ValueOf(features).Elem()
 
 	for i, j := 0, -1; i < rfeatures.Type().NumField(); i++ {
@@ -47,12 +47,12 @@ func (features *features) init(skipzero bool) {
 	}
 }
 
-func (features *features) Get(name string) bool {
+func (features *deviceFeatures) Get(name string) bool {
 	rv := reflect.ValueOf(features).Elem().FieldByName(name)
 	return rv.IsValid() && *rv.Addr().Interface().(*vk.Bool32) != vk.FALSE
 }
 
-func (features *features) Set(name string) {
+func (features *deviceFeatures) Set(name string) {
 	rv := reflect.ValueOf(features).Elem().FieldByName(name)
 	*rv.Addr().Interface().(*vk.Bool32) = vk.TRUE
 }

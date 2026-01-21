@@ -238,12 +238,12 @@ func gpuInit() {
 
 		// WantDeviceExtension("VK_EXT_external_memory_host")
 
-		var availableFeatures features
+		var availableFeatures deviceFeatures
 		availableFeatures.init(false)
 		pinner.Pin(&availableFeatures)
 		vkFns.GetPhysicalDeviceFeatures2(physicalDevice, &availableFeatures.PhysicalDeviceFeatures2)
 
-		var enabledFeatures features
+		var enabledFeatures deviceFeatures
 		// TODO: rewrite this to be less ugly
 		for _, feature := range slices.Sorted(maps.Keys(wantDeviceFeatures)) {
 			if !availableFeatures.Get(feature) {
