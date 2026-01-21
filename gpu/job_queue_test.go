@@ -10,7 +10,7 @@ type nopJob struct{}
 
 func (*nopJob) Info() JobInfo { return JobInfo{QueueFamilies: ^uint32(0)} }
 
-func (*nopJob) Exec(q *CommandQueue) {}
+func (*nopJob) Exec(q *DeviceQueue) {}
 
 func BenchmarkRoundTrip(b *testing.B) {
 	b.ReportAllocs()

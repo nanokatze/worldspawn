@@ -143,8 +143,8 @@ func NewImage(format vk.Format, extent []int, opts ...ImageOption) *Image {
 	imageCreateInfo.Samples = 1
 	imageCreateInfo.Usage = conf.Usages
 	imageCreateInfo.SharingMode = vk.SHARING_MODE_CONCURRENT
-	imageCreateInfo.QueueFamilyIndexCount = uint32(len(queueFamilies.probe))
-	imageCreateInfo.PQueueFamilyIndices = unsafe.SliceData(queueFamilies.probe)
+	imageCreateInfo.QueueFamilyIndexCount = uint32(len(topology.probe))
+	imageCreateInfo.PQueueFamilyIndices = unsafe.SliceData(topology.probe)
 
 	pinner.Pin(imageCreateInfo)
 	pinner.Pin(imageCreateInfo.PQueueFamilyIndices)

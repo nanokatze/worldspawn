@@ -17,7 +17,7 @@ type Job interface {
 
 	// TODO: rename this to something better. E.g. EmitCommands or
 	// RecordCommands or just Emit?
-	Exec(q *CommandQueue)
+	Exec(q *DeviceQueue)
 }
 
 // TODO: rename to just "Queue"?
@@ -133,7 +133,7 @@ func (*tailJob) Info() JobInfo {
 	}
 }
 
-func (*tailJob) Exec(*CommandQueue) { panic("unreachable") }
+func (*tailJob) Exec(*DeviceQueue) { panic("unreachable") }
 
 // Must be called with b locked.
 func (b *jobBatch) tail() *tailJob {
@@ -254,7 +254,7 @@ func schedInit() {
 
 		go func() {
 			scheduler := schedState{
-				queues: make(map[*CommandQueue]map[*schedBatch]struct{}),
+				queues: make(map[*DeviceQueue]map[*schedBatch]struct{}),
 			}
 			for {
 				<-scheduleNowCh
@@ -267,7 +267,7 @@ func schedInit() {
 // TODO: group jobs together so we can poke a single Exec for all of them
 
 type schedState struct {
-	queues map[*CommandQueue]map[*schedBatch]struct{}
+	queues map[*DeviceQueue]map[*schedBatch]struct{}
 }
 
 type schedBatch struct {
@@ -334,7 +334,7 @@ func (sched *schedState) schedule() bool {
 		// TODO: clean up migration-related code
 
 		type migration struct {
-			to, from *CommandQueue
+			to, from *DeviceQueue
 			batch    *schedBatch
 		}
 
@@ -432,8 +432,8 @@ func (sched *schedState) schedule() bool {
 	return true
 }
 
-func (sched *schedState) chooseQueueForBatch(b *schedBatch, current *CommandQueue) *CommandQueue {
-	families := queueFamilies.Mask(0)
+func (sched *schedState) chooseQueueForBatch(b *schedBatch, current *DeviceQueue) *DeviceQueue {
+	families := topology.QueueFamilies(0)
 
 	families &= b.jobs[b.next].Info().QueueFamilies
 
@@ -450,7 +450,7 @@ func (sched *schedState) chooseQueueForBatch(b *schedBatch, current *CommandQueu
 	}
 
 	// TODO: be smarter here
-	for _, family := range queueFamilies.probe {
+	for _, family := range topology.probe {
 		if families&(1<<family) != 0 {
 			return cqs[family][rand.IntN(len(cqs[family]))]
 		}

@@ -77,7 +77,7 @@ func WantDeviceFeature(feature string) {
 
 var instance vk.Instance
 var physicalDevice vk.PhysicalDevice
-var queueFamilies *queues
+var topology *deviceTopology
 var device vk.Device
 
 var DescriptorSetLayout vk.DescriptorSetLayout
@@ -93,12 +93,12 @@ var gpuInitOnce sync.Once
 
 // TODO: should be a method on _Device
 func QueueFamilies(flags vk.QueueFlags) queueFamilyMask {
-	return queueFamilies.Mask(flags)
+	return topology.QueueFamilies(flags)
 }
 
 // TODO: kill
 func BestQueueFamily(flags vk.QueueFlags) int {
-	return queueFamilies.MinimumCapable(flags)
+	return topology.MinimumCapable(flags)
 }
 
 // TODO: these should probably folded into Device() and Device() be renamed to Init()
@@ -256,10 +256,10 @@ func gpuInit() {
 		}
 		enabledFeatures.init(true)
 
-		queueFamilies = defaultQueues()
+		topology = defaultQueues()
 
 		queueCreateInfos := slices.Collect(func(yield func(vk.DeviceQueueCreateInfo) bool) {
-			for family, count := range queueFamilies.counts {
+			for family, count := range topology.counts {
 				if count == 0 {
 					continue
 				}
@@ -289,8 +289,8 @@ func gpuInit() {
 		vkFns.DeviceFuncs.Init(device)
 
 		for family := range ones32(QueueFamilies(0)) {
-			for i := range queueFamilies.counts[family] {
-				newSubmissionQueue(uint32(family), uint32(i))
+			for i := range topology.counts[family] {
+				newDeviceQueue(family, i)
 			}
 		}
 

@@ -286,7 +286,7 @@ func (job *job) Info() gpu.JobInfo {
 	}
 }
 
-func (job *job) Exec(q *gpu.CommandQueue) {
+func (job *job) Exec(q *gpu.DeviceQueue) {
 	q.CommandBuffer(job.cb)
 
 	q.Cleanup(func() {

@@ -9,21 +9,20 @@ import (
 
 const maxQueueFamilies = 32
 
-// TODO: rename
+// TODO: properly newtype this?
 type queueFamilyMask = uint32
 
-// TODO: rename to deviceTopology
-type queues struct {
-	props  [maxQueueFamilies]vk.QueueFamilyProperties2 // TODO: remove
+type deviceTopology struct {
+	props  [maxQueueFamilies]vk.QueueFamilyProperties2 // TODO: kill
 	flags  [maxQueueFamilies]vk.QueueFlags
 	counts [maxQueueFamilies]int
 	// TODO: I think probe can be different depending on use case (e.g. for
 	// copies crossing pcie we might want to try out the transfer-only queue
 	// first, while for other copies we would prefer compute I think.)
-	probe []uint32 // TODO: should be int
+	probe []uint32 // TODO: idk if this really belongs here
 }
 
-func defaultQueues() *queues {
+func defaultQueues() *deviceTopology {
 	var queueFamilyProps [maxQueueFamilies]vk.QueueFamilyProperties2
 	for i := range queueFamilyProps {
 		queueFamilyProps[i].SType = vk.STRUCTURE_TYPE_QUEUE_FAMILY_PROPERTIES_2
@@ -62,7 +61,7 @@ func defaultQueues() *queues {
 	}
 	slices.Reverse(families)
 
-	return &queues{
+	return &deviceTopology{
 		props:  queueFamilyProps,
 		flags:  flags,
 		counts: counts,
@@ -70,12 +69,11 @@ func defaultQueues() *queues {
 	}
 }
 
-// TODO: make these methods be methods on the _Device struct instead and give them better names
-
-func (families *queues) Mask(flags vk.QueueFlags) queueFamilyMask {
+// TODO: rename
+func (topology *deviceTopology) QueueFamilies(flags vk.QueueFlags) queueFamilyMask {
 	var mask queueFamilyMask
 	for i := range maxQueueFamilies {
-		if families.flags[i]&flags == flags && families.counts[i] > 0 {
+		if topology.flags[i]&flags == flags && topology.counts[i] > 0 {
 			mask |= 1 << i
 		}
 	}
@@ -83,6 +81,6 @@ func (families *queues) Mask(flags vk.QueueFlags) queueFamilyMask {
 }
 
 // TODO: kill this
-func (queueFamilies *queues) MinimumCapable(queueFlags vk.QueueFlags) int {
-	return 32 - bits.LeadingZeros32(queueFamilies.Mask(queueFlags)) - 1
+func (topology *deviceTopology) MinimumCapable(queueFlags vk.QueueFlags) int {
+	return 32 - bits.LeadingZeros32(topology.QueueFamilies(queueFlags)) - 1
 }

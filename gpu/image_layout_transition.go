@@ -47,9 +47,9 @@ func (job *transitionImageLayoutJob) Info() JobInfo {
 	// VUID-vkCmdPipelineBarrier2-commandBuffer-cmdpool
 	// The VkCommandPool that commandBuffer was allocated from must support
 	// transfer, graphics, compute, decode, or encode operations
-	families := queueFamilies.Mask(0b100)
+	families := topology.QueueFamilies(0b100)
 	if job.newLayout == vk.IMAGE_LAYOUT_PRESENT_SRC_KHR && transitionToPresentSrcOnTransferQueueIsBroken() {
-		families = queueFamilies.Mask(0b010)
+		families = topology.QueueFamilies(0b010)
 	}
 	return JobInfo{QueueFamilies: families}
 }
@@ -57,7 +57,7 @@ func (job *transitionImageLayoutJob) Info() JobInfo {
 // TODO: group these jobs so we can poke vkCmdPipelineBarrier2 less. On RADV
 // there's device overheads arising from our current usage pattern, on the
 // transfer-only queue.
-func (job *transitionImageLayoutJob) Exec(q *CommandQueue) {
+func (job *transitionImageLayoutJob) Exec(q *DeviceQueue) {
 	q.Commands(func(cb vk.CommandBuffer) {
 		var pinner runtime.Pinner
 		defer pinner.Unpin()

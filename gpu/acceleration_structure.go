@@ -199,11 +199,11 @@ func EnqueueAccelBuild(jq *JobQueue, dst UnsafePointer, dstSize int, config *Acc
 
 func (*accelBuildJob) Info() JobInfo {
 	return JobInfo{
-		QueueFamilies: queueFamilies.Mask(0b010),
+		QueueFamilies: topology.QueueFamilies(0b010),
 	}
 }
 
-func (job *accelBuildJob) Exec(q *CommandQueue) {
+func (job *accelBuildJob) Exec(q *DeviceQueue) {
 	dstAS := newVkAccelerationStructureAt(job.dst, job.dstSize)
 
 	q.Commands(func(cb vk.CommandBuffer) {

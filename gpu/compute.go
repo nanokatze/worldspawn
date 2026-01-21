@@ -85,11 +85,11 @@ func ParallelFor[T any](jq *JobQueue, groups []int, f ComputeClosure[T]) {
 
 func (*dispatchJob) Info() JobInfo {
 	return JobInfo{
-		QueueFamilies: queueFamilies.Mask(vk.QueueFlags(vk.QUEUE_COMPUTE_BIT)),
+		QueueFamilies: topology.QueueFamilies(vk.QueueFlags(vk.QUEUE_COMPUTE_BIT)),
 	}
 }
 
-func (job *dispatchJob) Exec(q *CommandQueue) {
+func (job *dispatchJob) Exec(q *DeviceQueue) {
 	q.Commands(func(cb vk.CommandBuffer) {
 		BindDescriptorSet(cb, vk.PIPELINE_BIND_POINT_COMPUTE)
 

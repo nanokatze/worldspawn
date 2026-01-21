@@ -235,7 +235,7 @@ func (job *presentJob) Info() gpu.JobInfo {
 	}
 }
 
-func (job *presentJob) Exec(q *gpu.CommandQueue) {
+func (job *presentJob) Exec(q *gpu.DeviceQueue) {
 	// log.Print("execing present job on queue family ", q.queueFamily)
 	q.QueueOperation(func(vkQueue vk.Queue) {
 		var pinner runtime.Pinner

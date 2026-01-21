@@ -79,7 +79,7 @@ func (job *copyImageJob) Info() JobInfo {
 	}
 }
 
-func (job *copyImageJob) Exec(q *CommandQueue) {
+func (job *copyImageJob) Exec(q *DeviceQueue) {
 	q.Commands(func(cb vk.CommandBuffer) {
 		var pinner runtime.Pinner
 		defer pinner.Unpin()
@@ -165,7 +165,7 @@ func (job *copyMemoryToImageJob) Info() JobInfo {
 	}
 }
 
-func (job *copyMemoryToImageJob) Exec(q *CommandQueue) {
+func (job *copyMemoryToImageJob) Exec(q *DeviceQueue) {
 	q.Commands(func(cb vk.CommandBuffer) {
 		var pinner runtime.Pinner
 		defer pinner.Unpin()
@@ -245,7 +245,7 @@ func (job *copyImageToMemoryJob) Info() JobInfo {
 	}
 }
 
-func (job *copyImageToMemoryJob) Exec(q *CommandQueue) {
+func (job *copyImageToMemoryJob) Exec(q *DeviceQueue) {
 	q.Commands(func(cb vk.CommandBuffer) {
 		var pinner runtime.Pinner
 		defer pinner.Unpin()
@@ -286,21 +286,21 @@ func chooseQueueFamiliesForImageCopy(
 	levelExtent := minify3(data.extent, bounds.FirstMip())
 	levelExtentBlocks := divByBlockExtentRoundUp(levelExtent, data.format)
 
-	families := queueFamilies.Mask(vk.QueueFlags(vk.QUEUE_TRANSFER_BIT))
+	families := topology.QueueFamilies(vk.QueueFlags(vk.QUEUE_TRANSFER_BIT))
 
 	// TODO: determine this differently
 	aspects := bounds.VkImageSubresourceRange(data.format).AspectMask
 	if aspects&vk.ImageAspectFlags(vk.IMAGE_ASPECT_DEPTH_BIT) != 0 {
-		families &= queueFamilies.Mask(vk.QueueFlags(vk.QUEUE_GRAPHICS_BIT))
+		families &= topology.QueueFamilies(vk.QueueFlags(vk.QUEUE_GRAPHICS_BIT))
 	}
 	if aspects&vk.ImageAspectFlags(vk.IMAGE_ASPECT_STENCIL_BIT) != 0 {
-		families &= queueFamilies.Mask(vk.QueueFlags(vk.QUEUE_GRAPHICS_BIT))
+		families &= topology.QueueFamilies(vk.QueueFlags(vk.QUEUE_GRAPHICS_BIT))
 	}
 
 	entire := offsetBlocks == [3]int{} && extentBlocks == levelExtentBlocks
 	if !entire {
-		for family := range ones32(families &^ queueFamilies.Mask(0b010)) {
-			granularity := int3FromVkExtent3D(queueFamilies.props[family].MinImageTransferGranularity)
+		for family := range ones32(families &^ topology.QueueFamilies(0b010)) {
+			granularity := int3FromVkExtent3D(topology.props[family].MinImageTransferGranularity)
 
 			if granularity == ([3]int{}) ||
 				mod3(offsetBlocks, granularity) != ([3]int{}) ||

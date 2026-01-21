@@ -9,11 +9,10 @@ import (
 	"worldspawn/gpu/vk"
 )
 
-// TODO: put this inside schedulerState?
-var cqs [32][]*CommandQueue
-var cqsflat []*CommandQueue
+var cqs [32][]*DeviceQueue
+var cqsflat []*DeviceQueue
 
-type CommandQueue struct {
+type DeviceQueue struct {
 	cb          vk.CommandBuffer
 	needBarrier bool
 
@@ -29,7 +28,7 @@ type CommandQueue struct {
 
 	id int
 
-	queueFamily uint32 // TODO: move this field around idk
+	queueFamily int // TODO: move this field around idk
 
 	// This is actually the background character here. We could've as well made
 	// it be passed on submit.
@@ -41,7 +40,7 @@ type semaphoreSignalCallback struct {
 	f     func()
 }
 
-func newSubmissionQueue(queueFamily, queueIndex uint32) *CommandQueue {
+func newDeviceQueue(queueFamily, queueIndex int) *DeviceQueue {
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
 
@@ -58,11 +57,11 @@ func newSubmissionQueue(queueFamily, queueIndex uint32) *CommandQueue {
 	var vkQueue vk.Queue
 	vkFns.GetDeviceQueue2(device, &vk.DeviceQueueInfo2{
 		SType:            vk.STRUCTURE_TYPE_DEVICE_QUEUE_INFO_2,
-		QueueFamilyIndex: queueFamily,
-		QueueIndex:       queueIndex,
+		QueueFamilyIndex: uint32(queueFamily),
+		QueueIndex:       uint32(queueIndex),
 	}, &vkQueue)
 
-	q := &CommandQueue{
+	q := &DeviceQueue{
 		callbacks:   make(chan semaphoreSignalCallback, 10),
 		vkSemaphore: vkSemaphore,
 		queueFamily: queueFamily,
@@ -85,8 +84,14 @@ func newSubmissionQueue(queueFamily, queueIndex uint32) *CommandQueue {
 	return q
 }
 
+/*
+func (q *DeviceQueue) Signal(id int, x syncscope) {
+
+}
+*/
+
 // TODO: rename
-func (q *CommandQueue) flushbarrier() {
+func (q *DeviceQueue) flushbarrier() {
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
 
@@ -106,7 +111,7 @@ func (q *CommandQueue) flushbarrier() {
 	}
 }
 
-func (q *CommandQueue) Commands(f func(cb vk.CommandBuffer)) {
+func (q *DeviceQueue) Commands(f func(cb vk.CommandBuffer)) {
 	if q.cb == vk.NULL_HANDLE {
 		q.ensurecb()
 	}
@@ -115,7 +120,7 @@ func (q *CommandQueue) Commands(f func(cb vk.CommandBuffer)) {
 }
 
 // TODO: rename
-func (q *CommandQueue) ensurecb() {
+func (q *DeviceQueue) ensurecb() {
 	queueFamily := q.queueFamily
 
 	// TODO: outline this
@@ -130,24 +135,24 @@ func (q *CommandQueue) ensurecb() {
 }
 
 // cb must be encoded for the queue family that q submits to
-func (q *CommandQueue) CommandBuffer(cb vk.CommandBuffer) {
+func (q *DeviceQueue) CommandBuffer(cb vk.CommandBuffer) {
 	q.flushcb()
 	q.cb = cb
 	q.needBarrier = true
 }
 
-func (q *CommandQueue) QueueOperation(f func(vkQueue vk.Queue)) {
+func (q *DeviceQueue) QueueOperation(f func(vkQueue vk.Queue)) {
 	q.submit()
 	f(q.vkQueue)
 }
 
-func (q *CommandQueue) flushcb() {
+func (q *DeviceQueue) flushcb() {
 	if q.cb != vk.NULL_HANDLE {
 		q.actuallyflushcb()
 	}
 }
 
-func (q *CommandQueue) actuallyflushcb() {
+func (q *DeviceQueue) actuallyflushcb() {
 	// TODO: outline this
 	// TODO: defer closing cmdbufs until right before submission? That would
 	// let us prepend barriers nicely
@@ -160,17 +165,17 @@ func (q *CommandQueue) actuallyflushcb() {
 	q.cb = vk.NULL_HANDLE
 }
 
-func (q *CommandQueue) Cleanup(f func()) {
+func (q *DeviceQueue) Cleanup(f func()) {
 	q.garbage = append(q.garbage, f)
 }
 
-func (q *CommandQueue) String() string {
+func (q *DeviceQueue) String() string {
 	// TODO: a nicer string
 	return fmt.Sprintf("command queue id=%d family=%d", q.id, q.queueFamily)
 }
 
 // TODO: rename
-func (q *CommandQueue) submit() {
+func (q *DeviceQueue) submit() {
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
 

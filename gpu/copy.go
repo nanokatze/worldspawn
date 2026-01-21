@@ -40,11 +40,11 @@ func EnqueueCopy[T any](jq *JobQueue, dst, src Slice[T]) {
 
 func (*copyJob) Info() JobInfo {
 	return JobInfo{
-		QueueFamilies: queueFamilies.Mask(0b100),
+		QueueFamilies: topology.QueueFamilies(0b100),
 	}
 }
 
-func (job *copyJob) Exec(q *CommandQueue) {
+func (job *copyJob) Exec(q *DeviceQueue) {
 	q.Commands(func(cb vk.CommandBuffer) {
 		var pinner runtime.Pinner
 		defer pinner.Unpin()

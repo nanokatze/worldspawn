@@ -288,11 +288,11 @@ func EnqueueTraceRays(
 
 func (*traceRaysJob) Info() JobInfo {
 	return JobInfo{
-		QueueFamilies: queueFamilies.Mask(0b010),
+		QueueFamilies: topology.QueueFamilies(0b010),
 	}
 }
 
-func (job *traceRaysJob) Exec(q *CommandQueue) {
+func (job *traceRaysJob) Exec(q *DeviceQueue) {
 	q.Commands(func(cb vk.CommandBuffer) {
 		var pinner runtime.Pinner
 		defer pinner.Unpin()
