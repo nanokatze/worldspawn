@@ -4,13 +4,19 @@ package main
 
 import (
 	"fmt"
+	"image"
+	"image/png"
 	"log"
+	"math/bits"
 	"net/http"
 	_ "net/http/pprof"
+	"os"
 	"sync"
+	"time"
 
 	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
+	gpuwsi "worldspawn/gpu/wsi"
 	"worldspawn/internal/postprocess"
 	"worldspawn/internal/sdl"
 )
@@ -23,6 +29,57 @@ import (
 		resizeCond sync.Cond
 	}
 */
+
+func readPNG(filename string) (*gpu.Image, error) {
+	f, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	hostImg, err := png.Decode(f)
+	if err != nil {
+		return nil, err
+	}
+
+	format := vk.Format(0)
+	var pix []byte
+	switch hostImg := hostImg.(type) {
+	case *image.NRGBA:
+		format = vk.FORMAT_R8G8B8A8_UNORM
+		pix = hostImg.Pix
+	default:
+		panic("unsupported color model...")
+	}
+
+	pix2 := gpu.MakeSliceUncached[byte](len(pix))
+	copy(pix2.Value(), pix)
+
+	gpuImg := gpu.NewImage(
+		format,
+		[]int{hostImg.Bounds().Dx(), hostImg.Bounds().Dy()},
+		gpu.WithUsage(vk.IMAGE_USAGE_STORAGE_BIT),
+		gpu.WithUsage(vk.IMAGE_USAGE_SAMPLED_BIT))
+
+	jq := new(gpu.JobQueue)
+	gpuImg.EnqueueInit(jq)
+	gpu.EnqueueCopyMemoryToImage(jq, gpuImg, nil, pix2, 0, 0, gpuImg.Extent())
+	gpu.WaitForIdle(jq)
+
+	return gpuImg, nil
+}
+
+func completeMipChain(extent []int) int {
+	largestSide := 1
+	for _, side := range extent {
+		largestSide = max(largestSide, side)
+	}
+	return log2(largestSide) + 1
+}
+
+func log2(x int) int {
+	return bits.LeadingZeros(0) - 1 - bits.LeadingZeros(uint(x))
+}
 
 func main() {
 	go func() {
@@ -41,18 +98,24 @@ func main() {
 	}
 
 	window.SetTitle("compositor")
-	window.SetSize(1280, 1080)
+	window.SetResizable(true)
+	window.SetSize(1200, 1200)
+
+	hehe, _ := readPNG("/home/nanokatze/pfp cropped smaller.png")
 
 	resized := make(chan struct{}, 1)
 	var redrawMu sync.Mutex
 
-	var swapchain *gpu.Swapchain
+	var swapchain *gpuwsi.Swapchain
 
 	// compositionPipeline := compositor.Pipeline{
 	// 	Program: []uint32{
 	// 		0,
 	// 	},
 	// }
+
+	t0 := time.Now()
+	_ = t0
 
 	redrawLocked := func() bool {
 		jq := new(gpu.JobQueue)
@@ -65,34 +128,10 @@ func main() {
 		swapchainImage := swapchain.Image(swapchainImageIndex)
 		swapchainImage.EnqueueInit(jq)
 
-		// compositionPipeline.Run(jq)
+		postprocess.Bloom(jq, swapchainImage, hehe)
 
-		/*
-			func() {
-				rp := rendering.Begin(&jq,
-					&rendering.Config{
-						ColorAttachments: []rendering.Attachment{
-							{
-								Image:   swapchainImage,
-								LoadOp:  vk.ATTACHMENT_LOAD_OP_CLEAR,
-								StoreOp: vk.ATTACHMENT_STORE_OP_STORE,
-								ClearValue: [4]uint32{
-									math.Float32bits(0.1),
-									math.Float32bits(0),
-									math.Float32bits(0),
-									math.Float32bits(1),
-								},
-							},
-						},
-						RenderArea: vk.Rect2D{Extent: vk.Extent2D{Width: uint32(swapchainImage.Extent()[0]), Height: uint32(swapchainImage.Extent()[1])}},
-						LayerCount: 1,
-					})
-				defer rp.End()
-			}()
-		*/
-
-		postprocess.Bloom(jq, swapchainImage, nil)
-
+		// TODO: it could be nice if we could present any random image (it's
+		// fine if that incurs a copy.)
 		swapchain.Present(jq, swapchainImageIndex)
 
 		return true
@@ -129,7 +168,7 @@ eventLoop:
 
 			currentExtent := [2]int{int(e.Data1), int(e.Data2)}
 
-			swapchain = gpu.NewSwapchain(&gpu.SwapchainConfig{
+			swapchain = gpuwsi.NewSwapchain(&gpuwsi.SwapchainConfig{
 				Window:     window,
 				ColorSpace: vk.COLOR_SPACE_SRGB_NONLINEAR_KHR,
 				Format:     vk.FORMAT_R8G8B8A8_UNORM,
