@@ -368,8 +368,14 @@ func (img *Image) EnqueueInit(jq *JobQueue) {
 	img.EnqueueTransitionLayout(jq, vk.IMAGE_LAYOUT_UNDEFINED, vk.IMAGE_LAYOUT_GENERAL)
 }
 
-func (img *Image) Descriptors() ImageDescriptors { return img.descriptors }
+func (img *Image) Descriptors() ImageDescriptors {
+	if img == nil {
+		return ImageDescriptors{}
+	}
+	return img.descriptors
+}
 
+// deprecated
 func (img *Image) SamplingDescriptor() SamplingView {
 	if img.descriptors.bits&(1<<20) == 0 {
 		panic("no descriptor")
@@ -377,6 +383,7 @@ func (img *Image) SamplingDescriptor() SamplingView {
 	return SamplingView{uint32(img.descriptors.bits&(1<<20-1)) + 0}
 }
 
+// deprecated
 func (img *Image) LoadStoreDescriptor() uint32 {
 	if img.descriptors.bits&(1<<21) == 0 {
 		panic("no descriptor")
