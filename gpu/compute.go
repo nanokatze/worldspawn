@@ -9,8 +9,7 @@ import (
 	"worldspawn/gpu/vk"
 )
 
-// TODO: rename to make it clear that it has unbound env. ComputeClosureFunc?
-// ComputeClosureBody?
+// TODO: rename it back to be less assuming about whether things are a closure or not etc?
 type ComputeClosureBody[T any] struct {
 	_  [0]T
 	vk vk.ShaderEXT
