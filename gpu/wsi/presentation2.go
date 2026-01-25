@@ -1,4 +1,4 @@
-package gpuwsi
+package wsi
 
 import (
 	"fmt"

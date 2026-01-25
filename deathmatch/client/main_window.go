@@ -13,7 +13,7 @@ import (
 	"worldspawn/geometry-go"
 	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
-	gpuwsi "worldspawn/gpu/wsi"
+	"worldspawn/gpu/wsi"
 	sfx "worldspawn/internal/fuckwwise"
 	"worldspawn/internal/pathtracer"
 	"worldspawn/internal/sdl"
@@ -34,7 +34,7 @@ type mainWindow struct {
 	resized        chan struct{}
 	redrawMu       sync.Mutex
 	redrawJQ       gpu.JobQueue
-	swapchain      *gpuwsi.Swapchain
+	swapchain      *wsi.Swapchain
 	swapchainImage *gpu.Image
 	renderer       *renderer // TODO: this could be an interface probably
 }
@@ -249,7 +249,7 @@ func (w *mainWindow) resize(size [2]int) {
 
 	slog.Info("resize", "size", size)
 
-	w.swapchain = gpuwsi.NewSwapchain(&gpuwsi.SwapchainConfig{
+	w.swapchain = wsi.NewSwapchain(&wsi.SwapchainConfig{
 		Window:     w.sdlWindow,
 		ColorSpace: vk.COLOR_SPACE_SRGB_NONLINEAR_KHR,
 		Format:     vk.FORMAT_R8G8B8A8_SRGB,

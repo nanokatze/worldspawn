@@ -1,4 +1,4 @@
-package gpuwsi // TODO: give this package a nicer name
+package wsi // TODO: give this package a nicer name
 
 import (
 	"fmt"

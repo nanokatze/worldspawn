@@ -16,7 +16,7 @@ import (
 
 	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
-	gpuwsi "worldspawn/gpu/wsi"
+	"worldspawn/gpu/wsi"
 	"worldspawn/internal/postprocess"
 	"worldspawn/internal/sdl"
 )
@@ -106,7 +106,7 @@ func main() {
 	resized := make(chan struct{}, 1)
 	var redrawMu sync.Mutex
 
-	var swapchain *gpuwsi.Swapchain
+	var swapchain *wsi.Swapchain
 
 	// compositionPipeline := compositor.Pipeline{
 	// 	Program: []uint32{
@@ -168,7 +168,7 @@ eventLoop:
 
 			currentExtent := [2]int{int(e.Data1), int(e.Data2)}
 
-			swapchain = gpuwsi.NewSwapchain(&gpuwsi.SwapchainConfig{
+			swapchain = wsi.NewSwapchain(&wsi.SwapchainConfig{
 				Window:     window,
 				ColorSpace: vk.COLOR_SPACE_SRGB_NONLINEAR_KHR,
 				Format:     vk.FORMAT_R8G8B8A8_UNORM,

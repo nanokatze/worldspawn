@@ -1,4 +1,4 @@
-package gpuwsi
+package wsi
 
 // TODO: rename this package to sdlwsi or wsi_sdl or whatever
 
