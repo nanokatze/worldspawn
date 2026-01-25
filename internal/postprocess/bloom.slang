@@ -3,8 +3,8 @@ import gpu;
 // TODO: properly rip this out of blender
 
 struct bloomDownsampleShaderEnv {
-    uint32_t outImage;
-    uint32_t inImage;
+    ImageDescriptors outImage;
+    ImageDescriptors inImage;
     // uint2 dstOffset;
     // uint2 srcOffset;
     uint2 extent;
@@ -38,8 +38,8 @@ void bloomDownsample(uniform bloomDownsampleShaderEnv env, uint3 threadIdx : SV_
         0.0555555f, 0.0555555f, 0.0555555f
     };
 
-    let dst = ImageDescriptors(env.outImage);
-    let src = ImageDescriptors(env.inImage);
+    let dst = env.outImage;
+    let src = env.inImage;
 
     let uv = (threadIdx.xy + 0.5) / env.extent;
 
@@ -55,8 +55,8 @@ void bloomDownsample(uniform bloomDownsampleShaderEnv env, uint3 threadIdx : SV_
 }
 
 struct bloomUpsampleShaderEnv {
-    uint32_t accumulatorImage;
-    uint32_t inImage;
+    ImageDescriptors accumulatorImage;
+    ImageDescriptors inImage;
     uint2 extent;
     uint32_t samplerDescriptor;
     float radius;
@@ -79,8 +79,8 @@ void bloomUpsample(uniform bloomUpsampleShaderEnv env, uint3 threadIdx : SV_Disp
         0.0625f, 0.125f, 0.0625f
     };
 
-    let acc = ImageDescriptors(env.accumulatorImage);
-    let src = ImageDescriptors(env.inImage);
+    let acc = env.accumulatorImage;
+    let src = env.inImage;
 
     let uv = (threadIdx.xy + 0.5) / env.extent;
 

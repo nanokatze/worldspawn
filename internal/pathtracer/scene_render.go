@@ -35,7 +35,7 @@ type _FrameData struct {
 	// TODO: would be nice to sneak it into a global thing somewhere somehow. It
 	// doesn't really belong here and we could just choose the layer in the
 	// shader after all tbh.
-	BlueNoise gpu.SamplingView
+	BlueNoise gpu.ImageDescriptors
 
 	// Outline these?
 	Proj geometry.Mat4x4
@@ -155,7 +155,7 @@ func (scene *Scene) Render(
 		*frameData.Value() = _FrameData{
 			Counter: fn,
 
-			BlueNoise: bnLayer.SamplingDescriptor(),
+			BlueNoise: bnLayer.Descriptors(),
 
 			Proj: proj,
 			View: view,
@@ -178,11 +178,14 @@ func (scene *Scene) Render(
 	args := struct {
 		Scene  gpu.Pointer[Scene]
 		Camera gpu.Pointer[_FrameData]
-		Out    uint32
+		Film   _Film
 	}{
 		Scene:  dscene,
 		Camera: frameData,
-		Out:    film.Color.LoadStoreDescriptor(),
+		Film: _Film{
+			Color:  film.Color.Descriptors(),
+			Normal: film.Normal.Descriptors(),
+		},
 	}
 	gpu.EnqueueTraceRays(jq, film.Extent[:], scene.pipeline, scene.sbt, &args)
 }

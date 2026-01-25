@@ -35,21 +35,6 @@ public struct AccelInstance {
     public uint8_t *accel; // TODO: replace with Accel when we make it match on host as well.
 };
 
-struct imageDescriptors {
-	uint32_t sampling;
-	uint32_t loadStore;
-};
-
-public struct ImageSampler {
-	uint32_t descriptor;
-
-	public static ImageSampler fromDescriptor(uint32_t descriptor) {
-		ImageSampler s;
-		s.descriptor = descriptor;
-		return s;
-	}
-}
-
 public struct ImageDescriptors {
 	public uint32_t bits;
 
@@ -59,9 +44,9 @@ public struct ImageDescriptors {
 		uint2 extent;
 		extent.x = 1000;
 		extent.y = 1000;
-		if (bits & (1 << 20)) {
+		if ((bits & (1 << 20)) != 0) {
 			sampledImages[NonUniformResourceIndex(index + 0)].asOpaqueDescriptor<Texture2D>().GetDimensions(extent.x, extent.y);
-		} else if (bits & (1 << 20)) {
+		} else if ((bits & (1 << 20)) != 0) {
 			storageImages[NonUniformResourceIndex(index + 1)].asOpaqueDescriptor<RWTexture2D>().GetDimensions(extent.x, extent.y);
 		} else {
 			/* assert(0) */
@@ -88,11 +73,15 @@ public struct ImageDescriptors {
 		return sampledImages[NonUniformResourceIndex(index + 0)].asOpaqueDescriptor<Texture2D>().SampleLevel(samplers[NonUniformResourceIndex(samplerDescriptor >> 20)].asOpaqueDescriptor<SamplerState>(), P, 0);
 	}
 
-	// Fetch2D or At2D?
-	/*
+	[require(spirv, nonuniformqualifier)]
+	public float4 SampleCubeLOD(uint32_t samplerDescriptor, float3 P, float level) {
+		uint32_t index = bits & ((1 << 20) - 1);
+		return sampledImages[NonUniformResourceIndex(index + 0)].asOpaqueDescriptor<TextureCube>().SampleLevel(samplers[NonUniformResourceIndex(samplerDescriptor >> 20)].asOpaqueDescriptor<SamplerState>(), P, level);
+	}
+
 	[require(spirv, nonuniformqualifier)]
 	public float4 Fetch2D(int2 P) {
-		return sampledImages[NonUniformResourceIndex(descriptors.sampling)].asOpaqueDescriptor<Texture2DArray>().Load(int4(P, 0, 0));
+		uint32_t index = bits & ((1 << 20) - 1);
+		return sampledImages[NonUniformResourceIndex(index + 0)].asOpaqueDescriptor<Texture2DArray>().Load(int4(P, 0, 0));
 	}
-	*/
 }

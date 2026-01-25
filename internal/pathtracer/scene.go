@@ -62,7 +62,7 @@ type lightAccel struct {
 	// TODO: drop SamplingViewWithSampler in favor passing an image descriptor
 	// and reconstructing it in the shader.
 	// TODO: rename
-	env gpu.SamplingViewWithSampler
+	env gpu.ImageDescriptors
 
 	emissiveInstances     gpu.Slice[emissiveInstance]
 	emissiveInstanceCount int
@@ -164,9 +164,9 @@ func NewScene(n int, maxPartsPerMesh int) *Scene {
 // TODO: make it async
 func (scene *Scene) SetSky(sky *gpu.Image) {
 	if sky != nil {
-		scene.lightAccel.env = sky.SamplingDescriptor().WithSampler(scene.sampler)
+		scene.lightAccel.env = sky.Descriptors()
 	} else {
-		scene.lightAccel.env = gpu.SamplingViewWithSampler{}
+		scene.lightAccel.env = gpu.ImageDescriptors{}
 	}
 }
 

@@ -11,7 +11,7 @@ public struct emissiveInstance {
 // TODO: stable light IDs so that we can use them in RIS/ReSTIR etc
 // TODO: rename to lightAccel
 public struct lightAccel {
-    public SamplingViewWithSampler env;
+    public ImageDescriptors env;
 
     public Slice<emissiveInstance> emissiveInstances;
     public uint64_t emissiveInstanceCount; // !
@@ -46,7 +46,7 @@ public struct Scene {
 
     public lightAccel lightAccel;
 
-    public Sampler sampler;
+    public uint32_t sampler;
 
     // there's more fields here, consult scene.go
 };

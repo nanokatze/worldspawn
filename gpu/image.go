@@ -375,22 +375,6 @@ func (img *Image) Descriptors() ImageDescriptors {
 	return img.descriptors
 }
 
-// deprecated
-func (img *Image) SamplingDescriptor() SamplingView {
-	if img.descriptors.bits&(1<<20) == 0 {
-		panic("no descriptor")
-	}
-	return SamplingView{uint32(img.descriptors.bits&(1<<20-1)) + 0}
-}
-
-// deprecated
-func (img *Image) LoadStoreDescriptor() uint32 {
-	if img.descriptors.bits&(1<<21) == 0 {
-		panic("no descriptor")
-	}
-	return uint32(img.descriptors.bits&(1<<20-1)) + 1
-}
-
 func (img *Image) VkImage() (vk.Image, vk.ImageSubresourceRange) {
 	return img.data.vkImage, img.bounds.VkImageSubresourceRange(img.format)
 }

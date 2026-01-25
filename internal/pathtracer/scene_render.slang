@@ -1,4 +1,5 @@
 import attribute;
+import film;
 import gpu;
 import internal.integration.lds;
 import internal.integration.mapping;
@@ -6,8 +7,8 @@ import internal.interpolation;
 import internal.material.bsdf;
 import internal.material.interpreter;
 import internal.spectrum;
-import light_mesh_triangle;
 import light;
+import light_mesh_triangle;
 import scene;
 import transfer_functions;
 
@@ -44,7 +45,7 @@ struct BlueNoiseSampler<T_lds : LDS> {
         // TODO: we could dither further down in-between samples. I guess we
         // could also use UINT to get the raw value and do format conversion
         // ourselves.
-        return fract(blueNoise.At2D(p).xy);
+        return fract(blueNoise.Fetch2D(p).xy);
     }
 }
 
@@ -57,7 +58,7 @@ struct Quality {
 struct FrameData {
     uint32_t counter;
 
-    SamplingView blueNoise;
+    ImageDescriptors blueNoise;
 
     matrix<float, 4, 4> proj;
     matrix<float, 4, 4> view;
@@ -71,13 +72,12 @@ struct FrameData {
     matrix<float, 4, 4> viewInverse;
 }
 
-// TODO: make things be methods on Push and rename Push to something else. Would
-// be nice to inline FrameData in here.
+// TODO: this should be "sceneRenderEnv" and passed by param rather than with a
+// push_constant block
 struct Push {
     Scene *scene;
     FrameData *camera;
-    // TODO: buffers for normal, AOVs, etc
-    StorageView out; // irradiance
+    Film film; // should this be placed before camera?
 }
 
 [[vk::push_constant]] Push push;
@@ -107,13 +107,6 @@ struct Path {
     float3 rayOrigin;
     float3 rayDir;
 };
-
-void exportIrradiance(Spectrum L) {
-    uint3 LaunchID = DispatchRaysIndex();
-
-    // TODO: pack if we're storing into e5rgb9
-    push.out.Store2D((int2)LaunchID.xy, float4(oetf(0, L), 1));
-}
 
 // TODO: compartmentalize stuff into methods on Path?
 
@@ -176,7 +169,7 @@ void raygen() {
             // TODO: same as with emissive surfaces/volumes, we need to consult
             // lightAccel and apply the pdf (when lightAccel has a
             // possibility of returning the sky light.)
-            path.L += path.beta * push.scene->lightAccel.env.SampleCubeLOD(float3(-V.y, V.z, V.x), 0).xyz;
+            path.L += path.beta * push.scene->lightAccel.env.SampleCubeLOD(push.scene->sampler, float3(-V.y, V.z, V.x), 0).xyz;
 
             break;
         } else {
@@ -185,7 +178,8 @@ void raygen() {
         }
     }
 
-    exportIrradiance(path.L);
+    // TODO: pack if we're storing into e5rgb9
+    push.film.color.Store2D((int2)DispatchRaysIndex().xy, float4(oetf(0, path.L), 1));
 }
 
 struct ShaderRecordData {
@@ -328,12 +322,10 @@ bool closesthit(
     // different IOR.) We'll want to think how to express that.
     if (path.depth == 0) {
         // TODO: export normal, depth, AOVs, etc, here
-        // TODO: the exported normal should be the normal averaged over all
-        // BSDFs
 
-        // uint3 LaunchID = int3(DispatchRaysDimensions().x, 0, 0) + DispatchRaysIndex();
-
-        // push.out.Store2D((int2)LaunchID.xy, float4(normal, 1));
+        // TODO: transform normal properly
+        // TODO: spell out that it's intended to be denoising normal
+        push.film.normal.Store2D((int2)DispatchRaysIndex().xy, float4(mul(float3x3(push.camera->view), normal), 1));
     }
 
     path.depth++;
