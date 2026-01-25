@@ -2,6 +2,8 @@ package game
 
 import "reflect"
 
+// TODO: this is actually "object logic"
+
 type Entity interface{ entity() }
 
 var EntityTypes = []reflect.Type{

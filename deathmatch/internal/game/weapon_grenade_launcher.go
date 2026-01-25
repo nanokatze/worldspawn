@@ -38,6 +38,7 @@ var grenadeLauncherStats = struct {
 
 type WeaponGrenadeLauncher struct {
 	// TODO: rename
+	// TODO: make this be a proper state machine
 	NextAttack Time
 }
 

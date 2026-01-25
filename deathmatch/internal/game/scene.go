@@ -56,6 +56,8 @@ type Columns struct {
 	// TODO: explore if we can make CreateEntity set this component
 	//CreationTime ecs.Column[Time]
 
+	Timer ecs.Column[Time]
+
 	// TODO: split into transform and deletion hierarchies?
 	Parent ecs.Column[ecs.ID]
 	// Do not access this column directly; use {Get,Set}{Local,Global}TRS
@@ -87,24 +89,20 @@ type Columns struct {
 	// TODO: generalize to all events, including damage etc?
 	ContactEvents ecs.Column[[]ContactEvent]
 
-	// Entities with Timer value must implement the Timer interface.
-	Timer ecs.Column[Time]
-
 	// TODO: kill this column and handle it at prefab instantination
 	CollectionInstance ecs.Column[CollectionInstance]
-
-	// TODO: rename, to e.g. Logic? Or Any?
-	Entity ecs.Column[Entity]
 
 	// TODO: move it out of the Columns struct, there's no reason to replicate this
 	Delete ecs.Column[struct{}]
 
+	Entity ecs.Column[Entity] // TODO: rename to Logic
+
 	// Renderer columns
+
+	VisibilityMask ecs.Column[VisibilityMask]
 
 	CosmeticOffset                ecs.Column[CosmeticOffset]
 	DeleteCosmeticOffsetOnContact ecs.Column[struct{}]
-
-	VisibilityMask ecs.Column[VisibilityMask]
 
 	RenderingGeometry ecs.Column[string]
 
@@ -258,11 +256,6 @@ func SceneGetEntity[T Entity](w *Scene, id ecs.ID) (T, bool) {
 	return entityT, true
 }
 
-// TODO: move these into a separate file
-
-// TODO: split stuff relevant for entity creation into its own type pointing to
-// this object (entity creation needs to be aware of Now and Speculating and be
-// able to log things also.)
 type UpdateParams struct {
 	// Now         Time // for substeps
 	Δt          time.Duration
@@ -276,8 +269,10 @@ type UpdateParams struct {
 func (w *Scene) Step(updateParams *UpdateParams) {
 	w.Now = w.Now.Add(updateParams.Δt)
 
+	w.processTimers(updateParams)
+
 	// TODO: optimize loops over entities implementing particular interface by
-	// having shadow component stores.
+	// having shadow columns.
 
 	for id, entity := range ecs.All(&w.Entity) {
 		if player, ok := entity.(Player); ok {
@@ -309,8 +304,6 @@ func (w *Scene) Step(updateParams *UpdateParams) {
 			}
 		}
 	}
-
-	w.processTimers(updateParams)
 
 	for id, a := range ecs.All(&w.SoundEffectState) {
 		soundEffect, _ := w.SoundEffect.Get(id)
