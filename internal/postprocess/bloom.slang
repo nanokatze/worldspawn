@@ -38,8 +38,8 @@ void bloomDownsample(uniform bloomDownsampleShaderEnv env, uint3 threadIdx : SV_
         0.0555555f, 0.0555555f, 0.0555555f
     };
 
-    let dst = Image::fromLoadStoreDescriptor(env.outImage);
-    let src = Image::fromSamplingDescriptor(env.inImage);
+    let dst = ImageDescriptors(env.outImage);
+    let src = ImageDescriptors(env.inImage);
 
     let uv = (threadIdx.xy + 0.5) / env.extent;
 
@@ -79,8 +79,8 @@ void bloomUpsample(uniform bloomUpsampleShaderEnv env, uint3 threadIdx : SV_Disp
         0.0625f, 0.125f, 0.0625f
     };
 
-    let acc = Image::fromLoadStoreDescriptor(env.accumulatorImage);
-    let src = Image::fromSamplingDescriptor(env.inImage);
+    let acc = ImageDescriptors(env.accumulatorImage);
+    let src = ImageDescriptors(env.inImage);
 
     let uv = (threadIdx.xy + 0.5) / env.extent;
 

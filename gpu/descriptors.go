@@ -7,7 +7,7 @@ import (
 	"worldspawn/gpu/vk"
 )
 
-var resourceDescAlloc = slotalloc.New(1e6) // TODO: allocate at runtime
+var resourceDescAlloc = slotalloc.New(5e5) // TODO: allocate at runtime; make it 1e6 again when we teach slotalloc how to allocate runs of bits at once
 var resourceDescAllocHint int64
 
 var samplerSlots = slotalloc.New(2e3) // TODO: allocate at runtime

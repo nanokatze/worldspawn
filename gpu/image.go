@@ -57,7 +57,7 @@ func (dim ImageDim) vkImageViewType() vk.ImageViewType {
 
 type Image struct {
 	data        *imageData
-	descriptors imageDescriptors
+	descriptors ImageDescriptors
 
 	dim    ImageDim
 	format vk.Format
@@ -209,6 +209,7 @@ func NewImage(format vk.Format, extent []int, opts ...ImageOption) *Image {
 		memory: memory,
 	})
 	img.ownsData = true
+	// TODO: runtime.AddCleanup
 	return img
 }
 
@@ -261,8 +262,8 @@ func newImage(data *imageData, config *subImageConfig) *Image {
 		bounds:      config.bounds(),
 		extent:      vkExtent3DFromInt3(extent),
 	}
-	if img.descriptors != (imageDescriptors{}) {
-		img.cleanup = runtime.AddCleanup(img, imageDescriptors.destroy, img.descriptors)
+	if img.descriptors != (ImageDescriptors{}) {
+		img.cleanup = runtime.AddCleanup(img, ImageDescriptors.destroy, img.descriptors)
 	}
 
 	return img
@@ -367,18 +368,20 @@ func (img *Image) EnqueueInit(jq *JobQueue) {
 	img.EnqueueTransitionLayout(jq, vk.IMAGE_LAYOUT_UNDEFINED, vk.IMAGE_LAYOUT_GENERAL)
 }
 
+func (img *Image) Descriptors() ImageDescriptors { return img.descriptors }
+
 func (img *Image) SamplingDescriptor() SamplingView {
-	if img.descriptors.sampling == 0 {
+	if img.descriptors.bits&(1<<20) == 0 {
 		panic("no descriptor")
 	}
-	return SamplingView{img.descriptors.sampling}
+	return SamplingView{uint32(img.descriptors.bits&(1<<20-1)) + 0}
 }
 
 func (img *Image) LoadStoreDescriptor() uint32 {
-	if img.descriptors.loadStore == 0 {
+	if img.descriptors.bits&(1<<21) == 0 {
 		panic("no descriptor")
 	}
-	return img.descriptors.loadStore
+	return uint32(img.descriptors.bits&(1<<20-1)) + 1
 }
 
 func (img *Image) VkImage() (vk.Image, vk.ImageSubresourceRange) {
@@ -387,6 +390,7 @@ func (img *Image) VkImage() (vk.Image, vk.ImageSubresourceRange) {
 
 // TODO: rename to "Free" or something like that and document that it's not
 // necessary for the user to call it.
+// TODO: make this robust to multiple destroy calls
 func (img *Image) Destroy() {
 	// Stop the cleanup first.
 	img.cleanup.Stop()

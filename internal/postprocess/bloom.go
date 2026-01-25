@@ -52,8 +52,8 @@ func Bloom(jq *gpu.JobQueue, dst, src *gpu.Image) {
 // care of aliasing to reduce storage costs.
 
 type bloomDownsampleShaderEnv struct {
-	OutImage          uint32
-	InImage           gpu.SamplingView
+	OutImage          gpu.ImageDescriptors
+	InImage           gpu.ImageDescriptors
 	Extent            [2]uint32
 	SamplerDescriptor gpu.ImageSampler
 }
@@ -87,8 +87,8 @@ func bloomDownsample(jq *gpu.JobQueue, out, in *gpu.Image, extent [2]int) {
 	gpu.ParallelFor(jq, dim[:],
 		bloomDownsampleShader().
 			WithEnv(bloomDownsampleShaderEnv{
-				OutImage: out.LoadStoreDescriptor(),
-				InImage:  in.SamplingDescriptor(),
+				OutImage: out.Descriptors(),
+				InImage:  in.Descriptors(),
 				Extent: [2]uint32{
 					uint32(extent[0]),
 					uint32(extent[1]),
@@ -99,8 +99,8 @@ func bloomDownsample(jq *gpu.JobQueue, out, in *gpu.Image, extent [2]int) {
 }
 
 type bloomUpsampleShaderEnv struct {
-	AccImage          uint32
-	InImage           gpu.SamplingView
+	AccImage          gpu.ImageDescriptors
+	InImage           gpu.ImageDescriptors
 	Extent            [2]uint32
 	SamplerDescriptor gpu.ImageSampler
 	Radius            float32
@@ -131,8 +131,8 @@ func bloomUpsample(jq *gpu.JobQueue, acc, in *gpu.Image, extent [2]int, radius f
 	gpu.ParallelFor(jq, dim[:],
 		bloomUpsampleShader().
 			WithEnv(bloomUpsampleShaderEnv{
-				AccImage: acc.LoadStoreDescriptor(),
-				InImage:  in.SamplingDescriptor(),
+				AccImage: acc.Descriptors(),
+				InImage:  in.Descriptors(),
 				Extent: [2]uint32{
 					uint32(extent[0]),
 					uint32(extent[1]),

@@ -17,6 +17,7 @@ func New(len int) SlotAlloc {
 }
 
 // TODO: can we somehow make hint per-g/per-m?
+// TODO: we need to be able to alloc a run of N bits
 func (a SlotAlloc) Alloc(hint *int64) int {
 	h := atomic.LoadInt64(hint)
 
