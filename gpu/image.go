@@ -402,7 +402,7 @@ func (img *Image) Destroy() {
 	// Stop the cleanup first.
 	img.cleanup.Stop()
 
-	img.descriptors.destroy()
+	destroyImageDescriptors(img.descriptors)
 
 	if img.ownsData {
 		img.data.destroy()
