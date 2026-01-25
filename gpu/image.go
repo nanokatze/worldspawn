@@ -196,19 +196,18 @@ func NewImage(format vk.Format, extent []int, opts ...ImageOption) *Image {
 		MemoryOffset: 0,
 	}))
 
-	img := newImageFromData(
-		&imageData{
-			vkImage: vkImage,
+	img := newImageFromData(&imageData{
+		vkImage: vkImage,
 
-			dim:    conf.Dim,
-			format: conf.Format,
-			extent: conf.Extent,
-			layers: conf.Layers,
-			mips:   conf.Mips,
-			usages: conf.Usages,
+		dim:    conf.Dim,
+		format: conf.Format,
+		extent: conf.Extent,
+		layers: conf.Layers,
+		mips:   conf.Mips,
+		usages: conf.Usages,
 
-			memory: memory,
-		})
+		memory: memory,
+	})
 	img.ownsData = true
 	return img
 }
@@ -216,23 +215,20 @@ func NewImage(format vk.Format, extent []int, opts ...ImageOption) *Image {
 func NewImageFromVkImage(vkImage vk.Image, format vk.Format, extent []int, opts ...ImageOption) *Image {
 	conf := JoinImageOptions(format, extent, opts...)
 
-	return newImageFromData(
-		&imageData{
-			vkImage: vkImage,
+	return newImageFromData(&imageData{
+		vkImage: vkImage,
 
-			dim:    conf.Dim,
-			format: conf.Format,
-			extent: conf.Extent,
-			layers: conf.Layers,
-			mips:   conf.Mips,
-			usages: conf.Usages,
-		})
+		dim:    conf.Dim,
+		format: conf.Format,
+		extent: conf.Extent,
+		layers: conf.Layers,
+		mips:   conf.Mips,
+		usages: conf.Usages,
+	})
 }
 
-// TODO: rename
 func newImageFromData(data *imageData) *Image {
-	return newImage(
-		data,
+	return newImage(data,
 		&subImageConfig{
 			Dim:    ImageDim(data.dim),
 			Format: data.format,
@@ -297,6 +293,7 @@ type WithFormat vk.Format
 
 func (format WithFormat) apply(config *subImageConfig) { config.Format = vk.Format(format) }
 
+// TODO: make a variant of this called WithSlices which would have to be used for 3D images?
 type WithLayers struct{ First, End int }
 
 func (layers WithLayers) apply(config *subImageConfig) {
