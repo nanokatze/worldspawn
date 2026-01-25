@@ -54,10 +54,14 @@ func newImageDescriptors(data *imageData, config *subImageConfig) ImageDescripto
 	return ImageDescriptors{uint32(index) | tag<<20}
 }
 
-func (descriptors ImageDescriptors) destroy() {
+func destroyImageDescriptors(descriptors ImageDescriptors) {
 	index := int(descriptors.bits & (1<<20 - 1))
 
-	vkFns.DestroyImageView(device, imageViews[index+0], nil)
-	vkFns.DestroyImageView(device, imageViews[index+1], nil)
+	if descriptors.bits&(1<<20) != 0 {
+		vkFns.DestroyImageView(device, imageViews[index+0], nil)
+	}
+	if descriptors.bits&(1<<21) != 0 {
+		vkFns.DestroyImageView(device, imageViews[index+1], nil)
+	}
 	resourceDescAlloc.Free(index / 2)
 }
