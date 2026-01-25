@@ -10,11 +10,6 @@ import (
 
 // TODO: generate these using a template?
 
-// TODO: right now we can end up in a situation when a row was deleted, but not
-// the data from components. In such case Get will (correctly) not return
-// anything, but iterators (including Joins) will. Should we handle such cases
-// by validating gens during iteration?
-
 // TODO: make Column an interface and make iterators work over that?
 
 // TODO: rename to Query, Query2, Query3, etc?
