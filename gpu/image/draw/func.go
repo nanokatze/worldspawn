@@ -1,4 +1,4 @@
-package rendering
+package draw
 
 import (
 	"runtime"

@@ -1,7 +1,4 @@
-// TODO: rename? Good candidates I can think of are "draw" and "drawing" (this
-// one I like better)
-// TODO: prefix with gpu?
-package rendering
+package draw
 
 import (
 	"runtime"
@@ -271,29 +268,6 @@ func (pass *Pass) End() {
 
 	// Zero out to help diagnose misuse
 	*pass = Pass{}
-}
-
-type job struct {
-	cb      vk.CommandBuffer
-	garbage []func()
-
-	queueFamily int
-}
-
-func (job *job) Info() gpu.JobInfo {
-	return gpu.JobInfo{
-		QueueFamilies: 1 << job.queueFamily,
-	}
-}
-
-func (job *job) Exec(q *gpu.DeviceQueue) {
-	q.CommandBuffer(job.cb)
-
-	q.Cleanup(func() {
-		for _, g := range job.garbage {
-			g()
-		}
-	})
 }
 
 func vkImageViewType(dim gpu.ImageDim) vk.ImageViewType {
