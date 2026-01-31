@@ -5,18 +5,13 @@ import "worldspawn/gpu"
 type Film struct {
 	Extent [2]int
 
-	// TODO: demodulate this for denoiser
-	Color *gpu.Image
-
-	// Albedo *gpu.Image
-	// Depth  *gpu.Image
-	Normal *gpu.Image
-	// Motion *gpu.Image
-
-	// AOVs []*gpu.Image
+	Color         *gpu.Image
+	DiffuseAlbedo *gpu.Image
+	Normal        *gpu.Image // TODO: fold in roughness here
 }
 
 type _Film struct {
-	Color  gpu.ImageDescriptors
-	Normal gpu.ImageDescriptors
+	Color         gpu.ImageDescriptors
+	DiffuseAlbedo gpu.ImageDescriptors
+	Normal        gpu.ImageDescriptors
 }

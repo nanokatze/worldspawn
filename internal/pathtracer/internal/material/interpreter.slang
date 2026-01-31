@@ -213,6 +213,7 @@ Frame readShadingFrameN(__ref RegisterReader rd) {
     return Frame::fromNormal(normal);
 }
 
+// TODO: split BSDFAdapter into two?
 BSDFAdapter<DiffuseBSDF> readDiffuseBSDF(__ref RegisterReader tints, __ref RegisterReader bsdfparams) {
     return {
         readSpectrum(tints),
@@ -276,6 +277,23 @@ public struct EvaluatedInterpretedMaterial : BSDF {
         // TODO: should we also include EDFs here?
 
         return (BSDFFlags)flags;
+    }
+
+    // TODO: albedo estimation probably needs to be more complex for microfacets
+    public Spectrum Albedo() {
+        var albedo = Spectrum(0);
+
+        RegisterReader tints = {regs, abi.outputsReg + abi.bsdfsOff};
+        for (uint32_t i = 0; i < abi.bsdfCount; i++) {
+            switch ((BSDFNum)abi.bsdfs[i]) {
+            case BSDFNum::Diffuse: {
+                albedo += readSpectrum(tints);
+                break;
+            }
+            }
+        }
+
+        return albedo;
     }
 
     public BSDFEval Eval(float3 wo, float3 wi) {

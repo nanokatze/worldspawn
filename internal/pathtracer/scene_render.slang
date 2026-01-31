@@ -178,7 +178,6 @@ void raygen() {
         }
     }
 
-    // TODO: pack if we're storing into e5rgb9
     push.film.color.Store2D((int2)DispatchRaysIndex().xy, float4(oetf(0, path.L), 1));
 }
 
@@ -307,6 +306,19 @@ bool closesthit(
         triIdxs,
         barys_yz);
 
+    // TODO: when we get around to using separate shaders, specialize them for
+    // primary and non-primary bounces?
+    // TODO: implement "primary surface replacement"
+    if (path.depth == 0) {
+        // TODO: proper diffuse and specular albedos
+        push.film.diffuseAlbedo.Store2D((int2)DispatchRaysIndex().xy, float4(material.Albedo(), 1));
+        // TODO: transform normal properly
+        // TODO: spell out that it's intended to be denoising normal?
+        push.film.normal.Store2D((int2)DispatchRaysIndex().xy, float4(mul(float3x3(push.camera->view), normal), 1));
+
+        // TODO: write out the rest of the film
+    }
+
     let wo = -WorldRayDirection;
 
     let emission = material.EDFEval(wo);
@@ -314,18 +326,6 @@ bool closesthit(
         // TODO: this is wrong, we need to apply MIS weight, which we'll need to
         // consult lightAccel for, to figure out the pdf.
         path.L += path.beta * emission;
-    }
-
-    // TODO: we might want to sometimes write out the properties for a surface
-    // that we intersect at a later bounce (e.g. reflection off a perfect
-    // mirror, or transmission through a perfectly transmissive medium with
-    // different IOR.) We'll want to think how to express that.
-    if (path.depth == 0) {
-        // TODO: export normal, depth, AOVs, etc, here
-
-        // TODO: transform normal properly
-        // TODO: spell out that it's intended to be denoising normal
-        push.film.normal.Store2D((int2)DispatchRaysIndex().xy, float4(mul(float3x3(push.camera->view), normal), 1));
     }
 
     path.depth++;

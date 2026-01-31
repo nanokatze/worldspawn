@@ -183,8 +183,9 @@ func (scene *Scene) Render(
 		Scene:  dscene,
 		Camera: frameData,
 		Film: _Film{
-			Color:  film.Color.Descriptors(),
-			Normal: film.Normal.Descriptors(),
+			Color:         film.Color.Descriptors(),
+			DiffuseAlbedo: film.DiffuseAlbedo.Descriptors(),
+			Normal:        film.Normal.Descriptors(),
 		},
 	}
 	gpu.EnqueueTraceRays(jq, film.Extent[:], scene.pipeline, scene.sbt, &args)
