@@ -13,17 +13,6 @@ import (
 	"worldspawn/gpu/vk"
 )
 
-// +Y forward +X right +Z up to -Z forward +X right -Y up
-//
-// TODO: move somewhere further up
-// TODO: improve naming?
-var toClipSpace = geometry.Mat4x4{
-	{1, 0, 0, 0},
-	{0, 0, -1, 0},
-	{0, -1, 0, 0},
-	{0, 0, 0, 1},
-}
-
 type Quality struct {
 	_ structs.HostLayout
 
@@ -157,8 +146,7 @@ func (scene *Scene) Render(
 		proj := geometry.Mat4x4InfinitePerspective(
 			float32(camera.FieldOfView),
 			float32(film.Extent[0])/float32(film.Extent[1]), // TODO: add a field to Camera instead?
-			float32(camera.NearClipPlane)).
-			Mul4x4(toClipSpace)
+			float32(camera.NearClipPlane))
 
 		// TODO: jitter the camera slightly using an LDS of some sort.
 		// TODO: DLSS strongly recommends using halton as it's trained on it or
