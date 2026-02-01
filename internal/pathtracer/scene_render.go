@@ -47,10 +47,9 @@ type frameParams struct {
 	BlueNoise gpu.ImageDescriptors
 
 	Camera cameraInternal
+	Film   _Film
 
 	Quality Quality
-
-	Film _Film
 }
 
 var blueNoise = sync.OnceValue(func() *gpu.Image {
@@ -126,9 +125,9 @@ func mustReadFile(filename string) []byte {
 // TODO: change fn to be an int?
 func (scene *Scene) Render(
 	jq *gpu.JobQueue,
-	film Film,
 	frameNumber uint32,
 	camera *Camera,
+	film Film,
 	quality *Quality) {
 	bn := blueNoise()
 
@@ -173,9 +172,6 @@ func (scene *Scene) Render(
 				ProjInverse: proj.Inverse(),
 				ViewInverse: viewInverse,
 			},
-
-			Quality: *quality,
-
 			Film: _Film{
 				Color:              film.Color.Descriptors(),
 				DiffuseAlbedo:      film.DiffuseAlbedo.Descriptors(),
@@ -183,6 +179,8 @@ func (scene *Scene) Render(
 				Depth:              film.Depth.Descriptors(),
 				Motion:             film.Motion.Descriptors(),
 			},
+
+			Quality: *quality,
 		}
 	}
 

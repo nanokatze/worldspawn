@@ -72,10 +72,9 @@ struct frameParams {
     ImageDescriptors blueNoise;
 
     cameraInternal camera;
+    Film film;
 
     Quality quality;
-
-    Film film;
 }
 
 [[vk::push_constant]] frameParams *push;

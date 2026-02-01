@@ -352,12 +352,12 @@ func (re *renderer) Render(jq *gpu.JobQueue, sdlNow uint64, dst *gpu.Image) {
 
 	re.scene.Render(
 		jq,
+		re.fn,
+		&camera,
 		pathtracer.Film{
 			Extent: [2]int(dst.Extent()),
 			Color:  dst,
 		},
-		re.fn,
-		&camera,
 		&pathtracer.Quality{
 			MaxBounces:               conf.Quality.MaxBounces,
 			RussianRouletteThreshold: conf.Quality.RussianRouletteThreshold,
