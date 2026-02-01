@@ -2,12 +2,12 @@ import gpu;
 
 public struct Film {
     public ImageDescriptors color;
+
     public ImageDescriptors diffuseAlbedo;
     // public ImageDescriptors specularAlbedo;
-    public ImageDescriptors normal;
-    // public ImageDescriptors roughness;
-    // public ImageDescriptors depth;
-    // public ImageDescriptors motion;
+    public ImageDescriptors normalAndRoughness;
+    public ImageDescriptors depth;
+    public ImageDescriptors motion;
     // public ImageDescriptors specularMotion;
 
     // TODO: AOVs. We can just have these follow the fixed members in the Film I

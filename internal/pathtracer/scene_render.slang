@@ -37,7 +37,7 @@ struct BlueNoiseSampler<T_lds : LDS> {
 
         // TODO: make this a member on the BlueNoiseSampler or an interface or
         // idk.
-        let blueNoise = push.camera->blueNoise;
+        let blueNoise = push.blueNoise;
         let extent = blueNoise.Extent2D();
 
         let p = (pixel + int2(point * float2(extent))) & (extent - 1);
@@ -55,32 +55,30 @@ struct Quality {
     int russianRouletteThreshold;
 };
 
-struct FrameData {
-    uint32_t counter;
-
-    ImageDescriptors blueNoise;
-
+struct cameraInternal {
     matrix<float, 4, 4> proj;
     matrix<float, 4, 4> view;
 
-    Quality quality;
-
-    // Some precomputed operations involving the above
-
-    matrix<float, 4, 4> viewProj; // precomputed extras should always go at the end
-    matrix<float, 4, 4> projInverse; // TODO: move into precomputed things
+    matrix<float, 4, 4> viewProj;
+    matrix<float, 4, 4> projInverse;
     matrix<float, 4, 4> viewInverse;
 }
 
-// TODO: this should be "sceneRenderEnv" and passed by param rather than with a
-// push_constant block
-struct Push {
+struct frameParams {
     Scene *scene;
-    FrameData *camera;
-    Film film; // should this be placed before camera?
+
+    uint32_t number;
+
+    ImageDescriptors blueNoise;
+
+    cameraInternal camera;
+
+    Quality quality;
+
+    Film film;
 }
 
-[[vk::push_constant]] Push push;
+[[vk::push_constant]] frameParams *push;
 
 RaytracingAccelerationStructure rtas(uint64_t bda) {
     return spirv_asm { result:$$RaytracingAccelerationStructure = OpConvertUToAccelerationStructureKHR $bda };
@@ -120,7 +118,7 @@ void raygen() {
     // float2 pixelCenter = float2(LaunchID.xy) + float2(getLDSValue(0, 0), getLDSValue(0, 1));
     float2 inUV = pixelCenter / float2(LaunchSize.xy);
     float2 d = inUV * 2.0 - 1.0;
-    float4 target = mul(push.camera->projInverse, float4(d.x, d.y, 1, 1));
+    float4 target = mul(push.camera.projInverse, float4(d.x, d.y, 1, 1));
 
     Path path = {};
     path.L = Spectrum(0.0);
@@ -128,9 +126,9 @@ void raygen() {
     path.depth = 0;
     path.vampire = true;
     // path.specularBounce = false;
-    path.rayOrigin = mul(push.camera->viewInverse, float4(0, 0, 0, 1)).xyz;
+    path.rayOrigin = mul(push.camera.viewInverse, float4(0, 0, 0, 1)).xyz;
     // TODO: do we actually need normalize here?
-    path.rayDir = normalize(mul(push.camera->viewInverse, float4(normalize(target.xyz), 0)).xyz);
+    path.rayDir = normalize(mul(push.camera.viewInverse, float4(normalize(target.xyz), 0)).xyz);
 
     for (;;) {
         RayQuery<RAY_FLAG_FORCE_OPAQUE> rq;
@@ -270,13 +268,12 @@ bool closesthit(
     // couldn't have hit a vampire instance, so we don't need to check the
     // visibility mask.
     // TODO: rename to something like "vampireInstance" or whatever
-    bool vampire = ((push->scene->accelInstances[instanceIndex].instanceIDAndMask >> 24) & 0b11) == 0b01;
+    bool vampire = ((push.scene->accelInstances[instanceIndex].instanceIDAndMask >> 24) & 0b11) == 0b01;
 
     BlueNoiseSampler<R2LDS> sampler = {
         R2LDS(),
         dispatchRaysIndex.xy,
-        // TODO: factor in push.camera->quality.maxBounces
-        push.camera->counter * 69 * SamplesPerBounce + path.depth * SamplesPerBounce,
+        push.number * 69 * SamplesPerBounce + path.depth * SamplesPerBounce,
     };
 
     let materialParams = &push.scene->materialParams.data[instanceIndex * push.scene->maxPartsPerMesh + geometryIndex];
@@ -314,9 +311,15 @@ bool closesthit(
         push.film.diffuseAlbedo.Store2D((int2)DispatchRaysIndex().xy, float4(material.Albedo(), 1));
         // TODO: transform normal properly
         // TODO: spell out that it's intended to be denoising normal?
-        push.film.normal.Store2D((int2)DispatchRaysIndex().xy, float4(mul(float3x3(push.camera->view), normal), 1));
+        // TODO: drop one of the components? We can also do octahexdral encoding
+        // but it's not clear whether we really need it (in full generality)
+        // given that one of the components should always be positive.
+        // TODO: roughness
+        push.film.normalAndRoughness.Store2D((int2)DispatchRaysIndex().xy, float4(mul(float3x3(push.camera.view), normal), 1));
 
-        // TODO: write out the rest of the film
+        let hitposClip = mul(push.camera.viewProj, float4(hitpos, 1));
+        let depth = hitposClip.z / hitposClip.w;
+        push.film.depth.Store2D((int2)DispatchRaysIndex().xy, float4(depth, 0, 0, 1));
     }
 
     let wo = -WorldRayDirection;
@@ -330,7 +333,7 @@ bool closesthit(
 
     path.depth++;
 
-    if (path.depth >= push.camera->quality.maxBounces)
+    if (path.depth >= push.quality.maxBounces)
         return false;
 
     // Direct light sampling
@@ -373,7 +376,7 @@ bool closesthit(
     //
     // TODO: I guess we could also use an ordinary RNG here. Should we?
     float rr = sampler.Get1D();
-    if (path.depth >= push.camera->quality.russianRouletteThreshold) {
+    if (path.depth >= push.quality.russianRouletteThreshold) {
         // TODO: introduce Spectrum.MaxComponentValue()
         float p = saturate(max(max(path.beta.x, path.beta.y), path.beta.z));
         if (!(rr < p))

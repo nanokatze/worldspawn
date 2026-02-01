@@ -12,6 +12,8 @@ import (
 // TODO: DVec3 baseOffset
 
 // TODO: this needs to be more abstract
+// TODO: provide NewCamera with func args? Or some other kind of camera builder
+// thing.
 type Camera struct {
 	_ structs.HostLayout
 

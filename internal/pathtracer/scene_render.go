@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/png"
 	"os"
+	"structs"
 	"sync"
 
 	"worldspawn/geometry-go"
@@ -24,30 +25,43 @@ var toClipSpace = geometry.Mat4x4{
 }
 
 type Quality struct {
+	_ structs.HostLayout
+
 	MaxBounces int32
 
 	RussianRouletteThreshold int32
 }
 
-type _FrameData struct {
-	Counter uint32 // TODO: rename and give it a better name
+// TODO: rename to just Camera with all fields private and provide constructors
+type cameraInternal struct {
+	_ structs.HostLayout
 
-	// TODO: would be nice to sneak it into a global thing somewhere somehow. It
-	// doesn't really belong here and we could just choose the layer in the
-	// shader after all tbh.
-	BlueNoise gpu.ImageDescriptors
-
-	// Outline these?
 	Proj geometry.Mat4x4
 	View geometry.Mat4x4
-
-	Quality Quality
-
-	// Precomputed
 
 	ViewProj    geometry.Mat4x4 // TODO: remove?
 	ProjInverse geometry.Mat4x4
 	ViewInverse geometry.Mat4x4
+}
+
+// TODO: carve out some things that we should push directly and keep others behind a pointer?
+// TODO: reorder the fields in here
+type frameParams struct {
+	_ structs.HostLayout
+
+	Scene gpu.Pointer[Scene]
+
+	Number uint32
+
+	// TODO: as a temporary solution we could have a globals struct that we'd
+	// pass through params, and BlueNoise among other things would live there.
+	BlueNoise gpu.ImageDescriptors
+
+	Camera cameraInternal
+
+	Quality Quality
+
+	Film _Film
 }
 
 var blueNoise = sync.OnceValue(func() *gpu.Image {
@@ -124,16 +138,20 @@ func mustReadFile(filename string) []byte {
 func (scene *Scene) Render(
 	jq *gpu.JobQueue,
 	film Film,
-	fn uint32,
+	frameNumber uint32,
 	camera *Camera,
 	quality *Quality) {
 	bn := blueNoise()
 
-	bnLayer := bn.SubImage(gpu.WithLayers{int(fn) % bn.Layers(), int(fn)%bn.Layers() + 1})
+	bnLayer := bn.SubImage(gpu.WithLayers{int(frameNumber) % bn.Layers(), int(frameNumber)%bn.Layers() + 1})
 	defer jq.Cleanup(bnLayer.Destroy)
 
-	frameData := gpu.NewUncached[_FrameData]()
-	defer jq.Cleanup(func() { gpu.Free(gpu.UnsafePointer(frameData)) })
+	dscene := gpu.NewUncached[Scene]()
+	*dscene.Value() = *scene
+	defer jq.Cleanup(func() { gpu.Free(gpu.UnsafePointer(dscene)) })
+
+	frame := gpu.NewUncached[frameParams]()
+	defer jq.Cleanup(func() { gpu.Free(gpu.UnsafePointer(frame)) })
 
 	{
 		proj := geometry.Mat4x4InfinitePerspective(
@@ -152,43 +170,35 @@ func (scene *Scene) Render(
 		viewInverse := camera.Transform
 		view := viewInverse.Inverse()
 
-		*frameData.Value() = _FrameData{
-			Counter: fn,
+		*frame.Value() = frameParams{
+			Scene: dscene,
+
+			Number: frameNumber,
 
 			BlueNoise: bnLayer.Descriptors(),
 
-			Proj: proj,
-			View: view,
+			Camera: cameraInternal{
+				Proj: proj,
+				View: view,
+
+				ViewProj:    proj.Mul4x4(view),
+				ProjInverse: proj.Inverse(),
+				ViewInverse: viewInverse,
+			},
 
 			Quality: *quality,
-			// MaxBounces: 2,
 
-			// RussianRouletteThreshold: 1,
-
-			ViewProj:    proj.Mul4x4(view),
-			ProjInverse: proj.Inverse(),
-			ViewInverse: viewInverse,
+			Film: _Film{
+				Color:              film.Color.Descriptors(),
+				DiffuseAlbedo:      film.DiffuseAlbedo.Descriptors(),
+				NormalAndRoughness: film.NormalAndRoughness.Descriptors(),
+				Depth:              film.Depth.Descriptors(),
+				Motion:             film.Motion.Descriptors(),
+			},
 		}
 	}
 
-	dscene := gpu.NewUncached[Scene]()
-	*dscene.Value() = *scene
-	defer jq.Cleanup(func() { gpu.Free(gpu.UnsafePointer(dscene)) })
-
-	args := struct {
-		Scene  gpu.Pointer[Scene]
-		Camera gpu.Pointer[_FrameData]
-		Film   _Film
-	}{
-		Scene:  dscene,
-		Camera: frameData,
-		Film: _Film{
-			Color:         film.Color.Descriptors(),
-			DiffuseAlbedo: film.DiffuseAlbedo.Descriptors(),
-			Normal:        film.Normal.Descriptors(),
-		},
-	}
-	gpu.EnqueueTraceRays(jq, film.Extent[:], scene.pipeline, scene.sbt, &args)
+	gpu.EnqueueTraceRays(jq, film.Extent[:], scene.pipeline, scene.sbt, &frame)
 }
 
 // TODO: move into gpu/vk or at least just gpu?
