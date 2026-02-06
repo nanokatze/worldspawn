@@ -156,7 +156,7 @@ void raygen() {
         } else if (rq.CommittedStatus() == COMMITTED_NOTHING) {
             // TODO: this is miss code, it should live in its own func
 
-            float3 V = mul(float3x3(push.camera.view, rq.WorldRayDirection()));
+            float3 V = mul(float3x3(push.camera.view), rq.WorldRayDirection());
 
             // TODO: use SampleCubeGrad. We can use aniso sampling for cube textures.
             // Actually, aniso sampling is broken across many impls. We might wanna look
