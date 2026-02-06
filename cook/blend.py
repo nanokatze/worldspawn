@@ -1,6 +1,15 @@
 import bpy
 import click
 
+
+import blender_schema
+
+# TODO: move these into their own file
+
+
+blender_schema.register_classes()
+
+
 # TODO: move (along with blender_cookers) into a subdirectory dedicated to
 # cooking .blend. We might add other cookers in the future (e.g. when
 # migrating.) Note that the build.ninja generator should remain as a single
@@ -108,24 +117,20 @@ def main(m, o, blend, datablock_type, datablock_name):
                 # TODO: should be handled inside deps itself
                 if datablock.library:
                     continue
-                settings = datablock.get('worldspawn', {})
-                if not settings.get('export'):
+                if not datablock.worldspawn.export:
                     continue
                 collection_cooker.deps(ctx, datablock.evaluated_get(depsgraph), dset)
             from blender_cookers import material as material_cooker
             for datablock in bpy_context.blend_data.materials:
-                settings = datablock.get('worldspawn', {})
-                if settings.get('export'):
+                if datablock.worldspawn.export:
                     material_cooker.deps(ctx, datablock.evaluated_get(depsgraph), dset)
             from blender_cookers import mesh as mesh_cooker
             for datablock in bpy_context.blend_data.objects:
-                settings = datablock.get('worldspawn', {})
-                if settings.get('export'):
+                if datablock.worldspawn.export:
                     mesh_cooker.deps(ctx, datablock.evaluated_get(depsgraph), dset)
             from blender_cookers import scene as scene_cooker
             for datablock in bpy_context.blend_data.scenes:
-                settings = datablock.get('worldspawn', {})
-                if not settings.get('export'):
+                if not datablock.worldspawn.export:
                     continue
                 scene_cooker.deps(ctx, datablock.evaluated_get(depsgraph), dset)
 

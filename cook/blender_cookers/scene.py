@@ -56,9 +56,7 @@ def __handle_collection(context, cooked_scene, collection, xform):
 
 
 def cook(context, scene):
-    # TODO: consume a schema file for components
-
-    cooked_scene = dict(scene.get('worldspawn', {}).get('components', {}))
+    cooked_scene = json.loads(scene.worldspawn.values or '{}')
 
     # TODO: output path to the sky material, or emit the sky material as-is
     cooked_scene['Sky'] = 'skies/industrial_sunset_puresky.ktx2'

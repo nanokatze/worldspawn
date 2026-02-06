@@ -60,39 +60,40 @@ def cook_objects_into(context, xform, collection, cooked_scene):
         if not __should_cook_object(obj):
             continue
 
-        comps = dict(obj.get('worldspawn', {}).get('components', {}))
+        values = json.loads(obj.worldspawn.values or '{}')
 
-        # TODO: should we always overwrite the components?
-        # We might want to warn or error if these comps are already set. Or
+        # TODO: should we always overwrite the values?
+        # We might want to warn or error if these values are already set. Or
         # don't overwrite if these are already set. Erroring out seems to be the
         # more useful option of the two.
+        # TODO: provide checkboxes in the gui or warnings at least?
 
-        comps['Name'] = obj.name
+        values['Name'] = obj.name
 
         # TODO: use matrix_local
         T, R, S = (xform @ obj.matrix_world).decompose()
-        comps['TranslationRotation'] = {
+        values['TranslationRotation'] = {
             'Translation': T,
             'Rotation': R,
         }
-        comps['Scale'] = S
+        values['Scale'] = S
 
         if __should_cook_object_data(obj):
             geometry = context.path_for_datablock(obj)
 
             # TODO: do we need to do anything about this?
-            if 'RenderingGeometry' not in comps:
-                comps['RenderingGeometry'] = geometry
+            if 'RenderingGeometry' not in values:
+                values['RenderingGeometry'] = geometry
 
-            if 'CollisionGeometry' not in comps:
-                comps['CollisionGeometry'] = geometry
+            if 'CollisionGeometry' not in values:
+                values['CollisionGeometry'] = geometry
 
         if obj.instance_collection is not None:
-            comps['CollectionInstance'] = {
+            values['CollectionInstance'] = {
                 'Filename': context.path_for_datablock(obj.instance_collection),
             }
 
-        cooked_scene.add_entity(comps)
+        cooked_scene.add_entity(values)
 
 
 def cook(context, datablock):
