@@ -206,50 +206,59 @@ func loadmesh(filename string) *fileBackedMesh {
 
 	blob2 := io.NewSectionReader(r, preamble.Blob.Off, preamble.Blob.Size)
 
-	attributes := maps.Collect(
+	indexBuffer := gpu.MakeSliceUncached[[3]uint16](int(header2.PrimitiveCount))
+	if _, err := blob2.ReadAt(byteslice(indexBuffer.Value()), header2.IndexBuffer); err != nil {
+		panic(err)
+	}
+
+	attrMap := maps.Collect(
 		func(yield func(string, int) bool) {
-			for i, attr := range header2.Rendering.Attributes {
+			for i, attr := range header2.Attributes {
 				yield(attr.Name, i)
 			}
 		})
 
-	inner := new(pathtracer.Mesh)
+	attrs := make([]any, len(header2.Attributes))
 
-	inner.PosBuffer = attributes["position"]
-	inner.NormalBuffer = attributes["normal"]
-
-	inner.Parts = make([]pathtracer.MeshPart, len(header2.Rendering.Parts))
-	materials := make([]string, len(header2.Rendering.Parts))
-	for i, partHeader := range header2.Rendering.Parts {
-		part := &inner.Parts[i]
-
-		part.AttribBuffers = make([]any, len(partHeader.AttribBuffers))
-		for j, attr := range header2.Rendering.Attributes {
-			var bytes []byte
-			switch attr.Type {
-			case "R32G32B32_SFLOAT":
-				guh := gpu.MakeSliceUncached[[3]float32](partHeader.VertexCount)
-				bytes = byteslice(guh.Value())
-				part.AttribBuffers[j] = guh
-			case "R32G32_SFLOAT":
-				guh := gpu.MakeSliceUncached[[2]float32](partHeader.VertexCount)
-				bytes = byteslice(guh.Value())
-				part.AttribBuffers[j] = guh
-			default:
-				panic("uhh")
-			}
-
-			if _, err := blob2.ReadAt(bytes, partHeader.AttribBuffers[j]); err != nil {
-				panic(err)
-			}
+	for i, desc := range header2.Attributes {
+		if desc.Domain != 0 {
+			continue
 		}
 
-		part.IndexBuffer = gpu.MakeSliceUncached[[3]uint16](partHeader.TriangleCount)
-		if _, err := blob2.ReadAt(byteslice(part.IndexBuffer.Value()), partHeader.IndexBuffer); err != nil {
+		var bytes []byte
+		switch desc.Type {
+		case "R32G32B32_SFLOAT":
+			guh := gpu.MakeSliceUncached[[3]float32](int(header2.VertexCount))
+			bytes = byteslice(guh.Value())
+			attrs[i] = guh
+		case "R32G32_SFLOAT":
+			guh := gpu.MakeSliceUncached[[2]float32](int(header2.VertexCount))
+			bytes = byteslice(guh.Value())
+			attrs[i] = guh
+		default:
+			panic("uhh")
+		}
+
+		if _, err := blob2.ReadAt(bytes, desc.Data); err != nil {
 			panic(err)
 		}
+	}
 
+	inner := new(pathtracer.Mesh)
+	inner.PosBuffer = attrMap["position"]
+	inner.NormalBuffer = attrMap["normal"]
+
+	inner.Parts = make([]pathtracer.MeshPart, len(header2.PartitionByMaterialIndex))
+	materials := make([]string, len(header2.PartitionByMaterialIndex)) // TODO: eventually it would be nice if we could just directly use header2.Materials
+
+	for i, partHeader := range header2.PartitionByMaterialIndex {
 		materials[i] = header2.Materials[partHeader.MaterialIndex]
+
+		part := &inner.Parts[i]
+		part.AttribBuffers = attrs
+		part.IndexBuffer = indexBuffer.Slice(
+			int(partHeader.FirstPrimitive),
+			int(partHeader.FirstPrimitive)+int(partHeader.PrimitiveCount))
 	}
 
 	inner.InitAccel()

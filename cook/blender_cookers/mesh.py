@@ -65,7 +65,7 @@ def cook(context, obj):
 
     # TODO: change stuff to be attr.name -> (attr.domain, attr.data) or similar
     attrs = {
-        'material_index': mesh_cooker2.FaceAttributes(bpyutil.array_from_prop_collection(mesh.loop_triangles, 'material_index', dtype=np.uint32)),
+        'material_index': mesh_cooker2.AttributeBuffer(mesh_cooker2.Domain.FACE, bpyutil.array_from_prop_collection(mesh.loop_triangles, 'material_index', dtype=np.uint32)),
     }
 
     for attr in mesh.attributes:
@@ -84,16 +84,15 @@ def cook(context, obj):
         match attr.domain:
             case 'POINT':
                 data = bpyutil.array_from_prop_collection(attr.data, 'vector', dt)
-                attrs[attr.name] = mesh_cooker2.VertexAttributes(data[corner_vert_idxs][tri_corners_idxs])
+                attrs[attr.name] = mesh_cooker2.AttributeBuffer(mesh_cooker2.Domain.VERTEX, data[corner_vert_idxs][tri_corners_idxs])
             case 'CORNER':
                 data = bpyutil.array_from_prop_collection(attr.data, 'vector', dt)
-                attrs[attr.name] = mesh_cooker2.VertexAttributes(data[tri_corners_idxs])
+                attrs[attr.name] = mesh_cooker2.AttributeBuffer(mesh_cooker2.Domain.VERTEX, data[tri_corners_idxs])
             case _:
                 continue
 
     # TODO: encode octahedrally?
-    attrs['normal'] = mesh_cooker2.VertexAttributes(
-        bpyutil.array_from_prop_collection(mesh.loops, 'normal', dtype=nputil.vec3)[tri_corners_idxs])
+    attrs['normal'] = mesh_cooker2.AttributeBuffer(mesh_cooker2.Domain.VERTEX, bpyutil.array_from_prop_collection(mesh.loops, 'normal', dtype=nputil.vec3)[tri_corners_idxs])
 
     # TODO: encode in a smarter way
     # TODO: are these the tangents we need? Does this match cycles' tangents

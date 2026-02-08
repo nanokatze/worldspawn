@@ -8,31 +8,35 @@ import (
 	"github.com/go-json-experiment/json"
 )
 
+type Attribute struct {
+	Name   string
+	Type   string
+	Domain int64
+	Data   int64
+}
+
+type Part struct {
+	MaterialIndex  int64 // TODO: should be explicit from where this Part appears
+	FirstPrimitive int64
+	PrimitiveCount int64
+}
+
 type GeometryHeader struct {
-	Materials []string
-	// TODO: inline it into GeometryHeader directly and have the physics geometry be
-	// "simplified"? (and eventually removed)
-	Rendering RenderingGeometryHeader
-	// Collision CollisionGeometryHeader
-}
+	PrimitiveCount int64
 
-type RenderingGeometryHeader struct {
-	Attributes []AttributeDesc
-	Parts      []PartHeader
-}
+	VertexCount int64
 
-type AttributeDesc struct {
-	Name string
-	Type string
-}
+	IndexType   string
+	IndexBuffer int64
 
-type PartHeader struct {
-	MaterialIndex int
-	AttribBuffers []int64
-	VertexCount   int
-	IndexType     string
-	IndexBuffer   int64
-	TriangleCount int
+	Attributes []Attribute // TODO: explicitly specify material index attribute? For Blender this would be material_index.
+
+	Materials []string // TODO: move towards the end but before ad-hoc structures?
+
+	// Ad-hoc structures follow
+
+	// TODO: rename
+	PartitionByMaterialIndex []Part
 }
 
 type Section struct {

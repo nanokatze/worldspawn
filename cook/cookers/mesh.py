@@ -10,25 +10,30 @@ import util
 import bpyutil
 
 
-@dataclasses.dataclass
-class FaceAttributes:
-    _data: object
+
+# TODO: should this be a plain int?
+class Domain(enum.Enum):
+    VERTEX = 0
+    EDGE = 1
+    FACE = 2
 
 
 @dataclasses.dataclass
-class VertexAttributes:
+class AttributeBuffer:
+    _domain: int
     _data: object
 
 
 @dataclasses.dataclass
 class Raw:
     _materials: list[str]
-    _attrs: object
+    _attrs: object # TODO: write it out properly: _attributes
 
 
 # TODO: we can prefix the internal stuff that goes into the file, with "json"
 
 
+# TODO: kill
 @dataclasses.dataclass
 class _Collision:
     VertexBuffer: int
@@ -37,35 +42,42 @@ class _Collision:
     TriangleCount: int
 
 
+# TODO: rename
+@dataclasses.dataclass
+class _AttributeDesc:
+    Name: str
+    Type: str
+    Domain: str # TODO: should this be an int degree?
+    Data: int
+
+
 @dataclasses.dataclass
 class _Part:
     MaterialIndex: int
-    AttribBuffers: list[int]
-    VertexCount: int
-    # TODO: factor it out to the top level, next to attribute descs
-    IndexType: str
-    IndexBuffer: int
-    TriangleCount: int
-
-
-@dataclasses.dataclass
-class _AttributeDesc:
-    Domain: str
-    Name: str
-    Type: str
-
-
-@dataclasses.dataclass
-class _Rendering:
-    Attributes: list[_AttributeDesc]
-    Parts: list[_Part]
+    FirstPrimitive: int
+    PrimitiveCount: int
 
 
 @dataclasses.dataclass
 class _Header:
+    PrimitiveCount: int
+
+    VertexCount: int
+
+    IndexType: str
+    IndexBuffer: int
+
+    Attributes: list[_AttributeDesc]
+
     Materials: list[str]
+
+    # Ad-hoc structures
+
+    # TODO: rename 😭
+    PartitionByMaterialIndex: list[_Part]
+
+    # TODO: kill these
     Collision: _Collision
-    Rendering: _Rendering
 
 
 def cook(raw, directory):
@@ -76,9 +88,9 @@ def cook(raw, directory):
         assert len(desc._data) == len(attr0._data)
 
     collision = None
-    rendering = None
     blob = io.BytesIO() # TODO: use a stricter alignment when writing to blob
 
+    # TODO: kill kill kill
     if True:
         verts_unindexed = raw._attrs['position']._data.reshape((-1, 3))
         verts_indexed, vert_idxs = np.unique(verts_unindexed, return_inverse=True, axis=0)
@@ -100,48 +112,45 @@ def cook(raw, directory):
             TriangleCount=len(vert_idxs)//3,
         )
 
-    if True:
-        attributes = []
-        for name, desc in sorted(raw._attrs.items(), key=lambda it: it[0]):
-            types = {
-                np.dtype(('<f4', (3,))): 'R32G32B32_SFLOAT',
-                np.dtype(('<f4', (2,))): 'R32G32_SFLOAT',
-                # np.dtype(('<u4', 1,)): 'R32_UINT',
-            }
-            if isinstance(desc, VertexAttributes):
-                attributes.append(_AttributeDesc(Name=name, Type=types[np.dtype((desc._data.dtype, desc._data.shape[2:]))], Domain='VERTEX'))
+    # Sort triangles by material_index
+    # TODO: use stable=True when we can use numpy>=2.0.0
+    sorted_tris = np.argsort(raw._attrs['material_index']._data)
 
-        parts = []
-        for material_index in np.unique(raw._attrs['material_index']._data):
-            assert material_index < len(raw._materials)
+    for k, v in raw._attrs.items():
+        raw._attrs[k]._data = v._data[sorted_tris]
 
-            tri_idxs = raw._attrs['material_index']._data == material_index
-            tri_count = int(tri_idxs.sum())
-            if tri_count == 0:
-                continue
+    tri_count = len(raw._attrs['position']._data)
 
-            assert tri_count > 0
+    index_size = 2
 
-            index_size = 2
+    index_buffer = seek_align(blob, 4)
+    nputil.tofile(blob, np.arange(3 * tri_count).astype(f'<u{index_size}'))
 
-            index_buffer = seek_align(blob, 4)
-            nputil.tofile(blob, np.arange(3 * tri_count).astype(f'<u{index_size}'))
+    attributes = [] # TODO: write it out as a map
+    for name, desc in sorted(raw._attrs.items(), key=lambda it: it[0]):
+        types = {
+            np.dtype(('<f4', (3,))): 'R32G32B32_SFLOAT',
+            np.dtype(('<f4', (2,))): 'R32G32_SFLOAT',
+            # np.dtype(('<u4', 1,)): 'R32_UINT',
+        }
 
-            attrib_buffers = []
-            for attr in attributes:
-                attrib_buffers.append(seek_align(blob, 4))
-                nputil.tofile(blob, raw._attrs[attr.Name]._data[tri_idxs])
+        if desc._domain == Domain.VERTEX:
+            attributes.append(_AttributeDesc(
+                Name=name,
+                Type=types[np.dtype((desc._data.dtype, desc._data.shape[2:]))],
+                Domain=0,
+                Data=seek_align(blob, 4))) # TODO: do seek_align before pls
 
-            parts.append(_Part(
-                MaterialIndex=int(material_index),
-                AttribBuffers=attrib_buffers,
-                VertexCount=3 * tri_count,
-                IndexType={2: 'UINT16', 4: 'UINT32'}[index_size], # TODO: factor this map out pls
-                IndexBuffer=index_buffer,
-                TriangleCount=tri_count,
-            ))
+            nputil.tofile(blob, raw._attrs[name]._data)
 
-        rendering = _Rendering(Attributes=attributes, Parts=parts)
+    # TODO: assert that material_index is sorted
+    parts = []
+    # TODO: remove Part2.MaterialIndex indirection
+    for material_index in np.unique(raw._attrs['material_index']._data):
+        a = int(np.searchsorted(raw._attrs['material_index']._data, material_index))
+        b = int(np.searchsorted(raw._attrs['material_index']._data, material_index, side='right'))
+        # assert len(parts) == material_index
+        parts.append(_Part(int(material_index), a, b - a))
 
     with open(directory, 'wb') as f:
         f.write(b'Worldspawn')
@@ -154,9 +163,20 @@ def cook(raw, directory):
 
         json_offset = f.tell()
         h = _Header(
+            PrimitiveCount=tri_count,
+
+            VertexCount=3 * tri_count,
+
+            IndexType={2: 'UINT16', 4: 'UINT32'}[index_size], # TODO: factor this map out pls
+            IndexBuffer=index_buffer,
+
+            Attributes=attributes,
+
             Materials=raw._materials,
+
+            PartitionByMaterialIndex=parts,
+
             Collision=collision,
-            Rendering=rendering,
         )
         d = dataclasses.asdict(h, dict_factory=dict_skip_nulls)
         d = fixupdict(d)
