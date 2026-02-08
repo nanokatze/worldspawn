@@ -59,7 +59,7 @@ def cook(context, scene):
     cooked_scene = json.loads(scene.worldspawn.values or '{}')
 
     # TODO: output path to the sky material, or emit the sky material as-is
-    cooked_scene['Sky'] = 'skies/industrial_sunset_puresky.ktx2'
+    # cooked_scene['Sky'] = 'skies/industrial_sunset_puresky.ktx2'
 
     # def __handle_view_layer(layer_collection):
     #     if layer_collection.exclude:

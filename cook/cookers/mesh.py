@@ -2,6 +2,7 @@ import dataclasses
 import numpy as np
 import json
 import io
+import enum
 import struct
 
 import numpyutil as nputil
@@ -9,15 +10,20 @@ import util
 import bpyutil
 
 
-# TODO: switch wmesh and other things to use nice (i.e. basically struct.pack)
+@dataclasses.dataclass
+class FaceAttributes:
+    _data: object
+
+
+@dataclasses.dataclass
+class VertexAttributes:
+    _data: object
 
 
 @dataclasses.dataclass
 class Raw:
-    # TODO: also pass attribute desc map
     _materials: list[str]
-    _tris: object
-    _tri_mat_idxs: object # TODO: kill this and fold into tris instead
+    _attrs: object
 
 
 # TODO: we can prefix the internal stuff that goes into the file, with "json"
@@ -44,9 +50,9 @@ class _Part:
 
 @dataclasses.dataclass
 class _AttributeDesc:
+    Domain: str
     Name: str
     Type: str
-    # Domain:
 
 
 @dataclasses.dataclass
@@ -63,12 +69,18 @@ class _Header:
 
 
 def cook(raw, directory):
+    # TODO: perform validation
+
+    attr0 = raw._attrs['position']
+    for name, desc in raw._attrs.items():
+        assert len(desc._data) == len(attr0._data)
+
     collision = None
     rendering = None
     blob = io.BytesIO() # TODO: use a stricter alignment when writing to blob
 
     if True:
-        verts_unindexed = raw._tris.reshape(-1)['position']
+        verts_unindexed = raw._attrs['position']._data.reshape((-1, 3))
         verts_indexed, vert_idxs = np.unique(verts_unindexed, return_inverse=True, axis=0)
 
         vertex_buffer = seek_align(blob, 4)
@@ -78,7 +90,7 @@ def cook(raw, directory):
         # TODO: probably deinterleave?
         nputil.tofile(blob, np.c_[
             vert_idxs.astype('<u4').reshape((-1, 3)),
-            raw._tri_mat_idxs,
+            raw._attrs['material_index']._data,
         ])
 
         collision = _Collision(
@@ -90,48 +102,43 @@ def cook(raw, directory):
 
     if True:
         attributes = []
-        for name, (dtype, size) in raw._tris.dtype.fields.items():
-            # TODO: gross, we should just take the attribute desc map from the
-            # user
+        for name, desc in sorted(raw._attrs.items(), key=lambda it: it[0]):
             types = {
                 np.dtype(('<f4', (3,))): 'R32G32B32_SFLOAT',
                 np.dtype(('<f4', (2,))): 'R32G32_SFLOAT',
+                # np.dtype(('<u4', 1,)): 'R32_UINT',
             }
-            attributes.append(_AttributeDesc(Name=name, Type=types[dtype]))
+            if isinstance(desc, VertexAttributes):
+                attributes.append(_AttributeDesc(Name=name, Type=types[np.dtype((desc._data.dtype, desc._data.shape[2:]))], Domain='VERTEX'))
 
         parts = []
-        for material_index in np.unique(raw._tri_mat_idxs):
+        for material_index in np.unique(raw._attrs['material_index']._data):
             assert material_index < len(raw._materials)
 
-            tris = raw._tris[raw._tri_mat_idxs == material_index]
-            if len(tris) == 0:
+            tri_idxs = raw._attrs['material_index']._data == material_index
+            tri_count = int(tri_idxs.sum())
+            if tri_count == 0:
                 continue
 
-            verts_unindexed = tris.flat
+            assert tri_count > 0
 
-            verts_indexed, vert_idxs = np.unique(verts_unindexed, return_inverse=True)
-
-            index_size = 2 if len(verts_indexed) <= 65535 else 4
-
-            # TODO: check whether indices are actually a benefit
+            index_size = 2
 
             index_buffer = seek_align(blob, 4)
-            nputil.tofile(blob, vert_idxs.astype(f'<u{index_size}'))
-
-            verts = verts_indexed
+            nputil.tofile(blob, np.arange(3 * tri_count).astype(f'<u{index_size}'))
 
             attrib_buffers = []
-            for name in raw._tris.dtype.fields:
+            for attr in attributes:
                 attrib_buffers.append(seek_align(blob, 4))
-                nputil.tofile(blob, verts[name])
+                nputil.tofile(blob, raw._attrs[attr.Name]._data[tri_idxs])
 
             parts.append(_Part(
                 MaterialIndex=int(material_index),
                 AttribBuffers=attrib_buffers,
-                VertexCount=len(verts),
+                VertexCount=3 * tri_count,
                 IndexType={2: 'UINT16', 4: 'UINT32'}[index_size], # TODO: factor this map out pls
                 IndexBuffer=index_buffer,
-                TriangleCount=len(tris),
+                TriangleCount=tri_count,
             ))
 
         rendering = _Rendering(Attributes=attributes, Parts=parts)
