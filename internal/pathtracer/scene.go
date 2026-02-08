@@ -61,8 +61,7 @@ type emissiveInstance struct {
 type lightAccel struct {
 	_ structs.HostLayout
 
-	// TODO: drop SamplingViewWithSampler in favor passing an image descriptor
-	// and reconstructing it in the shader.
+	envTransform geometry.Mat3x3
 	// TODO: rename
 	env gpu.ImageDescriptors
 
@@ -164,12 +163,9 @@ func NewScene(n int, maxPartsPerMesh int) *Scene {
 }
 
 // TODO: make it async
-func (scene *Scene) SetSky(sky *gpu.Image) {
-	if sky != nil {
-		scene.lightAccel.env = sky.Descriptors()
-	} else {
-		scene.lightAccel.env = gpu.ImageDescriptors{}
-	}
+func (scene *Scene) SetSky(transform geometry.Mat3x3, sky *gpu.Image) {
+	scene.lightAccel.envTransform = transform
+	scene.lightAccel.env = sky.Descriptors()
 }
 
 // TODO: this should only exist on the device/in the shader

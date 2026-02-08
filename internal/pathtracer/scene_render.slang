@@ -157,6 +157,7 @@ void raygen() {
             // TODO: this is miss code, it should live in its own func
 
             float3 V = rq.WorldRayDirection();
+            float3 W = mul(push.scene->lightAccel.envTransform, V);
 
             // TODO: use SampleCubeGrad. We can use aniso sampling for cube textures.
             // Actually, aniso sampling is broken across many impls. We might wanna look
@@ -166,7 +167,8 @@ void raygen() {
             // lightAccel and apply the pdf (when lightAccel has a
             // possibility of returning the sky light.)
             // TODO: pass the matrix for converting V. Call it skyTransform or something
-            path.L += path.beta * push.scene->lightAccel.env.SampleCubeLOD(push.scene->sampler, float3(-V.y, V.z, V.x), 0).xyz;
+
+            path.L += path.beta * push.scene->lightAccel.env.SampleCubeLOD(push.scene->sampler, W, 0).xyz;
 
             break;
         } else {

@@ -11,6 +11,7 @@ public struct emissiveInstance {
 // TODO: stable light IDs so that we can use them in RIS/ReSTIR etc
 // TODO: rename to lightAccel
 public struct lightAccel {
+    public float3x3 envTransform;
     public ImageDescriptors env;
 
     public Slice<emissiveInstance> emissiveInstances;

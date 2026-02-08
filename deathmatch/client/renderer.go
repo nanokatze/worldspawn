@@ -318,7 +318,13 @@ func (re *renderer) Render(jq *gpu.JobQueue, sdlNow uint64, dst *gpu.Image) {
 		re.ourCamera = update.camera
 		re.ourCameraTransform = update.cameraTransform
 		re.scene2 = update
-		re.scene.SetSky(update.Sky)
+		re.scene.SetSky(
+			geometry.Mat3x3{
+				{0, -1, 0},
+				{0, 0, 1},
+				{1, 0, 0},
+			},
+			update.Sky)
 		for i := range update.Mask {
 			re.scene.SetInstanceGeometry(i, update.Mask[i], update.Mesh[i], update.Materials[i], update.MaterialArgs[i])
 		}

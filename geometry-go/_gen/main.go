@@ -19,6 +19,7 @@ func main() {
 	vecGen{2}.Gen(buf)
 	vecGen{3}.Gen(buf)
 	vecGen{4}.Gen(buf)
+	matGen{3, 3}.Gen(buf)
 	matGen{4, 4}.Gen(buf)
 	matmulGen{4, 4, 4}.Gen(buf)
 	src, _ := format.Source(buf.Bytes())

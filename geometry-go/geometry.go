@@ -257,6 +257,20 @@ func (a vec4[T]) Lerp(b vec4[T], t T) vec4[T] {
 	}
 }
 
+type Mat3x3 = mat3x3[float32]
+
+func Mat3x3One() Mat3x3 { return mat3x3One[float32]() }
+
+type mat3x3[T constraints.Float] [3][3]T
+
+func mat3x3One[T constraints.Float]() mat3x3[T] {
+	var A mat3x3[T]
+	A[0][0] = 1
+	A[1][1] = 1
+	A[2][2] = 1
+	return A
+}
+
 type Mat4x4 = mat4x4[float32]
 
 func Mat4x4One() Mat4x4 { return mat4x4One[float32]() }
