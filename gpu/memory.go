@@ -251,6 +251,17 @@ func (s Slice[T]) Index(i int) Pointer[T] {
 	return Pointer[T](uint64(s.data) + uint64(i*int(unsafe.Sizeof(*new(T)))))
 }
 
+func (s Slice[T]) Slice(i, j int) Slice[T] {
+	if !(0 <= i && i <= j && j <= s.cap) {
+		panic("bad")
+	}
+	return Slice[T]{
+		data: s.data + Pointer[T](i*int(unsafe.Sizeof(*new(T)))),
+		len:  j - i,
+		cap:  j - i,
+	}
+}
+
 func (s Slice[T]) Value() []T {
 	return unsafe.Slice((*T)(UnsafePointer(s.data).Value()), s.cap)[:s.len]
 }
