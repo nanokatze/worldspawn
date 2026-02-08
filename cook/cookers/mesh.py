@@ -67,11 +67,14 @@ class _Header:
 
 
 def cook(raw, directory):
-    # TODO: perform validation
+    # Validation
+    #
+    # TODO: more elaborate validation
 
-    attr0 = raw._attributes['position']
+    primitive_count = len(raw._attributes['position']._data)
+
     for name, buf in raw._attributes.items():
-        assert len(buf._data) == len(attr0._data)
+        assert len(buf._data) == primitive_count
 
     blob = io.BytesIO() # TODO: use a stricter alignment when writing to blob
 
@@ -81,8 +84,6 @@ def cook(raw, directory):
 
     for k, v in raw._attributes.items():
         raw._attributes[k]._data = v._data[material_index_sorter]
-
-    primitive_count = len(raw._attributes['position']._data)
 
     index_size = 2
 
