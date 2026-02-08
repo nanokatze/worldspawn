@@ -26,10 +26,6 @@ type System C.Physics
 
 type Shape C.Shape
 
-type Header2 struct {
-	Collision Stuff
-}
-
 // Used by deserializer only
 type ShapeKind int
 

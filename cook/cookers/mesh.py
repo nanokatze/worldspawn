@@ -33,21 +33,12 @@ class Raw:
 # TODO: we can prefix the internal stuff that goes into the file, with "json"
 
 
-# TODO: kill
-@dataclasses.dataclass
-class _Collision:
-    VertexBuffer: int
-    VertexCount: int
-    TriangleBuffer: int
-    TriangleCount: int
-
-
 # TODO: rename
 @dataclasses.dataclass
 class _AttributeDesc:
     Name: str
     Type: str
-    Domain: str # TODO: should this be an int degree?
+    Domain: int # TODO: should this be an int degree?
     Data: int
 
 
@@ -76,9 +67,6 @@ class _Header:
     # TODO: rename 😭
     PartitionByMaterialIndex: list[_Part]
 
-    # TODO: kill these
-    Collision: _Collision
-
 
 def cook(raw, directory):
     # TODO: perform validation
@@ -87,30 +75,7 @@ def cook(raw, directory):
     for name, desc in raw._attrs.items():
         assert len(desc._data) == len(attr0._data)
 
-    collision = None
     blob = io.BytesIO() # TODO: use a stricter alignment when writing to blob
-
-    # TODO: kill kill kill
-    if True:
-        verts_unindexed = raw._attrs['position']._data.reshape((-1, 3))
-        verts_indexed, vert_idxs = np.unique(verts_unindexed, return_inverse=True, axis=0)
-
-        vertex_buffer = seek_align(blob, 4)
-        nputil.tofile(blob, verts_indexed)
-
-        tri_buffer = seek_align(blob, 4)
-        # TODO: probably deinterleave?
-        nputil.tofile(blob, np.c_[
-            vert_idxs.astype('<u4').reshape((-1, 3)),
-            raw._attrs['material_index']._data,
-        ])
-
-        collision = _Collision(
-            VertexBuffer=vertex_buffer,
-            VertexCount=len(verts_indexed),
-            TriangleBuffer=tri_buffer,
-            TriangleCount=len(vert_idxs)//3,
-        )
 
     # Sort triangles by material_index
     # TODO: use stable=True when we can use numpy>=2.0.0
@@ -175,8 +140,6 @@ def cook(raw, directory):
             Materials=raw._materials,
 
             PartitionByMaterialIndex=parts,
-
-            Collision=collision,
         )
         d = dataclasses.asdict(h, dict_factory=dict_skip_nulls)
         d = fixupdict(d)

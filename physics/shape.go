@@ -9,11 +9,13 @@ import (
 	"encoding/binary"
 	"io"
 	"io/fs"
+	"maps"
 	"unsafe"
 
 	"github.com/go-json-experiment/json"
 
 	"worldspawn/geometry-go"
+	"worldspawn/internal/wmesh"
 )
 
 // TODO: pass materials
@@ -76,31 +78,47 @@ func NewFileBackedShape(fsys fs.FS, filename string, concave bool) (*Shape, erro
 
 	rat := f.(io.ReaderAt)
 
-	var header2 Header2
+	var header2 wmesh.GeometryHeader
 	if err := json.UnmarshalRead(io.NewSectionReader(rat, preamble.A.Off, preamble.A.Len), &header2, json.StringifyNumbers(true)); err != nil {
 		return nil, err
 	}
 
-	shape := header2.Collision
+	attrMap := maps.Collect(
+		func(yield func(string, int) bool) {
+			for i, attr := range header2.Attributes {
+				yield(attr.Name, i)
+			}
+		})
 
 	blob := io.NewSectionReader(rat, preamble.B.Off, preamble.B.Len)
 
-	verts := make([]geometry.Vec3, shape.VertexCount)
-	blob.Seek(int64(shape.VertexBuffer), io.SeekStart)
-	if err := binary.Read(blob, binary.LittleEndian, &verts); err != nil {
+	posBuffer := make([]geometry.Vec3, header2.VertexCount)
+	blob.Seek(header2.Attributes[attrMap["position"]].Data, io.SeekStart)
+	if err := binary.Read(blob, binary.LittleEndian, &posBuffer); err != nil {
 		return nil, err
 	}
 
-	tris := make([]Triangle, shape.TriangleCount)
-	blob.Seek(int64(shape.TriangleBuffer), io.SeekStart)
-	if err := binary.Read(blob, binary.LittleEndian, &tris); err != nil {
+	indexBuffer := make([][3]uint16, header2.PrimitiveCount)
+	blob.Seek(header2.IndexBuffer, io.SeekStart)
+	if err := binary.Read(blob, binary.LittleEndian, &indexBuffer); err != nil {
 		return nil, err
+	}
+
+	tris := make([]Triangle, header2.PrimitiveCount)
+	for i := range header2.PrimitiveCount {
+		tris[i] = Triangle{
+			VertexIndices: [3]uint32{
+				uint32(indexBuffer[i][0]),
+				uint32(indexBuffer[i][1]),
+				uint32(indexBuffer[i][2]),
+			},
+		}
 	}
 
 	if concave {
-		return NewMeshShape(verts, tris)
+		return NewMeshShape(posBuffer, tris)
 	} else {
-		return NewConvexHullShape(verts, 0.05)
+		return NewConvexHullShape(posBuffer, 0.05)
 	}
 }
 
