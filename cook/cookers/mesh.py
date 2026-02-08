@@ -27,15 +27,14 @@ class AttributeBuffer:
 @dataclasses.dataclass
 class Raw:
     _materials: list[str]
-    _attrs: object # TODO: write it out properly: _attributes
+    _attributes: dict[str, AttributeBuffer]
 
 
 # TODO: we can prefix the internal stuff that goes into the file, with "json"
 
 
-# TODO: rename
 @dataclasses.dataclass
-class _AttributeDesc:
+class _Attribute:
     Name: str
     Type: str
     Domain: int # TODO: should this be an int degree?
@@ -43,10 +42,10 @@ class _AttributeDesc:
 
 
 @dataclasses.dataclass
-class _Part:
-    MaterialIndex: int
-    FirstPrimitive: int
-    PrimitiveCount: int
+class _Range:
+    MaterialIndex: int # TODO: kill
+    First: int
+    Count: int
 
 
 @dataclasses.dataclass
@@ -58,69 +57,69 @@ class _Header:
     IndexType: str
     IndexBuffer: int
 
-    Attributes: list[_AttributeDesc]
+    Attributes: list[_Attribute]
 
     Materials: list[str]
 
     # Ad-hoc structures
 
-    # TODO: rename 😭
-    PartitionByMaterialIndex: list[_Part]
+    RangesByMaterialIndex: list[_Range]
 
 
 def cook(raw, directory):
     # TODO: perform validation
 
-    attr0 = raw._attrs['position']
-    for name, desc in raw._attrs.items():
-        assert len(desc._data) == len(attr0._data)
+    attr0 = raw._attributes['position']
+    for name, buf in raw._attributes.items():
+        assert len(buf._data) == len(attr0._data)
 
     blob = io.BytesIO() # TODO: use a stricter alignment when writing to blob
 
     # Sort triangles by material_index
-    # TODO: use stable=True when we can use numpy>=2.0.0
-    sorted_tris = np.argsort(raw._attrs['material_index']._data)
 
-    for k, v in raw._attrs.items():
-        raw._attrs[k]._data = v._data[sorted_tris]
+    material_index_sorter = np.argsort(raw._attributes['material_index']._data, kind='stable')
 
-    tri_count = len(raw._attrs['position']._data)
+    for k, v in raw._attributes.items():
+        raw._attributes[k]._data = v._data[material_index_sorter]
+
+    primitive_count = len(raw._attributes['position']._data)
 
     index_size = 2
 
     index_buffer = seek_align(blob, 4)
-    nputil.tofile(blob, np.arange(3 * tri_count).astype(f'<u{index_size}'))
+    nputil.tofile(blob, np.arange(3 * primitive_count).astype(f'<u{index_size}'))
 
-    attributes = [] # TODO: write it out as a map
-    for name, desc in sorted(raw._attrs.items(), key=lambda it: it[0]):
+    # Iterate over attributes in a particular order so that we write stuff out consistently.
+
+    attributes = []
+    for name, buf in sorted(raw._attributes.items(), key=lambda it: it[0]):
         types = {
             np.dtype(('<f4', (3,))): 'R32G32B32_SFLOAT',
             np.dtype(('<f4', (2,))): 'R32G32_SFLOAT',
             # np.dtype(('<u4', 1,)): 'R32_UINT',
         }
 
-        if desc._domain == Domain.VERTEX:
-            attributes.append(_AttributeDesc(
+        if buf._domain == Domain.VERTEX:
+            attributes.append(_Attribute(
                 Name=name,
-                Type=types[np.dtype((desc._data.dtype, desc._data.shape[2:]))],
+                Type=types[np.dtype((buf._data.dtype, buf._data.shape[2:]))],
                 Domain=0,
                 Data=seek_align(blob, 4))) # TODO: do seek_align before pls
 
-            nputil.tofile(blob, raw._attrs[name]._data)
+            nputil.tofile(blob, buf._data)
 
-    # TODO: assert that material_index is sorted
-    parts = []
-    # TODO: remove Part2.MaterialIndex indirection
-    for material_index in np.unique(raw._attrs['material_index']._data):
-        a = int(np.searchsorted(raw._attrs['material_index']._data, material_index))
-        b = int(np.searchsorted(raw._attrs['material_index']._data, material_index, side='right'))
-        # assert len(parts) == material_index
-        parts.append(_Part(int(material_index), a, b - a))
+    # TODO: assert that primitives are sorted by material_index
+    ranges_by_material_index = []
+    # TODO: remove the MaterialIndex indirection
+    for material_index in np.unique(raw._attributes['material_index']._data):
+        a = np.searchsorted(raw._attributes['material_index']._data, material_index)
+        b = np.searchsorted(raw._attributes['material_index']._data, material_index, side='right')
+        ranges_by_material_index.append(_Range(int(material_index), int(a), int(b - a)))
 
     with open(directory, 'wb') as f:
         f.write(b'Worldspawn')
         seek_align(f, 16)
-        f.write(b'Geometry')
+        f.write(b'Mesh')
         seek_align(f, 16)
 
         sections = f.tell()
@@ -128,9 +127,9 @@ def cook(raw, directory):
 
         json_offset = f.tell()
         h = _Header(
-            PrimitiveCount=tri_count,
+            PrimitiveCount=primitive_count,
 
-            VertexCount=3 * tri_count,
+            VertexCount=3 * primitive_count,
 
             IndexType={2: 'UINT16', 4: 'UINT32'}[index_size], # TODO: factor this map out pls
             IndexBuffer=index_buffer,
@@ -139,7 +138,7 @@ def cook(raw, directory):
 
             Materials=raw._materials,
 
-            PartitionByMaterialIndex=parts,
+            RangesByMaterialIndex=ranges_by_material_index,
         )
         d = dataclasses.asdict(h, dict_factory=dict_skip_nulls)
         d = fixupdict(d)

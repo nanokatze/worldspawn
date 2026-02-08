@@ -78,7 +78,7 @@ func NewFileBackedShape(fsys fs.FS, filename string, concave bool) (*Shape, erro
 
 	rat := f.(io.ReaderAt)
 
-	var header2 wmesh.GeometryHeader
+	var header2 wmesh.Header
 	if err := json.UnmarshalRead(io.NewSectionReader(rat, preamble.A.Off, preamble.A.Len), &header2, json.StringifyNumbers(true)); err != nil {
 		return nil, err
 	}
@@ -92,15 +92,15 @@ func NewFileBackedShape(fsys fs.FS, filename string, concave bool) (*Shape, erro
 
 	blob := io.NewSectionReader(rat, preamble.B.Off, preamble.B.Len)
 
-	posBuffer := make([]geometry.Vec3, header2.VertexCount)
-	blob.Seek(header2.Attributes[attrMap["position"]].Data, io.SeekStart)
-	if err := binary.Read(blob, binary.LittleEndian, &posBuffer); err != nil {
-		return nil, err
-	}
-
 	indexBuffer := make([][3]uint16, header2.PrimitiveCount)
 	blob.Seek(header2.IndexBuffer, io.SeekStart)
 	if err := binary.Read(blob, binary.LittleEndian, &indexBuffer); err != nil {
+		return nil, err
+	}
+
+	posBuffer := make([]geometry.Vec3, header2.VertexCount)
+	blob.Seek(header2.Attributes[attrMap["position"]].Data, io.SeekStart)
+	if err := binary.Read(blob, binary.LittleEndian, &posBuffer); err != nil {
 		return nil, err
 	}
 

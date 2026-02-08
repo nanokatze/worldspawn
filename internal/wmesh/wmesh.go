@@ -10,33 +10,40 @@ import (
 
 type Attribute struct {
 	Name   string
-	Type   string
-	Domain int64
+	Type   string // TODO: maybe replace with an enum?
+	Domain int64  // TODO: replace with an enum
 	Data   int64
 }
 
-type Part struct {
-	MaterialIndex  int64 // TODO: should be explicit from where this Part appears
-	FirstPrimitive int64
-	PrimitiveCount int64
+// A range of primitives
+type Range struct {
+	MaterialIndex int64 // TODO: should be explicit from where this struct appears
+	First         int64
+	Count         int64
 }
 
-type GeometryHeader struct {
+type Header struct {
 	PrimitiveCount int64
 
 	VertexCount int64
 
-	IndexType   string
+	IndexType   string // TODO: replace with an enum
 	IndexBuffer int64
 
-	Attributes []Attribute // TODO: explicitly specify material index attribute? For Blender this would be material_index.
+	// Attributes.
+	//
+	// Attributes must appear in order of non-decreasing Data.
+	//
+	// TODO: explicitly specify material index attribute? For Blender this would
+	// be material_index.
+	Attributes []Attribute
 
-	Materials []string // TODO: move towards the end but before ad-hoc structures?
+	Materials []string
 
 	// Ad-hoc structures follow
 
-	// TODO: rename
-	PartitionByMaterialIndex []Part
+	// Ranges of primitives with the same material indices.
+	RangesByMaterialIndex []Range
 }
 
 type Section struct {
@@ -45,14 +52,14 @@ type Section struct {
 
 type Preamble struct {
 	Magic  [16]byte // "Worldspawn"
-	Magic2 [16]byte // "Geometry"
+	Magic2 [16]byte // "Mesh"
 	Header Section
 	Blob   Section
 }
 
 type File struct {
 	Preamble Preamble
-	Header   GeometryHeader
+	Header   Header
 	R        io.ReaderAt
 }
 
@@ -68,7 +75,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		return nil, err
 	}
 
-	var header GeometryHeader
+	var header Header
 	if err := json.UnmarshalRead(io.NewSectionReader(r, preamble.Header.Off, preamble.Header.Size), &header, json.StringifyNumbers(true)); err != nil {
 		return nil, err
 	}

@@ -199,7 +199,7 @@ func loadmesh(filename string) *fileBackedMesh {
 		panic(err)
 	}
 
-	var header2 wmesh.GeometryHeader
+	var header2 wmesh.Header
 	if err := json.UnmarshalRead(io.NewSectionReader(r, preamble.Header.Off, preamble.Header.Size), &header2, json.StringifyNumbers(true)); err != nil {
 		panic(err)
 	}
@@ -248,17 +248,15 @@ func loadmesh(filename string) *fileBackedMesh {
 	inner.PosBuffer = attrMap["position"]
 	inner.NormalBuffer = attrMap["normal"]
 
-	inner.Parts = make([]pathtracer.MeshPart, len(header2.PartitionByMaterialIndex))
-	materials := make([]string, len(header2.PartitionByMaterialIndex)) // TODO: eventually it would be nice if we could just directly use header2.Materials
+	inner.Parts = make([]pathtracer.MeshPart, len(header2.RangesByMaterialIndex))
+	materials := make([]string, len(header2.RangesByMaterialIndex)) // TODO: eventually it would be nice if we could just directly use header2.Materials
 
-	for i, partHeader := range header2.PartitionByMaterialIndex {
-		materials[i] = header2.Materials[partHeader.MaterialIndex]
+	for materialIndex, range_ := range header2.RangesByMaterialIndex {
+		materials[materialIndex] = header2.Materials[range_.MaterialIndex]
 
-		part := &inner.Parts[i]
+		part := &inner.Parts[materialIndex]
 		part.AttribBuffers = attrs
-		part.IndexBuffer = indexBuffer.Slice(
-			int(partHeader.FirstPrimitive),
-			int(partHeader.FirstPrimitive)+int(partHeader.PrimitiveCount))
+		part.IndexBuffer = indexBuffer.Slice(int(range_.First), int(range_.First)+int(range_.Count))
 	}
 
 	inner.InitAccel()
