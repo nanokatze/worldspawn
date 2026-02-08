@@ -156,7 +156,7 @@ void raygen() {
         } else if (rq.CommittedStatus() == COMMITTED_NOTHING) {
             // TODO: this is miss code, it should live in its own func
 
-            float3 V = mul(float3x3(push.camera.view, rq.WorldRayDirection()));
+            float3 V = rq.WorldRayDirection();
 
             // TODO: use SampleCubeGrad. We can use aniso sampling for cube textures.
             // Actually, aniso sampling is broken across many impls. We might wanna look
@@ -165,7 +165,8 @@ void raygen() {
             // TODO: same as with emissive surfaces/volumes, we need to consult
             // lightAccel and apply the pdf (when lightAccel has a
             // possibility of returning the sky light.)
-            path.L += path.beta * push.scene->lightAccel.env.SampleCubeLOD(push.scene->sampler, V, 0).xyz;
+            // TODO: pass the matrix for converting V. Call it skyTransform or something
+            path.L += path.beta * push.scene->lightAccel.env.SampleCubeLOD(push.scene->sampler, float3(-V.y, V.z, V.x), 0).xyz;
 
             break;
         } else {
