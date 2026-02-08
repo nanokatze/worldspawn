@@ -180,9 +180,7 @@ var errorMaterial = sync.OnceValue(func() *pathtracer.InterpretedMaterial {
 
 type fileBackedMesh struct {
 	materials []string
-
-	// we could (should) just embed it tbh
-	re *pathtracer.Mesh
+	pathtracer.Mesh
 }
 
 func loadmesh(filename string) *fileBackedMesh {
@@ -244,7 +242,7 @@ func loadmesh(filename string) *fileBackedMesh {
 		}
 	}
 
-	inner := new(pathtracer.Mesh)
+	inner := pathtracer.Mesh{}
 	inner.PosBuffer = attrMap["position"]
 	inner.NormalBuffer = attrMap["normal"]
 
