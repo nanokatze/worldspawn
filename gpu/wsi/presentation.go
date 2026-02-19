@@ -247,7 +247,7 @@ func (job *presentJob) Exec(q *gpu.DeviceQueue) {
 			SwapchainCount: 1,
 			PSwapchains:    pinned(&pinner, &job.swapchain.vkSwapchain),
 			PImageIndices:  pinned(&pinner, &job.index),
-		}); err != nil {
+		}); err != nil && err != vk.ERROR_OUT_OF_DATE_KHR && err != vk.SUBOPTIMAL_KHR {
 			panic(fmt.Sprintf("gpu: vkQueuePresentKHR: %v", err))
 		}
 	})
