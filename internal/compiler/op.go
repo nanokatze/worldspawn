@@ -5,7 +5,6 @@ type Op struct{ id int32 }
 // TODO: introduce OpMap[T] for efficiently mapping Op->T
 // TODO: we might want an inverse as well, map[string]Op
 var opNames = make(map[Op]string)
-var opNamesInv = make(map[string]Op)
 
 type Validator func(typ Type, imm any, args ...*Class)
 
@@ -24,11 +23,8 @@ func DefOp(name string, validator Validator) Op {
 
 	op := Op{id}
 	opNames[op] = name
-	opNamesInv[name] = op
 	validators[op] = validator
 	return op
 }
-
-func OpByName(name string) Op { return opNamesInv[name] }
 
 func (op Op) String() string { return opNames[op] }
