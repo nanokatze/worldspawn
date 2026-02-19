@@ -58,6 +58,10 @@ func (job *transitionImageLayoutJob) Info() JobInfo {
 // there's device overheads arising from our current usage pattern, on the
 // transfer-only queue.
 func (job *transitionImageLayoutJob) Exec(q *DeviceQueue) {
+	if job.newLayout == vk.IMAGE_LAYOUT_PRESENT_SRC_KHR {
+		println("transitioning to present src on queue family", q.queueFamily)
+	}
+
 	q.Commands(func(cb vk.CommandBuffer) {
 		var pinner runtime.Pinner
 		defer pinner.Unpin()

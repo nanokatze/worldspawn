@@ -437,7 +437,7 @@ func (sched *schedState) chooseQueueForBatch(b *schedBatch, current *DeviceQueue
 
 	families &= b.jobs[b.next].Info().QueueFamilies
 
-	if true {
+	if false {
 		// If the current queue is ok, stay on it
 		if current != nil && families&(1<<current.queueFamily) != 0 {
 			return current

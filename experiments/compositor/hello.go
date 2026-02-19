@@ -7,6 +7,7 @@ import (
 	"image"
 	"image/png"
 	"log"
+	"math"
 	"math/bits"
 	"net/http"
 	_ "net/http/pprof"
@@ -15,9 +16,9 @@ import (
 	"time"
 
 	"worldspawn/gpu"
+	"worldspawn/gpu/image/draw"
 	"worldspawn/gpu/vk"
 	"worldspawn/gpu/wsi"
-	"worldspawn/internal/postprocess"
 	"worldspawn/internal/sdl"
 )
 
@@ -98,10 +99,12 @@ func main() {
 	}
 
 	window.SetTitle("compositor")
-	window.SetResizable(true)
-	window.SetSize(1200, 1200)
+	// window.SetResizable(true)
+	// window.SetSize(1200, 1200)
+	window.SetFullscreen(true)
+	window.SetRelativeMouseMode(true)
 
-	hehe, _ := readPNG("/home/nanokatze/pfp cropped smaller.png")
+	// hehe, _ := readPNG("/home/nanokatze/pfp cropped smaller.png")
 
 	resized := make(chan struct{}, 1)
 	var redrawMu sync.Mutex
@@ -128,7 +131,31 @@ func main() {
 		swapchainImage := swapchain.Image(swapchainImageIndex)
 		swapchainImage.EnqueueInit(jq)
 
-		postprocess.Bloom(jq, swapchainImage, hehe)
+		draw.Begin(jq, &draw.Config{
+			ColorAttachments: []draw.Attachment{
+				{
+					Image:   swapchainImage,
+					LoadOp:  vk.ATTACHMENT_LOAD_OP_CLEAR,
+					StoreOp: vk.ATTACHMENT_STORE_OP_STORE,
+					ClearValue: [4]uint32{
+						math.Float32bits(1),
+						math.Float32bits(0),
+						math.Float32bits(1),
+						math.Float32bits(1),
+					},
+				},
+			},
+
+			RenderArea: vk.Rect2D{
+				Extent: vk.Extent2D{
+					Width:  uint32(swapchainImage.Extent()[0]),
+					Height: uint32(swapchainImage.Extent()[1]),
+				},
+			},
+			LayerCount: 1,
+		}).End()
+
+		// postprocess.Bloom(jq, swapchainImage, hehe)
 
 		// TODO: it could be nice if we could present any random image (it's
 		// fine if that incurs a copy.)
@@ -163,6 +190,11 @@ eventLoop:
 		case *sdl.QuitEvent:
 			break eventLoop
 
+		case *sdl.KeyDownEvent:
+			if e.Key == sdl.K_ESCAPE {
+				break eventLoop
+			}
+
 		case *sdl.WindowPixelSizeChangedEvent:
 			redrawMu.Lock()
 
@@ -175,7 +207,7 @@ eventLoop:
 				Extent:     currentExtent,
 				ImageOptions: []gpu.ImageOption{
 					gpu.WithUsage(vk.IMAGE_USAGE_COLOR_ATTACHMENT_BIT),
-					gpu.WithUsage(vk.IMAGE_USAGE_STORAGE_BIT),
+					// gpu.WithUsage(vk.IMAGE_USAGE_STORAGE_BIT),
 				},
 				OldSwapchain: swapchain,
 			})
