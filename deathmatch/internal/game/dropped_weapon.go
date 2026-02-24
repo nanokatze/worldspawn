@@ -34,12 +34,6 @@ func (w *Scene) CreateDroppedWeapon(weaponID ecs.ID, info *UpdateParams) ecs.ID 
 func (dropped DroppedWeapon) UpdateBeforePhysics(w *Scene, ourID ecs.ID, info *UpdateParams) {
 	trsOurs := mustOk(w.GetGlobalTRS(ourID))
 
-	w.SetLocalTRS(ourID, geometry.DTRS3{
-		T: trsOurs.T,
-		R: geometry.Rot3FromPlaneAngle(geometry.Vec3{0, 0, 1}, float32(float64(w.Now)/1e9)),
-		S: geometry.Vec3Ones(),
-	})
-
 	for playerID, entity := range ecs.All(&w.Entity) {
 		if character, ok := entity.(Character); ok {
 			trsPlayer := mustOk(w.GetGlobalTRS(playerID))
