@@ -209,7 +209,7 @@ func (scene *Scene) SetInstanceGeometry(i int, mask uint8, mesh *Mesh, materials
 	}
 }
 
-func (scene *Scene) EnqueueBuildAccel(jq *gpu.JobQueue) {
+func (scene *Scene) EnqueueUpdateAccel(jq *gpu.JobQueue) {
 	scene.accel.EnqueueBuild(jq,
 		&gpu.AccelBuildConfig{
 			Type: vk.ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,

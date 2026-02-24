@@ -354,7 +354,7 @@ func (re *renderer) Render(jq *gpu.JobQueue, sdlNow uint64, dst *gpu.Image) {
 		}
 	}
 
-	re.scene.EnqueueBuildAccel(jq)
+	re.scene.EnqueueUpdateAccel(jq)
 
 	re.scene.Render(
 		jq,
