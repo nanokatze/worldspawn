@@ -36,6 +36,7 @@ var bivecTmplFuncs = template.FuncMap{
 	"bivecBasis": bivecBasis,
 }
 
+// TODO: generalize this to any grade?
 func bivecBasis(d int64) [][2]int64 {
 	// TODO: could we come up with a generalization that hits this?
 	if d == 3 {

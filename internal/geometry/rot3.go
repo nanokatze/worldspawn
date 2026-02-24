@@ -6,24 +6,22 @@ import (
 
 // TODO: kill quat and generate RotN types
 
-// TODO: rename this package to linalg? or smallblas. or la. idk. lamath. mathla.
-
 type Rot3 [4]float32
 
 func Rot3One() Rot3 {
 	return Rot3{0, 0, 0, 1}
 }
 
-func Rot3FromPlaneAngle(b Vec3, θ float32) Rot3 {
-	sinHalfθ, cosHalfθ := math.Sincos(float64(θ / 2))
-	yz := b[0] * float32(sinHalfθ)
-	zx := b[1] * float32(sinHalfθ)
-	xy := b[2] * float32(sinHalfθ)
-	return Rot3{yz, zx, xy, float32(cosHalfθ)}
+func Rot3InPlane(plane Bivec3, θ float32) Rot3 {
+	s, c := math.Sincos(float64(θ / 2))
+	yz := plane[0] * float32(s)
+	zx := plane[1] * float32(s)
+	xy := plane[2] * float32(s)
+	return Rot3{yz, zx, xy, float32(c)}
 }
 
-func (a Rot3) Normalized() Rot3 {
-	return Rot3(Vec4(a).NormalizedOr(Vec4(Rot3One())))
+func (a Rot3) Normalize() Rot3 {
+	return Rot3(Vec4(a).NormalizeOr(Vec4(Rot3One())))
 }
 
 func (a Rot3) Inverse() Rot3 {
@@ -47,7 +45,7 @@ func (a Rot3) NLerp(b Rot3, t float32) Rot3 {
 	for i := range 4 {
 		c[i] = a[i]*u + b[i]*v
 	}
-	return c.Normalized()
+	return c.Normalize()
 }
 
 // TODO: rename to Rotate32 probably

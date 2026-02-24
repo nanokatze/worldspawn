@@ -62,20 +62,16 @@ func (a {{$vecD}}[T]) Scale(lambda T) {{$vecD}}[T] {
 	}
 }
 
+func (a {{$vecD}}[T]) Length() T {
+	return T(math.Sqrt(float64(a.Dot(a))))
+}
+
 func (a {{$vecD}}[T]) Dot(b {{$vecD}}[T]) T {
 	return 0 {{- range .D}} + a[{{.}}] * b[{{.}}] {{- end}}
 }
 
-func (a {{$vecD}}[T]) LengthSq() T {
-	return a.Dot(a)
-}
-
-func (a {{$vecD}}[T]) Length() T {
-	return T(math.Sqrt(float64(a.LengthSq())))
-}
-
 // TODO: simplify this so that it's just an ordinary normalize pls
-func (a {{$vecD}}[T]) NormalizedOr(b {{$vecD}}[T]) {{$vecD}}[T] {
+func (a {{$vecD}}[T]) NormalizeOr(b {{$vecD}}[T]) {{$vecD}}[T] {
 	norm := a.Length()
 	if norm == 0 {
 		return b
@@ -87,6 +83,7 @@ func (a {{$vecD}}[T]) NormalizedOr(b {{$vecD}}[T]) {{$vecD}}[T] {
 	}
 }
 
+{{/* kill this in favor of global lerp that operates on random float arrays? */}}
 func (a {{$vecD}}[T]) Lerp(b {{$vecD}}[T], t T) {{$vecD}}[T] {
 	return {{$vecD}}[T]{
 		{{- range .D}}

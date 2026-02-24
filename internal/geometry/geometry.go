@@ -53,20 +53,16 @@ func (a vec2[T]) Scale(lambda T) vec2[T] {
 	}
 }
 
+func (a vec2[T]) Length() T {
+	return T(math.Sqrt(float64(a.Dot(a))))
+}
+
 func (a vec2[T]) Dot(b vec2[T]) T {
 	return 0 + a[0]*b[0] + a[1]*b[1]
 }
 
-func (a vec2[T]) LengthSq() T {
-	return a.Dot(a)
-}
-
-func (a vec2[T]) Length() T {
-	return T(math.Sqrt(float64(a.LengthSq())))
-}
-
 // TODO: simplify this so that it's just an ordinary normalize pls
-func (a vec2[T]) NormalizedOr(b vec2[T]) vec2[T] {
+func (a vec2[T]) NormalizeOr(b vec2[T]) vec2[T] {
 	norm := a.Length()
 	if norm == 0 {
 		return b
@@ -134,20 +130,16 @@ func (a vec3[T]) Scale(lambda T) vec3[T] {
 	}
 }
 
+func (a vec3[T]) Length() T {
+	return T(math.Sqrt(float64(a.Dot(a))))
+}
+
 func (a vec3[T]) Dot(b vec3[T]) T {
 	return 0 + a[0]*b[0] + a[1]*b[1] + a[2]*b[2]
 }
 
-func (a vec3[T]) LengthSq() T {
-	return a.Dot(a)
-}
-
-func (a vec3[T]) Length() T {
-	return T(math.Sqrt(float64(a.LengthSq())))
-}
-
 // TODO: simplify this so that it's just an ordinary normalize pls
-func (a vec3[T]) NormalizedOr(b vec3[T]) vec3[T] {
+func (a vec3[T]) NormalizeOr(b vec3[T]) vec3[T] {
 	norm := a.Length()
 	if norm == 0 {
 		return b
@@ -164,6 +156,19 @@ func (a vec3[T]) Lerp(b vec3[T], t T) vec3[T] {
 		lerp(a[0], b[0], t),
 		lerp(a[1], b[1], t),
 		lerp(a[2], b[2], t),
+	}
+}
+
+// 3-dimensional bivector.
+type Bivec3 = bivec3[float32]
+
+type bivec3[T constraints.Float] [3]T
+
+func (a vec3[T]) Wedge(b vec3[T]) bivec3[T] {
+	return bivec3[T]{
+		a[1]*b[2] - a[2]*b[1], // 1 2
+		a[2]*b[0] - a[0]*b[2], // 2 0
+		a[0]*b[1] - a[1]*b[0], // 0 1
 	}
 }
 
@@ -222,20 +227,16 @@ func (a vec4[T]) Scale(lambda T) vec4[T] {
 	}
 }
 
+func (a vec4[T]) Length() T {
+	return T(math.Sqrt(float64(a.Dot(a))))
+}
+
 func (a vec4[T]) Dot(b vec4[T]) T {
 	return 0 + a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3]
 }
 
-func (a vec4[T]) LengthSq() T {
-	return a.Dot(a)
-}
-
-func (a vec4[T]) Length() T {
-	return T(math.Sqrt(float64(a.LengthSq())))
-}
-
 // TODO: simplify this so that it's just an ordinary normalize pls
-func (a vec4[T]) NormalizedOr(b vec4[T]) vec4[T] {
+func (a vec4[T]) NormalizeOr(b vec4[T]) vec4[T] {
 	norm := a.Length()
 	if norm == 0 {
 		return b
