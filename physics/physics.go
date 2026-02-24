@@ -9,7 +9,7 @@ import (
 	"errors"
 	"unsafe"
 
-	"worldspawn/geometry-go"
+	"worldspawn/internal/geometry"
 )
 
 // TODO: redo this package so that it's relatively straightforward bindings to

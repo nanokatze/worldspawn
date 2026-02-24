@@ -27,9 +27,9 @@ import (
 
 	"worldspawn/deathmatch/internal/game"
 	"worldspawn/deathmatch/internal/replication"
-	"worldspawn/geometry-go"
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/framing"
+	"worldspawn/internal/geometry"
 	"worldspawn/internal/nice"
 )
 

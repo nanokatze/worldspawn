@@ -3,8 +3,9 @@ package game
 import (
 	"log"
 	"slices"
-	"worldspawn/geometry-go"
+
 	"worldspawn/internal/ecs"
+	"worldspawn/internal/geometry"
 )
 
 type DroppedWeapon struct {

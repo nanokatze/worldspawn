@@ -48,7 +48,7 @@ func (trs TRS3) Mat4x4() Mat4x4 {
 	r := trs.R
 	s := trs.S
 
-	// TODO: see if we can rewrite this to be more data driven? Especially the quaternion bit.
+	// TODO: see if we can rewrite this to be more data driven? Especially the rotation bit.
 	// TODO: let's just have a Mat4x4() per each component and then compose them
 	// together?
 

@@ -7,7 +7,7 @@ import (
 
 type matGen struct{ M, N int64 }
 
-func (mat matGen) Gen(w io.Writer) error { return matTmpl.Execute(w, &mat) }
+func (gen matGen) Gen(w io.Writer) error { return matTmpl.Execute(w, &gen) }
 
 var matTmpl = template.Must(template.New("mat").Parse(`
 {{$matMxN := printf "mat%dx%d" .M .N}}
@@ -29,7 +29,7 @@ func {{$matMxN}}One[T constraints.Float]() {{$matMxN}}[T] {
 
 type matmulGen struct{ M, N, P int64 }
 
-func (matmul matmulGen) Gen(w io.Writer) error { return matmulTmpl.Execute(w, &matmul) }
+func (gen matmulGen) Gen(w io.Writer) error { return matmulTmpl.Execute(w, &gen) }
 
 var matmulTmpl = template.Must(template.New("matmul").Parse(`
 {{$matMxN := printf "mat%dx%d" .M .N}}

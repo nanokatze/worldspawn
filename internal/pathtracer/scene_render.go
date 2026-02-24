@@ -8,9 +8,9 @@ import (
 	"structs"
 	"sync"
 
-	"worldspawn/geometry-go"
 	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
+	"worldspawn/internal/geometry"
 )
 
 type Quality struct {

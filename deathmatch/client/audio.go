@@ -6,9 +6,9 @@ import (
 	"sync"
 	"unsafe"
 
-	"worldspawn/geometry-go"
 	sfx "worldspawn/internal/fuckwwise"
 	"worldspawn/internal/fuckwwise/interpolators"
+	"worldspawn/internal/geometry"
 	"worldspawn/internal/sdl"
 )
 

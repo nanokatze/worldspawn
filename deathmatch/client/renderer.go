@@ -9,12 +9,12 @@ import (
 	"time"
 
 	"worldspawn/deathmatch/internal/game"
-	"worldspawn/geometry-go"
 	"worldspawn/gpu"
 	"worldspawn/internal/ecs"
 	sfx "worldspawn/internal/fuckwwise"
 	"worldspawn/internal/fuckwwise/opusfile"
 	"worldspawn/internal/fuckwwise/wav"
+	"worldspawn/internal/geometry"
 	"worldspawn/internal/pathtracer"
 	"worldspawn/internal/sdl"
 )

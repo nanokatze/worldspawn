@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"worldspawn/deathmatch/internal/game"
-	"worldspawn/geometry-go"
 	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
 	"worldspawn/gpu/wsi"
 	sfx "worldspawn/internal/fuckwwise"
+	"worldspawn/internal/geometry"
 	"worldspawn/internal/pathtracer"
 	"worldspawn/internal/sdl"
 	"worldspawn/internal/sdlrouter"

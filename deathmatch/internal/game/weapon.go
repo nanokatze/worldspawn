@@ -1,8 +1,8 @@
 package game
 
 import (
-	"worldspawn/geometry-go"
 	"worldspawn/internal/ecs"
+	"worldspawn/internal/geometry"
 )
 
 // TODO: rename the Weapon interface to just something that can be held

@@ -6,7 +6,7 @@ import (
 
 	"github.com/go-json-experiment/json"
 
-	"worldspawn/geometry-go"
+	"worldspawn/internal/geometry"
 )
 
 // TODO: move this stuff into its own package probably

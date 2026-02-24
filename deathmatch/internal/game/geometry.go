@@ -4,7 +4,7 @@ package game
 // mechanism (https://github.com/nanokatze/worldspawn-private/issues/45)
 
 import (
-	"worldspawn/geometry-go"
+	"worldspawn/internal/geometry"
 	"worldspawn/internal/nice"
 )
 

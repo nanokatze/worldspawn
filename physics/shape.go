@@ -14,7 +14,7 @@ import (
 
 	"github.com/go-json-experiment/json"
 
-	"worldspawn/geometry-go"
+	"worldspawn/internal/geometry"
 	"worldspawn/internal/wmesh"
 )
 

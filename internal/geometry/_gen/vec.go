@@ -7,7 +7,7 @@ import (
 
 type vecGen struct{ D int64 }
 
-func (vec vecGen) Gen(w io.Writer) error { return vecTmpl.Execute(w, &vec) }
+func (gen vecGen) Gen(w io.Writer) error { return vecTmpl.Execute(w, &gen) }
 
 var vecTmpl = template.Must(template.New("vec").Parse(`
 {{- $vecD := printf "vec%d" .D}}

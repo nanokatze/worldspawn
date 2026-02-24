@@ -3,9 +3,9 @@ package pathtracer
 import (
 	"structs"
 
-	"worldspawn/geometry-go"
 	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
+	"worldspawn/internal/geometry"
 	"worldspawn/internal/pathtracer/internal/material"
 )
 

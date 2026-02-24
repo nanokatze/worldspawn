@@ -4,8 +4,8 @@ import (
 	"math"
 	"time"
 
-	"worldspawn/geometry-go"
 	"worldspawn/internal/ecs"
+	"worldspawn/internal/geometry"
 )
 
 type Testburger struct {

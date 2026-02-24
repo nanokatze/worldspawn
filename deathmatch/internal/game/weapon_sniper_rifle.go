@@ -3,8 +3,8 @@ package game
 import (
 	"time"
 
-	"worldspawn/geometry-go"
 	"worldspawn/internal/ecs"
+	"worldspawn/internal/geometry"
 )
 
 var sniperRifleStats = struct {

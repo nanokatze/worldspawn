@@ -1,6 +1,6 @@
 package physics
 
-import "worldspawn/geometry-go"
+import "worldspawn/internal/geometry"
 
 type ContactEvent struct {
 	Type         int32

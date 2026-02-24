@@ -2,7 +2,8 @@ package sfx
 
 import (
 	"io"
-	"worldspawn/geometry-go"
+
+	"worldspawn/internal/geometry"
 )
 
 // TODO: fold this with the graphics renderer

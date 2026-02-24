@@ -4,10 +4,10 @@ import (
 	"io"
 	"log"
 
-	"worldspawn/geometry-go"
 	"worldspawn/internal/ecs"
 	sfx "worldspawn/internal/fuckwwise"
 	"worldspawn/internal/fuckwwise/wav"
+	"worldspawn/internal/geometry"
 )
 
 // TODO: give this a better name
