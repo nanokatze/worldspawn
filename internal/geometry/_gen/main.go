@@ -13,15 +13,22 @@ func main() {
 	flag.Parse()
 
 	buf := new(bytes.Buffer)
+
 	// TODO: specify package name on the command line
 	buf.WriteString(header)
+
 	// TODO: specify what to generate on the command line
 	vecGen{2}.Gen(buf)
+
 	vecGen{3}.Gen(buf)
+	bivecGen{3}.Gen(buf)
+
 	vecGen{4}.Gen(buf)
+
 	matGen{3, 3}.Gen(buf)
 	matGen{4, 4}.Gen(buf)
 	matmulGen{4, 4, 4}.Gen(buf)
+
 	src, _ := format.Source(buf.Bytes())
 	os.WriteFile(*out, src, 0644)
 }
