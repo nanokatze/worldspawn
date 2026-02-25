@@ -9,14 +9,14 @@ import (
 	"worldspawn/gpu/vk"
 )
 
-// TODO: rename it back to be less assuming about whether things are a closure or not etc?
-type ComputeClosureBody[T any] struct {
+type ComputeShader[T any] struct {
 	_  [0]T
 	vk vk.ShaderEXT
 }
 
-// TODO: do something better pls
-func CompileFunc[T any](blob []byte, entry string) ComputeClosureBody[T] {
+// TODO: replace this with lazy init at WithEnv that pulls src from a source
+// specified in ComputeShader?
+func CompileFunc[T any](blob []byte, entry string) ComputeShader[T] {
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
 
@@ -39,10 +39,10 @@ func CompileFunc[T any](blob []byte, entry string) ComputeClosureBody[T] {
 			Size:       maxShaderArgsSize,
 		}),
 	}, nil, &vkShader))
-	return ComputeClosureBody[T]{vk: vkShader}
+	return ComputeShader[T]{vk: vkShader}
 }
 
-func (body ComputeClosureBody[T]) WithEnv(env T) ComputeClosure[T] {
+func (body ComputeShader[T]) WithEnv(env T) ComputeClosure[T] {
 	return ComputeClosure[T]{
 		Body: body,
 		Env:  env,
@@ -50,7 +50,7 @@ func (body ComputeClosureBody[T]) WithEnv(env T) ComputeClosure[T] {
 }
 
 type ComputeClosure[T any] struct {
-	Body ComputeClosureBody[T]
+	Body ComputeShader[T]
 	Env  T
 }
 
