@@ -90,16 +90,13 @@ func prefab(filename string) *Columns {
 	return w
 }
 
-// TODO: rename to InstanceCollection
-func (w *Scene) SpawnPrefab(prefabRef PrefabRef, parent ecs.ID, info *UpdateParams) ecs.ID {
+func (w *Scene) SpawnPrefab(filename string, info *UpdateParams) ecs.ID {
 	e := w.CreateEntity(info)
-	w.SetParent(e, parent)
-	w.CopyEntities(e, prefab(prefabRef.Filename))
+	w.CopyEntities(e, prefab(filename))
 	return e
 }
 
-// TODO: make this a standalone method?
-// TODO: rename to InstantinateCollectionAt
+// TODO: this should create the collection entities
 func (w *Scene) InstanceCollectionAt(id ecs.ID, prefabRef PrefabRef) {
 	translationRotation, _ := w.TranslationRotation.Get(id)
 	scale, _ := w.Scale.Get(id)

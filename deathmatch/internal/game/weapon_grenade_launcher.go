@@ -20,7 +20,7 @@ var grenadeLauncherStats = struct {
 	ViewGeometryTRS   geometry.DTRS3 // TODO: this should be killed
 	RenderingGeometry string
 
-	Projectile     PrefabRef
+	Projectile     string
 	MuzzleVelocity float32
 	CycleDuration  time.Duration `json:",format:iso8601"`
 }{
@@ -31,7 +31,7 @@ var grenadeLauncherStats = struct {
 	},
 	RenderingGeometry: "weapons/grenade_launcher/geometries/Grenade_Launcher",
 
-	Projectile:     PrefabRef{Filename: "weapons/grenade_launcher_grenade/grenade.json"},
+	Projectile:     "weapons/grenade_launcher_grenade/grenade.json",
 	MuzzleVelocity: 30,
 	CycleDuration:  600 * time.Millisecond,
 }
@@ -63,7 +63,7 @@ func (weapon WeaponGrenadeLauncher) WeaponSubstep(scene *Scene, weaponID ecs.ID,
 	if buttons&WeaponTrigger != 0 {
 		if !weapon.NextAttack.After(scene.Now) {
 			if !info.Speculating {
-				projectile := scene.SpawnPrefab(grenadeLauncherStats.Projectile, 0, info)
+				projectile := scene.SpawnPrefab(grenadeLauncherStats.Projectile, info)
 				// scene.CreationTime.Set(projectile, scene.Now)
 				scene.SetGlobalTRS(projectile, shootpos.Mul(geometry.DTRS3{
 					R: geometry.Rot3FromPlaneAngle(geometry.Vec3{-1, 0, 0}, math.Pi/2),
@@ -94,7 +94,6 @@ func (weapon WeaponGrenadeLauncher) WeaponSubstep(scene *Scene, weaponID ecs.ID,
 	return nil
 }
 
-// TODO: we could also make it a method on the proj launcher tbh?
 func (weapon WeaponGrenadeLauncher) fired(scene *Scene, id ecs.ID) {
 	scene.SoundEffect.Set(id, SoundEmitter{
 		Effect:      "weapons/grenade_launcher/fire.wav",
