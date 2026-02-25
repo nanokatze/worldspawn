@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"time"
 
-	"worldspawn/geometry-go"
 	"worldspawn/internal/ecs"
+	"worldspawn/internal/geometry"
 	"worldspawn/physics"
 )
 
