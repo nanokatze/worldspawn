@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"worldspawn/internal/ecs"
-	"worldspawn/internal/geometry"
+	"worldspawn/internal/gmath"
 	"worldspawn/physics"
 )
 
@@ -191,21 +191,21 @@ func getShape(w *Scene, id ecs.ID) *physics.Shape {
 	switch geom {
 	case "Grenade":
 		shape = packGeometry(_Geometry{
-			Rotation: geometry.Rot3One(),
-			Scale:    geometry.Vec3Ones(),
+			Rotation: gmath.Rot3One(),
+			Scale:    gmath.Vec3Ones(),
 
 			Kind:       geometrySphere,
-			HalfExtent: geometry.Vec3{0.0568, 0.0568, 0.0568},
+			HalfExtent: gmath.Vec3{0.0568, 0.0568, 0.0568},
 		})
 
 	case "FPSCharacter":
 		shape = packGeometry(_Geometry{
-			Translation: geometry.Vec3{0, 0, 1.9 / 2}, // TODO: read standing height off Entity
-			Rotation:    geometry.Rot3One(),
-			Scale:       geometry.Vec3Ones(),
+			Translation: gmath.Vec3{0, 0, 1.9 / 2}, // TODO: read standing height off Entity
+			Rotation:    gmath.Rot3One(),
+			Scale:       gmath.Vec3Ones(),
 
 			Kind:         geometryCylinder,
-			HalfExtent:   geometry.Vec3{1, 1, 0}.Scale(0.4).Add(geometry.Vec3{0, 0, 1.9 / 2}),
+			HalfExtent:   gmath.Vec3{1, 1, 0}.Scale(0.4).Add(gmath.Vec3{0, 0, 1.9 / 2}),
 			ConvexRadius: 0.0,
 		})
 

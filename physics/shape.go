@@ -14,7 +14,7 @@ import (
 
 	"github.com/go-json-experiment/json"
 
-	"worldspawn/internal/geometry"
+	"worldspawn/internal/gmath"
 	"worldspawn/internal/wmesh"
 )
 
@@ -24,7 +24,7 @@ func NewSphereShape(radius float32) (*Shape, error) {
 	return (*Shape)(C.newSphereShape(C.float(radius))), nil
 }
 
-func NewBoxShape(halfExtent geometry.Vec3, convexRadius float32) (*Shape, error) {
+func NewBoxShape(halfExtent gmath.Vec3, convexRadius float32) (*Shape, error) {
 	return (*Shape)(C.newBoxShape((*C.vec3)(unsafe.Pointer(&halfExtent)), C.float(convexRadius))), nil
 }
 
@@ -32,13 +32,13 @@ func NewCylinderShape(radius, halfHeight, convexRadius float32) (*Shape, error) 
 	return (*Shape)(C.newCylinderShape(C.float(radius), C.float(halfHeight), C.float(convexRadius))), nil
 }
 
-func NewConvexHullShape(vertices []geometry.Vec3, convexRadius float32) (*Shape, error) {
+func NewConvexHullShape(vertices []gmath.Vec3, convexRadius float32) (*Shape, error) {
 	return (*Shape)(C.newConvexHullShape(
 		(*C.vec3)(unsafe.Pointer(unsafe.SliceData(vertices))), C.size_t(len(vertices)),
 		C.float(convexRadius))), nil
 }
 
-func NewMeshShape(vertices []geometry.Vec3, triangles []Triangle) (*Shape, error) {
+func NewMeshShape(vertices []gmath.Vec3, triangles []Triangle) (*Shape, error) {
 	// HACK
 	triangles2 := make([]struct {
 		Triangle
@@ -53,7 +53,7 @@ func NewMeshShape(vertices []geometry.Vec3, triangles []Triangle) (*Shape, error
 		unsafe.Pointer(unsafe.SliceData(triangles2)), C.size_t(len(triangles2)))), nil
 }
 
-func NewTransformedShape(translation geometry.Vec3, rotation geometry.Rot3, scale geometry.Vec3, shape *Shape) (*Shape, error) {
+func NewTransformedShape(translation gmath.Vec3, rotation gmath.Rot3, scale gmath.Vec3, shape *Shape) (*Shape, error) {
 	return (*Shape)(C.newTransformedShape((*C.vec3)(unsafe.Pointer(&translation)), (*C.Rot3)(unsafe.Pointer(&rotation)), (*C.vec3)(unsafe.Pointer(&scale)), (*C.Shape)(unsafe.Pointer(shape)))), nil
 }
 
@@ -98,7 +98,7 @@ func NewFileBackedShape(fsys fs.FS, filename string, concave bool) (*Shape, erro
 		return nil, err
 	}
 
-	posBuffer := make([]geometry.Vec3, header2.VertexCount)
+	posBuffer := make([]gmath.Vec3, header2.VertexCount)
 	blob.Seek(header2.Attributes[attrMap["position"]].Data, io.SeekStart)
 	if err := binary.Read(blob, binary.LittleEndian, &posBuffer); err != nil {
 		return nil, err
@@ -126,9 +126,9 @@ func (s *Shape) Mass() float32 {
 	return float32(C.shapeMass((*C.Shape)(s)))
 }
 
-func (s *Shape) Inertia() geometry.Mat4x4 {
+func (s *Shape) Inertia() gmath.Mat4x4 {
 	m := C.shapeInertia((*C.Shape)(s))
-	return *(*geometry.Mat4x4)(unsafe.Pointer(&m))
+	return *(*gmath.Mat4x4)(unsafe.Pointer(&m))
 }
 
 // TODO: rename

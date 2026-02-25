@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"worldspawn/internal/ecs"
-	"worldspawn/internal/geometry"
+	"worldspawn/internal/gmath"
 )
 
 type Testburger struct {
@@ -20,17 +20,17 @@ func (Testburger) entity() {}
 // Or alternatively if we commit to moving entities into scripts, just kill this
 // off.
 var grenadeLauncherStats = struct {
-	ViewGeometryTRS   geometry.DTRS3 // TODO: this should be killed
+	ViewGeometryTRS   gmath.DTRS3 // TODO: this should be killed
 	RenderingGeometry string
 
 	Projectile     string
 	MuzzleVelocity float32
 	CycleDuration  time.Duration `json:",format:iso8601"`
 }{
-	ViewGeometryTRS: geometry.DTRS3{
-		T: geometry.DVec3{0.18, 0.5, -0.2},
-		R: geometry.Rot3One(),
-		S: geometry.Vec3Ones(),
+	ViewGeometryTRS: gmath.DTRS3{
+		T: gmath.DVec3{0.18, 0.5, -0.2},
+		R: gmath.Rot3One(),
+		S: gmath.Vec3Ones(),
 	},
 	RenderingGeometry: "weapons/grenade_launcher/geometries/Grenade_Launcher",
 
@@ -60,7 +60,7 @@ func (weapon WeaponGrenadeLauncher) WeaponCreateGeometry(scene *Scene, parent ec
 	return root
 }
 
-func (weapon WeaponGrenadeLauncher) WeaponSubstep(scene *Scene, weaponID ecs.ID, shooterID ecs.ID, shootpos geometry.DTRS3, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.ID) {
+func (weapon WeaponGrenadeLauncher) WeaponSubstep(scene *Scene, weaponID ecs.ID, shooterID ecs.ID, shootpos gmath.DTRS3, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.ID) {
 	if buttons&WeaponTrigger != 0 {
 		if weapon.CycleEnds.After(scene.Now) {
 			return nil
@@ -69,12 +69,12 @@ func (weapon WeaponGrenadeLauncher) WeaponSubstep(scene *Scene, weaponID ecs.ID,
 		if !info.Speculating {
 			projectile := scene.SpawnPrefab(grenadeLauncherStats.Projectile, info)
 			// scene.CreationTime.Set(projectile, scene.Now)
-			scene.SetGlobalTRS(projectile, shootpos.Mul(geometry.DTRS3{
-				R: geometry.Rot3InPlane(geometry.Bivec3{-1, 0, 0}, math.Pi/2),
-				S: geometry.Vec3Ones(),
+			scene.SetGlobalTRS(projectile, shootpos.Mul(gmath.DTRS3{
+				R: gmath.Rot3InPlane(gmath.Bivec3{-1, 0, 0}, math.Pi/2),
+				S: gmath.Vec3Ones(),
 			}))
 			// TODO: consider velocity set on the prefab?
-			scene.Velocity.Set(projectile, Velocity{Linear: shootpos.R.Rotate(geometry.Vec3{0, grenadeLauncherStats.MuzzleVelocity, 0})})
+			scene.Velocity.Set(projectile, Velocity{Linear: shootpos.R.Rotate(gmath.Vec3{0, grenadeLauncherStats.MuzzleVelocity, 0})})
 			scene.CollisionLayer.Set(projectile, PhysicsLayerProjectiles)
 			scene.PhysicsFilter.Set(projectile, []ecs.ID{shooterID})
 			scene.Timer.Set(projectile, scene.Now.Add(grenadeStats.FuseDuration))

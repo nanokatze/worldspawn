@@ -10,7 +10,7 @@ import (
 
 	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
-	"worldspawn/internal/geometry"
+	"worldspawn/internal/gmath"
 )
 
 type Quality struct {
@@ -25,12 +25,12 @@ type Quality struct {
 type cameraInternal struct {
 	_ structs.HostLayout
 
-	Proj geometry.Mat4x4
-	View geometry.Mat4x4
+	Proj gmath.Mat4x4
+	View gmath.Mat4x4
 
-	ViewProj    geometry.Mat4x4 // TODO: remove?
-	ProjInverse geometry.Mat4x4
-	ViewInverse geometry.Mat4x4
+	ViewProj    gmath.Mat4x4 // TODO: remove?
+	ProjInverse gmath.Mat4x4
+	ViewInverse gmath.Mat4x4
 }
 
 // TODO: carve out some things that we should push directly and keep others behind a pointer?
@@ -142,7 +142,7 @@ func (scene *Scene) Render(
 	defer jq.Cleanup(func() { gpu.Free(gpu.UnsafePointer(frame)) })
 
 	{
-		proj := geometry.Mat4x4InfinitePerspective(
+		proj := gmath.Mat4x4InfinitePerspective(
 			float32(camera.FieldOfView),
 			float32(film.Extent[0])/float32(film.Extent[1]), // TODO: add a field to Camera instead?
 			float32(camera.NearClipPlane))

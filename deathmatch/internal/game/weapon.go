@@ -2,7 +2,7 @@ package game
 
 import (
 	"worldspawn/internal/ecs"
-	"worldspawn/internal/geometry"
+	"worldspawn/internal/gmath"
 )
 
 // TODO: rename the Weapon interface to just something that can be held
@@ -26,5 +26,5 @@ type Weapon interface {
 	// TODO: we need to somehow tell the thing to filter the player and possibly
 	// other entities
 	// TODO: shootpos really should be DVec3 + Rot3 tbh
-	WeaponSubstep(scene *Scene, weaponId ecs.ID, shooterID ecs.ID, shootpos geometry.DTRS3, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.ID)
+	WeaponSubstep(scene *Scene, weaponId ecs.ID, shooterID ecs.ID, shootpos gmath.DTRS3, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.ID)
 }

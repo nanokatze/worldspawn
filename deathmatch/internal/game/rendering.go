@@ -7,7 +7,7 @@ import (
 	"worldspawn/internal/ecs"
 	sfx "worldspawn/internal/fuckwwise"
 	"worldspawn/internal/fuckwwise/wav"
-	"worldspawn/internal/geometry"
+	"worldspawn/internal/gmath"
 )
 
 // TODO: give this a better name
@@ -19,12 +19,12 @@ type VisibilityMask struct {
 }
 
 type CosmeticOffset struct {
-	Offset geometry.Vec3
+	Offset gmath.Vec3
 	T0     Time
 	T1     Time // replace with time.Duration?
 }
 
-func (cosmeticOffset CosmeticOffset) Eval(now Time) geometry.Vec3 {
+func (cosmeticOffset CosmeticOffset) Eval(now Time) gmath.Vec3 {
 	// TODO: rename
 	x := durationToFloatSeconds(cosmeticOffset.T1.Sub(now)) /
 		durationToFloatSeconds(cosmeticOffset.T1.Sub(cosmeticOffset.T0))

@@ -1,4 +1,4 @@
-package geometry
+package gmath
 
 import "golang.org/x/exp/constraints"
 

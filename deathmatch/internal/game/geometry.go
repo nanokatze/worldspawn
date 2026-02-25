@@ -4,7 +4,7 @@ package game
 // mechanism (https://github.com/nanokatze/worldspawn-private/issues/45)
 
 import (
-	"worldspawn/internal/geometry"
+	"worldspawn/internal/gmath"
 	"worldspawn/internal/nice"
 )
 
@@ -22,13 +22,13 @@ const (
 type _Geometry struct {
 	// TODO: remove the transform in favor of an option to use children entities
 	// as a way to specify compound geometry.
-	Translation geometry.Vec3
-	Rotation    geometry.Rot3
-	Scale       geometry.Vec3
+	Translation gmath.Vec3
+	Rotation    gmath.Rot3
+	Scale       gmath.Vec3
 
 	Kind         geometryKind
 	Filename     string // used by Kind=FileBacked
-	HalfExtent   geometry.Vec3
+	HalfExtent   gmath.Vec3
 	ConvexRadius float32
 }
 
@@ -36,11 +36,11 @@ type geometryPacked string
 
 func packGeometry(geo _Geometry) geometryPacked {
 	// TODO: ugh
-	if geo.Rotation == (geometry.Rot3{}) {
-		geo.Rotation = geometry.Rot3One()
+	if geo.Rotation == (gmath.Rot3{}) {
+		geo.Rotation = gmath.Rot3One()
 	}
-	if geo.Scale == (geometry.Vec3{}) {
-		geo.Scale = geometry.Vec3Ones()
+	if geo.Scale == (gmath.Vec3{}) {
+		geo.Scale = gmath.Vec3Ones()
 	}
 
 	buf, err := nice.Marshal(&geo)

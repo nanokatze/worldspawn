@@ -29,7 +29,7 @@ import (
 	"worldspawn/deathmatch/internal/replication"
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/framing"
-	"worldspawn/internal/geometry"
+	"worldspawn/internal/gmath"
 	"worldspawn/internal/nice"
 )
 
@@ -494,15 +494,15 @@ func spawnplayer(w *game.Scene, info *game.UpdateParams) ecs.ID {
 
 	w.SetParent(camera, character)
 	// TODO: poke a method on Player to perform this
-	w.SetLocalTRS(camera, geometry.DTRS3{
-		T: geometry.DVec3{0, 0, 1.9 - 0.1}, // standing height
-		R: geometry.Rot3One(),
-		S: geometry.Vec3Ones(),
+	w.SetLocalTRS(camera, gmath.DTRS3{
+		T: gmath.DVec3{0, 0, 1.9 - 0.1}, // standing height
+		R: gmath.Rot3One(),
+		S: gmath.Vec3Ones(),
 	})
 
 	hands := w.CreateEntity(info)
 	w.SetParent(hands, camera)
-	w.SetLocalTRS(hands, geometry.DTRS3One())
+	w.SetLocalTRS(hands, gmath.DTRS3One())
 
 	w.Entity.Set(character, game.Character{
 		FirstPersonCamera: camera,
@@ -590,10 +590,10 @@ func main() {
 			// Aaand "drop" the weapon
 
 			dropped := s.scene.CreateDroppedWeapon(weapon, info)
-			s.scene.SetGlobalTRS(dropped, geometry.DTRS3{
-				T: geometry.DVec3{0, 0, 1},
-				R: geometry.Rot3One(),
-				S: geometry.Vec3Ones(),
+			s.scene.SetGlobalTRS(dropped, gmath.DTRS3{
+				T: gmath.DVec3{0, 0, 1},
+				R: gmath.Rot3One(),
+				S: gmath.Vec3Ones(),
 			})
 		}
 
@@ -602,10 +602,10 @@ func main() {
 			s.scene.Entity.Set(weapon, game.WeaponSniperRifle{})
 
 			dropped := s.scene.CreateDroppedWeapon(weapon, info)
-			s.scene.SetGlobalTRS(dropped, geometry.DTRS3{
-				T: geometry.DVec3{0, -10, 1},
-				R: geometry.Rot3One(),
-				S: geometry.Vec3Ones(),
+			s.scene.SetGlobalTRS(dropped, gmath.DTRS3{
+				T: gmath.DVec3{0, -10, 1},
+				R: gmath.Rot3One(),
+				S: gmath.Vec3Ones(),
 			})
 		}
 	}

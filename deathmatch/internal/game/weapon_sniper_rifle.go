@@ -4,18 +4,18 @@ import (
 	"time"
 
 	"worldspawn/internal/ecs"
-	"worldspawn/internal/geometry"
+	"worldspawn/internal/gmath"
 )
 
 var sniperRifleStats = struct {
-	ViewGeometryTRS geometry.DTRS3 // TODO: this should be killed
+	ViewGeometryTRS gmath.DTRS3 // TODO: this should be killed
 
 	RenderingGeometry string
 }{
-	ViewGeometryTRS: geometry.DTRS3{
-		T: geometry.DVec3{0.15, 0.4, -0.225},
-		R: geometry.Rot3One(),
-		S: geometry.Vec3Ones(),
+	ViewGeometryTRS: gmath.DTRS3{
+		T: gmath.DVec3{0.15, 0.4, -0.225},
+		R: gmath.Rot3One(),
+		S: gmath.Vec3Ones(),
 	},
 
 	RenderingGeometry: "weapons/sniper_rifle/geometries/Sniper_Rifle_001",
@@ -38,7 +38,7 @@ func (weapon WeaponSniperRifle) WeaponCreateGeometry(scene *Scene, parent ecs.ID
 	sound := scene.CreateEntity(info)
 	// scene.CreationTime.Set(sound, scene.Now)
 	scene.SetParent(sound, root)
-	scene.SetLocalTRS(sound, geometry.DTRS3One())
+	scene.SetLocalTRS(sound, gmath.DTRS3One())
 	guh := LoopedSound{
 		Sound:       "lamphum.wav", // TODO: don't bother setting it here pls
 		Attenuation: 0.1,
@@ -49,6 +49,6 @@ func (weapon WeaponSniperRifle) WeaponCreateGeometry(scene *Scene, parent ecs.ID
 	return root
 }
 
-func (weapon WeaponSniperRifle) WeaponSubstep(scene *Scene, weaponID ecs.ID, shooterID ecs.ID, shootpos geometry.DTRS3, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.ID) {
+func (weapon WeaponSniperRifle) WeaponSubstep(scene *Scene, weaponID ecs.ID, shooterID ecs.ID, shootpos gmath.DTRS3, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.ID) {
 	return nil
 }

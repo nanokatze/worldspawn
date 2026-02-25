@@ -1,4 +1,4 @@
-package geometry
+package gmath
 
 import "math"
 

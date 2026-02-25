@@ -1,21 +1,21 @@
 package physics
 
-import "worldspawn/internal/geometry"
+import "worldspawn/internal/gmath"
 
 type ContactEvent struct {
 	Type         int32
 	Body1, Body2 PerBodyContactData
-	Normal       geometry.Vec3 // contact normal
+	Normal       gmath.Vec3 // contact normal
 }
 
 type PerBodyContactData struct {
 	BodyID          BodyID // TODO: rename to BodyID
 	SubShapeID      uint32
 	Active          bool
-	Position        geometry.DVec3
-	Rotation        geometry.Vec3
-	LinearVelocity  geometry.Vec3
-	AngularVelocity geometry.Vec3
+	Position        gmath.DVec3
+	Rotation        gmath.Vec3
+	LinearVelocity  gmath.Vec3
+	AngularVelocity gmath.Vec3
 }
 
 func (ce ContactEvent) SwapBodies() ContactEvent {

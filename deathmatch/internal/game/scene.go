@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"worldspawn/internal/ecs"
-	"worldspawn/internal/geometry"
+	"worldspawn/internal/gmath"
 	"worldspawn/physics"
 )
 
@@ -19,20 +19,20 @@ var Data fs.FS
 // TODO: split this file up
 
 type TranslationRotation struct {
-	Translation geometry.DVec3
-	Rotation    geometry.Rot3
+	Translation gmath.DVec3
+	Rotation    gmath.Rot3
 }
 
 type Velocity struct {
-	Linear  geometry.Vec3
-	Angular geometry.Vec3
+	Linear  gmath.Vec3
+	Angular gmath.Vec3
 }
 
 type SceneGlobals struct {
 	// TODO: replace it with sky material
 	Sky string
 
-	Gravity geometry.Vec3
+	Gravity gmath.Vec3
 }
 
 func (SceneGlobals) entity() {}
@@ -66,7 +66,7 @@ type Columns struct {
 	TranslationRotation ecs.Column[TranslationRotation]
 	// Do not access this column directly; use {Get,Set}{Local,Global}TRS
 	// instead.
-	Scale ecs.Column[geometry.Vec3]
+	Scale ecs.Column[gmath.Vec3]
 
 	Velocity ecs.Column[Velocity]
 
@@ -85,7 +85,7 @@ type Columns struct {
 	PhysicsFilter          ecs.Column[[]ecs.ID] // TODO: generalize to all physics constraints
 	GravityFactor          ecs.Column[float32]
 	PhysicsMassOverride    ecs.Column[float32] // TODO: remove "Physics" prefix from these
-	PhysicsInertiaOverride ecs.Column[geometry.Mat4x4]
+	PhysicsInertiaOverride ecs.Column[gmath.Mat4x4]
 
 	// TODO: generalize to all events, including damage etc?
 	ContactEvents ecs.Column[[]ContactEvent]
@@ -205,21 +205,21 @@ func (scene *Scene) SetParent(id, parent ecs.ID) {
 	// children
 }
 
-func (scene *Scene) GetLocalTRS(id ecs.ID) (geometry.DTRS3, bool) {
+func (scene *Scene) GetLocalTRS(id ecs.ID) (gmath.DTRS3, bool) {
 	tr, ok := scene.TranslationRotation.Get(id)
 	if !ok {
-		return geometry.DTRS3One(), false
+		return gmath.DTRS3One(), false
 	}
 	s, ok := scene.Scale.Get(id)
 	if !ok {
-		s = geometry.Vec3Ones()
+		s = gmath.Vec3Ones()
 	}
-	return geometry.DTRS3{tr.Translation, tr.Rotation, s}, true
+	return gmath.DTRS3{tr.Translation, tr.Rotation, s}, true
 }
 
-func (scene *Scene) SetLocalTRS(id ecs.ID, trs geometry.DTRS3) {
+func (scene *Scene) SetLocalTRS(id ecs.ID, trs gmath.DTRS3) {
 	scene.TranslationRotation.Set(id, TranslationRotation{trs.T, trs.R})
-	if trs.S == geometry.Vec3Ones() {
+	if trs.S == gmath.Vec3Ones() {
 		scene.Scale.Delete(id)
 	} else {
 		scene.Scale.Set(id, trs.S)
@@ -227,15 +227,15 @@ func (scene *Scene) SetLocalTRS(id ecs.ID, trs geometry.DTRS3) {
 }
 
 // TODO: separate deletion and transform hierarchies?
-func (scene *Scene) GetGlobalTRS(id ecs.ID) (geometry.DTRS3, bool) {
+func (scene *Scene) GetGlobalTRS(id ecs.ID) (gmath.DTRS3, bool) {
 	if id == 0 {
-		return geometry.DTRS3One(), false
+		return gmath.DTRS3One(), false
 	}
-	result := geometry.DTRS3One()
+	result := gmath.DTRS3One()
 	for id != 0 {
 		trs, ok := scene.GetLocalTRS(id)
 		if !ok {
-			return geometry.DTRS3One(), false
+			return gmath.DTRS3One(), false
 		}
 		result = trs.Mul(result)
 		id = scene.GetParent(id)
@@ -243,7 +243,7 @@ func (scene *Scene) GetGlobalTRS(id ecs.ID) (geometry.DTRS3, bool) {
 	return result, true
 }
 
-func (scene *Scene) SetGlobalTRS(id ecs.ID, trs geometry.DTRS3) {
+func (scene *Scene) SetGlobalTRS(id ecs.ID, trs gmath.DTRS3) {
 	// TODO: handle having a parent in some way
 	scene.SetLocalTRS(id, trs)
 }

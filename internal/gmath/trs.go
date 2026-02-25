@@ -1,4 +1,4 @@
-package geometry
+package gmath
 
 // TODO: shearing
 type DTRS3 struct {

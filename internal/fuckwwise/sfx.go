@@ -3,7 +3,7 @@ package sfx
 import (
 	"io"
 
-	"worldspawn/internal/geometry"
+	"worldspawn/internal/gmath"
 )
 
 // TODO: fold this with the graphics renderer
@@ -19,7 +19,7 @@ type Source struct {
 // TODO: should use something else in place of time.Duration probably
 
 type Instance struct {
-	Transform geometry.Mat4x4
+	Transform gmath.Mat4x4
 
 	// TODO: stop using this in favor of Source (ReaderAt)
 	Samples []float32
@@ -52,7 +52,7 @@ func sliceLoadOrZero[T any](s []T, i int) T {
 // TODO: channels should be IR spheres for HRTF.
 // TODO: make sfx.Render output fixed points, and have the caller be responsible
 // for interleaving. We should still convert to float32 or whatevs.
-func Render(scene *Scene, camera geometry.Vec3, now int64, dst []float32, channels, sampleRate int) {
+func Render(scene *Scene, camera gmath.Vec3, now int64, dst []float32, channels, sampleRate int) {
 	if channels != 2 {
 		panic("not implemented")
 	}
@@ -75,7 +75,7 @@ func Render(scene *Scene, camera geometry.Vec3, now int64, dst []float32, channe
 
 		t0 := now - instance.PlayTime
 
-		dist := geometry.Vec3{
+		dist := gmath.Vec3{
 			instance.Transform[0][3],
 			instance.Transform[1][3],
 			instance.Transform[2][3],

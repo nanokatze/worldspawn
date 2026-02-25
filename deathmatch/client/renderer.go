@@ -14,7 +14,7 @@ import (
 	sfx "worldspawn/internal/fuckwwise"
 	"worldspawn/internal/fuckwwise/opusfile"
 	"worldspawn/internal/fuckwwise/wav"
-	"worldspawn/internal/geometry"
+	"worldspawn/internal/gmath"
 	"worldspawn/internal/pathtracer"
 	"worldspawn/internal/sdl"
 )
@@ -28,8 +28,8 @@ type sceneUpdate struct {
 	Sky *gpu.Image
 
 	Parent      []int
-	TransformT0 []geometry.TRS3
-	TransformT1 []geometry.TRS3
+	TransformT0 []gmath.TRS3
+	TransformT1 []gmath.TRS3
 	// TODO: we also need to carry velocity here for motion blur, or at least
 	// some extra info to disambiguate fast temporally-aliased motions.
 
@@ -42,8 +42,8 @@ type sceneUpdate struct {
 func newSceneDirty(n int) *sceneUpdate {
 	return &sceneUpdate{
 		Parent:      make([]int, n),
-		TransformT0: make([]geometry.TRS3, n),
-		TransformT1: make([]geometry.TRS3, n),
+		TransformT0: make([]gmath.TRS3, n),
+		TransformT1: make([]gmath.TRS3, n),
 
 		Mask:         make([]uint8, n),
 		Mesh:         make([]*pathtracer.Mesh, n),
@@ -53,8 +53,8 @@ func newSceneDirty(n int) *sceneUpdate {
 }
 
 // TODO: rename to something like GlobalTransform?
-func (s *sceneUpdate) Transform(i int, t float32) geometry.Mat4x4 {
-	B := geometry.Mat4x4One()
+func (s *sceneUpdate) Transform(i int, t float32) gmath.Mat4x4 {
+	B := gmath.Mat4x4One()
 	for ; i != -1; i = s.Parent[i] {
 		A := s.TransformT0[i].NLerp(s.TransformT1[i], t).Mat4x4()
 		B = A.Mul4x4(B)
@@ -69,7 +69,7 @@ type timeMapping struct {
 
 type renderer struct {
 	lastGen       []uint32
-	lastTransform []geometry.TRS3
+	lastTransform []gmath.TRS3
 
 	// The update that didn't fit into the queue
 	stagingUpdate *sceneUpdate
@@ -137,14 +137,14 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 				update.Parent[i] = parent.Index()
 			}
 
-			var offset geometry.Vec3
+			var offset gmath.Vec3
 			if !conf.Developer.DisableCosmeticOffset {
 				offset = cosmeticOffset.Eval(w.Now)
 			}
 
 			tmp, _ := w.GetLocalTRS(id)
 			// TODO: we should not record cosmetic offset into renderer.transformT0
-			transformT1 := geometry.TRS3{geometry.Vec3Convert[float32](tmp.T).Add(offset), tmp.R, tmp.S}
+			transformT1 := gmath.TRS3{gmath.Vec3Convert[float32](tmp.T).Add(offset), tmp.R, tmp.S}
 
 			transformT0 := re.lastTransform[i]
 			if re.lastGen[i] != id.Generation() {
@@ -200,7 +200,7 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 		// TODO: also the camera itself might not be valid or w/e
 		update.cameraTransform = camera.Index()
 		update.camera = pathtracer.Camera{
-			FieldOfView:   float32(geometry.Radians(67.5)),
+			FieldOfView:   float32(gmath.Radians(67.5)),
 			NearClipPlane: 0.01,
 		}
 	}
@@ -208,7 +208,7 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 	// Ughhhhhhh
 	{
 		camera := update.Transform(camera.Index(), 0)
-		cameraPos := geometry.Vec3{camera[0][3], camera[1][3], camera[2][3]}
+		cameraPos := gmath.Vec3{camera[0][3], camera[1][3], camera[2][3]}
 
 		scene := re.sfxScene
 
@@ -219,8 +219,8 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 		for id, soundEffect := range ecs.All(&w.SoundEffect) {
 			trs, _ := w.GetGlobalTRS(id)
 
-			xform := geometry.TRS3{
-				T: geometry.Vec3Convert[float32](trs.T), // TODO: we should also be applying cosmetic offset like in video
+			xform := gmath.TRS3{
+				T: gmath.Vec3Convert[float32](trs.T), // TODO: we should also be applying cosmetic offset like in video
 				R: trs.R,
 				S: trs.S,
 			}.Mat4x4()
@@ -300,7 +300,7 @@ func (re *renderer) Subtick(w *game.Scene, playerID ecs.ID) {
 //
 // TODO: move somewhere further up
 // TODO: improve naming?
-var fixup = geometry.Mat4x4{
+var fixup = gmath.Mat4x4{
 	{1, 0, 0, 0},
 	{0, 0, -1, 0},
 	{0, -1, 0, 0},
@@ -319,7 +319,7 @@ func (re *renderer) Render(jq *gpu.JobQueue, sdlNow uint64, dst *gpu.Image) {
 		re.ourCameraTransform = update.cameraTransform
 		re.scene2 = update
 		re.scene.SetSky(
-			geometry.Mat3x3{
+			gmath.Mat3x3{
 				{0, -1, 0},
 				{0, 0, 1},
 				{1, 0, 0},

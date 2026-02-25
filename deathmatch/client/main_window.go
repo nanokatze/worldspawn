@@ -14,7 +14,7 @@ import (
 	"worldspawn/gpu/vk"
 	"worldspawn/gpu/wsi"
 	sfx "worldspawn/internal/fuckwwise"
-	"worldspawn/internal/geometry"
+	"worldspawn/internal/gmath"
 	"worldspawn/internal/pathtracer"
 	"worldspawn/internal/sdl"
 	"worldspawn/internal/sdlrouter"
@@ -64,7 +64,7 @@ func (w *mainWindow) Run() {
 	// TODO: the renderer should autoresize its resources on Ticks
 	w.renderer = &renderer{
 		lastGen:       make([]uint32, 10000),
-		lastTransform: make([]geometry.TRS3, 10000),
+		lastTransform: make([]gmath.TRS3, 10000),
 
 		updates: make(chan *sceneUpdate, 1),
 
@@ -213,7 +213,7 @@ func (w *mainWindow) Run() {
 			activation := w.flickStickTest.deflection.Length() > 0.5
 
 			if activation && !w.flickStickTest.activated {
-				w.flickStickTest.lastDeflection = geometry.Vec2{0, -1}
+				w.flickStickTest.lastDeflection = gmath.Vec2{0, -1}
 			}
 			w.flickStickTest.activated = activation
 
@@ -302,8 +302,8 @@ func (w *mainWindow) redrawLocked() bool {
 
 type flickStick struct {
 	activated      bool
-	deflection     geometry.Vec2
-	lastDeflection geometry.Vec2
+	deflection     gmath.Vec2
+	lastDeflection gmath.Vec2
 }
 
 func (w *mainWindow) sdlTimeToGameTime(ticks uint64) game.Time {

@@ -5,7 +5,7 @@ import (
 
 	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
-	"worldspawn/internal/geometry"
+	"worldspawn/internal/gmath"
 	"worldspawn/internal/pathtracer/internal/material"
 )
 
@@ -17,7 +17,7 @@ import (
 type Camera struct {
 	_ structs.HostLayout
 
-	Transform geometry.Mat4x4
+	Transform gmath.Mat4x4
 
 	FieldOfView   float32
 	NearClipPlane float32
@@ -61,7 +61,7 @@ type emissiveInstance struct {
 type lightAccel struct {
 	_ structs.HostLayout
 
-	envTransform geometry.Mat3x3
+	envTransform gmath.Mat3x3
 	// TODO: rename
 	env gpu.ImageDescriptors
 
@@ -163,7 +163,7 @@ func NewScene(n int, maxPartsPerMesh int) *Scene {
 }
 
 // TODO: make it async
-func (scene *Scene) SetSky(transform geometry.Mat3x3, sky *gpu.Image) {
+func (scene *Scene) SetSky(transform gmath.Mat3x3, sky *gpu.Image) {
 	scene.lightAccel.envTransform = transform
 	scene.lightAccel.env = sky.Descriptors()
 }

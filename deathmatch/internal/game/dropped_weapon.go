@@ -5,7 +5,7 @@ import (
 	"slices"
 
 	"worldspawn/internal/ecs"
-	"worldspawn/internal/geometry"
+	"worldspawn/internal/gmath"
 )
 
 type DroppedWeapon struct {
@@ -20,7 +20,7 @@ func (w *Scene) CreateDroppedWeapon(weaponID ecs.ID, info *UpdateParams) ecs.ID 
 	weapon := mustOk(SceneGetEntity[Weapon](w, weaponID))
 
 	dropped := w.CreateEntity(info)
-	w.SetGlobalTRS(dropped, geometry.DTRS3One())
+	w.SetGlobalTRS(dropped, gmath.DTRS3One())
 	w.Entity.Set(dropped, DroppedWeapon{Weapon: weaponID})
 
 	weapon.WeaponCreateGeometry(w, dropped, info)

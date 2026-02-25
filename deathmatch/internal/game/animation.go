@@ -6,7 +6,7 @@ import (
 
 	"github.com/go-json-experiment/json"
 
-	"worldspawn/internal/geometry"
+	"worldspawn/internal/gmath"
 )
 
 // TODO: move this stuff into its own package probably
@@ -29,7 +29,7 @@ type Animation2 struct {
 */
 
 type Animation struct {
-	Armature map[string]geometry.TRS3 // TODO: split off into its own component?
+	Armature map[string]gmath.TRS3 // TODO: split off into its own component?
 	Action   string
 	// Channels   map[string][]geometry.Affine3
 	// SampleRate int // TODO: this must live as part of Channels. We separately should have a knob for animation playback speed or animation deadline.
@@ -42,14 +42,14 @@ type Animation struct {
 // TODO: these should be getArmature and getAnimation the way we have getShape
 // TODO: probably decorate errors with getArmature: $filename: $err
 
-func loadArmature(filename string) (map[string]geometry.TRS3, error) {
+func loadArmature(filename string) (map[string]gmath.TRS3, error) {
 	f, err := Data.Open(filename)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
 
-	var m map[string]geometry.TRS3
+	var m map[string]gmath.TRS3
 	if err := json.UnmarshalRead(f, &m, JSONOptions); err != nil {
 		return nil, err
 	}
@@ -60,12 +60,12 @@ type Action struct {
 	sampleRate int
 	// TODO: interleave the channels
 	// TODO: see what we can do about types of stuff we're interpolating
-	samples map[string][]geometry.TRS3
+	samples map[string][]gmath.TRS3
 }
 
 // TODO: Sample should take channel *index* instead of name, and wrapping
 // behavior
-func (a *Action) Sample(t float64, channel string) geometry.TRS3 {
+func (a *Action) Sample(t float64, channel string) gmath.TRS3 {
 	samples := a.samples[channel]
 
 	t *= float64(a.sampleRate)
@@ -90,7 +90,7 @@ func getAnimation(filename string) *Action {
 		}
 		defer f.Close()
 
-		var m map[string][]geometry.TRS3
+		var m map[string][]gmath.TRS3
 		if err := json.UnmarshalRead(f, &m, json.StringifyNumbers(true)); err != nil {
 			panic(err)
 		}

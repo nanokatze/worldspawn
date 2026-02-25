@@ -9,7 +9,7 @@ import (
 	"errors"
 	"unsafe"
 
-	"worldspawn/internal/geometry"
+	"worldspawn/internal/gmath"
 )
 
 // TODO: redo this package so that it's relatively straightforward bindings to
@@ -89,8 +89,8 @@ type QueryFilter struct {
 }
 
 type QueryHit struct {
-	Point  geometry.DVec3
-	Normal geometry.Vec3
+	Point  gmath.DVec3
+	Normal gmath.Vec3
 	Depth  float32
 }
 
@@ -99,7 +99,7 @@ type CastQueryResult struct {
 	QueryHit
 }
 
-func (system *System) QueryShape(shape *Shape, pos geometry.DVec3, rot geometry.Rot3, scale geometry.Vec3, movementDirection geometry.Vec3, maxSeparationDistance float32, filter QueryFilter, hits []QueryHit) int {
+func (system *System) QueryShape(shape *Shape, pos gmath.DVec3, rot gmath.Rot3, scale gmath.Vec3, movementDirection gmath.Vec3, maxSeparationDistance float32, filter QueryFilter, hits []QueryHit) int {
 	return int(C.physicsQueryShape(
 		(*C.Physics)(system),
 		(*C.Shape)(shape),
@@ -113,7 +113,7 @@ func (system *System) QueryShape(shape *Shape, pos geometry.DVec3, rot geometry.
 		C.size_t(len(hits))))
 }
 
-func (system *System) QuerySweptShapeClosestHit(shape *Shape, pos geometry.DVec3, rot geometry.Rot3, scale geometry.Vec3, displacement geometry.Vec3, filter QueryFilter) CastQueryResult {
+func (system *System) QuerySweptShapeClosestHit(shape *Shape, pos gmath.DVec3, rot gmath.Rot3, scale gmath.Vec3, displacement gmath.Vec3, filter QueryFilter) CastQueryResult {
 	result := C.physicsQuerySweptShapeClosestHit(
 		(*C.Physics)(system),
 		(*C.Shape)(shape),
@@ -125,7 +125,7 @@ func (system *System) QuerySweptShapeClosestHit(shape *Shape, pos geometry.DVec3
 	return *(*CastQueryResult)(unsafe.Pointer(&result))
 }
 
-func (system *System) SetGravity(gravity geometry.Vec3) {
+func (system *System) SetGravity(gravity gmath.Vec3) {
 	C.physicsSetGravity((*C.Physics)(system), (*C.vec3)(unsafe.Pointer(&gravity)))
 }
 
@@ -133,7 +133,7 @@ func (system *System) Update(dt float32) {
 	C.physicsUpdate((*C.Physics)(system), C.float(dt))
 }
 
-func (system *System) AddBody(bodyID BodyID, shape *Shape, pos geometry.DVec3, rot geometry.Rot3, vel, angVel geometry.Vec3, objectLayer int, ignoreBodyIDs []BodyID, motionType int, gravityFactor float32, mass float32, inertia geometry.Mat4x4) {
+func (system *System) AddBody(bodyID BodyID, shape *Shape, pos gmath.DVec3, rot gmath.Rot3, vel, angVel gmath.Vec3, objectLayer int, ignoreBodyIDs []BodyID, motionType int, gravityFactor float32, mass float32, inertia gmath.Mat4x4) {
 	motionProperties := C.MotionProperties{
 		shape: (*C.Shape)(shape),
 		motionState: C.MotionState{
@@ -153,7 +153,7 @@ func (system *System) AddBody(bodyID BodyID, shape *Shape, pos geometry.DVec3, r
 	C.physicsAddBody((*C.Physics)(system), C.BodyID(bodyID), motionProperties)
 }
 
-func (system *System) UpdateBody(bodyID BodyID, shape *Shape, pos geometry.DVec3, rot geometry.Rot3, vel, angVel geometry.Vec3, objectLayer int, ignoreBodyIDs []BodyID, motionType int, gravityFactor float32, mass float32, inertia geometry.Mat4x4) {
+func (system *System) UpdateBody(bodyID BodyID, shape *Shape, pos gmath.DVec3, rot gmath.Rot3, vel, angVel gmath.Vec3, objectLayer int, ignoreBodyIDs []BodyID, motionType int, gravityFactor float32, mass float32, inertia gmath.Mat4x4) {
 	motionProperties := C.MotionProperties{
 		shape: (*C.Shape)(shape),
 		motionState: C.MotionState{
@@ -177,10 +177,10 @@ func (system *System) RemoveBody(bodyID BodyID) {
 	C.physicsRemoveBody((*C.Physics)(system), C.BodyID(bodyID))
 }
 
-func (system *System) WritebackBody(bodyID BodyID) (pos geometry.DVec3, rot geometry.Rot3, vel, angVel geometry.Vec3) {
+func (system *System) WritebackBody(bodyID BodyID) (pos gmath.DVec3, rot gmath.Rot3, vel, angVel gmath.Vec3) {
 	var motionState C.MotionState
 	C.physicsWritebackBody((*C.Physics)(system), C.BodyID(bodyID), &motionState)
-	return *(*geometry.DVec3)(unsafe.Pointer(&motionState.position)), *(*geometry.Rot3)(unsafe.Pointer(&motionState.rotation)), *(*geometry.Vec3)(unsafe.Pointer(&motionState.velocity)), *(*geometry.Vec3)(unsafe.Pointer(&motionState.angularVelocity))
+	return *(*gmath.DVec3)(unsafe.Pointer(&motionState.position)), *(*gmath.Rot3)(unsafe.Pointer(&motionState.rotation)), *(*gmath.Vec3)(unsafe.Pointer(&motionState.velocity)), *(*gmath.Vec3)(unsafe.Pointer(&motionState.angularVelocity))
 }
 
 func (system *System) ActiveBodies() []BodyID {
@@ -209,7 +209,7 @@ func (system *System) ContactEvents() []ContactEvent {
 				SubShapeID: uint32(cContactEvent.body2.subShapeID),
 				Active:     bool(cContactEvent.body2.active),
 			},
-			Normal: *(*geometry.Vec3)(unsafe.Pointer(&cContactEvent.normal)),
+			Normal: *(*gmath.Vec3)(unsafe.Pointer(&cContactEvent.normal)),
 		}
 	}
 
