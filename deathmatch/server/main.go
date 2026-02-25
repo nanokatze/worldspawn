@@ -520,6 +520,20 @@ func spawnplayer(w *game.Scene, info *game.UpdateParams) ecs.ID {
 func main() {
 	flag.Parse()
 
+	conf := &Config{}
+
+	if f, err := os.Open("serverconfig.json"); err == nil {
+		if err := json.UnmarshalRead(f, conf); err != nil {
+			panic(err)
+		}
+	}
+
+	// TODO: reformulate ourselves in terms of a http server? this would require
+	// that there's redundancy (e.g. erasure correction, like
+	// https://datatracker.ietf.org/doc/draft-michel-quic-fec/) extensions to
+	// QUIC adopted first so that we can keep latency low
+
+	// TODO: pull from config
 	tlsCert, err := tls.LoadX509KeyPair("server.crt", "server.key")
 	if err != nil {
 		log.Fatal(err)
@@ -536,13 +550,11 @@ func main() {
 		NextProtos:   []string{"worldspawn"},
 	}
 
+	// TODO: pull the listen address from config
 	listener, err := quic.ListenAddr(":32017", tlsConfig, quicConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	// TODO: set up a control endpoint (JSON REST API with commands to dump the
-	// current state, etc)
 
 	game.Data = os.DirFS(*dataDir)
 
@@ -558,59 +570,44 @@ func main() {
 		s.mtimes.Columns[i] = make([]game.Time, s.maxEntities)
 	}
 
-	// TODO: move loading into worldspawn? It needs to handle instancing
-	// collections, so that seems like it would be the right place for it.
-	// Alternatively we can instance collections in an ad-hoc manner.
-	sceneFile, err := game.Data.Open("maps/lockdown/scenes/Scene")
+	// TODO: move loading into the game
+	sceneFile, err := game.Data.Open(conf.MapRotation[0])
 	if err != nil {
-		log.Fatal("newSinglePlayerSession: ", err)
+		log.Fatal("load: ", err)
 	}
 	if err := json.UnmarshalRead(sceneFile, s.scene, game.JSONOptions); err != nil {
-		log.Fatalf("newSinglePlayerSession %v: %v", sceneFile, err)
+		log.Fatalf("load %v: %v", sceneFile, err)
 	}
 	sceneFile.Close()
 
-	/*
+	info := &game.UpdateParams{Logger: slog.Default()}
+
+	if false {
 		{
-			obj := s.scene.CreateEntity()
-			s.scene.TranslationRotation.Set(obj, game.TranslationRotationOne())
-			s.scene.Scale.Set(obj, geometry.Vec3Ones())
-			tmp := game.LoopedSound{
-				Sound: "lamphum.wav",
-			}
-			tmp.Init()
-			s.scene.Entity.Set(obj, tmp)
+			weapon := s.scene.CreateEntity(info)
+			s.scene.Entity.Set(weapon, game.WeaponGrenadeLauncher{})
+
+			// Aaand "drop" the weapon
+
+			dropped := s.scene.CreateDroppedWeapon(weapon, info)
+			s.scene.SetGlobalTRS(dropped, geometry.DTRS3{
+				T: geometry.DVec3{0, 0, 1},
+				R: geometry.Rot3One(),
+				S: geometry.Vec3Ones(),
+			})
 		}
-	*/
 
-	{
-		info := &game.UpdateParams{Logger: slog.Default()}
+		{
+			weapon := s.scene.CreateEntity(info)
+			s.scene.Entity.Set(weapon, game.WeaponSniperRifle{})
 
-		weapon := s.scene.CreateEntity(info)
-		s.scene.Entity.Set(weapon, game.WeaponGrenadeLauncher{})
-
-		// Aaand "drop" the weapon
-
-		dropped := s.scene.CreateDroppedWeapon(weapon, info)
-		s.scene.SetGlobalTRS(dropped, geometry.DTRS3{
-			T: geometry.DVec3{0, 0, 1},
-			R: geometry.Rot3One(),
-			S: geometry.Vec3Ones(),
-		})
-	}
-
-	{
-		info := &game.UpdateParams{Logger: slog.Default()}
-
-		weapon := s.scene.CreateEntity(info)
-		s.scene.Entity.Set(weapon, game.WeaponSniperRifle{})
-
-		dropped := s.scene.CreateDroppedWeapon(weapon, info)
-		s.scene.SetGlobalTRS(dropped, geometry.DTRS3{
-			T: geometry.DVec3{0, -10, 1},
-			R: geometry.Rot3One(),
-			S: geometry.Vec3Ones(),
-		})
+			dropped := s.scene.CreateDroppedWeapon(weapon, info)
+			s.scene.SetGlobalTRS(dropped, geometry.DTRS3{
+				T: geometry.DVec3{0, -10, 1},
+				R: geometry.Rot3One(),
+				S: geometry.Vec3Ones(),
+			})
+		}
 	}
 
 	s.scene.InstantinateCollections()

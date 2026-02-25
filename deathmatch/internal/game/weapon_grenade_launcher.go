@@ -16,6 +16,9 @@ func (Testburger) entity() {}
 
 // TODO: keep the stats in a json file. We should name the stats file
 // explicitly, perhaps in a component.
+//
+// Or alternatively if we commit to moving entities into scripts, just kill this
+// off.
 var grenadeLauncherStats = struct {
 	ViewGeometryTRS   geometry.DTRS3 // TODO: this should be killed
 	RenderingGeometry string
@@ -25,7 +28,7 @@ var grenadeLauncherStats = struct {
 	CycleDuration  time.Duration `json:",format:iso8601"`
 }{
 	ViewGeometryTRS: geometry.DTRS3{
-		T: geometry.DVec3{0.2, 0.4, -0.275},
+		T: geometry.DVec3{0.18, 0.5, -0.2},
 		R: geometry.Rot3One(),
 		S: geometry.Vec3Ones(),
 	},
@@ -37,9 +40,7 @@ var grenadeLauncherStats = struct {
 }
 
 type WeaponGrenadeLauncher struct {
-	// TODO: rename
-	// TODO: make this be a proper state machine
-	NextAttack Time
+	CycleEnds Time
 }
 
 var _ Weapon = WeaponGrenadeLauncher{}
@@ -61,34 +62,36 @@ func (weapon WeaponGrenadeLauncher) WeaponCreateGeometry(scene *Scene, parent ec
 
 func (weapon WeaponGrenadeLauncher) WeaponSubstep(scene *Scene, weaponID ecs.ID, shooterID ecs.ID, shootpos geometry.DTRS3, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.ID) {
 	if buttons&WeaponTrigger != 0 {
-		if !weapon.NextAttack.After(scene.Now) {
-			if !info.Speculating {
-				projectile := scene.SpawnPrefab(grenadeLauncherStats.Projectile, info)
-				// scene.CreationTime.Set(projectile, scene.Now)
-				scene.SetGlobalTRS(projectile, shootpos.Mul(geometry.DTRS3{
-					R: geometry.Rot3InPlane(geometry.Vec3{-1, 0, 0}, math.Pi/2),
-					S: geometry.Vec3Ones(),
-				}))
-				// TODO: consider velocity set on the prefab?
-				scene.Velocity.Set(projectile, Velocity{Linear: shootpos.R.Rotate(geometry.Vec3{0, grenadeLauncherStats.MuzzleVelocity, 0})})
-				scene.CollisionLayer.Set(projectile, PhysicsLayerProjectiles)
-				scene.PhysicsFilter.Set(projectile, []ecs.ID{shooterID})
-				scene.Timer.Set(projectile, scene.Now.Add(grenadeStats.FuseDuration))
-				// TODO: new idea for cosmetic offset: we could trace a ray like TF2 does
-				// and make the decay time be how long it takes to reach the wall!
-				// scene.CosmeticOffset.Set(projectile, CosmeticOffset{
-				// 	Offset:    cosmeticPosition.Sub(realPosition).Vec3(),
-				// 	StartTime: scene.Now,
-				// 	EndTime:   scene.Now.Add(300 * time.Millisecond),
-				// })
-				// scene.DeleteCosmeticOffsetOnContact.Set(projectile, struct{}{})
-			}
-
-			weapon.NextAttack = scene.Now.Add(grenadeLauncherStats.CycleDuration)
-
-			scene.Entity.Set(weaponID, weapon)
-			return weapon.fired
+		if weapon.CycleEnds.After(scene.Now) {
+			return nil
 		}
+
+		if !info.Speculating {
+			projectile := scene.SpawnPrefab(grenadeLauncherStats.Projectile, info)
+			// scene.CreationTime.Set(projectile, scene.Now)
+			scene.SetGlobalTRS(projectile, shootpos.Mul(geometry.DTRS3{
+				R: geometry.Rot3InPlane(geometry.Bivec3{-1, 0, 0}, math.Pi/2),
+				S: geometry.Vec3Ones(),
+			}))
+			// TODO: consider velocity set on the prefab?
+			scene.Velocity.Set(projectile, Velocity{Linear: shootpos.R.Rotate(geometry.Vec3{0, grenadeLauncherStats.MuzzleVelocity, 0})})
+			scene.CollisionLayer.Set(projectile, PhysicsLayerProjectiles)
+			scene.PhysicsFilter.Set(projectile, []ecs.ID{shooterID})
+			scene.Timer.Set(projectile, scene.Now.Add(grenadeStats.FuseDuration))
+			// TODO: new idea for cosmetic offset: we could trace a ray like TF2 does
+			// and make the decay time be how long it takes to reach the wall!
+			// scene.CosmeticOffset.Set(projectile, CosmeticOffset{
+			// 	Offset:    cosmeticPosition.Sub(realPosition).Vec3(),
+			// 	StartTime: scene.Now,
+			// 	EndTime:   scene.Now.Add(300 * time.Millisecond),
+			// })
+			// scene.DeleteCosmeticOffsetOnContact.Set(projectile, struct{}{})
+		}
+
+		weapon.CycleEnds = scene.Now.Add(grenadeLauncherStats.CycleDuration)
+
+		scene.Entity.Set(weaponID, weapon)
+		return weapon.fired
 	}
 
 	return nil

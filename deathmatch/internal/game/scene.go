@@ -11,6 +11,7 @@ import (
 	"worldspawn/physics"
 )
 
+// TODO: actually indeed stick it onto Scene or pass it through UpdateInfo
 var Data fs.FS
 
 // TODO: use "object" instead of "entity" throughout the code?

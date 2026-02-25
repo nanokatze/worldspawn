@@ -44,6 +44,7 @@ var messagePrinter = message.NewPrinter(language.English)
 
 func main() {
 	go func() {
+		// TODO: replace this with our own telemetry package
 		log.Println(http.ListenAndServe("[::]:6060", nil))
 	}()
 
