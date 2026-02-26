@@ -159,19 +159,6 @@ func (a vec3[T]) Lerp(b vec3[T], t T) vec3[T] {
 	}
 }
 
-// 3-dimensional bivector.
-type Bivec3 = bivec3[float32]
-
-type bivec3[T constraints.Float] [3]T
-
-func (a vec3[T]) Wedge(b vec3[T]) bivec3[T] {
-	return bivec3[T]{
-		a[1]*b[2] - a[2]*b[1], // 1 2
-		a[2]*b[0] - a[0]*b[2], // 2 0
-		a[0]*b[1] - a[1]*b[0], // 0 1
-	}
-}
-
 type Vec4 = vec4[float32]
 
 func Vec4Ones() Vec4 { return vec4Ones[float32]() }

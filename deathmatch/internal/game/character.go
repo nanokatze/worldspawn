@@ -130,7 +130,7 @@ func (char Character) CharacterSubstep(w *Scene, id ecs.ID, cmd TimestampedInput
 		shootpos, _ := w.GetGlobalTRS(id)
 		shootpos = shootpos.Mul(gmath.DTRS3{
 			T: gmath.DVec3{0, 0, float64(playerStats.StandingViewHeight)},
-			R: gmath.Rot3InPlane(gmath.Bivec3{0, 0, -1}, 2*math.Pi*char.Look[0]).Mul(gmath.Rot3InPlane(gmath.Bivec3{-1, 0, 0}, 2*math.Pi*char.Look[1])),
+			R: gmath.Rot3InPlane(gmath.Vec3{0, 0, -1}, 2*math.Pi*char.Look[0]).Mul(gmath.Rot3InPlane(gmath.Vec3{-1, 0, 0}, 2*math.Pi*char.Look[1])),
 			S: gmath.Vec3Ones(),
 		})
 
@@ -146,7 +146,7 @@ func (char Character) CharacterSubstep(w *Scene, id ecs.ID, cmd TimestampedInput
 	// TODO: factor this out
 	w.SetLocalTRS(char.FirstPersonCamera, gmath.DTRS3{
 		T: gmath.DVec3{0, 0, float64(playerStats.StandingViewHeight)},
-		R: gmath.Rot3InPlane(gmath.Bivec3{0, 0, -1}, 2*math.Pi*char.Look[0]).Mul(gmath.Rot3InPlane(gmath.Bivec3{-1, 0, 0}, 2*math.Pi*char.Look[1])),
+		R: gmath.Rot3InPlane(gmath.Vec3{0, 0, -1}, 2*math.Pi*char.Look[0]).Mul(gmath.Rot3InPlane(gmath.Vec3{-1, 0, 0}, 2*math.Pi*char.Look[1])),
 		S: gmath.Vec3Ones(),
 	})
 }
@@ -171,7 +171,7 @@ func (char Character) UpdateBeforePhysics(w *Scene, id ecs.ID, info *UpdateParam
 	trs, _ := w.GetGlobalTRS(id)
 	velocity, _ := w.Velocity.Get(id)
 
-	rotation := trs.R.Mul(gmath.Rot3InPlane(gmath.Bivec3{0, 0, -1}, 2*math.Pi*char.Look[0]))
+	rotation := trs.R.Mul(gmath.Rot3InPlane(gmath.Vec3{0, 0, -1}, 2*math.Pi*char.Look[0]))
 
 	move := char.Move
 	if lenSq := move.Dot(move); lenSq > 1 {

@@ -12,7 +12,7 @@ func Rot3One() Rot3 {
 	return Rot3{0, 0, 0, 1}
 }
 
-func Rot3InPlane(plane Bivec3, θ float32) Rot3 {
+func Rot3InPlane(plane Vec3, θ float32) Rot3 {
 	s, c := math.Sincos(float64(θ / 2))
 	yz := plane[0] * float32(s)
 	zx := plane[1] * float32(s)

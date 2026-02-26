@@ -70,7 +70,7 @@ func (weapon WeaponGrenadeLauncher) WeaponSubstep(scene *Scene, weaponID ecs.ID,
 			projectile := scene.SpawnPrefab(grenadeLauncherStats.Projectile, info)
 			// scene.CreationTime.Set(projectile, scene.Now)
 			scene.SetGlobalTRS(projectile, shootpos.Mul(gmath.DTRS3{
-				R: gmath.Rot3InPlane(gmath.Bivec3{-1, 0, 0}, math.Pi/2),
+				R: gmath.Rot3InPlane(gmath.Vec3{-1, 0, 0}, math.Pi/2),
 				S: gmath.Vec3Ones(),
 			}))
 			// TODO: consider velocity set on the prefab?

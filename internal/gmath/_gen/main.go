@@ -22,7 +22,6 @@ func main() {
 	vecGen{2}.Gen(buf)
 
 	vecGen{3}.Gen(buf)
-	bivecGen{3}.Gen(buf)
 
 	vecGen{4}.Gen(buf)
 
