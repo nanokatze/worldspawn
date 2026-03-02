@@ -176,7 +176,7 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 
 			mesh := getmesh(renderingGeometry)
 
-			update.Mesh[i] = &mesh.Mesh
+			update.Mesh[i] = &mesh.pathtracerMesh
 
 			// TODO: stop allocating a new slice every time
 			update.Materials[i] = make([]*pathtracer.InterpretedMaterial, len(mesh.materials))

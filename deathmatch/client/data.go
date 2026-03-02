@@ -5,7 +5,6 @@ import (
 	"io"
 	"io/fs"
 	"log"
-	"maps"
 	"math"
 	"os"
 	"path"
@@ -179,8 +178,17 @@ var errorMaterial = sync.OnceValue(func() *pathtracer.InterpretedMaterial {
 })
 
 type fileBackedMesh struct {
+	joints []string
+
+	jointWeights gpu.Slice[struct {
+		Index  uint32
+		Weight float32
+	}] // we could get away just fine with unorm16, or even unorm8 in some cases.
+
 	materials []string
-	pathtracer.Mesh
+
+	// TODO: don't embed this actually
+	pathtracerMesh pathtracer.Mesh
 }
 
 func loadmesh(filename string) *fileBackedMesh {
@@ -209,16 +217,9 @@ func loadmesh(filename string) *fileBackedMesh {
 		panic(err)
 	}
 
-	attrMap := maps.Collect(
-		func(yield func(string, int) bool) {
-			for i, attr := range header2.Attributes {
-				yield(attr.Name, i)
-			}
-		})
+	attrs := make([]any, len(header2.AttributeBuffers))
 
-	attrs := make([]any, len(header2.Attributes))
-
-	for i, desc := range header2.Attributes {
+	for i, desc := range header2.AttributeBuffers {
 		if desc.Domain != 0 {
 			continue
 		}
@@ -229,10 +230,12 @@ func loadmesh(filename string) *fileBackedMesh {
 			guh := gpu.MakeSliceUncached[[3]float32](int(header2.VertexCount))
 			bytes = byteslice(guh.Value())
 			attrs[i] = guh
+
 		case "R32G32_SFLOAT":
 			guh := gpu.MakeSliceUncached[[2]float32](int(header2.VertexCount))
 			bytes = byteslice(guh.Value())
 			attrs[i] = guh
+
 		default:
 			panic("uhh")
 		}
@@ -242,28 +245,29 @@ func loadmesh(filename string) *fileBackedMesh {
 		}
 	}
 
-	inner := pathtracer.Mesh{}
-	inner.PosBuffer = attrMap["position"]
-	inner.NormalBuffer = attrMap["normal"]
+	pathtracerMesh := pathtracer.Mesh{}
+	pathtracerMesh.PositionAttribute = int(header2.PositionAttribute)
+	pathtracerMesh.NormalAttribute = int(header2.NormalAttribute)
+	pathtracerMesh.Parts = make([]pathtracer.MeshPart, len(header2.MaterialIndexRanges))
 
-	inner.Parts = make([]pathtracer.MeshPart, len(header2.RangesByMaterialIndex))
-	materials := make([]string, len(header2.RangesByMaterialIndex)) // TODO: eventually it would be nice if we could just directly use header2.Materials
-
-	for materialIndex, range_ := range header2.RangesByMaterialIndex {
+	materials := make([]string, len(header2.MaterialIndexRanges)) // TODO: eventually it would be nice if we could just directly use header2.Materials
+	for materialIndex, range_ := range header2.MaterialIndexRanges {
 		materials[materialIndex] = header2.Materials[range_.MaterialIndex]
-
-		part := &inner.Parts[materialIndex]
-		part.AttribBuffers = attrs
+		part := &pathtracerMesh.Parts[materialIndex]
+		part.AttributeBuffers = attrs
 		part.IndexBuffer = indexBuffer.Slice(int(range_.First), int(range_.First)+int(range_.Count))
 	}
 
-	inner.InitAccel()
+	pathtracerMesh.InitAccel()
 
 	jq := new(gpu.JobQueue)
-	inner.BuildAccel(jq)
+	pathtracerMesh.BuildAccel(jq)
 	gpu.WaitForIdle(jq)
 
-	return &fileBackedMesh{materials, inner}
+	return &fileBackedMesh{
+		materials:      materials,
+		pathtracerMesh: pathtracerMesh,
+	}
 }
 
 func getmesh(geo string) *fileBackedMesh {

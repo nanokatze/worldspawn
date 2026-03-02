@@ -10,6 +10,9 @@ import util
 import bpyutil
 
 
+# TODO: focus on just exporting anything at all here and make optimization etc
+# be the responsibility of a Go program?
+
 
 # TODO: should this be a plain int?
 class Domain(enum.Enum):
@@ -20,25 +23,41 @@ class Domain(enum.Enum):
 
 @dataclasses.dataclass
 class AttributeBuffer:
-    _domain: int
-    _data: object
+    domain: Domain
+    data: object
 
 
 @dataclasses.dataclass
 class Raw:
-    _materials: list[str]
-    _attributes: dict[str, AttributeBuffer]
+    positions: AttributeBuffer
+    normals: AttributeBuffer
+
+    joints: list[str]
+
+    joint_weights: object
+
+    materials: list[str]
+
+    material_indices: AttributeBuffer
+
+    named_attributes: dict[str, AttributeBuffer]
 
 
-# TODO: we can prefix the internal stuff that goes into the file, with "json"
+# TODO: we can prefix the internal stuff that goes into the file with "json"
 
 
 @dataclasses.dataclass
-class _Attribute:
-    Name: str
-    Type: str
-    Domain: int # TODO: should this be an int degree?
+class _Buffer:
     Data: int
+    Size: int
+
+
+@dataclasses.dataclass
+class _AttributeBuffer:
+    Type: str # TODO: make this a VkFormat?
+    Domain: int # TODO: make this a string
+    Data: int
+    # Size: int
 
 
 @dataclasses.dataclass
@@ -54,16 +73,27 @@ class _Header:
 
     VertexCount: int
 
-    IndexType: str
+    IndexType: int # TODO: make this a string? aaaaaaaa
+
     IndexBuffer: int
 
-    Attributes: list[_Attribute]
+    AttributeBuffers: list[_AttributeBuffer]
+
+    PositionAttribute: int
+
+    NormalAttribute: int
+
+    Joints: list[str]
+
+    JointWeights: _Buffer
 
     Materials: list[str]
 
-    # Ad-hoc structures
+    # MaterialIndexAttribute: int
 
-    RangesByMaterialIndex: list[_Range]
+    MaterialIndexRanges: list[_Range]
+
+    NamedAttributes: dict[str, int]
 
 
 def cook(raw, directory):
@@ -71,51 +101,58 @@ def cook(raw, directory):
     #
     # TODO: more elaborate validation
 
-    primitive_count = len(raw._attributes['position']._data)
+    all_attributes = [
+        raw.positions,
+        raw.normals,
+        raw.material_indices,
+    ]
 
-    for name, buf in raw._attributes.items():
-        assert len(buf._data) == primitive_count
+    primitive_count = len(all_attributes[0].data)
+
+    for i, buf in enumerate(all_attributes):
+        assert len(buf.data) == primitive_count
 
     blob = io.BytesIO() # TODO: use a stricter alignment when writing to blob
 
-    # Sort triangles by material_index
+    # Sort triangles by material index
 
-    material_index_sorter = np.argsort(raw._attributes['material_index']._data, kind='stable')
+    material_index_sorter = np.argsort(raw.material_indices.data, kind='stable')
 
-    for k, v in raw._attributes.items():
-        raw._attributes[k]._data = v._data[material_index_sorter]
+    for k, v in enumerate(all_attributes):
+        all_attributes[k].data = v.data[material_index_sorter]
 
-    index_size = 2
+    index_type = 2
 
     index_buffer = seek_align(blob, 4)
-    nputil.tofile(blob, np.arange(3 * primitive_count).astype(f'<u{index_size}'))
+    nputil.tofile(blob, np.arange(3 * primitive_count).astype(f'<u{index_type}'))
 
-    # Iterate over attributes in a particular order so that we write stuff out consistently.
-
-    attributes = []
-    for name, buf in sorted(raw._attributes.items(), key=lambda it: it[0]):
+    attribute_buffers = []
+    attribute_remap = {}
+    for i, buf in enumerate(all_attributes):
         types = {
             np.dtype(('<f4', (3,))): 'R32G32B32_SFLOAT',
             np.dtype(('<f4', (2,))): 'R32G32_SFLOAT',
             # np.dtype(('<u4', 1,)): 'R32_UINT',
         }
 
-        if buf._domain == Domain.VERTEX:
-            attributes.append(_Attribute(
-                Name=name,
-                Type=types[np.dtype((buf._data.dtype, buf._data.shape[2:]))],
+        if buf.domain == Domain.VERTEX:
+            attribute_buffers.append(_AttributeBuffer(
                 Domain=0,
+                Type=types[np.dtype((buf.data.dtype, buf.data.shape[2:]))],
                 Data=seek_align(blob, 4))) # TODO: do seek_align before pls
+            attribute_remap[i] = len(attribute_buffers) - 1
 
-            nputil.tofile(blob, buf._data)
+            nputil.tofile(blob, buf.data)
 
-    # TODO: assert that primitives are sorted by material_index
-    ranges_by_material_index = []
+    # named_attributes = {name: attribute_remap[index] for (name, index) in raw.named_attributes.items() if index in attribute_remap}
+
+    # TODO: assert that primitives are sorted by material index
+    material_index_ranges = []
     # TODO: remove the MaterialIndex indirection
-    for material_index in np.unique(raw._attributes['material_index']._data):
-        a = np.searchsorted(raw._attributes['material_index']._data, material_index)
-        b = np.searchsorted(raw._attributes['material_index']._data, material_index, side='right')
-        ranges_by_material_index.append(_Range(int(material_index), int(a), int(b - a)))
+    for material_indices in np.unique(raw.material_indices.data):
+        a = np.searchsorted(raw.material_indices.data, material_indices)
+        b = np.searchsorted(raw.material_indices.data, material_indices, side='right')
+        material_index_ranges.append(_Range(int(material_indices), int(a), int(b - a)))
 
     with open(directory, 'wb') as f:
         f.write(b'Worldspawn')
@@ -129,17 +166,17 @@ def cook(raw, directory):
         json_offset = f.tell()
         h = _Header(
             PrimitiveCount=primitive_count,
-
-            VertexCount=3 * primitive_count,
-
-            IndexType={2: 'UINT16', 4: 'UINT32'}[index_size], # TODO: factor this map out pls
+            VertexCount=primitive_count * 3,
+            IndexType=index_type,
             IndexBuffer=index_buffer,
-
-            Attributes=attributes,
-
-            Materials=raw._materials,
-
-            RangesByMaterialIndex=ranges_by_material_index,
+            AttributeBuffers=attribute_buffers,
+            PositionAttribute=0, # TODO: avoid hardcoding these
+            NormalAttribute=1,
+            Joints=raw.joints,
+            JointWeights=None,
+            Materials=raw.materials,
+            MaterialIndexRanges=material_index_ranges,
+            NamedAttributes={},
         )
         d = dataclasses.asdict(h, dict_factory=dict_skip_nulls)
         d = fixupdict(d)

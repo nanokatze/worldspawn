@@ -9,7 +9,6 @@ import (
 	"encoding/binary"
 	"io"
 	"io/fs"
-	"maps"
 	"unsafe"
 
 	"github.com/go-json-experiment/json"
@@ -83,13 +82,6 @@ func NewFileBackedShape(fsys fs.FS, filename string, concave bool) (*Shape, erro
 		return nil, err
 	}
 
-	attrMap := maps.Collect(
-		func(yield func(string, int) bool) {
-			for i, attr := range header2.Attributes {
-				yield(attr.Name, i)
-			}
-		})
-
 	blob := io.NewSectionReader(rat, preamble.B.Off, preamble.B.Len)
 
 	indexBuffer := make([][3]uint16, header2.PrimitiveCount)
@@ -99,7 +91,7 @@ func NewFileBackedShape(fsys fs.FS, filename string, concave bool) (*Shape, erro
 	}
 
 	posBuffer := make([]gmath.Vec3, header2.VertexCount)
-	blob.Seek(header2.Attributes[attrMap["position"]].Data, io.SeekStart)
+	blob.Seek(header2.AttributeBuffers[header2.PositionAttribute].Data, io.SeekStart)
 	if err := binary.Read(blob, binary.LittleEndian, &posBuffer); err != nil {
 		return nil, err
 	}

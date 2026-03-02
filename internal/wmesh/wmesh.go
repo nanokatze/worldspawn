@@ -8,18 +8,36 @@ import (
 	"github.com/go-json-experiment/json"
 )
 
-type Attribute struct {
-	Name   string
-	Type   string // TODO: maybe replace with an enum?
-	Domain int64  // TODO: replace with an enum
-	Data   int64
+type IndexType int8
+
+const (
+	IndexNone IndexType = iota
+	IndexUint8
+	IndexUint16
+	IndexUint32
+)
+
+type Domain int8
+
+const (
+	PerVertex Domain = 0
+	PerEdge   Domain = 1
+	PerFace   Domain = 2
+)
+
+type Preamble struct {
+	Magic  [32]byte // "Worldspawn"
+	Header Section
+	Blob   Section
 }
 
-// A range of primitives
-type Range struct {
-	MaterialIndex int64 // TODO: should be explicit from where this struct appears
-	First         int64
-	Count         int64
+type Section struct {
+	Off, Size int64
+}
+
+type Buffer struct {
+	Data int64
+	Size int64
 }
 
 type Header struct {
@@ -27,40 +45,48 @@ type Header struct {
 
 	VertexCount int64
 
-	IndexType   string // TODO: replace with an enum
+	IndexType   int64
 	IndexBuffer int64
 
-	// Attributes.
-	//
-	// Attributes must appear in order of non-decreasing Data.
-	//
-	// TODO: explicitly specify material index attribute? For Blender this would
-	// be material_index.
-	Attributes []Attribute
+	AttributeBuffers []AttributeBuffer
+
+	PositionAttribute int64
+	NormalAttribute   int64
+
+	Joints []string
+
+	JointWeights Buffer
 
 	Materials []string
 
-	// Ad-hoc structures follow
+	// MaterialIndexAttribute int64
 
 	// Ranges of primitives with the same material indices.
-	RangesByMaterialIndex []Range
+	MaterialIndexRanges []Range
+
+	// Everything else
+	NamedAttributes map[string]int64
 }
 
-type Section struct {
-	Off, Size int64
+type AttributeBuffer struct {
+	Domain Domain // TODO: should be represented with a string in json probably
+	Type   string // TODO: maybe replace with an enum?
+	Data   int64
+	// Size   int64
 }
 
-type Preamble struct {
-	Magic  [16]byte // "Worldspawn"
-	Magic2 [16]byte // "Mesh"
-	Header Section
-	Blob   Section
+// A range of primitives
+// TODO: replace uses of this with [2]int probably
+type Range struct {
+	MaterialIndex int64 // TODO: should be explicit from where this struct appears
+	First         int64
+	Count         int64
 }
 
 type File struct {
-	Preamble Preamble
-	Header   Header
-	R        io.ReaderAt
+	r      io.ReaderAt
+	header Header
+	blob   Section
 }
 
 // TODO: I think a good idea would be to have "read header" and "open file"
@@ -80,5 +106,5 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		return nil, err
 	}
 
-	return &File{preamble, header, r}, nil
+	return &File{r, header, preamble.Blob}, nil
 }

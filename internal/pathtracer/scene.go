@@ -199,8 +199,8 @@ func (scene *Scene) SetInstanceGeometry(i int, mask uint8, mesh *Mesh, materials
 				MeshPart: meshPart2{
 					Triangles:    gpu.SliceData(part.IndexBuffer),
 					NumTriangles: uint32(gpu.SliceLen(part.IndexBuffer)),
-					PosBuffer:    gpu.SliceData(part.AttribBuffers[mesh.PosBuffer].(gpu.Slice[[3]float32])),
-					Normals:      gpu.SliceData(part.AttribBuffers[mesh.NormalBuffer].(gpu.Slice[[3]float32])),
+					PosBuffer:    gpu.SliceData(part.AttributeBuffers[mesh.PositionAttribute].(gpu.Slice[[3]float32])),
+					Normals:      gpu.SliceData(part.AttributeBuffers[mesh.NormalAttribute].(gpu.Slice[[3]float32])),
 				},
 
 				Args: materialArgs[partIdx],

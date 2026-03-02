@@ -8,9 +8,10 @@ import (
 )
 
 // TODO: make this gpu-accessible
+// TODO: rename
 type MeshPart struct {
-	AttribBuffers []any
-	IndexBuffer   gpu.Slice[[3]uint16]
+	IndexBuffer      gpu.Slice[[3]uint16]
+	AttributeBuffers []any
 }
 
 // TODO: come up with a solution to preserve authored material index? It would
@@ -23,9 +24,8 @@ type Mesh struct {
 	// if we allow multiple attributes to live in the same buffer they all would
 	// have to be in the same domain (per-vertex or per-triangle)
 
-	// TODO: rename these?
-	PosBuffer    int
-	NormalBuffer int
+	PositionAttribute int
+	NormalAttribute   int
 
 	// TODO: deinterleave so that we have an array of attribute and index buffers
 	Parts []MeshPart
@@ -36,17 +36,25 @@ type Mesh struct {
 	accel            gpu.Accel
 }
 
+/*
+type MeshWithAccel struct {
+	accel gpu.Accel
+	mesh  *Mesh
+}
+*/
+
 // TODO: remove this and replace with MeshWithAccel and appropriate constructor.
+// We might need some adjustments for this to work with cluster accel.
 func (m *Mesh) InitAccel() {
 	accelBuildInputs := make([]gpu.AccelBuildInput, len(m.Parts))
 	for i, part := range m.Parts {
-		posBuffer := part.AttribBuffers[m.PosBuffer].(gpu.Slice[[3]float32])
+		positionBuffer := part.AttributeBuffers[m.PositionAttribute].(gpu.Slice[[3]float32])
 
 		accelBuildInputs[i] = &gpu.AccelBuildInputTriangles{
 			VertexFormat:  vk.FORMAT_R32G32B32_SFLOAT,
-			VertexBuffer:  gpu.UnsafePointer(gpu.SliceData(posBuffer)),
-			VertexCount:   gpu.SliceLen(posBuffer),
-			VertexStride:  int(unsafe.Sizeof(posBuffer.Value()[0])),
+			VertexBuffer:  gpu.UnsafePointer(gpu.SliceData(positionBuffer)),
+			VertexCount:   gpu.SliceLen(positionBuffer),
+			VertexStride:  int(unsafe.Sizeof(positionBuffer.Value()[0])),
 			IndexType:     vk.INDEX_TYPE_UINT16, // TODO: infer from type of d.IndexBuffer
 			IndexBuffer:   gpu.UnsafePointer(gpu.SliceData(part.IndexBuffer)),
 			TriangleCount: gpu.SliceLen(part.IndexBuffer),
