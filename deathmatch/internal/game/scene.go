@@ -70,6 +70,12 @@ type Columns struct {
 
 	Velocity ecs.Column[Velocity]
 
+	// Physics should only run for bodies that have no parent. We could
+	// generalize a little by having an entity be "physics scene" and run sim
+	// for the immediate children (but not for the grandchildren), basically.
+	// Though on the other hand it might turn out to be annoying to figure out
+	// what to parent newly spawned object to.
+
 	// NOTE: constraints and pairwise filter
 	//
 	// Should we have an identifier for each filtered/constrained entity so that
@@ -118,6 +124,9 @@ type Scene struct {
 
 	Table *ecs.Table
 	Columns
+
+	// TODO: delegate managing this to the caller? We would get access to this
+	// with UpdateInfo
 	physicsSystem     *physics.System
 	physicsBodyExists ecs.Column[struct{}]
 }
