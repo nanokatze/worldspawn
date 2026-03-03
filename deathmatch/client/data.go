@@ -180,15 +180,44 @@ var errorMaterial = sync.OnceValue(func() *pathtracer.InterpretedMaterial {
 type fileBackedMesh struct {
 	joints []string
 
-	jointWeights gpu.Slice[struct {
-		Index  uint32
-		Weight float32
-	}] // we could get away just fine with unorm16, or even unorm8 in some cases.
+	// jointWeights gpu.Slice[struct {
+	// 	Index  uint32
+	// 	Weight float32
+	// }] // we could get away just fine with unorm16, or even unorm8 in some cases.
 
 	materials []string
 
-	// TODO: don't embed this actually
 	pathtracerMesh pathtracer.Mesh
+}
+
+// TODO: equip AttributeBuffer with size so we don't have to pull in vertex count
+func loadattrbuf(blob2 io.ReaderAt, vertexCount int, desc wmesh.AttributeBuffer) any {
+	if desc.Domain != wmesh.PerVertex {
+		return nil
+	}
+
+	var ret any
+	var bytes []byte
+	switch desc.Type {
+	case "R32G32B32_SFLOAT":
+		guh := gpu.MakeSliceUncached[[3]float32](vertexCount)
+		ret = guh
+		bytes = byteslice(guh.Value())
+
+	case "R32G32_SFLOAT":
+		guh := gpu.MakeSliceUncached[[2]float32](vertexCount)
+		ret = guh
+		bytes = byteslice(guh.Value())
+
+	default:
+		panic("uhh")
+	}
+
+	if _, err := blob2.ReadAt(bytes, desc.Data.Data); err != nil {
+		panic(err)
+	}
+
+	return ret
 }
 
 func loadmesh(filename string) *fileBackedMesh {
@@ -213,41 +242,42 @@ func loadmesh(filename string) *fileBackedMesh {
 	blob2 := io.NewSectionReader(r, preamble.Blob.Off, preamble.Blob.Size)
 
 	indexBuffer := gpu.MakeSliceUncached[[3]uint16](int(header2.PrimitiveCount))
-	if _, err := blob2.ReadAt(byteslice(indexBuffer.Value()), header2.IndexBuffer); err != nil {
+	if _, err := blob2.ReadAt(byteslice(indexBuffer.Value()), header2.IndexBuffer.Data); err != nil {
 		panic(err)
 	}
 
-	attrs := make([]any, len(header2.AttributeBuffers))
+	attrs := make([]any, 2)
 
-	for i, desc := range header2.AttributeBuffers {
-		if desc.Domain != 0 {
-			continue
-		}
+	attrs[pathtracer.AttributePosition] = loadattrbuf(blob2, int(header2.VertexCount), header2.Positions)
+	attrs[pathtracer.AttributeNormal] = loadattrbuf(blob2, int(header2.VertexCount), header2.Normals)
 
-		var bytes []byte
-		switch desc.Type {
-		case "R32G32B32_SFLOAT":
-			guh := gpu.MakeSliceUncached[[3]float32](int(header2.VertexCount))
-			bytes = byteslice(guh.Value())
-			attrs[i] = guh
+	// for i, desc := range header2.AttributeBuffers {
+	// 	if desc.Domain != 0 {
+	// 		continue
+	// 	}
 
-		case "R32G32_SFLOAT":
-			guh := gpu.MakeSliceUncached[[2]float32](int(header2.VertexCount))
-			bytes = byteslice(guh.Value())
-			attrs[i] = guh
+	// 	var bytes []byte
+	// 	switch desc.Type {
+	// 	case "R32G32B32_SFLOAT":
+	// 		guh := gpu.MakeSliceUncached[[3]float32](int(header2.VertexCount))
+	// 		bytes = byteslice(guh.Value())
+	// 		attrs[i] = guh
 
-		default:
-			panic("uhh")
-		}
+	// 	case "R32G32_SFLOAT":
+	// 		guh := gpu.MakeSliceUncached[[2]float32](int(header2.VertexCount))
+	// 		bytes = byteslice(guh.Value())
+	// 		attrs[i] = guh
 
-		if _, err := blob2.ReadAt(bytes, desc.Data); err != nil {
-			panic(err)
-		}
-	}
+	// 	default:
+	// 		panic("uhh")
+	// 	}
+
+	// 	if _, err := blob2.ReadAt(bytes, desc.Data); err != nil {
+	// 		panic(err)
+	// 	}
+	// }
 
 	pathtracerMesh := pathtracer.Mesh{}
-	pathtracerMesh.PositionAttribute = int(header2.PositionAttribute)
-	pathtracerMesh.NormalAttribute = int(header2.NormalAttribute)
 	pathtracerMesh.Parts = make([]pathtracer.MeshPart, len(header2.MaterialIndexRanges))
 
 	materials := make([]string, len(header2.MaterialIndexRanges)) // TODO: eventually it would be nice if we could just directly use header2.Materials

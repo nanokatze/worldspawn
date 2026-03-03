@@ -35,44 +35,45 @@ type Section struct {
 	Off, Size int64
 }
 
-type Buffer struct {
-	Data int64
-	Size int64
-}
-
 type Header struct {
 	PrimitiveCount int64
 
 	VertexCount int64
 
 	IndexType   int64
-	IndexBuffer int64
+	IndexBuffer Buffer
 
-	AttributeBuffers []AttributeBuffer
-
-	PositionAttribute int64
-	NormalAttribute   int64
+	Positions AttributeBuffer
+	Normals   AttributeBuffer
 
 	Joints []string
 
+	MaxInfluencesPerVertex int64
+
+	// VertexCount * MaxInfluencesPerVertex of index uint32 × weight float32 pairs
 	JointWeights Buffer
 
 	Materials []string
 
-	// MaterialIndexAttribute int64
+	// MaterialIndices AttributeBuffer
 
 	// Ranges of primitives with the same material indices.
+	//
+	// TODO: rename pls
 	MaterialIndexRanges []Range
 
-	// Everything else
-	NamedAttributes map[string]int64
+	NamedAttributes map[string]AttributeBuffer
+}
+
+type Buffer struct {
+	Data int64
+	Size int64
 }
 
 type AttributeBuffer struct {
 	Domain Domain // TODO: should be represented with a string in json probably
 	Type   string // TODO: maybe replace with an enum?
-	Data   int64
-	// Size   int64
+	Data   Buffer
 }
 
 // A range of primitives

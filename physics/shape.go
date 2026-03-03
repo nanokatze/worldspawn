@@ -85,13 +85,13 @@ func NewFileBackedShape(fsys fs.FS, filename string, concave bool) (*Shape, erro
 	blob := io.NewSectionReader(rat, preamble.B.Off, preamble.B.Len)
 
 	indexBuffer := make([][3]uint16, header2.PrimitiveCount)
-	blob.Seek(header2.IndexBuffer, io.SeekStart)
+	blob.Seek(header2.IndexBuffer.Data, io.SeekStart)
 	if err := binary.Read(blob, binary.LittleEndian, &indexBuffer); err != nil {
 		return nil, err
 	}
 
 	posBuffer := make([]gmath.Vec3, header2.VertexCount)
-	blob.Seek(header2.AttributeBuffers[header2.PositionAttribute].Data, io.SeekStart)
+	blob.Seek(header2.Positions.Data.Data, io.SeekStart)
 	if err := binary.Read(blob, binary.LittleEndian, &posBuffer); err != nil {
 		return nil, err
 	}

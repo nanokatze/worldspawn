@@ -24,9 +24,6 @@ type Mesh struct {
 	// if we allow multiple attributes to live in the same buffer they all would
 	// have to be in the same domain (per-vertex or per-triangle)
 
-	PositionAttribute int
-	NormalAttribute   int
-
 	// TODO: deinterleave so that we have an array of attribute and index buffers
 	Parts []MeshPart
 
@@ -35,6 +32,12 @@ type Mesh struct {
 	accelBuildConfig *gpu.AccelBuildConfig
 	accel            gpu.Accel
 }
+
+const (
+	// TODO: reprefix these some other way?
+	AttributePosition = iota
+	AttributeNormal
+)
 
 /*
 type MeshWithAccel struct {
@@ -48,7 +51,7 @@ type MeshWithAccel struct {
 func (m *Mesh) InitAccel() {
 	accelBuildInputs := make([]gpu.AccelBuildInput, len(m.Parts))
 	for i, part := range m.Parts {
-		positionBuffer := part.AttributeBuffers[m.PositionAttribute].(gpu.Slice[[3]float32])
+		positionBuffer := part.AttributeBuffers[AttributePosition].(gpu.Slice[[3]float32])
 
 		accelBuildInputs[i] = &gpu.AccelBuildInputTriangles{
 			VertexFormat:  vk.FORMAT_R32G32B32_SFLOAT,

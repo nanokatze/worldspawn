@@ -44,6 +44,8 @@ class Raw:
 
 
 # TODO: we can prefix the internal stuff that goes into the file with "json"
+# TODO: alternatively get rid of all the dataclass stuff? We should see what's
+# the "idiomatic" way to write jsons in python is.
 
 
 @dataclasses.dataclass
@@ -56,8 +58,7 @@ class _Buffer:
 class _AttributeBuffer:
     Type: str # TODO: make this a VkFormat?
     Domain: int # TODO: make this a string
-    Data: int
-    # Size: int
+    Data: _Buffer
 
 
 @dataclasses.dataclass
@@ -75,84 +76,131 @@ class _Header:
 
     IndexType: int # TODO: make this a string? aaaaaaaa
 
-    IndexBuffer: int
+    IndexBuffer: _Buffer
 
-    AttributeBuffers: list[_AttributeBuffer]
-
-    PositionAttribute: int
-
-    NormalAttribute: int
+    Positions: _AttributeBuffer
+    Normals: _AttributeBuffer
 
     Joints: list[str]
+
+    MaxInfluencesPerVertex: int
 
     JointWeights: _Buffer
 
     Materials: list[str]
 
-    # MaterialIndexAttribute: int
+    # MaterialIndices: _AttributeBuffer
 
     MaterialIndexRanges: list[_Range]
 
-    NamedAttributes: dict[str, int]
+    NamedAttributes: dict[str, _AttributeBuffer]
 
 
-def cook(raw, directory):
-    # Validation
-    #
-    # TODO: more elaborate validation
+def _write_buffer(blob, buf):
+    off = seek_align(blob, 4)
+    size = nputil.tofile(blob, buf)
+    return _Buffer(Data=off, Size=size)
 
-    all_attributes = [
+
+_types = {
+    np.dtype(('<f4', (3,))): 'R32G32B32_SFLOAT',
+    np.dtype(('<f4', (2,))): 'R32G32_SFLOAT',
+    # np.dtype(('<u4', 1,)): 'R32_UINT',
+}
+
+
+def _write_attribute_buffer(blob, buf):
+    assert buf.domain == Domain.VERTEX
+
+    return _AttributeBuffer(
+        Domain=0,
+        # TODO: for this to work we actually need to agree upon the shapes
+        # between different domains, or have the user specify the format.
+        Type=_types[np.dtype((buf.data.dtype, buf.data.shape[2:]))],
+        Data=_write_buffer(blob, buf.data))
+
+
+def _sort_by_material_index(raw):
+    attribute_buffers = [
         raw.positions,
         raw.normals,
+        raw.joint_weights,
         raw.material_indices,
+        *raw.named_attributes.values(),
     ]
-
-    primitive_count = len(all_attributes[0].data)
-
-    for i, buf in enumerate(all_attributes):
-        assert len(buf.data) == primitive_count
-
-    blob = io.BytesIO() # TODO: use a stricter alignment when writing to blob
-
-    # Sort triangles by material index
 
     material_index_sorter = np.argsort(raw.material_indices.data, kind='stable')
 
-    for k, v in enumerate(all_attributes):
-        all_attributes[k].data = v.data[material_index_sorter]
+    for k, v in enumerate(attribute_buffers):
+        # TODO: rewrite this to be less ass
+        attribute_buffers[k].data = v.data[material_index_sorter]
 
-    index_type = 2
 
-    index_buffer = seek_align(blob, 4)
-    nputil.tofile(blob, np.arange(3 * primitive_count).astype(f'<u{index_type}'))
+def cook(raw, directory):
+    attribute_buffers = [
+        raw.positions,
+        raw.normals,
+        raw.joint_weights,
+        raw.material_indices,
+        *raw.named_attributes.values(),
+    ]
 
-    attribute_buffers = []
-    attribute_remap = {}
-    for i, buf in enumerate(all_attributes):
-        types = {
-            np.dtype(('<f4', (3,))): 'R32G32B32_SFLOAT',
-            np.dtype(('<f4', (2,))): 'R32G32_SFLOAT',
-            # np.dtype(('<u4', 1,)): 'R32_UINT',
-        }
+    primitive_count = len(attribute_buffers[0].data)
 
-        if buf.domain == Domain.VERTEX:
-            attribute_buffers.append(_AttributeBuffer(
-                Domain=0,
-                Type=types[np.dtype((buf.data.dtype, buf.data.shape[2:]))],
-                Data=seek_align(blob, 4))) # TODO: do seek_align before pls
-            attribute_remap[i] = len(attribute_buffers) - 1
+    # Validation
 
-            nputil.tofile(blob, buf.data)
+    for i, buf in enumerate(attribute_buffers):
+        assert len(buf.data) == primitive_count
 
-    # named_attributes = {name: attribute_remap[index] for (name, index) in raw.named_attributes.items() if index in attribute_remap}
+        match buf.domain:
+            case Domain.VERTEX:
+                assert buf.data.shape[1] == 3
+            case Domain.FACE:
+                pass
+            case _:
+                assert False, 'unreachable'
 
-    # TODO: assert that primitives are sorted by material index
+    # Sort by material index and write out the ranges
+
+    _sort_by_material_index(raw)
+
     material_index_ranges = []
-    # TODO: remove the MaterialIndex indirection
+    # TODO: remove the MaterialIndex field
     for material_indices in np.unique(raw.material_indices.data):
         a = np.searchsorted(raw.material_indices.data, material_indices)
         b = np.searchsorted(raw.material_indices.data, material_indices, side='right')
         material_index_ranges.append(_Range(int(material_indices), int(a), int(b - a)))
+
+    # Reindex things (TODO: actually reindex things)
+
+    indices = np.arange(3 * primitive_count)
+
+    index_type = 2
+
+    # Joint weights
+    # TODO: compact joint weights
+
+    max_influences_per_vertex = raw.joint_weights.data.shape[2]
+
+    # Write stuff out
+
+    blob = io.BytesIO()
+
+    index_buffer = _write_buffer(blob, indices.astype(f'<u{index_type}'))
+
+    positions = _write_attribute_buffer(blob, raw.positions)
+    normals = _write_attribute_buffer(blob, raw.normals)
+
+    # Basically a weird attribute
+    joint_weights = _write_buffer(blob, raw.joint_weights.data)
+
+    named_attributes = {}
+    for name in sorted(raw.named_attributes.keys()):
+        attr_buf = raw.named_attributes[name]
+        # TODO: make things function for Domain.FACE as well
+        if attr_buf.domain == Domain.VERTEX:
+            continue
+        named_attributes[name] = _write_attribute_buffer(blob, attr_buf)
 
     with open(directory, 'wb') as f:
         f.write(b'Worldspawn')
@@ -169,14 +217,14 @@ def cook(raw, directory):
             VertexCount=primitive_count * 3,
             IndexType=index_type,
             IndexBuffer=index_buffer,
-            AttributeBuffers=attribute_buffers,
-            PositionAttribute=0, # TODO: avoid hardcoding these
-            NormalAttribute=1,
+            Positions=positions,
+            Normals=normals,
             Joints=raw.joints,
-            JointWeights=None,
+            MaxInfluencesPerVertex=max_influences_per_vertex,
+            JointWeights=joint_weights,
             Materials=raw.materials,
             MaterialIndexRanges=material_index_ranges,
-            NamedAttributes={},
+            NamedAttributes=named_attributes,
         )
         d = dataclasses.asdict(h, dict_factory=dict_skip_nulls)
         d = fixupdict(d)

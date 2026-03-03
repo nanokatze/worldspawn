@@ -63,28 +63,25 @@ def cook(context, obj):
 
     tri_vert_idxs = corner_vert_idxs[tri_corners_idxs]
 
-    positions = mesh_cooker2.AttributeBuffer(
-        mesh_cooker2.Domain.VERTEX,
-        bpyutil.array_from_prop_collection(mesh.vertices, 'co', dtype=nputil.vec3)[tri_vert_idxs])
+    positions = mesh_cooker2.AttributeBuffer(mesh_cooker2.Domain.VERTEX, bpyutil.array_from_prop_collection(mesh.vertices, 'co', dtype=nputil.vec3)[tri_vert_idxs])
 
     # TODO: encode octahedrally?
-    normals = mesh_cooker2.AttributeBuffer(
-        mesh_cooker2.Domain.VERTEX,
-        bpyutil.array_from_prop_collection(mesh.loops, 'normal', dtype=nputil.vec3)[tri_corners_idxs])
+    normals = mesh_cooker2.AttributeBuffer(mesh_cooker2.Domain.VERTEX, bpyutil.array_from_prop_collection(mesh.loops, 'normal', dtype=nputil.vec3)[tri_corners_idxs])
 
     # TODO: tangents
 
     joints = [g.name for g in obj.vertex_groups]
 
-    # joint_weights = [None] * len(mesh.vertices)
-    # for i, v in enumerate(mesh.vertices):
-    #     joint_weights[i] = [(np.uint32(g.group), np.float32(g.weight)) for g in v.groups], dtype=np.dtype([('index', np.uint32), ('weight', np.float32)])
+    max_influences_per_vertex = max(len(v.groups) for v in mesh.vertices)
 
-    # print(tri_vert_idxs)
-    # joint_weights2 = joint_weights[tri_vert_idxs]
+    tmp = np.zeros((len(mesh.vertices), max_influences_per_vertex), dtype=[('index', np.uint32), ('weight', np.float32)])
+    if max_influences_per_vertex > 0:
+        for i, v in enumerate(mesh.vertices):
+            for j, g in enumerate(v.groups):
+                tmp[i][j]['index'] = g.group
+                tmp[i][j]['weight'] = g.weight
 
-    # print(joint_weights2.shape, joint_weights2.dtype)
-    # print(joint_weights2[np.array([1, 0])])
+    joint_weights = mesh_cooker2.AttributeBuffer(mesh_cooker2.Domain.VERTEX, tmp[tri_vert_idxs])
 
     # TODO: materials can come from the mesh itself actually
     materials = [None] * max(len(obj.material_slots), 1)
@@ -93,46 +90,44 @@ def cook(context, obj):
         if slot.material is not None:
             materials[i] = context.path_for_datablock(slot.material)
 
-    material_indices = mesh_cooker2.AttributeBuffer(
-        mesh_cooker2.Domain.FACE,
-        bpyutil.array_from_prop_collection(mesh.loop_triangles, 'material_index', dtype=np.uint32))
+    material_indices = mesh_cooker2.AttributeBuffer(mesh_cooker2.Domain.FACE, bpyutil.array_from_prop_collection(mesh.loop_triangles, 'material_index', dtype=np.uint32))
 
-    # for attr in mesh.attributes:
-    #     # Already handled
-    #     if attr.name == 'position':
-    #         continue
+    named_attributes = {}
+    for attr in mesh.attributes:
+        # Already handled
+        if attr.name == 'position':
+            continue
 
-    #     # TODO: skip other things? Also when verbose mode is on we should print
-    #     # why we skip something
-    #     if attr.name.startswith("."):
-    #         continue
+        # TODO: skip other things? Also when verbose mode is on we should print
+        # why we skip something
+        if attr.name.startswith("."):
+            continue
 
-    #     # TODO: we should be able to handle all blender data types, ackshually.
-    #     if attr.data_type not in _ATTRIBUTE_TYPE_TO_NUMPY_TYPE:
-    #         continue
+        # TODO: we should be able to handle all blender data types, ackshually.
+        if attr.data_type not in _ATTRIBUTE_TYPE_TO_NUMPY_TYPE:
+            continue
 
-    #     dt = _ATTRIBUTE_TYPE_TO_NUMPY_TYPE[attr.data_type]
+        dt = _ATTRIBUTE_TYPE_TO_NUMPY_TYPE[attr.data_type]
 
-    #     # TODO: also handle face domain and think of what to do with edge
-    #     match attr.domain:
-    #         case 'POINT':
-    #             domain = mesh_cooker2.Domain.VERTEX
-    #             data = bpyutil.array_from_prop_collection(attr.data, 'vector', dt)[tri_vert_idxs]
-    #         case 'CORNER':
-    #             domain = mesh_cooker2.Domain.VERTEX
-    #             data = bpyutil.array_from_prop_collection(attr.data, 'vector', dt)[tri_corners_idxs]
-    #         case _:
-    #             continue
-    #     attr_buffers.append(mesh_cooker2.AttributeBuffer(domain, data))
-    #     attributes[attr.name] = len(attr_buffers)-1
+        # TODO: also handle face domain and think of what to do with edge
+        match attr.domain:
+            case 'POINT':
+                domain = mesh_cooker2.Domain.VERTEX
+                data = bpyutil.array_from_prop_collection(attr.data, 'vector', dt)[tri_vert_idxs]
+            case 'CORNER':
+                domain = mesh_cooker2.Domain.VERTEX
+                data = bpyutil.array_from_prop_collection(attr.data, 'vector', dt)[tri_corners_idxs]
+            case _:
+                continue
+        named_attributes[attr.name] = mesh_cooker2.AttributeBuffer(domain, data)
 
     mesh2 = mesh_cooker2.Raw(
         positions=positions,
         normals=normals,
         joints=joints,
-        joint_weights=None,
+        joint_weights=joint_weights,
         materials=materials,
         material_indices=material_indices,
-        named_attributes={})
+        named_attributes=named_attributes)
 
     mesh_cooker2.cook(mesh2, context.path_for_datablock(obj))
