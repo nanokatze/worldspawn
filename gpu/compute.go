@@ -14,9 +14,7 @@ type ComputeShader[T any] struct {
 	vk vk.ShaderEXT
 }
 
-// TODO: replace this with lazy init at WithEnv that pulls src from a source
-// specified in ComputeShader?
-func CompileFunc[T any](blob []byte, entry string) ComputeShader[T] {
+func CompileComputeShader[T any](blob []byte, entry string) *ComputeShader[T] {
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
 
@@ -39,29 +37,32 @@ func CompileFunc[T any](blob []byte, entry string) ComputeShader[T] {
 			Size:       maxShaderArgsSize,
 		}),
 	}, nil, &vkShader))
-	return ComputeShader[T]{vk: vkShader}
+
+	// TODO: stick a cleanup func on the resulting object once we properly
+	// maintain the reference and stuff?
+	return &ComputeShader[T]{vk: vkShader}
 }
 
-func (body ComputeShader[T]) WithEnv(env T) ComputeClosure[T] {
-	return ComputeClosure[T]{
-		Body: body,
-		Env:  env,
-	}
-}
-
+// TODO: make the internals private? This would allow things to syntactically
+// appear the same (always use the Bind method) while the object could be
+// whatever (e.g. some kind of LazyComputeShader[T] implemented whereever)
 type ComputeClosure[T any] struct {
-	Body ComputeShader[T]
-	Env  T
+	Shader *ComputeShader[T]
+	Env    T
+}
+
+func (shader *ComputeShader[T]) Bind(env T) ComputeClosure[T] {
+	return ComputeClosure[T]{shader, env}
 }
 
 type dispatchJob struct {
 	groups [3]uint32
-	kernel vk.ShaderEXT
+	kernel vk.ShaderEXT // TODO: make it be generic over compute compute shader objects so that we can keep the reference
 	args   []byte
 }
 
 // TODO: play with the order of arguments?
-// TODO: should take an interface rather than be generic
+// TODO: should take an interface rather than be generic. Or maybe not.
 func ParallelFor[T any](jq *JobQueue, groups []int, f ComputeClosure[T]) {
 	if err := validateDispatchGrid2(groups); err != nil {
 		if err == errEmptyGrid {
@@ -77,7 +78,7 @@ func ParallelFor[T any](jq *JobQueue, groups []int, f ComputeClosure[T]) {
 
 	jq.Enqueue(&dispatchJob{
 		groups: groups32,
-		kernel: f.Body.vk,
+		kernel: f.Shader.vk,
 		args:   slices.Clone(asbytes(&f.Env)),
 	})
 }

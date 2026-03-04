@@ -58,11 +58,23 @@ type bloomDownsampleShaderEnv struct {
 	SamplerDescriptor gpu.ImageSampler
 }
 
-// var bloomDownsampleShader = gpu.LazyComputeClosureBody[bloomDownsampleShaderEnv]{mustReadFile("shaders/postprocess_bloom.spv"), "bloomDownsample"}
+type lazySpvFileComputeShader[T any] struct {
+	once sync.Once
 
-var bloomDownsampleShader = sync.OnceValue(func() gpu.ComputeClosureBody[bloomDownsampleShaderEnv] {
-	return gpu.CompileFunc[bloomDownsampleShaderEnv](mustReadFile("shaders/postprocess_bloom.spv"), "bloomDownsample")
-})
+	shader *gpu.ComputeShader[T]
+
+	filename string
+	entry    string
+}
+
+func (lazyShader *lazySpvFileComputeShader[T]) Bind(env T) gpu.ComputeClosure[T] {
+	lazyShader.once.Do(func() {
+		lazyShader.shader = gpu.CompileComputeShader[T](mustReadFile(lazyShader.filename), lazyShader.entry)
+	})
+	return lazyShader.shader.Bind(env)
+}
+
+var bloomDownsampleShader = lazySpvFileComputeShader[bloomDownsampleShaderEnv]{filename: "shaders/postprocess_bloom.spv", entry: "bloomDownsample"}
 
 var downsampleSampler = sync.OnceValue(func() gpu.ImageSampler {
 	return gpu.NewSampler(&vk.SamplerCreateInfo{
@@ -85,17 +97,15 @@ func bloomDownsample(jq *gpu.JobQueue, out, in *gpu.Image, extent [2]int) {
 	}
 
 	gpu.ParallelFor(jq, dim[:],
-		bloomDownsampleShader().
-			WithEnv(bloomDownsampleShaderEnv{
-				OutImage: out.Descriptors(),
-				InImage:  in.Descriptors(),
-				Extent: [2]uint32{
-					uint32(extent[0]),
-					uint32(extent[1]),
-				},
-				SamplerDescriptor: downsampleSampler(),
-			}),
-	)
+		bloomDownsampleShader.Bind(bloomDownsampleShaderEnv{
+			OutImage: out.Descriptors(),
+			InImage:  in.Descriptors(),
+			Extent: [2]uint32{
+				uint32(extent[0]),
+				uint32(extent[1]),
+			},
+			SamplerDescriptor: downsampleSampler(),
+		}))
 }
 
 type bloomUpsampleShaderEnv struct {
@@ -106,9 +116,7 @@ type bloomUpsampleShaderEnv struct {
 	Radius            float32
 }
 
-var bloomUpsampleShader = sync.OnceValue(func() gpu.ComputeClosureBody[bloomUpsampleShaderEnv] {
-	return gpu.CompileFunc[bloomUpsampleShaderEnv](mustReadFile("shaders/postprocess_bloom.spv"), "bloomUpsample")
-})
+var bloomUpsampleShader = lazySpvFileComputeShader[bloomUpsampleShaderEnv]{filename: "shaders/postprocess_bloom.spv", entry: "bloomUpsample"}
 
 var upsampleSampler = sync.OnceValue(func() gpu.ImageSampler {
 	return gpu.NewSampler(&vk.SamplerCreateInfo{
@@ -129,18 +137,16 @@ func bloomUpsample(jq *gpu.JobQueue, acc, in *gpu.Image, extent [2]int, radius f
 	}
 
 	gpu.ParallelFor(jq, dim[:],
-		bloomUpsampleShader().
-			WithEnv(bloomUpsampleShaderEnv{
-				AccImage: acc.Descriptors(),
-				InImage:  in.Descriptors(),
-				Extent: [2]uint32{
-					uint32(extent[0]),
-					uint32(extent[1]),
-				},
-				SamplerDescriptor: upsampleSampler(),
-				Radius:            radius,
-			}),
-	)
+		bloomUpsampleShader.Bind(bloomUpsampleShaderEnv{
+			AccImage: acc.Descriptors(),
+			InImage:  in.Descriptors(),
+			Extent: [2]uint32{
+				uint32(extent[0]),
+				uint32(extent[1]),
+			},
+			SamplerDescriptor: upsampleSampler(),
+			Radius:            radius,
+		}))
 }
 
 func mustReadFile(filename string) []byte {
