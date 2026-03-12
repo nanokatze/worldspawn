@@ -2,29 +2,26 @@ package gpu
 
 import (
 	"runtime"
-	"structs"
 	"unsafe"
 
 	"worldspawn/gpu/vk"
 )
 
-/*
-type TopLevelAccel struct {
-	accel Accel
-}
-*/
-
-// TODO: distinguish ASes of different types, with different types.
 type Accel struct {
-	Data UnsafePointer // TODO: make private
+	data UnsafePointer
 	size int
 }
+
+func (accel Accel) Size() int { return accel.size }
 
 // TODO: rename to AccelGeometry?
 type AccelBuildInput interface {
 	vkAccelerationStructureGeometry(geometry *vk.AccelerationStructureGeometryKHR, primitiveCount *uint32)
 }
 
+// TODO: could we make VertexBuffer part somehow less annoying? E.g. with some
+// kind of slice. Ok we can't use a slice here but we could provide a Set method
+// (or Set methods) or a constructor. Or idk.
 type AccelBuildInputTriangles struct {
 	VertexFormat  vk.Format
 	VertexBuffer  UnsafePointer // ignored by AccelBuildConfig.CalcSizes
@@ -55,14 +52,10 @@ func (triangles *AccelBuildInputTriangles) vkAccelerationStructureGeometry(geome
 	*primitiveCount = uint32(triangles.TriangleCount)
 }
 
-type AccelInstance struct {
-	_                 structs.HostLayout
-	Transform         [3][4]float32
-	InstanceIDAndMask uint32 // TODO: make packing more user-friendly
-	SBTOffsetAndFlags uint32
-	Accel             UnsafePointer
-}
-
+// TODO: we can't replace these with Slices, otherwise CalcSizes wouldn't work.
+// What we could do instead is make the fields here private and cook up
+// constructors that take Slice and an ordinary int, or something of that kind,
+// basically.
 type AccelBuildInputInstances struct {
 	Instances     Pointer[AccelInstance] // ignored by AccelBuildConfig.CalcSizes
 	InstanceCount uint32
@@ -101,12 +94,21 @@ func (instancePointers *AccelBuildInputInstancePointers) vkAccelerationStructure
 	*primitiveCount = instancePointers.InstanceCount
 }
 
+// TODO: split this for different accel types? CLAS consumes inputs in a very
+// different shape and form.
 type AccelBuildConfig struct {
 	Type   vk.AccelerationStructureTypeKHR
 	Inputs []AccelBuildInput
 }
 
-func (config *AccelBuildConfig) CalcSizes() (int, int, int) {
+type AccelSizes struct {
+	Accel         int
+	BuildScratch  int
+	UpdateScratch int
+}
+
+// TODO: should we split this into two, CalcAccelSize() and CalcScratchSizes()?
+func (config *AccelBuildConfig) CalcSizes() AccelSizes {
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
 
@@ -135,7 +137,19 @@ func (config *AccelBuildConfig) CalcSizes() (int, int, int) {
 		unsafe.SliceData(vkMaxPrimitiveCounts),
 		&sizes)
 
-	return int(sizes.AccelerationStructureSize), int(sizes.BuildScratchSize), int(sizes.UpdateScratchSize)
+	return AccelSizes{
+		Accel:         int(sizes.AccelerationStructureSize),
+		BuildScratch:  int(sizes.BuildScratchSize),
+		UpdateScratch: int(sizes.UpdateScratchSize),
+	}
+}
+
+// TODO: NewAccelAt and helpers that take build configs
+func NewAccel(size int) Accel {
+	return Accel{
+		data: UnsafePointer(SliceData(MakeSliceUncached[byte](size))),
+		size: size,
+	}
 }
 
 // TODO: rename to NewAccelTopLevel?
@@ -148,25 +162,18 @@ func NewTopLevelAccel(maxInstances int) Accel {
 			},
 		},
 	}
-	return NewAccel(config)
+	return NewAccel(config.CalcSizes().Accel)
 }
 
-func NewAccel(config *AccelBuildConfig) Accel {
-	accelSize, _, _ := config.CalcSizes()
-	return Accel{
-		Data: UnsafePointer(SliceData(MakeSliceUncached[byte](accelSize))),
-		size: accelSize,
-	}
-}
-
-func (accel *Accel) EnqueueBuild(jq *JobQueue, config *AccelBuildConfig) {
-	accelSize, buildScratchSize, _ := config.CalcSizes()
-	if accelSize > accel.size {
+// TODO: change it to not use a pointer receiver?
+func (config *AccelBuildConfig) EnqueueBuild(jq *JobQueue, accel Accel) {
+	sizes := config.CalcSizes()
+	if sizes.Accel > accel.size {
 		panic("bad")
 	}
-	scratch := UnsafePointer(SliceData(MakeSliceUncached[byte](buildScratchSize)))
+	scratch := UnsafePointer(SliceData(MakeSliceUncached[byte](sizes.BuildScratch)))
 	defer jq.Cleanup(func() { Free(scratch) })
-	EnqueueAccelBuild(jq, accel.Data, accel.size, config, scratch)
+	EnqueueAccelBuild(jq, accel.data, accel.size, config, scratch)
 }
 
 type accelBuildJob struct {
@@ -178,8 +185,7 @@ type accelBuildJob struct {
 	scratch       UnsafePointer
 }
 
-// TODO: initially get rid of the low level apis and introduce NewAccelAt
-
+// TODO: hide from public
 func EnqueueAccelBuild(jq *JobQueue, dst UnsafePointer, dstSize int, config *AccelBuildConfig, scratch UnsafePointer) {
 	vkGeometries := make([]vk.AccelerationStructureGeometryKHR, len(config.Inputs))
 	vkBuildRanges := make([]vk.AccelerationStructureBuildRangeInfoKHR, len(config.Inputs))
@@ -199,7 +205,7 @@ func EnqueueAccelBuild(jq *JobQueue, dst UnsafePointer, dstSize int, config *Acc
 
 func (*accelBuildJob) Info() JobInfo {
 	return JobInfo{
-		QueueFamilies: topology.QueueFamilies(0b010),
+		QueueFamilies: topology.QueueFamilies(vk.QueueFlags(vk.QUEUE_COMPUTE_BIT)),
 	}
 }
 

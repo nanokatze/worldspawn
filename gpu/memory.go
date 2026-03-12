@@ -248,6 +248,9 @@ func MakeSliceUncached[T any](n int) Slice[T] {
 }
 
 func (s Slice[T]) Index(i int) Pointer[T] {
+	if !(0 <= i && i < s.len) {
+		panic("bad")
+	}
 	return Pointer[T](uint64(s.data) + uint64(i*int(unsafe.Sizeof(*new(T)))))
 }
 
@@ -258,7 +261,7 @@ func (s Slice[T]) Slice(i, j int) Slice[T] {
 	return Slice[T]{
 		data: s.data + Pointer[T](i*int(unsafe.Sizeof(*new(T)))),
 		len:  j - i,
-		cap:  j - i,
+		cap:  s.cap - i,
 	}
 }
 
@@ -266,13 +269,11 @@ func (s Slice[T]) Value() []T {
 	return unsafe.Slice((*T)(UnsafePointer(s.data).Value()), s.cap)[:s.len]
 }
 
-func SliceData[T any](s Slice[T]) Pointer[T] {
-	return s.data
-}
+func SliceData[T any](s Slice[T]) Pointer[T] { return s.data }
 
-func SliceLen[T any](s Slice[T]) int {
-	return s.len
-}
+func SliceLen[T any](s Slice[T]) int { return s.len }
+
+func SliceCap[T any](s Slice[T]) int { return s.cap }
 
 // TODO: replace with pointer any and also teach this to free slices.
 func Free(pointer UnsafePointer) {

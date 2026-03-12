@@ -14,6 +14,8 @@ type ComputeShader[T any] struct {
 	vk vk.ShaderEXT
 }
 
+// TODO: also specify type of the blob. We could encode the type into Go's
+// typesystem (i.e. just newtype []byte.)
 func CompileComputeShader[T any](blob []byte, entry string) *ComputeShader[T] {
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
