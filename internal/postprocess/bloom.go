@@ -4,6 +4,7 @@ package postprocess
 
 import (
 	"os"
+	"structs"
 	"sync"
 
 	"worldspawn/gpu"
@@ -42,7 +43,7 @@ func Bloom(jq *gpu.JobQueue, dst, src *gpu.Image) {
 	for i := 1; i < tmp.Mips(); i++ {
 		radius := float32(1)
 		if i > 1 {
-			radius = 0.8
+			radius = 0.5
 		}
 		bloomUpsample(jq, dst, tmpMips[i], extent, radius)
 	}
@@ -52,26 +53,11 @@ func Bloom(jq *gpu.JobQueue, dst, src *gpu.Image) {
 // care of aliasing to reduce storage costs.
 
 type bloomDownsampleShaderEnv struct {
+	_                 structs.HostLayout
 	OutImage          gpu.ImageDescriptors
 	InImage           gpu.ImageDescriptors
 	Extent            [2]uint32
 	SamplerDescriptor gpu.ImageSampler
-}
-
-type lazySpvFileComputeShader[T any] struct {
-	once sync.Once
-
-	shader *gpu.ComputeShader[T]
-
-	filename string
-	entry    string
-}
-
-func (lazyShader *lazySpvFileComputeShader[T]) Bind(env T) gpu.ComputeClosure[T] {
-	lazyShader.once.Do(func() {
-		lazyShader.shader = gpu.CompileComputeShader[T](mustReadFile(lazyShader.filename), lazyShader.entry)
-	})
-	return lazyShader.shader.Bind(env)
 }
 
 var bloomDownsampleShader = lazySpvFileComputeShader[bloomDownsampleShaderEnv]{filename: "shaders/postprocess_bloom.spv", entry: "bloomDownsample"}
@@ -109,6 +95,7 @@ func bloomDownsample(jq *gpu.JobQueue, out, in *gpu.Image, extent [2]int) {
 }
 
 type bloomUpsampleShaderEnv struct {
+	_                 structs.HostLayout
 	AccImage          gpu.ImageDescriptors
 	InImage           gpu.ImageDescriptors
 	Extent            [2]uint32
@@ -147,6 +134,22 @@ func bloomUpsample(jq *gpu.JobQueue, acc, in *gpu.Image, extent [2]int, radius f
 			SamplerDescriptor: upsampleSampler(),
 			Radius:            radius,
 		}))
+}
+
+type lazySpvFileComputeShader[T any] struct {
+	once sync.Once
+
+	shader *gpu.ComputeShader[T]
+
+	filename string
+	entry    string
+}
+
+func (lazyShader *lazySpvFileComputeShader[T]) Bind(env T) gpu.ComputeClosure[T] {
+	lazyShader.once.Do(func() {
+		lazyShader.shader = gpu.CompileComputeShader[T](mustReadFile(lazyShader.filename), lazyShader.entry)
+	})
+	return lazyShader.shader.Bind(env)
 }
 
 func mustReadFile(filename string) []byte {
