@@ -25,7 +25,7 @@ type TranslationRotation struct {
 
 type Velocity struct {
 	Linear  gmath.Vec3
-	Angular gmath.Vec3
+	Angular gmath.Vec3 // this should probably be a bivec3 actually
 }
 
 type SceneGlobals struct {
@@ -50,6 +50,8 @@ type Camera struct {
 // should also update it reactively when we add dirty tracking, to minimize the
 // amount of work we do.
 
+// type (pose Pose) RelativeToBase(bone string)
+
 // TODO: introduce struct tags like compatibility names etc
 type Columns struct {
 	// Name ecs.ComponentStore[string]
@@ -57,16 +59,22 @@ type Columns struct {
 	// TODO: explore if we can make CreateEntity set this component
 	//CreationTime ecs.Column[Time]
 
-	Timer ecs.Column[Time]
-
 	// TODO: split into transform and deletion hierarchies?
 	Parent ecs.Column[ecs.ID]
+
 	// Do not access this column directly; use {Get,Set}{Local,Global}TRS
 	// instead.
 	TranslationRotation ecs.Column[TranslationRotation]
 	// Do not access this column directly; use {Get,Set}{Local,Global}TRS
 	// instead.
 	Scale ecs.Column[gmath.Vec3]
+	// TODO: shearing
+
+	// Testing only. We'll kill these columns and replace them with an animation
+	// graph esque thingy which will fundamentally be the same thing (several
+	// joint -> transform maps for different purposes, e.g. for deformation and
+	// for absolute transform) but be more flexible about pose
+	Pose ecs.Column[Pose]
 
 	Velocity ecs.Column[Velocity]
 
@@ -99,12 +107,13 @@ type Columns struct {
 	// TODO: kill this column and handle it at prefab instantination
 	CollectionInstance ecs.Column[CollectionInstance]
 
-	// TODO: move it out of the Columns struct, there's no reason to replicate this
-	Delete ecs.Column[struct{}]
+	// Logic
 
-	Entity ecs.Column[Entity] // TODO: rename to Logic
+	Timer ecs.Column[Time]
 
-	// Renderer columns
+	Entity ecs.Column[Entity] // TODO: rename to Logic or Script
+
+	// Renderer
 
 	VisibilityMask ecs.Column[VisibilityMask]
 
@@ -115,6 +124,11 @@ type Columns struct {
 
 	SoundEffect      ecs.Column[SoundEmitter] // TODO: should be a simple filename string
 	SoundEffectState ecs.Column[LoopedSound]
+
+	// Deletion
+
+	// TODO: move it out of the Columns struct, there's no reason to replicate this
+	Delete ecs.Column[struct{}]
 }
 
 type Scene struct {
@@ -213,6 +227,8 @@ func (scene *Scene) SetParent(id, parent ecs.ID) {
 	// children, _ := scene.Children.Load(parent)
 	// children
 }
+
+// TODO: use "Transform" instead of "TRS"
 
 func (scene *Scene) GetLocalTRS(id ecs.ID) (gmath.DTRS3, bool) {
 	tr, ok := scene.TranslationRotation.Get(id)

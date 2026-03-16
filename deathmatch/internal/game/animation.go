@@ -1,7 +1,6 @@
 package game
 
 import (
-	"math"
 	"sync"
 
 	"github.com/go-json-experiment/json"
@@ -10,6 +9,16 @@ import (
 )
 
 // TODO: move this stuff into its own package probably
+
+// TODO: should not be defined here.
+//
+// TODO: when we move things elsewhere, we should make the internals private and
+// introduce accessor methods instead.
+//
+// TODO: stick various methods onto the Pose object
+type Pose struct {
+	Bones map[string]gmath.Mat4x4
+}
 
 /*
 type AnimationSampler struct {
@@ -26,7 +35,6 @@ type AnimationSamples struct {
 type Animation2 struct {
 	Channels map[string]AnimationSamples
 }
-*/
 
 type Animation struct {
 	Armature map[string]gmath.TRS3 // TODO: split off into its own component?
@@ -41,20 +49,6 @@ type Animation struct {
 
 // TODO: these should be getArmature and getAnimation the way we have getShape
 // TODO: probably decorate errors with getArmature: $filename: $err
-
-func loadArmature(filename string) (map[string]gmath.TRS3, error) {
-	f, err := Data.Open(filename)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	var m map[string]gmath.TRS3
-	if err := json.UnmarshalRead(f, &m, JSONOptions); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
 
 type Action struct {
 	sampleRate int
@@ -79,7 +73,7 @@ func (a *Action) Sample(t float64, channel string) gmath.TRS3 {
 var actionCacheMu sync.Mutex
 var actionCache = make(map[string]*Action)
 
-func getAnimation(filename string) *Action {
+func action(filename string) *Action {
 	actionCacheMu.Lock()
 	action, ok := actionCache[filename]
 	actionCacheMu.Unlock()
@@ -108,4 +102,53 @@ func getAnimation(filename string) *Action {
 		actionCacheMu.Unlock()
 	}
 	return action
+}
+*/
+
+type Skeleton struct {
+	// Joints          []string
+
+	// TODO: switch to a plain array with a string map for lookups
+
+	Parent          map[string]string
+	BindPose        map[string]gmath.Mat4x4
+	BindPoseInverse map[string]gmath.Mat4x4
+
+	// other stuff
+}
+
+var skeletonCache sync.Map
+
+func skeleton(filename string) *Skeleton {
+	if m, ok := skeletonCache.Load(filename); ok {
+		return m.(*Skeleton)
+	}
+
+	m, err := loadSkeleton(filename)
+	if err != nil {
+		panic(err)
+	}
+	m2, _ := skeletonCache.LoadOrStore(filename, m)
+	return m2.(*Skeleton)
+}
+
+func loadSkeleton(filename string) (*Skeleton, error) {
+	f, err := Data.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	var bindPoseInverse map[string]gmath.Mat4x4
+	if err := json.UnmarshalRead(f, &bindPoseInverse, json.StringifyNumbers(true)); err != nil {
+		return nil, err
+	}
+	bindPose := make(map[string]gmath.Mat4x4)
+	for k, v := range bindPoseInverse {
+		bindPose[k] = v.Inverse()
+	}
+	return &Skeleton{
+		BindPose:        bindPose,
+		BindPoseInverse: bindPoseInverse,
+	}, nil
 }

@@ -2,11 +2,12 @@ package game
 
 import "reflect"
 
-// TODO: this is actually "object logic"
+// TODO: this is actually "object logic" or "object script" even idk
 
 type Entity interface{ entity() }
 
 var EntityTypes = []reflect.Type{
+	reflect.TypeFor[Animtest](),
 	reflect.TypeFor[Character](),
 	reflect.TypeFor[DeleteAfter](),
 	reflect.TypeFor[DroppedWeapon](),

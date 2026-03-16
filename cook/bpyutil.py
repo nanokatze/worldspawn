@@ -1,6 +1,6 @@
 import numpy as np
 import idprop
-from mathutils import Vector, Quaternion
+from mathutils import Matrix, Vector, Quaternion
 
 
 class Links:
@@ -36,6 +36,8 @@ def array_from_prop_collection(collection, attr, dtype):
 # TODO: merge into fixupdict and remove in favor of the latter
 def asdasd(o):
     match o:
+        case Matrix():
+            return [[str(e) for e in row] for row in o]
         case Vector():
             return [str(e) for e in o]
         case Quaternion():

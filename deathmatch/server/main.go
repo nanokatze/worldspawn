@@ -582,6 +582,25 @@ func main() {
 
 	info := &game.UpdateParams{Logger: slog.Default()}
 
+	{
+		test2 := s.scene.CreateEntity(info)
+		s.scene.SetGlobalTRS(test2, gmath.DTRS3{
+			T: gmath.DVec3{0, 0, 0},
+			R: gmath.Rot3One(),
+			S: gmath.Vec3Ones(),
+		})
+		s.scene.RenderingGeometry.Set(test2, "weapons/grenade_launcher/geometries/Grenade_Launcher")
+
+		test := s.scene.CreateEntity(info)
+		s.scene.SetGlobalTRS(test, gmath.DTRS3{
+			T: gmath.DVec3{0, 0, 0},
+			R: gmath.Rot3One(),
+			S: gmath.Vec3Ones(),
+		})
+		s.scene.RenderingGeometry.Set(test, "testcharacter4/geometries/TestCharacter4")
+		s.scene.Entity.Set(test, game.Animtest{test2})
+	}
+
 	if false {
 		{
 			weapon := s.scene.CreateEntity(info)

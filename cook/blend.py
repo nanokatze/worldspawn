@@ -73,9 +73,15 @@ class Context:
             case bpy.types.Material():
                 return 'materials'
             case bpy.types.Object():
-                return 'geometries'
+                match datablock.type:
+                    case 'ARMATURE':
+                        return 'skeletons'
+                    case 'MESH' | 'FONT':
+                        return 'geometries'
+                    case _:
+                        assert False, f'unsupported object type {datablock.type}'
             case _:
-                assert False, 'unsupported type {}'.format(datablock)
+                assert False, f'unsupported type {datablock}'
 
 
 # TODO: move it to the end of the file probs
@@ -120,14 +126,21 @@ def main(m, o, blend, datablock_type, datablock_name):
                 if not datablock.worldspawn.export:
                     continue
                 collection_cooker.deps(ctx, datablock.evaluated_get(depsgraph), dset)
+
             from blender_cookers import material as material_cooker
             for datablock in bpy_context.blend_data.materials:
                 if datablock.worldspawn.export:
                     material_cooker.deps(ctx, datablock.evaluated_get(depsgraph), dset)
+
+            from blender_cookers import armature as armature_cooker
             from blender_cookers import mesh as mesh_cooker
             for datablock in bpy_context.blend_data.objects:
                 if datablock.worldspawn.export:
-                    mesh_cooker.deps(ctx, datablock.evaluated_get(depsgraph), dset)
+                    if datablock.type == 'ARMATURE':
+                        armature_cooker.deps(ctx, datablock.evaluated_get(depsgraph), dset)
+                    else:
+                        mesh_cooker.deps(ctx, datablock.evaluated_get(depsgraph), dset)
+
             from blender_cookers import scene as scene_cooker
             for datablock in bpy_context.blend_data.scenes:
                 if not datablock.worldspawn.export:
@@ -165,8 +178,17 @@ def main(m, o, blend, datablock_type, datablock_name):
 
             case 'Object':
                 datablocks = blend_data.objects
-                from blender_cookers import mesh as mesh_cooker
-                cook = mesh_cooker.cook
+
+                datablock = datablocks[datablock_name]
+
+                match datablock.type:
+                    case 'ARMATURE':
+                        from blender_cookers import armature as armature_cooker
+                        cook = armature_cooker.cook
+
+                    case 'MESH' | 'FONT':
+                        from blender_cookers import mesh as mesh_cooker
+                        cook = mesh_cooker.cook
 
             case 'Scene':
                 datablocks = blend_data.scenes
@@ -181,6 +203,9 @@ def main(m, o, blend, datablock_type, datablock_name):
         ctx.bpy_context = bpy_context
         ctx.output_directory = o + '/'
 
-        cook(ctx, datablock.evaluated_get(depsgraph))
+        if not isinstance(datablock, bpy.types.Object) or datablock.type != 'ARMATURE':
+            datablock = datablock.evaluated_get(depsgraph)
+
+        cook(ctx, datablock)
 
 main()
