@@ -20,6 +20,7 @@ import (
 	"worldspawn/internal/compiler"
 	"worldspawn/internal/compiler/core"
 	sfx "worldspawn/internal/fuckwwise"
+	"worldspawn/internal/geometry"
 	"worldspawn/internal/pathtracer"
 	"worldspawn/internal/pathtracer/matc"
 	"worldspawn/internal/wmaterial"
@@ -178,16 +179,26 @@ var errorMaterial = sync.OnceValue(func() *pathtracer.InterpretedMaterial {
 })
 
 type fileBackedMesh struct {
+	// TODO: outline this stuff into some kind of mesh structure that would be
+	// usable by geometry processing code. I guess we could also shove geometry
+	// processing code into pathtracer, but it feels like they should be
+	// separate. Notably, geometry processing needs fancier representation than
+	// pathtracer, and might have weird intermediate representations that the
+	// pathtracer can't work with directly like e.g. triangles not being neatly
+	// grouped by material index.
+
+	attrs []any
+
 	joints []string
 
-	// jointWeights gpu.Slice[struct {
-	// 	Index  uint32
-	// 	Weight float32
-	// }] // we could get away just fine with unorm16, or even unorm8 in some cases.
+	jointsPerVertex int
+
+	jointWeights gpu.Slice[geometry.Uhh]
 
 	materials []string
 
-	pathtracerMesh pathtracer.Mesh
+	pathtracerGeometry pathtracer.Geometry
+	pathtracerAccel    gpu.Accel
 }
 
 // TODO: equip AttributeBuffer with size so we don't have to pull in vertex count
@@ -277,30 +288,44 @@ func loadmesh(filename string) *fileBackedMesh {
 	// 	}
 	// }
 
-	pathtracerMesh := pathtracer.Mesh{}
-	pathtracerMesh.Parts = make([]pathtracer.MeshPart, len(header2.MaterialIndexRanges))
+	var jointWeights gpu.Slice[geometry.Uhh]
+	if n := int(header2.VertexCount) * int(header2.MaxInfluencesPerVertex); n > 0 {
+		jointWeights = gpu.MakeSliceUncached[geometry.Uhh](n)
+		if _, err := blob2.ReadAt(byteslice(jointWeights.Value()), header2.JointWeights.Data); err != nil {
+			panic(err)
+		}
+	}
+
+	pathtracerGeometry := pathtracer.Geometry{}
+	pathtracerGeometry.AttributeBuffers = attrs
+	pathtracerGeometry.Parts = make([]pathtracer.GeometryPart, len(header2.MaterialIndexRanges))
 
 	materials := make([]string, len(header2.MaterialIndexRanges)) // TODO: eventually it would be nice if we could just directly use header2.Materials
 	for materialIndex, range_ := range header2.MaterialIndexRanges {
 		materials[materialIndex] = header2.Materials[range_.MaterialIndex]
-		part := &pathtracerMesh.Parts[materialIndex]
-		part.AttributeBuffers = attrs
+		part := &pathtracerGeometry.Parts[materialIndex]
 		part.IndexBuffer = indexBuffer.Slice(int(range_.First), int(range_.First)+int(range_.Count))
 	}
 
-	pathtracerMesh.InitAccel()
+	accelConfig := pathtracerGeometry.AccelConfig()
+	accel := gpu.NewAccel(accelConfig.CalcSizes().Accel)
 
 	jq := new(gpu.JobQueue)
-	pathtracerMesh.BuildAccel(jq)
+	accelConfig.EnqueueBuild(jq, accel)
 	gpu.WaitForIdle(jq)
 
 	return &fileBackedMesh{
-		materials:      materials,
-		pathtracerMesh: pathtracerMesh,
+		materials:          materials,
+		attrs:              attrs,
+		joints:             header2.Joints,
+		jointsPerVertex:    int(header2.MaxInfluencesPerVertex),
+		jointWeights:       jointWeights,
+		pathtracerGeometry: pathtracerGeometry,
+		pathtracerAccel:    accel,
 	}
 }
 
-func getmesh(geo string) *fileBackedMesh {
+func getgeometry(geo string) *fileBackedMesh {
 	m, ok := modelcache[geo]
 	if !ok {
 		m = loadmesh(geo)

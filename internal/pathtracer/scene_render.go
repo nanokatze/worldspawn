@@ -122,7 +122,6 @@ func mustReadFile(filename string) []byte {
 	return data
 }
 
-// TODO: change fn to be an int?
 func (scene *Scene) Render(
 	jq *gpu.JobQueue,
 	frameNumber uint32,

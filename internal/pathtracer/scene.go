@@ -76,15 +76,11 @@ type lightAccel struct {
 type Scene struct {
 	_ structs.HostLayout
 
-	// TODO: rename, kinda don't like what it's called
-	maxPartsPerMesh int
+	maxMaterialsPerInstance int
 
-	// TODO: rename to materialData? materialInstanceData?
-	// materialInstanceParams?
-	materialParams gpu.Slice[materialParams]
+	materialArgs gpu.Slice[materialParams]
 
-	// TODO: rename to accelData etc?
-	accelInstances gpu.Slice[gpu.AccelInstance]
+	accelData gpu.Slice[gpu.AccelInstance]
 
 	accel gpu.Accel
 
@@ -117,14 +113,14 @@ type hitRecord struct {
 
 // TODO: we'll probs end up needing to take a struct with params
 func NewScene(n int, maxPartsPerMesh int) *Scene {
-	instances := gpu.MakeSliceUncached[materialParams](n * maxPartsPerMesh)
-	clear(instances.Value())
+	materialArgs := gpu.MakeSliceUncached[materialParams](n * maxPartsPerMesh)
+	clear(materialArgs.Value())
 
-	accelInstances := gpu.MakeSliceUncached[gpu.AccelInstance](n)
-	clear(accelInstances.Value())
+	accelData := gpu.MakeSliceUncached[gpu.AccelInstance](n)
+	clear(accelData.Value())
 
-	emissiveInstances := gpu.MakeSliceUncached[emissiveInstance](n)
-	clear(emissiveInstances.Value())
+	lightAccelData := gpu.MakeSliceUncached[emissiveInstance](n)
+	clear(lightAccelData.Value())
 
 	// TODO: make pipeline be relinked when some material is created or removed
 	// or whatever.
@@ -134,14 +130,14 @@ func NewScene(n int, maxPartsPerMesh int) *Scene {
 	*raygenRecord.Value() = raygen().Handle()
 
 	return &Scene{
-		maxPartsPerMesh: maxPartsPerMesh,
-		pipeline:        pipeline, // TODO: relink this after materials change and stuff
-		sbt:             gpu.MakeShaderBindingTable(raygenRecord, gpu.Slice[struct{}]{}, gpu.Slice[struct{}]{}, gpu.Slice[struct{}]{}),
-		materialParams:  instances,
-		accelInstances:  accelInstances,
-		accel:           gpu.NewTopLevelAccel(n),
+		maxMaterialsPerInstance: maxPartsPerMesh,
+		pipeline:                pipeline, // TODO: relink this after materials change and stuff
+		sbt:                     gpu.MakeShaderBindingTable(raygenRecord, gpu.Slice[struct{}]{}, gpu.Slice[struct{}]{}, gpu.Slice[struct{}]{}),
+		materialArgs:            materialArgs,
+		accelData:               accelData,
+		accel:                   gpu.NewTopLevelAccel(n),
 		lightAccel: lightAccel{
-			emissiveInstances: emissiveInstances,
+			emissiveInstances: lightAccelData,
 		},
 		sampler: gpu.NewSampler(&vk.SamplerCreateInfo{
 			SType:            vk.STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
@@ -157,12 +153,12 @@ func NewScene(n int, maxPartsPerMesh int) *Scene {
 			MinLod:           0.0,
 			MaxLod:           vk.LOD_CLAMP_NONE,
 		}),
-		materialParamsHost: instances.Value(),
-		accelInstancesHost: accelInstances.Value(),
+		materialParamsHost: materialArgs.Value(),
+		accelInstancesHost: accelData.Value(),
 	}
 }
 
-// TODO: make it async
+// TODO: make it async, or make it device-only
 func (scene *Scene) SetSky(transform gmath.Mat3x3, sky *gpu.Image) {
 	scene.lightAccel.envTransform = transform
 	scene.lightAccel.env = sky.Descriptors()
@@ -174,33 +170,28 @@ func (scene *Scene) SetInstanceTransform(i int, x [3][4]float32) {
 }
 
 // TODO: this should only exist on the device/in the shader
-// TODO: instead of just mesh pointer this should be a tagged union of different
-// mesh types
-// TODO: split materials into two arrays, one of material and another of args
-func (scene *Scene) SetInstanceGeometry(i int, mask uint8, mesh *Mesh, materials []*InterpretedMaterial, materialArgs [][256]byte) {
-	accelInstance := &scene.accelInstancesHost[i]
+func (scene *Scene) SetInstanceGeometry(i int, mask uint8, geometry *Geometry, accel gpu.Accel, materials []*InterpretedMaterial, materialArgs [][256]byte) {
+	// TODO: this really begs for a func vararg constructor tbh.
+	var accelInstance gpu.AccelInstance
 	accelInstance.InstanceIDAndMask = pack24_8(0, uint32(mask))
-	accelInstance.SBTOffsetAndFlags = pack24_8(uint32(i*scene.maxPartsPerMesh), 0)
-	if mesh != nil {
-		accelInstance.Accel = mesh.accel.Data
-	} else {
-		accelInstance.Accel = 0
-	}
+	accelInstance.SBTOffsetAndFlags = pack24_8(uint32(i*scene.maxMaterialsPerInstance), 0)
+	accelInstance.SetAccel(accel)
+	scene.accelInstancesHost[i] = accelInstance
 
-	if mesh != nil {
-		if len(mesh.Parts) > scene.maxPartsPerMesh {
+	if geometry != nil {
+		if len(geometry.Parts) > scene.maxMaterialsPerInstance {
 			panic("umm")
 		}
-		for partIdx, part := range mesh.Parts {
-			scene.materialParamsHost[i*scene.maxPartsPerMesh+partIdx] = materialParams{
+		for partIdx, part := range geometry.Parts {
+			scene.materialParamsHost[i*scene.maxMaterialsPerInstance+partIdx] = materialParams{
 				Program: materials[partIdx].program,
 
 				// TODO: make Mesh device-accessible so we don't have to do these redundant copies every time
 				MeshPart: meshPart2{
 					Triangles:    gpu.SliceData(part.IndexBuffer),
 					NumTriangles: uint32(gpu.SliceLen(part.IndexBuffer)),
-					PosBuffer:    gpu.SliceData(part.AttributeBuffers[AttributePosition].(gpu.Slice[[3]float32])),
-					Normals:      gpu.SliceData(part.AttributeBuffers[AttributeNormal].(gpu.Slice[[3]float32])),
+					PosBuffer:    gpu.SliceData(geometry.AttributeBuffers[AttributePosition].(gpu.Slice[[3]float32])),
+					Normals:      gpu.SliceData(geometry.AttributeBuffers[AttributeNormal].(gpu.Slice[[3]float32])),
 				},
 
 				Args: materialArgs[partIdx],
@@ -210,14 +201,13 @@ func (scene *Scene) SetInstanceGeometry(i int, mask uint8, mesh *Mesh, materials
 }
 
 func (scene *Scene) EnqueueUpdateAccel(jq *gpu.JobQueue) {
-	scene.accel.EnqueueBuild(jq,
-		&gpu.AccelBuildConfig{
-			Type: vk.ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
-			Inputs: []gpu.AccelBuildInput{
-				&gpu.AccelBuildInputInstances{
-					Instances:     gpu.SliceData(scene.accelInstances),
-					InstanceCount: uint32(gpu.SliceLen(scene.accelInstances)),
-				},
+	(&gpu.AccelBuildConfig{
+		Type: vk.ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
+		Inputs: []gpu.AccelBuildInput{
+			&gpu.AccelBuildInputInstances{
+				Instances:     gpu.SliceData(scene.accelData),
+				InstanceCount: uint32(gpu.SliceLen(scene.accelData)),
 			},
-		})
+		},
+	}).EnqueueBuild(jq, scene.accel)
 }

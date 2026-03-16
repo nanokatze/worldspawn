@@ -70,6 +70,8 @@ func (w *mainWindow) Run() {
 
 		scene: pathtracer.NewScene(10000, 6),
 
+		gsdata: make([]gsdata, 10000),
+
 		sfxScene: &sfx.Scene{
 			Instance: make([]sfx.Instance, 10000),
 		},
@@ -307,8 +309,8 @@ type flickStick struct {
 }
 
 func (w *mainWindow) sdlTimeToGameTime(ticks uint64) game.Time {
-	w.renderer.stuffMu.Lock()
-	defer w.renderer.stuffMu.Unlock()
+	w.renderer.tmMu.Lock()
+	defer w.renderer.tmMu.Unlock()
 
 	// If we have DontInterpolate set, we'll want t = 1
 	t := min(max(float64(ticks-w.renderer.tm.t0sdl)/float64(w.renderer.tm.t1sdl-w.renderer.tm.t0sdl), 0), 1)

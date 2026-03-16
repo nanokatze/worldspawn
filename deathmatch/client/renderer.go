@@ -33,8 +33,10 @@ type sceneUpdate struct {
 	// TODO: we also need to carry velocity here for motion blur, or at least
 	// some extra info to disambiguate fast temporally-aliased motions.
 
-	Mask         []uint8
-	Mesh         []*pathtracer.Mesh
+	Mask []uint8
+
+	GeoNodes []geoNodes // TODO: rename this
+
 	Materials    [][]*pathtracer.InterpretedMaterial
 	MaterialArgs [][][256]byte
 }
@@ -45,8 +47,10 @@ func newSceneDirty(n int) *sceneUpdate {
 		TransformT0: make([]gmath.TRS3, n),
 		TransformT1: make([]gmath.TRS3, n),
 
-		Mask:         make([]uint8, n),
-		Mesh:         make([]*pathtracer.Mesh, n),
+		Mask: make([]uint8, n),
+
+		GeoNodes: make([]geoNodes, n),
+
 		Materials:    make([][]*pathtracer.InterpretedMaterial, n),
 		MaterialArgs: make([][][256]byte, n),
 	}
@@ -66,7 +70,6 @@ type timeMapping struct {
 	t0sdl, t1sdl   uint64 // TODO: special type to represent SDL ticks?
 	t0game, t1game game.Time
 }
-
 type renderer struct {
 	lastGen       []uint32
 	lastTransform []gmath.TRS3
@@ -76,15 +79,16 @@ type renderer struct {
 	// Queue of updates, consumed by Render
 	updates chan *sceneUpdate
 
-	stuffMu sync.Mutex
-	tm      timeMapping
+	frameNumber uint32
+	tmMu        sync.Mutex
+	tm          timeMapping
 	// TODO: what if we want to pass multiple cameras to the composition
 	// pipeline?
 	// TODO: camera states need to be t0 and t1 too
 	ourCamera          pathtracer.Camera
 	ourCameraTransform int
-	fn                 uint32
 	scene2             *sceneUpdate
+	gsdata             []gsdata
 	scene              *pathtracer.Scene
 
 	// Uhh
@@ -174,16 +178,21 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 			}
 			update.Mask[i] = mask
 
-			mesh := getmesh(renderingGeometry)
+			geometry := getgeometry(renderingGeometry)
 
-			update.Mesh[i] = &mesh.pathtracerMesh
+			pose, _ := w.Pose.Get(id)
+
+			update.GeoNodes[i] = geoNodes{
+				src:  geometry,
+				pose: pose,
+			}
 
 			// TODO: stop allocating a new slice every time
-			update.Materials[i] = make([]*pathtracer.InterpretedMaterial, len(mesh.materials))
-			update.MaterialArgs[i] = make([][256]byte, len(mesh.materials))
+			update.Materials[i] = make([]*pathtracer.InterpretedMaterial, len(geometry.materials))
+			update.MaterialArgs[i] = make([][256]byte, len(geometry.materials))
 
 			for j := range update.Materials[i] {
-				m2 := getmaterial(mesh.materials[j])
+				m2 := getmaterial(geometry.materials[j])
 				update.Materials[i][j] = m2.material
 				m2.preamble(update.MaterialArgs[i][j][:], &matPropReader{w, id})
 			}
@@ -312,9 +321,9 @@ func (re *renderer) Render(jq *gpu.JobQueue, sdlNow uint64, dst *gpu.Image) {
 
 	select {
 	case update := <-re.updates:
-		re.stuffMu.Lock()
+		re.tmMu.Lock()
 		re.tm = update.tm
-		re.stuffMu.Unlock()
+		re.tmMu.Unlock()
 		re.ourCamera = update.camera
 		re.ourCameraTransform = update.cameraTransform
 		re.scene2 = update
@@ -326,7 +335,11 @@ func (re *renderer) Render(jq *gpu.JobQueue, sdlNow uint64, dst *gpu.Image) {
 			},
 			update.Sky)
 		for i := range update.Mask {
-			re.scene.SetInstanceGeometry(i, update.Mask[i], update.Mesh[i], update.Materials[i], update.MaterialArgs[i])
+			update.GeoNodes[i].EnqueueEvaluate(jq, &re.gsdata[i])
+
+			geometry, accel := update.GeoNodes[i].Outputs(&re.gsdata[i])
+
+			re.scene.SetInstanceGeometry(i, update.Mask[i], geometry, accel, update.Materials[i], update.MaterialArgs[i])
 		}
 	default:
 	}
@@ -341,6 +354,7 @@ func (re *renderer) Render(jq *gpu.JobQueue, sdlNow uint64, dst *gpu.Image) {
 	camera := re.ourCamera
 	if re.scene2 != nil {
 		camera.Transform = re.scene2.Transform(re.ourCameraTransform, float32(t)).Mul4x4(fixup.Inverse())
+
 		for i := range re.scene2.Mask {
 			tmp := re.scene2.Transform(i, float32(t))
 			// TODO: outline this
@@ -358,7 +372,7 @@ func (re *renderer) Render(jq *gpu.JobQueue, sdlNow uint64, dst *gpu.Image) {
 
 	re.scene.Render(
 		jq,
-		re.fn,
+		re.frameNumber,
 		&camera,
 		pathtracer.Film{
 			Extent: [2]int(dst.Extent()),
@@ -368,7 +382,7 @@ func (re *renderer) Render(jq *gpu.JobQueue, sdlNow uint64, dst *gpu.Image) {
 			MaxBounces:               conf.Quality.MaxBounces,
 			RussianRouletteThreshold: conf.Quality.RussianRouletteThreshold,
 		})
-	re.fn++
+	re.frameNumber++
 }
 
 type matPropReader struct {
@@ -386,6 +400,9 @@ func (sr *matPropReader) UniformAttribute(name string, out *[4]float32) bool {
 }
 
 func getv(v reflect.Value) [4]float32 {
+	if !v.IsValid() {
+		return [4]float32{}
+	}
 	// TODO: allow types to implement a thing to get the value with
 	if v.Type() == reflect.TypeFor[[4]float32]() {
 		return v.Interface().([4]float32)
