@@ -10,20 +10,33 @@ type matGen struct{ M, N int64 }
 func (gen matGen) Gen(w io.Writer) error { return matTmpl.Execute(w, &gen) }
 
 var matTmpl = template.Must(template.New("mat").Parse(`
-{{$matMxN := printf "mat%dx%d" .M .N}}
+{{$gmatMxN := printf "gmat%dx%d" .M .N}}
 
-type Mat{{.N}}x{{.M}} = {{$matMxN}}[float32]
+type Mat{{.N}}x{{.M}} = {{$gmatMxN}}[float32]
 
-func Mat{{.N}}x{{.M}}One() Mat{{.N}}x{{.M}} { return {{$matMxN}}One[float32]() }
+func Mat{{.N}}x{{.M}}One() Mat{{.N}}x{{.M}} { return {{$gmatMxN}}One[float32]() }
 
-type {{$matMxN}}[T constraints.Float] [{{.N}}][{{.M}}]T
+// TODO: flatten matrices so that it's [{{.N}}*{{.M}}]T?
+type {{$gmatMxN}}[T constraints.Float] [{{.N}}][{{.M}}]T
 
-func {{$matMxN}}One[T constraints.Float]() {{$matMxN}}[T] {
-	var A {{$matMxN}}[T]
+func {{$gmatMxN}}One[T constraints.Float]() {{$gmatMxN}}[T] {
+	var A {{$gmatMxN}}[T]
 	{{- range .N}}
 	A[{{.}}][{{.}}] = 1
 	{{- end}}
 	return A
+}
+`))
+
+type matinvGen struct{ M int64 }
+
+func (gen matinvGen) Gen(w io.Writer) error { return matinvTmpl.Execute(w, &gen) }
+
+var matinvTmpl = template.Must(template.New("matinv").Parse(`
+{{$gmatMxM := printf "gmat%dx%d" .M .M}}
+
+func (A {{$gmatMxM}}[T]) Inv() {{$gmatMxM}}[T] {
+	panic("not implemented")
 }
 `))
 
@@ -32,12 +45,12 @@ type matmulGen struct{ M, N, P int64 }
 func (gen matmulGen) Gen(w io.Writer) error { return matmulTmpl.Execute(w, &gen) }
 
 var matmulTmpl = template.Must(template.New("matmul").Parse(`
-{{$matMxN := printf "mat%dx%d" .M .N}}
-{{$matNxP := printf "mat%dx%d" .N .P}}
-{{$matMxP := printf "mat%dx%d" .M .P}}
+{{$gmatMxN := printf "gmat%dx%d" .M .N}}
+{{$gmatNxP := printf "gmat%dx%d" .N .P}}
+{{$gmatMxP := printf "gmat%dx%d" .M .P}}
 
-func (A {{$matMxN}}[T]) Mul{{.N}}x{{.P}}(B {{$matNxP}}[T]) {{$matMxP}}[T] {
-	var C {{$matMxP}}[T]
+func (A {{$gmatMxN}}[T]) Mul{{.N}}x{{.P}}(B {{$gmatNxP}}[T]) {{$gmatMxP}}[T] {
+	var C {{$gmatMxP}}[T]
 	{{- range $i := $.M}}
 	{{- range $k := $.P}}
 

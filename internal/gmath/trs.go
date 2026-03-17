@@ -1,5 +1,11 @@
 package gmath
 
+// TODO: switch to a matrix representation for {D,}TRS3, with the last column
+// (representing translation) being either float64 or float32 depending on
+// whether it's DTRS3 or TRS3, and all other columns float32. We can also
+// introduce two Affine3 representations, one a matrix and the other
+// factored/decomposed which will support interpolation.
+
 // TODO: shearing
 type DTRS3 struct {
 	T DVec3

@@ -26,8 +26,12 @@ func main() {
 	vecGen{4}.Gen(buf)
 
 	matGen{3, 3}.Gen(buf)
+	matmulGen{3, 3, 3}.Gen(buf)
+
 	matGen{4, 4}.Gen(buf)
 	matmulGen{4, 4, 4}.Gen(buf)
+
+	affineGen{3}.Gen(buf)
 
 	src, _ := format.Source(buf.Bytes())
 	os.WriteFile(*out, src, 0644)

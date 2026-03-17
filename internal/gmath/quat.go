@@ -12,7 +12,7 @@ var quatMulTab = [4][4]uint8{
 
 type quat[T constraints.Float] [4]T
 
-func quatFromVec3[T constraints.Float](imag vec3[T]) quat[T] {
+func quatFromVec3[T constraints.Float](imag gvec3[T]) quat[T] {
 	return quat[T]{imag[0], imag[1], imag[2]}
 }
 
@@ -32,6 +32,6 @@ func (p quat[T]) Mul(q quat[T]) (pq quat[T]) {
 	return pq
 }
 
-func (q quat[T]) Imag() vec3[T] {
-	return vec3[T]{q[0], q[1], q[2]}
+func (q quat[T]) Imag() gvec3[T] {
+	return gvec3[T]{q[0], q[1], q[2]}
 }

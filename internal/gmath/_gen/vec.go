@@ -10,73 +10,75 @@ type vecGen struct{ D int64 }
 func (gen vecGen) Gen(w io.Writer) error { return vecTmpl.Execute(w, &gen) }
 
 var vecTmpl = template.Must(template.New("vec").Parse(`
-{{- $vecD := printf "vec%d" .D}}
+{{$gvecD := printf "gvec%d" .D}}
 
-type Vec{{.D}} = {{$vecD}}[float32]
+type Vec{{.D}} = {{$gvecD}}[float32]
 
-func Vec{{.D}}Ones() Vec{{.D}} { return {{$vecD}}Ones[float32]() }
+func Vec{{.D}}Ones() Vec{{.D}} { return {{$gvecD}}Ones[float32]() }
 
-type DVec{{.D}} = {{$vecD}}[float64]
+type DVec{{.D}} = {{$gvecD}}[float64]
 
-func DVec{{.D}}Ones() DVec{{.D}} { return {{$vecD}}Ones[float64]() }
+func DVec{{.D}}Ones() DVec{{.D}} { return {{$gvecD}}Ones[float64]() }
 
-type {{$vecD}}[T constraints.Float] [{{.D}}]T
+type {{$gvecD}}[T constraints.Float] [{{.D}}]T
 
-func {{$vecD}}Ones[T constraints.Float]() {{$vecD}}[T] {
-	return {{$vecD}}[T]{
+func {{$gvecD}}Ones[T constraints.Float]() {{$gvecD}}[T] {
+	return {{$gvecD}}[T]{
 		{{- range .D}}
 		1,
 		{{- end}}
 	}
 }
 
-func Vec{{.D}}Convert[To, From constraints.Float](a {{$vecD}}[From]) {{$vecD}}[To] {
-	return {{$vecD}}[To]{
+// TODO: make this a method once generic methods are in?
+func Vec{{.D}}Convert[To, From constraints.Float](a {{$gvecD}}[From]) {{$gvecD}}[To] {
+	return {{$gvecD}}[To]{
 		{{- range .D}}
 		To(a[{{.}}]),
 		{{- end}}
 	}
 }
 
-func (a {{$vecD}}[T]) Add(b {{$vecD}}[T]) {{$vecD}}[T] {
-	return {{$vecD}}[T]{
+func (a {{$gvecD}}[T]) Add(b {{$gvecD}}[T]) {{$gvecD}}[T] {
+	return {{$gvecD}}[T]{
 		{{- range .D}}
 		a[{{.}}] + b[{{.}}],
 		{{- end}}
 	}
 }
 
-func (a {{$vecD}}[T]) Sub(b {{$vecD}}[T]) {{$vecD}}[T] {
-	return {{$vecD}}[T]{
+func (a {{$gvecD}}[T]) Sub(b {{$gvecD}}[T]) {{$gvecD}}[T] {
+	return {{$gvecD}}[T]{
 		{{- range .D}}
 		a[{{.}}] - b[{{.}}],
 		{{- end}}
 	}
 }
 
-func (a {{$vecD}}[T]) Scale(lambda T) {{$vecD}}[T] {
-	return {{$vecD}}[T]{
+func (a {{$gvecD}}[T]) Scale(lambda T) {{$gvecD}}[T] {
+	return {{$gvecD}}[T]{
 		{{- range .D}}
 		lambda * a[{{.}}],
 		{{- end}}
 	}
 }
 
-func (a {{$vecD}}[T]) Length() T {
+func (a {{$gvecD}}[T]) Length() T {
 	return T(math.Sqrt(float64(a.Dot(a))))
 }
 
-func (a {{$vecD}}[T]) Dot(b {{$vecD}}[T]) T {
+func (a {{$gvecD}}[T]) Dot(b {{$gvecD}}[T]) T {
 	return 0 {{- range .D}} + a[{{.}}] * b[{{.}}] {{- end}}
 }
 
 // TODO: simplify this so that it's just an ordinary normalize pls
-func (a {{$vecD}}[T]) NormalizeOr(b {{$vecD}}[T]) {{$vecD}}[T] {
-	norm := a.Length()
-	if norm == 0 {
+func (a {{$gvecD}}[T]) NormalizeOr(b {{$gvecD}}[T]) {{$gvecD}}[T] {
+	norm2 := a.Dot(a)
+	if norm2 == 0 {
 		return b
 	}
-	return {{$vecD}}[T]{
+	norm := T(math.Sqrt(float64(norm2)))
+	return {{$gvecD}}[T]{
 		{{- range .D}}
 		a[{{.}}] / norm,
 		{{- end}}
@@ -84,8 +86,8 @@ func (a {{$vecD}}[T]) NormalizeOr(b {{$vecD}}[T]) {{$vecD}}[T] {
 }
 
 {{/* kill this in favor of global lerp that operates on random float arrays? */}}
-func (a {{$vecD}}[T]) Lerp(b {{$vecD}}[T], t T) {{$vecD}}[T] {
-	return {{$vecD}}[T]{
+func (a {{$gvecD}}[T]) Lerp(b {{$gvecD}}[T], t T) {{$gvecD}}[T] {
+	return {{$gvecD}}[T]{
 		{{- range .D}}
 		lerp(a[{{.}}], b[{{.}}], t),
 		{{- end}}

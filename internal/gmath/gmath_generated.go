@@ -8,169 +8,173 @@ import (
 	"golang.org/x/exp/constraints"
 )
 
-type Vec2 = vec2[float32]
+type Vec2 = gvec2[float32]
 
-func Vec2Ones() Vec2 { return vec2Ones[float32]() }
+func Vec2Ones() Vec2 { return gvec2Ones[float32]() }
 
-type DVec2 = vec2[float64]
+type DVec2 = gvec2[float64]
 
-func DVec2Ones() DVec2 { return vec2Ones[float64]() }
+func DVec2Ones() DVec2 { return gvec2Ones[float64]() }
 
-type vec2[T constraints.Float] [2]T
+type gvec2[T constraints.Float] [2]T
 
-func vec2Ones[T constraints.Float]() vec2[T] {
-	return vec2[T]{
+func gvec2Ones[T constraints.Float]() gvec2[T] {
+	return gvec2[T]{
 		1,
 		1,
 	}
 }
 
-func Vec2Convert[To, From constraints.Float](a vec2[From]) vec2[To] {
-	return vec2[To]{
+// TODO: make this a method once generic methods are in?
+func Vec2Convert[To, From constraints.Float](a gvec2[From]) gvec2[To] {
+	return gvec2[To]{
 		To(a[0]),
 		To(a[1]),
 	}
 }
 
-func (a vec2[T]) Add(b vec2[T]) vec2[T] {
-	return vec2[T]{
+func (a gvec2[T]) Add(b gvec2[T]) gvec2[T] {
+	return gvec2[T]{
 		a[0] + b[0],
 		a[1] + b[1],
 	}
 }
 
-func (a vec2[T]) Sub(b vec2[T]) vec2[T] {
-	return vec2[T]{
+func (a gvec2[T]) Sub(b gvec2[T]) gvec2[T] {
+	return gvec2[T]{
 		a[0] - b[0],
 		a[1] - b[1],
 	}
 }
 
-func (a vec2[T]) Scale(lambda T) vec2[T] {
-	return vec2[T]{
+func (a gvec2[T]) Scale(lambda T) gvec2[T] {
+	return gvec2[T]{
 		lambda * a[0],
 		lambda * a[1],
 	}
 }
 
-func (a vec2[T]) Length() T {
+func (a gvec2[T]) Length() T {
 	return T(math.Sqrt(float64(a.Dot(a))))
 }
 
-func (a vec2[T]) Dot(b vec2[T]) T {
+func (a gvec2[T]) Dot(b gvec2[T]) T {
 	return 0 + a[0]*b[0] + a[1]*b[1]
 }
 
 // TODO: simplify this so that it's just an ordinary normalize pls
-func (a vec2[T]) NormalizeOr(b vec2[T]) vec2[T] {
-	norm := a.Length()
-	if norm == 0 {
+func (a gvec2[T]) NormalizeOr(b gvec2[T]) gvec2[T] {
+	norm2 := a.Dot(a)
+	if norm2 == 0 {
 		return b
 	}
-	return vec2[T]{
+	norm := T(math.Sqrt(float64(norm2)))
+	return gvec2[T]{
 		a[0] / norm,
 		a[1] / norm,
 	}
 }
 
-func (a vec2[T]) Lerp(b vec2[T], t T) vec2[T] {
-	return vec2[T]{
+func (a gvec2[T]) Lerp(b gvec2[T], t T) gvec2[T] {
+	return gvec2[T]{
 		lerp(a[0], b[0], t),
 		lerp(a[1], b[1], t),
 	}
 }
 
-type Vec3 = vec3[float32]
+type Vec3 = gvec3[float32]
 
-func Vec3Ones() Vec3 { return vec3Ones[float32]() }
+func Vec3Ones() Vec3 { return gvec3Ones[float32]() }
 
-type DVec3 = vec3[float64]
+type DVec3 = gvec3[float64]
 
-func DVec3Ones() DVec3 { return vec3Ones[float64]() }
+func DVec3Ones() DVec3 { return gvec3Ones[float64]() }
 
-type vec3[T constraints.Float] [3]T
+type gvec3[T constraints.Float] [3]T
 
-func vec3Ones[T constraints.Float]() vec3[T] {
-	return vec3[T]{
+func gvec3Ones[T constraints.Float]() gvec3[T] {
+	return gvec3[T]{
 		1,
 		1,
 		1,
 	}
 }
 
-func Vec3Convert[To, From constraints.Float](a vec3[From]) vec3[To] {
-	return vec3[To]{
+// TODO: make this a method once generic methods are in?
+func Vec3Convert[To, From constraints.Float](a gvec3[From]) gvec3[To] {
+	return gvec3[To]{
 		To(a[0]),
 		To(a[1]),
 		To(a[2]),
 	}
 }
 
-func (a vec3[T]) Add(b vec3[T]) vec3[T] {
-	return vec3[T]{
+func (a gvec3[T]) Add(b gvec3[T]) gvec3[T] {
+	return gvec3[T]{
 		a[0] + b[0],
 		a[1] + b[1],
 		a[2] + b[2],
 	}
 }
 
-func (a vec3[T]) Sub(b vec3[T]) vec3[T] {
-	return vec3[T]{
+func (a gvec3[T]) Sub(b gvec3[T]) gvec3[T] {
+	return gvec3[T]{
 		a[0] - b[0],
 		a[1] - b[1],
 		a[2] - b[2],
 	}
 }
 
-func (a vec3[T]) Scale(lambda T) vec3[T] {
-	return vec3[T]{
+func (a gvec3[T]) Scale(lambda T) gvec3[T] {
+	return gvec3[T]{
 		lambda * a[0],
 		lambda * a[1],
 		lambda * a[2],
 	}
 }
 
-func (a vec3[T]) Length() T {
+func (a gvec3[T]) Length() T {
 	return T(math.Sqrt(float64(a.Dot(a))))
 }
 
-func (a vec3[T]) Dot(b vec3[T]) T {
+func (a gvec3[T]) Dot(b gvec3[T]) T {
 	return 0 + a[0]*b[0] + a[1]*b[1] + a[2]*b[2]
 }
 
 // TODO: simplify this so that it's just an ordinary normalize pls
-func (a vec3[T]) NormalizeOr(b vec3[T]) vec3[T] {
-	norm := a.Length()
-	if norm == 0 {
+func (a gvec3[T]) NormalizeOr(b gvec3[T]) gvec3[T] {
+	norm2 := a.Dot(a)
+	if norm2 == 0 {
 		return b
 	}
-	return vec3[T]{
+	norm := T(math.Sqrt(float64(norm2)))
+	return gvec3[T]{
 		a[0] / norm,
 		a[1] / norm,
 		a[2] / norm,
 	}
 }
 
-func (a vec3[T]) Lerp(b vec3[T], t T) vec3[T] {
-	return vec3[T]{
+func (a gvec3[T]) Lerp(b gvec3[T], t T) gvec3[T] {
+	return gvec3[T]{
 		lerp(a[0], b[0], t),
 		lerp(a[1], b[1], t),
 		lerp(a[2], b[2], t),
 	}
 }
 
-type Vec4 = vec4[float32]
+type Vec4 = gvec4[float32]
 
-func Vec4Ones() Vec4 { return vec4Ones[float32]() }
+func Vec4Ones() Vec4 { return gvec4Ones[float32]() }
 
-type DVec4 = vec4[float64]
+type DVec4 = gvec4[float64]
 
-func DVec4Ones() DVec4 { return vec4Ones[float64]() }
+func DVec4Ones() DVec4 { return gvec4Ones[float64]() }
 
-type vec4[T constraints.Float] [4]T
+type gvec4[T constraints.Float] [4]T
 
-func vec4Ones[T constraints.Float]() vec4[T] {
-	return vec4[T]{
+func gvec4Ones[T constraints.Float]() gvec4[T] {
+	return gvec4[T]{
 		1,
 		1,
 		1,
@@ -178,8 +182,9 @@ func vec4Ones[T constraints.Float]() vec4[T] {
 	}
 }
 
-func Vec4Convert[To, From constraints.Float](a vec4[From]) vec4[To] {
-	return vec4[To]{
+// TODO: make this a method once generic methods are in?
+func Vec4Convert[To, From constraints.Float](a gvec4[From]) gvec4[To] {
+	return gvec4[To]{
 		To(a[0]),
 		To(a[1]),
 		To(a[2]),
@@ -187,8 +192,8 @@ func Vec4Convert[To, From constraints.Float](a vec4[From]) vec4[To] {
 	}
 }
 
-func (a vec4[T]) Add(b vec4[T]) vec4[T] {
-	return vec4[T]{
+func (a gvec4[T]) Add(b gvec4[T]) gvec4[T] {
+	return gvec4[T]{
 		a[0] + b[0],
 		a[1] + b[1],
 		a[2] + b[2],
@@ -196,8 +201,8 @@ func (a vec4[T]) Add(b vec4[T]) vec4[T] {
 	}
 }
 
-func (a vec4[T]) Sub(b vec4[T]) vec4[T] {
-	return vec4[T]{
+func (a gvec4[T]) Sub(b gvec4[T]) gvec4[T] {
+	return gvec4[T]{
 		a[0] - b[0],
 		a[1] - b[1],
 		a[2] - b[2],
@@ -205,8 +210,8 @@ func (a vec4[T]) Sub(b vec4[T]) vec4[T] {
 	}
 }
 
-func (a vec4[T]) Scale(lambda T) vec4[T] {
-	return vec4[T]{
+func (a gvec4[T]) Scale(lambda T) gvec4[T] {
+	return gvec4[T]{
 		lambda * a[0],
 		lambda * a[1],
 		lambda * a[2],
@@ -214,21 +219,22 @@ func (a vec4[T]) Scale(lambda T) vec4[T] {
 	}
 }
 
-func (a vec4[T]) Length() T {
+func (a gvec4[T]) Length() T {
 	return T(math.Sqrt(float64(a.Dot(a))))
 }
 
-func (a vec4[T]) Dot(b vec4[T]) T {
+func (a gvec4[T]) Dot(b gvec4[T]) T {
 	return 0 + a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3]
 }
 
 // TODO: simplify this so that it's just an ordinary normalize pls
-func (a vec4[T]) NormalizeOr(b vec4[T]) vec4[T] {
-	norm := a.Length()
-	if norm == 0 {
+func (a gvec4[T]) NormalizeOr(b gvec4[T]) gvec4[T] {
+	norm2 := a.Dot(a)
+	if norm2 == 0 {
 		return b
 	}
-	return vec4[T]{
+	norm := T(math.Sqrt(float64(norm2)))
+	return gvec4[T]{
 		a[0] / norm,
 		a[1] / norm,
 		a[2] / norm,
@@ -236,8 +242,8 @@ func (a vec4[T]) NormalizeOr(b vec4[T]) vec4[T] {
 	}
 }
 
-func (a vec4[T]) Lerp(b vec4[T], t T) vec4[T] {
-	return vec4[T]{
+func (a gvec4[T]) Lerp(b gvec4[T], t T) gvec4[T] {
+	return gvec4[T]{
 		lerp(a[0], b[0], t),
 		lerp(a[1], b[1], t),
 		lerp(a[2], b[2], t),
@@ -245,28 +251,62 @@ func (a vec4[T]) Lerp(b vec4[T], t T) vec4[T] {
 	}
 }
 
-type Mat3x3 = mat3x3[float32]
+type Mat3x3 = gmat3x3[float32]
 
-func Mat3x3One() Mat3x3 { return mat3x3One[float32]() }
+func Mat3x3One() Mat3x3 { return gmat3x3One[float32]() }
 
-type mat3x3[T constraints.Float] [3][3]T
+// TODO: flatten matrices so that it's [3*3]T?
+type gmat3x3[T constraints.Float] [3][3]T
 
-func mat3x3One[T constraints.Float]() mat3x3[T] {
-	var A mat3x3[T]
+func gmat3x3One[T constraints.Float]() gmat3x3[T] {
+	var A gmat3x3[T]
 	A[0][0] = 1
 	A[1][1] = 1
 	A[2][2] = 1
 	return A
 }
 
-type Mat4x4 = mat4x4[float32]
+func (A gmat3x3[T]) Mul3x3(B gmat3x3[T]) gmat3x3[T] {
+	var C gmat3x3[T]
+	C[0][0] += A[0][0] * B[0][0]
+	C[0][0] += A[0][1] * B[1][0]
+	C[0][0] += A[0][2] * B[2][0]
+	C[0][1] += A[0][0] * B[0][1]
+	C[0][1] += A[0][1] * B[1][1]
+	C[0][1] += A[0][2] * B[2][1]
+	C[0][2] += A[0][0] * B[0][2]
+	C[0][2] += A[0][1] * B[1][2]
+	C[0][2] += A[0][2] * B[2][2]
+	C[1][0] += A[1][0] * B[0][0]
+	C[1][0] += A[1][1] * B[1][0]
+	C[1][0] += A[1][2] * B[2][0]
+	C[1][1] += A[1][0] * B[0][1]
+	C[1][1] += A[1][1] * B[1][1]
+	C[1][1] += A[1][2] * B[2][1]
+	C[1][2] += A[1][0] * B[0][2]
+	C[1][2] += A[1][1] * B[1][2]
+	C[1][2] += A[1][2] * B[2][2]
+	C[2][0] += A[2][0] * B[0][0]
+	C[2][0] += A[2][1] * B[1][0]
+	C[2][0] += A[2][2] * B[2][0]
+	C[2][1] += A[2][0] * B[0][1]
+	C[2][1] += A[2][1] * B[1][1]
+	C[2][1] += A[2][2] * B[2][1]
+	C[2][2] += A[2][0] * B[0][2]
+	C[2][2] += A[2][1] * B[1][2]
+	C[2][2] += A[2][2] * B[2][2]
+	return C
+}
 
-func Mat4x4One() Mat4x4 { return mat4x4One[float32]() }
+type Mat4x4 = gmat4x4[float32]
 
-type mat4x4[T constraints.Float] [4][4]T
+func Mat4x4One() Mat4x4 { return gmat4x4One[float32]() }
 
-func mat4x4One[T constraints.Float]() mat4x4[T] {
-	var A mat4x4[T]
+// TODO: flatten matrices so that it's [4*4]T?
+type gmat4x4[T constraints.Float] [4][4]T
+
+func gmat4x4One[T constraints.Float]() gmat4x4[T] {
+	var A gmat4x4[T]
 	A[0][0] = 1
 	A[1][1] = 1
 	A[2][2] = 1
@@ -274,8 +314,8 @@ func mat4x4One[T constraints.Float]() mat4x4[T] {
 	return A
 }
 
-func (A mat4x4[T]) Mul4x4(B mat4x4[T]) mat4x4[T] {
-	var C mat4x4[T]
+func (A gmat4x4[T]) Mul4x4(B gmat4x4[T]) gmat4x4[T] {
+	var C gmat4x4[T]
 	C[0][0] += A[0][0] * B[0][0]
 	C[0][0] += A[0][1] * B[1][0]
 	C[0][0] += A[0][2] * B[2][0]
@@ -341,4 +381,24 @@ func (A mat4x4[T]) Mul4x4(B mat4x4[T]) mat4x4[T] {
 	C[3][3] += A[3][2] * B[2][3]
 	C[3][3] += A[3][3] * B[3][3]
 	return C
+}
+
+type gaffine3[T constraints.Float] struct {
+	A Mat3x3   // rotation, scaling and shearing
+	B gvec3[T] // translation
+}
+
+func (a gaffine3[T]) Inv() gaffine3[T] {
+	panic("not implemented")
+}
+
+func (a gaffine3[T]) Mul(b gaffine3[T]) gaffine3[T] {
+	panic("not implemented")
+}
+
+// TODO: a method to decompose/factor gaffine3 into its constituents
+
+// TODO: call interpolation things something else pls
+func (a gaffine3[T]) Lerp(b gaffine3[T], t float32) gaffine3[T] {
+	panic("not implemented")
 }
