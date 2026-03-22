@@ -66,6 +66,8 @@ class Context:
 
     def __name_for_datablock(self, datablock):
         match datablock:
+            case bpy.types.Action():
+                return 'animations'
             case bpy.types.Collection():
                 return 'collections'
             case bpy.types.Scene():
@@ -114,6 +116,14 @@ def main(m, o, blend, datablock_type, datablock_name):
             bpy.ops.wm.open_mainfile(filepath=blend)
 
             depsgraph = bpy_context.evaluated_depsgraph_get()
+
+            from blender_cookers import action_cooker
+            for datablock in bpy_context.blend_data.actions:
+                if datablock.library:
+                    continue
+                if not datablock.worldspawn.export:
+                    continue
+                action_cooker.deps(ctx, datablock.evaluated_get(depsgraph), dset)
 
             # TODO: swap datablock and dset. Also we should have different
             # contexts for gathering deps and cooking so that we can fold ctx +
@@ -166,6 +176,11 @@ def main(m, o, blend, datablock_type, datablock_name):
         datablocks = None
         cook = None
         match datablock_type:
+            case 'Action':
+                datablocks = blend_data.actions
+                from blender_cookers import action_cooker
+                cook = action_cooker.cook
+
             case 'Collection':
                 datablocks = blend_data.collections
                 from blender_cookers import collection as collection_cooker

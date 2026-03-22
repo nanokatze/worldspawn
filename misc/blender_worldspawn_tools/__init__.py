@@ -14,17 +14,36 @@ if "bpy" in locals():
     import importlib
 
 
+# TODO: rename "Export" to "Cook"?
+
+
 import bpy
 from bpy.props import BoolProperty, StringProperty, PointerProperty
 
-# Keep in sync with cook/blender_schema.py
 from . import blender_schema
 
 
-class COLLECTION_PT_worldspawn(bpy.types.Panel):
+class ACTION_PT_worldspawn(bpy.types.Panel):
+    bl_space_type = 'DOPESHEET_EDITOR'
+    bl_region_type = 'UI'
     bl_label = 'Worldspawn'
+    bl_category = 'Action'
+
+    @classmethod
+    def poll(self, context):
+        return context.active_action is not None
+
+    def draw(self, context):
+        action = context.active_action
+
+        layout = self.layout
+        layout.prop(action.worldspawn, 'export')
+
+
+class COLLECTION_PT_worldspawn(bpy.types.Panel):
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
+    bl_label = 'Worldspawn'
     bl_context = 'collection'
 
     def draw(self, context):
@@ -35,9 +54,9 @@ class COLLECTION_PT_worldspawn(bpy.types.Panel):
 
 
 class OBJECT_PT_worldspawn(bpy.types.Panel):
-    bl_label = 'Worldspawn'
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
+    bl_label = 'Worldspawn'
     bl_context = 'object'
 
     @classmethod
@@ -53,9 +72,9 @@ class OBJECT_PT_worldspawn(bpy.types.Panel):
 
 
 class SCENE_PT_worldspawn(bpy.types.Panel):
-    bl_label = 'Worldspawn'
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
+    bl_label = 'Worldspawn'
     bl_context = 'scene'
 
     def draw(self, context):
@@ -67,6 +86,7 @@ class SCENE_PT_worldspawn(bpy.types.Panel):
 
 
 __classes = [
+    ACTION_PT_worldspawn,
     COLLECTION_PT_worldspawn,
     OBJECT_PT_worldspawn,
     SCENE_PT_worldspawn,
