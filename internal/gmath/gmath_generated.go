@@ -388,11 +388,21 @@ type gaffine3[T constraints.Float] struct {
 	B gvec3[T] // translation
 }
 
+func gaffine3One[T constraints.Float]() gaffine3[T] {
+	return gaffine3[T]{
+		A: Mat3x3One(),
+	}
+}
+
 func (a gaffine3[T]) Inv() gaffine3[T] {
 	panic("not implemented")
 }
 
 func (a gaffine3[T]) Mul(b gaffine3[T]) gaffine3[T] {
+	// return gaffine3[T]{
+	// 	A: a.A.Mul3x3(b.A)
+	// 	B: b.A.Mul3x1(b.B).Add(a.B),
+	// }
 	panic("not implemented")
 }
 

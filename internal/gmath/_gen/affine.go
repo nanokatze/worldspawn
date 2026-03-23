@@ -17,11 +17,21 @@ type {{$gaffineD}}[T constraints.Float] struct {
 	B gvec{{.D}}[T]    // translation
 }
 
+func {{$gaffineD}}One[T constraints.Float]() {{$gaffineD}}[T] {
+	return {{$gaffineD}}[T]{
+		A: Mat{{.D}}x{{.D}}One(),
+	}
+}
+
 func (a {{$gaffineD}}[T]) Inv() {{$gaffineD}}[T] {
 	panic("not implemented")
 }
 
 func (a {{$gaffineD}}[T]) Mul(b {{$gaffineD}}[T]) {{$gaffineD}}[T] {
+	// return {{$gaffineD}}[T]{
+	// 	A: a.A.Mul3x3(b.A)
+	// 	B: b.A.Mul3x1(b.B).Add(a.B),
+	// }
 	panic("not implemented")
 }
 
