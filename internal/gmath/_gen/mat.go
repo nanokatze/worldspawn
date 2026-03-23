@@ -12,12 +12,12 @@ func (gen matGen) Gen(w io.Writer) error { return matTmpl.Execute(w, &gen) }
 var matTmpl = template.Must(template.New("mat").Parse(`
 {{$gmatMxN := printf "gmat%dx%d" .M .N}}
 
-type Mat{{.N}}x{{.M}} = {{$gmatMxN}}[float32]
+type Mat{{.M}}x{{.N}} = {{$gmatMxN}}[float32]
 
-func Mat{{.N}}x{{.M}}One() Mat{{.N}}x{{.M}} { return {{$gmatMxN}}One[float32]() }
+func Mat{{.M}}x{{.N}}One() Mat{{.M}}x{{.N}} { return {{$gmatMxN}}One[float32]() }
 
-// TODO: flatten matrices so that it's [{{.N}}*{{.M}}]T?
-type {{$gmatMxN}}[T constraints.Float] [{{.N}}][{{.M}}]T
+// TODO: flatten matrices so that it's [{{.M}}*{{.N}}]T?
+type {{$gmatMxN}}[T constraints.Float] [{{.M}}][{{.N}}]T
 
 func {{$gmatMxN}}One[T constraints.Float]() {{$gmatMxN}}[T] {
 	var A {{$gmatMxN}}[T]
