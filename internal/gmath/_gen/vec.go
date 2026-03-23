@@ -12,15 +12,12 @@ func (gen vecGen) Gen(w io.Writer) error { return vecTmpl.Execute(w, &gen) }
 var vecTmpl = template.Must(template.New("vec").Parse(`
 {{$gvecD := printf "gvec%d" .D}}
 
-type Vec{{.D}} = {{$gvecD}}[float32]
-
-func Vec{{.D}}Ones() Vec{{.D}} { return {{$gvecD}}Ones[float32]() }
-
-type DVec{{.D}} = {{$gvecD}}[float64]
-
-func DVec{{.D}}Ones() DVec{{.D}} { return {{$gvecD}}Ones[float64]() }
-
 type {{$gvecD}}[T constraints.Float] [{{.D}}]T
+
+type (
+	Vec{{.D}}  = {{$gvecD}}[float32]
+	DVec{{.D}} = {{$gvecD}}[float64]
+)
 
 func {{$gvecD}}Ones[T constraints.Float]() {{$gvecD}}[T] {
 	return {{$gvecD}}[T]{
@@ -29,6 +26,9 @@ func {{$gvecD}}Ones[T constraints.Float]() {{$gvecD}}[T] {
 		{{- end}}
 	}
 }
+
+func Vec{{.D}}Ones() Vec{{.D}} { return {{$gvecD}}Ones[float32]() }
+func DVec{{.D}}Ones() DVec{{.D}} { return {{$gvecD}}Ones[float64]() }
 
 // TODO: make this a method once generic methods are in?
 func Vec{{.D}}Convert[To, From constraints.Float](a {{$gvecD}}[From]) {{$gvecD}}[To] {

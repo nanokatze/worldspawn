@@ -8,15 +8,12 @@ import (
 	"golang.org/x/exp/constraints"
 )
 
-type Vec2 = gvec2[float32]
-
-func Vec2Ones() Vec2 { return gvec2Ones[float32]() }
-
-type DVec2 = gvec2[float64]
-
-func DVec2Ones() DVec2 { return gvec2Ones[float64]() }
-
 type gvec2[T constraints.Float] [2]T
+
+type (
+	Vec2  = gvec2[float32]
+	DVec2 = gvec2[float64]
+)
 
 func gvec2Ones[T constraints.Float]() gvec2[T] {
 	return gvec2[T]{
@@ -24,6 +21,9 @@ func gvec2Ones[T constraints.Float]() gvec2[T] {
 		1,
 	}
 }
+
+func Vec2Ones() Vec2   { return gvec2Ones[float32]() }
+func DVec2Ones() DVec2 { return gvec2Ones[float64]() }
 
 // TODO: make this a method once generic methods are in?
 func Vec2Convert[To, From constraints.Float](a gvec2[From]) gvec2[To] {
@@ -82,15 +82,56 @@ func (a gvec2[T]) Lerp(b gvec2[T], t T) gvec2[T] {
 	}
 }
 
-type Vec3 = gvec3[float32]
+type gmat2x2[T constraints.Float] [2 * 2]T
 
-func Vec3Ones() Vec3 { return gvec3Ones[float32]() }
+type Mat2x2 = gmat2x2[float32]
 
-type DVec3 = gvec3[float64]
+func (A *gmat2x2[T]) Index(i, j int) *T {
+	return &A[i*2 : (i+1)*2][j]
+}
 
-func DVec3Ones() DVec3 { return gvec3Ones[float64]() }
+func gmat2x2One[T constraints.Float]() gmat2x2[T] {
+	var I gmat2x2[T]
+	*I.Index(0, 0) = 1
+	*I.Index(1, 1) = 1
+	return I
+}
+
+func Mat2x2One() Mat2x2 { return gmat2x2One[float32]() }
+
+func Mat2x2Diag[T constraints.Float](d gvec2[T]) gmat2x2[T] {
+	var D gmat2x2[T]
+	*D.Index(0, 0) = d[0]
+	*D.Index(1, 1) = d[1]
+	return D
+}
+
+func (A gmat2x2[T]) Inv() gmat2x2[T] {
+	panic("not implemented")
+}
+
+func (A gmat2x2[T]) Mul(B gmat2x2[T]) gmat2x2[T] {
+	var C gmat2x2[T]
+	*C.Index(0, 0) = 0 + *A.Index(0, 0)**B.Index(0, 0) + *A.Index(0, 1)**B.Index(1, 0)
+	*C.Index(0, 1) = 0 + *A.Index(0, 0)**B.Index(0, 1) + *A.Index(0, 1)**B.Index(1, 1)
+	*C.Index(1, 0) = 0 + *A.Index(1, 0)**B.Index(0, 0) + *A.Index(1, 1)**B.Index(1, 0)
+	*C.Index(1, 1) = 0 + *A.Index(1, 0)**B.Index(0, 1) + *A.Index(1, 1)**B.Index(1, 1)
+	return C
+}
+
+func (A gmat2x2[T]) Mulv(b gvec2[T]) gvec2[T] {
+	var c gvec2[T]
+	c[0] = 0 + *A.Index(0, 0)*b[0] + *A.Index(0, 1)*b[1]
+	c[1] = 0 + *A.Index(1, 0)*b[0] + *A.Index(1, 1)*b[1]
+	return c
+}
 
 type gvec3[T constraints.Float] [3]T
+
+type (
+	Vec3  = gvec3[float32]
+	DVec3 = gvec3[float64]
+)
 
 func gvec3Ones[T constraints.Float]() gvec3[T] {
 	return gvec3[T]{
@@ -99,6 +140,9 @@ func gvec3Ones[T constraints.Float]() gvec3[T] {
 		1,
 	}
 }
+
+func Vec3Ones() Vec3   { return gvec3Ones[float32]() }
+func DVec3Ones() DVec3 { return gvec3Ones[float64]() }
 
 // TODO: make this a method once generic methods are in?
 func Vec3Convert[To, From constraints.Float](a gvec3[From]) gvec3[To] {
@@ -163,15 +207,138 @@ func (a gvec3[T]) Lerp(b gvec3[T], t T) gvec3[T] {
 	}
 }
 
-type Vec4 = gvec4[float32]
+type gmat3x3[T constraints.Float] [3 * 3]T
 
-func Vec4Ones() Vec4 { return gvec4Ones[float32]() }
+type Mat3x3 = gmat3x3[float32]
 
-type DVec4 = gvec4[float64]
+func (A *gmat3x3[T]) Index(i, j int) *T {
+	return &A[i*3 : (i+1)*3][j]
+}
 
-func DVec4Ones() DVec4 { return gvec4Ones[float64]() }
+func gmat3x3One[T constraints.Float]() gmat3x3[T] {
+	var I gmat3x3[T]
+	*I.Index(0, 0) = 1
+	*I.Index(1, 1) = 1
+	*I.Index(2, 2) = 1
+	return I
+}
+
+func Mat3x3One() Mat3x3 { return gmat3x3One[float32]() }
+
+func Mat3x3Diag[T constraints.Float](d gvec3[T]) gmat3x3[T] {
+	var D gmat3x3[T]
+	*D.Index(0, 0) = d[0]
+	*D.Index(1, 1) = d[1]
+	*D.Index(2, 2) = d[2]
+	return D
+}
+
+func (A gmat3x3[T]) Inv() gmat3x3[T] {
+	panic("not implemented")
+}
+
+func (A gmat3x3[T]) Mul(B gmat3x3[T]) gmat3x3[T] {
+	var C gmat3x3[T]
+	*C.Index(0, 0) = 0 + *A.Index(0, 0)**B.Index(0, 0) + *A.Index(0, 1)**B.Index(1, 0) + *A.Index(0, 2)**B.Index(2, 0)
+	*C.Index(0, 1) = 0 + *A.Index(0, 0)**B.Index(0, 1) + *A.Index(0, 1)**B.Index(1, 1) + *A.Index(0, 2)**B.Index(2, 1)
+	*C.Index(0, 2) = 0 + *A.Index(0, 0)**B.Index(0, 2) + *A.Index(0, 1)**B.Index(1, 2) + *A.Index(0, 2)**B.Index(2, 2)
+	*C.Index(1, 0) = 0 + *A.Index(1, 0)**B.Index(0, 0) + *A.Index(1, 1)**B.Index(1, 0) + *A.Index(1, 2)**B.Index(2, 0)
+	*C.Index(1, 1) = 0 + *A.Index(1, 0)**B.Index(0, 1) + *A.Index(1, 1)**B.Index(1, 1) + *A.Index(1, 2)**B.Index(2, 1)
+	*C.Index(1, 2) = 0 + *A.Index(1, 0)**B.Index(0, 2) + *A.Index(1, 1)**B.Index(1, 2) + *A.Index(1, 2)**B.Index(2, 2)
+	*C.Index(2, 0) = 0 + *A.Index(2, 0)**B.Index(0, 0) + *A.Index(2, 1)**B.Index(1, 0) + *A.Index(2, 2)**B.Index(2, 0)
+	*C.Index(2, 1) = 0 + *A.Index(2, 0)**B.Index(0, 1) + *A.Index(2, 1)**B.Index(1, 1) + *A.Index(2, 2)**B.Index(2, 1)
+	*C.Index(2, 2) = 0 + *A.Index(2, 0)**B.Index(0, 2) + *A.Index(2, 1)**B.Index(1, 2) + *A.Index(2, 2)**B.Index(2, 2)
+	return C
+}
+
+func (A gmat3x3[T]) Mulv(b gvec3[T]) gvec3[T] {
+	var c gvec3[T]
+	c[0] = 0 + *A.Index(0, 0)*b[0] + *A.Index(0, 1)*b[1] + *A.Index(0, 2)*b[2]
+	c[1] = 0 + *A.Index(1, 0)*b[0] + *A.Index(1, 1)*b[1] + *A.Index(1, 2)*b[2]
+	c[2] = 0 + *A.Index(2, 0)*b[0] + *A.Index(2, 1)*b[1] + *A.Index(2, 2)*b[2]
+	return c
+}
+
+type GAffine3[T constraints.Float] struct {
+	M Mat3x3   // rotation * shearing * scaling
+	T gvec3[T] // translation
+}
+
+type Affine3 = GAffine3[float32]
+
+type DAffine3 = GAffine3[float64]
+
+// TODO: change constructors of other types to the same naming (i.e. generic and no G prefix)
+func Affine3One[T constraints.Float]() GAffine3[T] {
+	return GAffine3[T]{
+		M: Mat3x3One(),
+	}
+}
+
+/*
+func (f GAffine3[T]) Inv() GAffine3[T] {
+	panic("not implemented")
+}
+*/
+
+func (f GAffine3[T]) Mul(g GAffine3[T]) GAffine3[T] {
+	return GAffine3[T]{
+		M: f.M.Mul(g.M),
+		T: f.T.Add(gmat3x3[T](convert9[T](f.M)).Mulv(g.T)),
+	}
+}
+
+// TODO: just introduce MatMxMConvert or whatever pls
+func convert9[To, From constraints.Float](x [9]From) [9]To {
+	return [9]To{
+		To(x[0]),
+		To(x[1]),
+		To(x[2]),
+		To(x[3]),
+		To(x[4]),
+		To(x[5]),
+		To(x[6]),
+		To(x[7]),
+		To(x[8]),
+	}
+}
+
+type GTRHS3[T constraints.Float] struct {
+	T gvec3[T]
+	R Rot3
+	H Vec3 // TODO: should be a bivector; for now must be zero
+	S Vec3
+}
+
+type TRHS3 = GTRHS3[float32]
+
+type DTRHS3 = GTRHS3[float64]
+
+func TRHS3One[T constraints.Float]() GTRHS3[T] {
+	return GTRHS3[T]{
+		R: Rot3One(),
+		S: Vec3Ones(),
+	}
+}
+
+func TRHS3FromAffine[T constraints.Float](f GAffine3[T]) GTRHS3[T] {
+	panic("not implemented")
+}
+
+func (trhs GTRHS3[T]) ToAffine() GAffine3[T] {
+	// TODO: include shearing
+	return GAffine3[T]{
+		M: trhs.R.Mat().Mul(Mat3x3Diag(trhs.S)),
+		T: trhs.T,
+	}
+}
 
 type gvec4[T constraints.Float] [4]T
+
+type (
+	Vec4  = gvec4[float32]
+	DVec4 = gvec4[float64]
+)
 
 func gvec4Ones[T constraints.Float]() gvec4[T] {
 	return gvec4[T]{
@@ -181,6 +348,9 @@ func gvec4Ones[T constraints.Float]() gvec4[T] {
 		1,
 	}
 }
+
+func Vec4Ones() Vec4   { return gvec4Ones[float32]() }
+func DVec4Ones() DVec4 { return gvec4Ones[float64]() }
 
 // TODO: make this a method once generic methods are in?
 func Vec4Convert[To, From constraints.Float](a gvec4[From]) gvec4[To] {
@@ -251,164 +421,64 @@ func (a gvec4[T]) Lerp(b gvec4[T], t T) gvec4[T] {
 	}
 }
 
-type Mat3x3 = gmat3x3[float32]
-
-func Mat3x3One() Mat3x3 { return gmat3x3One[float32]() }
-
-// TODO: flatten matrices so that it's [3*3]T?
-type gmat3x3[T constraints.Float] [3][3]T
-
-func gmat3x3One[T constraints.Float]() gmat3x3[T] {
-	var A gmat3x3[T]
-	A[0][0] = 1
-	A[1][1] = 1
-	A[2][2] = 1
-	return A
-}
-
-func (A gmat3x3[T]) Mul3x3(B gmat3x3[T]) gmat3x3[T] {
-	var C gmat3x3[T]
-	C[0][0] += A[0][0] * B[0][0]
-	C[0][0] += A[0][1] * B[1][0]
-	C[0][0] += A[0][2] * B[2][0]
-	C[0][1] += A[0][0] * B[0][1]
-	C[0][1] += A[0][1] * B[1][1]
-	C[0][1] += A[0][2] * B[2][1]
-	C[0][2] += A[0][0] * B[0][2]
-	C[0][2] += A[0][1] * B[1][2]
-	C[0][2] += A[0][2] * B[2][2]
-	C[1][0] += A[1][0] * B[0][0]
-	C[1][0] += A[1][1] * B[1][0]
-	C[1][0] += A[1][2] * B[2][0]
-	C[1][1] += A[1][0] * B[0][1]
-	C[1][1] += A[1][1] * B[1][1]
-	C[1][1] += A[1][2] * B[2][1]
-	C[1][2] += A[1][0] * B[0][2]
-	C[1][2] += A[1][1] * B[1][2]
-	C[1][2] += A[1][2] * B[2][2]
-	C[2][0] += A[2][0] * B[0][0]
-	C[2][0] += A[2][1] * B[1][0]
-	C[2][0] += A[2][2] * B[2][0]
-	C[2][1] += A[2][0] * B[0][1]
-	C[2][1] += A[2][1] * B[1][1]
-	C[2][1] += A[2][2] * B[2][1]
-	C[2][2] += A[2][0] * B[0][2]
-	C[2][2] += A[2][1] * B[1][2]
-	C[2][2] += A[2][2] * B[2][2]
-	return C
-}
+type gmat4x4[T constraints.Float] [4 * 4]T
 
 type Mat4x4 = gmat4x4[float32]
 
-func Mat4x4One() Mat4x4 { return gmat4x4One[float32]() }
-
-// TODO: flatten matrices so that it's [4*4]T?
-type gmat4x4[T constraints.Float] [4][4]T
-
-func gmat4x4One[T constraints.Float]() gmat4x4[T] {
-	var A gmat4x4[T]
-	A[0][0] = 1
-	A[1][1] = 1
-	A[2][2] = 1
-	A[3][3] = 1
-	return A
+func (A *gmat4x4[T]) Index(i, j int) *T {
+	return &A[i*4 : (i+1)*4][j]
 }
 
-func (A gmat4x4[T]) Mul4x4(B gmat4x4[T]) gmat4x4[T] {
+func gmat4x4One[T constraints.Float]() gmat4x4[T] {
+	var I gmat4x4[T]
+	*I.Index(0, 0) = 1
+	*I.Index(1, 1) = 1
+	*I.Index(2, 2) = 1
+	*I.Index(3, 3) = 1
+	return I
+}
+
+func Mat4x4One() Mat4x4 { return gmat4x4One[float32]() }
+
+func Mat4x4Diag[T constraints.Float](d gvec4[T]) gmat4x4[T] {
+	var D gmat4x4[T]
+	*D.Index(0, 0) = d[0]
+	*D.Index(1, 1) = d[1]
+	*D.Index(2, 2) = d[2]
+	*D.Index(3, 3) = d[3]
+	return D
+}
+
+func (A gmat4x4[T]) Inv() gmat4x4[T] {
+	panic("not implemented")
+}
+
+func (A gmat4x4[T]) Mul(B gmat4x4[T]) gmat4x4[T] {
 	var C gmat4x4[T]
-	C[0][0] += A[0][0] * B[0][0]
-	C[0][0] += A[0][1] * B[1][0]
-	C[0][0] += A[0][2] * B[2][0]
-	C[0][0] += A[0][3] * B[3][0]
-	C[0][1] += A[0][0] * B[0][1]
-	C[0][1] += A[0][1] * B[1][1]
-	C[0][1] += A[0][2] * B[2][1]
-	C[0][1] += A[0][3] * B[3][1]
-	C[0][2] += A[0][0] * B[0][2]
-	C[0][2] += A[0][1] * B[1][2]
-	C[0][2] += A[0][2] * B[2][2]
-	C[0][2] += A[0][3] * B[3][2]
-	C[0][3] += A[0][0] * B[0][3]
-	C[0][3] += A[0][1] * B[1][3]
-	C[0][3] += A[0][2] * B[2][3]
-	C[0][3] += A[0][3] * B[3][3]
-	C[1][0] += A[1][0] * B[0][0]
-	C[1][0] += A[1][1] * B[1][0]
-	C[1][0] += A[1][2] * B[2][0]
-	C[1][0] += A[1][3] * B[3][0]
-	C[1][1] += A[1][0] * B[0][1]
-	C[1][1] += A[1][1] * B[1][1]
-	C[1][1] += A[1][2] * B[2][1]
-	C[1][1] += A[1][3] * B[3][1]
-	C[1][2] += A[1][0] * B[0][2]
-	C[1][2] += A[1][1] * B[1][2]
-	C[1][2] += A[1][2] * B[2][2]
-	C[1][2] += A[1][3] * B[3][2]
-	C[1][3] += A[1][0] * B[0][3]
-	C[1][3] += A[1][1] * B[1][3]
-	C[1][3] += A[1][2] * B[2][3]
-	C[1][3] += A[1][3] * B[3][3]
-	C[2][0] += A[2][0] * B[0][0]
-	C[2][0] += A[2][1] * B[1][0]
-	C[2][0] += A[2][2] * B[2][0]
-	C[2][0] += A[2][3] * B[3][0]
-	C[2][1] += A[2][0] * B[0][1]
-	C[2][1] += A[2][1] * B[1][1]
-	C[2][1] += A[2][2] * B[2][1]
-	C[2][1] += A[2][3] * B[3][1]
-	C[2][2] += A[2][0] * B[0][2]
-	C[2][2] += A[2][1] * B[1][2]
-	C[2][2] += A[2][2] * B[2][2]
-	C[2][2] += A[2][3] * B[3][2]
-	C[2][3] += A[2][0] * B[0][3]
-	C[2][3] += A[2][1] * B[1][3]
-	C[2][3] += A[2][2] * B[2][3]
-	C[2][3] += A[2][3] * B[3][3]
-	C[3][0] += A[3][0] * B[0][0]
-	C[3][0] += A[3][1] * B[1][0]
-	C[3][0] += A[3][2] * B[2][0]
-	C[3][0] += A[3][3] * B[3][0]
-	C[3][1] += A[3][0] * B[0][1]
-	C[3][1] += A[3][1] * B[1][1]
-	C[3][1] += A[3][2] * B[2][1]
-	C[3][1] += A[3][3] * B[3][1]
-	C[3][2] += A[3][0] * B[0][2]
-	C[3][2] += A[3][1] * B[1][2]
-	C[3][2] += A[3][2] * B[2][2]
-	C[3][2] += A[3][3] * B[3][2]
-	C[3][3] += A[3][0] * B[0][3]
-	C[3][3] += A[3][1] * B[1][3]
-	C[3][3] += A[3][2] * B[2][3]
-	C[3][3] += A[3][3] * B[3][3]
+	*C.Index(0, 0) = 0 + *A.Index(0, 0)**B.Index(0, 0) + *A.Index(0, 1)**B.Index(1, 0) + *A.Index(0, 2)**B.Index(2, 0) + *A.Index(0, 3)**B.Index(3, 0)
+	*C.Index(0, 1) = 0 + *A.Index(0, 0)**B.Index(0, 1) + *A.Index(0, 1)**B.Index(1, 1) + *A.Index(0, 2)**B.Index(2, 1) + *A.Index(0, 3)**B.Index(3, 1)
+	*C.Index(0, 2) = 0 + *A.Index(0, 0)**B.Index(0, 2) + *A.Index(0, 1)**B.Index(1, 2) + *A.Index(0, 2)**B.Index(2, 2) + *A.Index(0, 3)**B.Index(3, 2)
+	*C.Index(0, 3) = 0 + *A.Index(0, 0)**B.Index(0, 3) + *A.Index(0, 1)**B.Index(1, 3) + *A.Index(0, 2)**B.Index(2, 3) + *A.Index(0, 3)**B.Index(3, 3)
+	*C.Index(1, 0) = 0 + *A.Index(1, 0)**B.Index(0, 0) + *A.Index(1, 1)**B.Index(1, 0) + *A.Index(1, 2)**B.Index(2, 0) + *A.Index(1, 3)**B.Index(3, 0)
+	*C.Index(1, 1) = 0 + *A.Index(1, 0)**B.Index(0, 1) + *A.Index(1, 1)**B.Index(1, 1) + *A.Index(1, 2)**B.Index(2, 1) + *A.Index(1, 3)**B.Index(3, 1)
+	*C.Index(1, 2) = 0 + *A.Index(1, 0)**B.Index(0, 2) + *A.Index(1, 1)**B.Index(1, 2) + *A.Index(1, 2)**B.Index(2, 2) + *A.Index(1, 3)**B.Index(3, 2)
+	*C.Index(1, 3) = 0 + *A.Index(1, 0)**B.Index(0, 3) + *A.Index(1, 1)**B.Index(1, 3) + *A.Index(1, 2)**B.Index(2, 3) + *A.Index(1, 3)**B.Index(3, 3)
+	*C.Index(2, 0) = 0 + *A.Index(2, 0)**B.Index(0, 0) + *A.Index(2, 1)**B.Index(1, 0) + *A.Index(2, 2)**B.Index(2, 0) + *A.Index(2, 3)**B.Index(3, 0)
+	*C.Index(2, 1) = 0 + *A.Index(2, 0)**B.Index(0, 1) + *A.Index(2, 1)**B.Index(1, 1) + *A.Index(2, 2)**B.Index(2, 1) + *A.Index(2, 3)**B.Index(3, 1)
+	*C.Index(2, 2) = 0 + *A.Index(2, 0)**B.Index(0, 2) + *A.Index(2, 1)**B.Index(1, 2) + *A.Index(2, 2)**B.Index(2, 2) + *A.Index(2, 3)**B.Index(3, 2)
+	*C.Index(2, 3) = 0 + *A.Index(2, 0)**B.Index(0, 3) + *A.Index(2, 1)**B.Index(1, 3) + *A.Index(2, 2)**B.Index(2, 3) + *A.Index(2, 3)**B.Index(3, 3)
+	*C.Index(3, 0) = 0 + *A.Index(3, 0)**B.Index(0, 0) + *A.Index(3, 1)**B.Index(1, 0) + *A.Index(3, 2)**B.Index(2, 0) + *A.Index(3, 3)**B.Index(3, 0)
+	*C.Index(3, 1) = 0 + *A.Index(3, 0)**B.Index(0, 1) + *A.Index(3, 1)**B.Index(1, 1) + *A.Index(3, 2)**B.Index(2, 1) + *A.Index(3, 3)**B.Index(3, 1)
+	*C.Index(3, 2) = 0 + *A.Index(3, 0)**B.Index(0, 2) + *A.Index(3, 1)**B.Index(1, 2) + *A.Index(3, 2)**B.Index(2, 2) + *A.Index(3, 3)**B.Index(3, 2)
+	*C.Index(3, 3) = 0 + *A.Index(3, 0)**B.Index(0, 3) + *A.Index(3, 1)**B.Index(1, 3) + *A.Index(3, 2)**B.Index(2, 3) + *A.Index(3, 3)**B.Index(3, 3)
 	return C
 }
 
-type gaffine3[T constraints.Float] struct {
-	A Mat3x3   // rotation, scaling and shearing
-	B gvec3[T] // translation
-}
-
-func gaffine3One[T constraints.Float]() gaffine3[T] {
-	return gaffine3[T]{
-		A: Mat3x3One(),
-	}
-}
-
-func (a gaffine3[T]) Inv() gaffine3[T] {
-	panic("not implemented")
-}
-
-func (a gaffine3[T]) Mul(b gaffine3[T]) gaffine3[T] {
-	// return gaffine3[T]{
-	// 	A: a.A.Mul3x3(b.A)
-	// 	B: b.A.Mul3x1(b.B).Add(a.B),
-	// }
-	panic("not implemented")
-}
-
-// TODO: a method to decompose/factor gaffine3 into its constituents
-
-// TODO: call interpolation things something else pls
-func (a gaffine3[T]) Lerp(b gaffine3[T], t float32) gaffine3[T] {
-	panic("not implemented")
+func (A gmat4x4[T]) Mulv(b gvec4[T]) gvec4[T] {
+	var c gvec4[T]
+	c[0] = 0 + *A.Index(0, 0)*b[0] + *A.Index(0, 1)*b[1] + *A.Index(0, 2)*b[2] + *A.Index(0, 3)*b[3]
+	c[1] = 0 + *A.Index(1, 0)*b[0] + *A.Index(1, 1)*b[1] + *A.Index(1, 2)*b[2] + *A.Index(1, 3)*b[3]
+	c[2] = 0 + *A.Index(2, 0)*b[0] + *A.Index(2, 1)*b[1] + *A.Index(2, 2)*b[2] + *A.Index(2, 3)*b[3]
+	c[3] = 0 + *A.Index(3, 0)*b[0] + *A.Index(3, 1)*b[1] + *A.Index(3, 2)*b[2] + *A.Index(3, 3)*b[3]
+	return c
 }

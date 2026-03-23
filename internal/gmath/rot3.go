@@ -33,6 +33,21 @@ func (a Rot3) Mul(b Rot3) (ab Rot3) {
 	return Rot3(quat[float32](a).Mul(quat[float32](b)))
 }
 
+func (r Rot3) Mat() Mat3x3 {
+	// ughhhhhhhhhhhhhhhhhhhhhh
+	var R Mat3x3
+	*R.Index(0, 0) = r[3]*r[3] + r[0]*r[0] - r[1]*r[1] - r[2]*r[2]
+	*R.Index(0, 1) = r[0]*r[1]*2 - r[3]*r[2]*2
+	*R.Index(0, 2) = r[3]*r[1]*2 + r[0]*r[2]*2
+	*R.Index(1, 0) = r[3]*r[2]*2 + r[0]*r[1]*2
+	*R.Index(1, 1) = r[3]*r[3] - r[0]*r[0] + r[1]*r[1] - r[2]*r[2]
+	*R.Index(1, 2) = r[1]*r[2]*2 - r[3]*r[0]*2
+	*R.Index(2, 0) = r[0]*r[2]*2 - r[3]*r[1]*2
+	*R.Index(2, 1) = r[3]*r[0]*2 + r[1]*r[2]*2
+	*R.Index(2, 2) = r[3]*r[3] - r[0]*r[0] - r[1]*r[1] + r[2]*r[2]
+	return R
+}
+
 // TODO: introduce SLerp which will transparently use NLerp when estimated error
 // is below some threshold?
 func (a Rot3) NLerp(b Rot3, t float32) Rot3 {

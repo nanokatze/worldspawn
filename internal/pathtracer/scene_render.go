@@ -167,7 +167,7 @@ func (scene *Scene) Render(
 				Proj: proj,
 				View: view,
 
-				ViewProj:    proj.Mul4x4(view),
+				ViewProj:    proj.Mul(view),
 				ProjInverse: proj.Inverse(),
 				ViewInverse: viewInverse,
 			},

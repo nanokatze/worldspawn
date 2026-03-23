@@ -76,9 +76,9 @@ func Render(scene *Scene, camera gmath.Vec3, now int64, dst []float32, channels,
 		t0 := now - instance.PlayTime
 
 		dist := gmath.Vec3{
-			instance.Transform[0][3],
-			instance.Transform[1][3],
-			instance.Transform[2][3],
+			*instance.Transform.Index(0, 3),
+			*instance.Transform.Index(1, 3),
+			*instance.Transform.Index(2, 3),
 		}.Sub(camera).Length()
 		contribution := min(10.0/(dist*dist), 1) * instance.Attenuation
 

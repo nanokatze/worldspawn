@@ -37,7 +37,7 @@ def array_from_prop_collection(collection, attr, dtype):
 def asdasd(o):
     match o:
         case Matrix():
-            return [[str(e) for e in row] for row in o]
+            return [str(e) for row in o for e in row]
         case Vector():
             return [str(e) for e in o]
         case Quaternion():

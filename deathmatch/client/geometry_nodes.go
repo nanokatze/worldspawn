@@ -84,7 +84,7 @@ func (gs *geoNodes) EnqueueEvaluate(jq *gpu.JobQueue, data *gsdata) {
 	for i, name := range gs.src.joints {
 		m, ok := gs.pose.Bones[name]
 		if ok {
-			poseHost[i] = m
+			poseHost[i] = m.Mat()
 		} else {
 			poseHost[i] = gmath.Mat4x4One()
 		}

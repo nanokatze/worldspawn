@@ -20,18 +20,20 @@ func main() {
 	// TODO: specify what to generate on the command line
 
 	vecGen{2}.Gen(buf)
+	matGen{2, 2}.Gen(buf)
+	matringGen{2}.Gen(buf)
+	matvecGen{2, 2}.Gen(buf)
 
 	vecGen{3}.Gen(buf)
+	matGen{3, 3}.Gen(buf)
+	matringGen{3}.Gen(buf)
+	matvecGen{3, 3}.Gen(buf)
+	affineGen{3}.Gen(buf)
 
 	vecGen{4}.Gen(buf)
-
-	matGen{3, 3}.Gen(buf)
-	matmulGen{3, 3, 3}.Gen(buf)
-
 	matGen{4, 4}.Gen(buf)
-	matmulGen{4, 4, 4}.Gen(buf)
-
-	affineGen{3}.Gen(buf)
+	matringGen{4}.Gen(buf)
+	matvecGen{4, 4}.Gen(buf)
 
 	src, _ := format.Source(buf.Bytes())
 	os.WriteFile(*out, src, 0644)

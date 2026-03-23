@@ -6,5 +6,5 @@ import "worldspawn/internal/gmath"
 // internals. We want to be able to get relative to rest and absolute joint
 // transforms.
 type Pose struct {
-	Bones map[string]gmath.Mat4x4 // TODO: change this to be Affine3
+	Bones map[string]gmath.Affine3
 }

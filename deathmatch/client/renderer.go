@@ -61,7 +61,7 @@ func (s *sceneUpdate) Transform(i int, t float32) gmath.Mat4x4 {
 	B := gmath.Mat4x4One()
 	for ; i != -1; i = s.Parent[i] {
 		A := s.TransformT0[i].NLerp(s.TransformT1[i], t).Mat4x4()
-		B = A.Mul4x4(B)
+		B = A.Mul(B)
 	}
 	return B
 }
@@ -217,7 +217,7 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 	// Ughhhhhhh
 	{
 		camera := update.Transform(camera.Index(), 0)
-		cameraPos := gmath.Vec3{camera[0][3], camera[1][3], camera[2][3]}
+		cameraPos := gmath.Vec3{*camera.Index(0, 3), *camera.Index(1, 3), *camera.Index(2, 3)}
 
 		scene := re.sfxScene
 
@@ -310,10 +310,10 @@ func (re *renderer) Subtick(w *game.Scene, playerID ecs.ID) {
 // TODO: move somewhere further up
 // TODO: improve naming?
 var fixup = gmath.Mat4x4{
-	{1, 0, 0, 0},
-	{0, 0, -1, 0},
-	{0, -1, 0, 0},
-	{0, 0, 0, 1},
+	1, 0, 0, 0,
+	0, 0, -1, 0,
+	0, -1, 0, 0,
+	0, 0, 0, 1,
 }
 
 func (re *renderer) Render(jq *gpu.JobQueue, sdlNow uint64, dst *gpu.Image) {
@@ -329,9 +329,9 @@ func (re *renderer) Render(jq *gpu.JobQueue, sdlNow uint64, dst *gpu.Image) {
 		re.scene2 = update
 		re.scene.SetSky(
 			gmath.Mat3x3{
-				{0, -1, 0},
-				{0, 0, 1},
-				{1, 0, 0},
+				0, -1, 0,
+				0, 0, 1,
+				1, 0, 0,
 			},
 			update.Sky)
 		for i := range update.Mask {
@@ -353,7 +353,7 @@ func (re *renderer) Render(jq *gpu.JobQueue, sdlNow uint64, dst *gpu.Image) {
 
 	camera := re.ourCamera
 	if re.scene2 != nil {
-		camera.Transform = re.scene2.Transform(re.ourCameraTransform, float32(t)).Mul4x4(fixup.Inverse())
+		camera.Transform = re.scene2.Transform(re.ourCameraTransform, float32(t)).Mul(fixup.Inverse())
 
 		for i := range re.scene2.Mask {
 			tmp := re.scene2.Transform(i, float32(t))
@@ -361,7 +361,7 @@ func (re *renderer) Render(jq *gpu.JobQueue, sdlNow uint64, dst *gpu.Image) {
 			var tmp2 [3][4]float32
 			for i := range tmp2 {
 				for j := range tmp2[i] {
-					tmp2[i][j] = tmp[i][j]
+					tmp2[i][j] = *tmp.Index(i, j)
 				}
 			}
 			re.scene.SetInstanceTransform(i, tmp2)

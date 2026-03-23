@@ -1,12 +1,40 @@
 package gmath
 
-// TODO: switch to a matrix representation for {D,}TRS3, with the last column
-// (representing translation) being either float64 or float32 depending on
-// whether it's DTRS3 or TRS3, and all other columns float32. We can also
-// introduce two Affine3 representations, one a matrix and the other
-// factored/decomposed which will support interpolation.
+import "golang.org/x/exp/constraints"
 
-// TODO: shearing
+// Transitional stuff, TODO: remove
+
+func GAffine3FromMat4x4[T constraints.Float](M gmat4x4[T]) GAffine3[T] {
+	var f GAffine3[T]
+	for i := range 3 {
+		for j := range 3 {
+			*f.M.Index(i, j) = float32(*M.Index(i, j))
+		}
+		f.T[i] = *M.Index(i, 3)
+	}
+	return f
+}
+
+func (f GAffine3[T]) Mat() gmat4x4[T] {
+	var M gmat4x4[T]
+	for i := range 3 {
+		for j := range 3 {
+			*M.Index(i, j) = T(*f.M.Index(i, j))
+		}
+		*M.Index(i, 3) = f.T[i]
+	}
+	*M.Index(3, 3) = 1
+	return M
+}
+
+// TODO: _gen/affine.go should generate this
+func (f GAffine3[T]) Inv() GAffine3[T] {
+	return GAffine3FromMat4x4(f.Mat().Inverse())
+}
+
+// TODO: remove TRS types in favor of Affine once we implement
+// factoring/decomposition and thus can comfortably implement interpolation
+
 type DTRS3 struct {
 	T DVec3
 	R Rot3
@@ -60,23 +88,23 @@ func (trs TRS3) Mat4x4() Mat4x4 {
 
 	var A Mat4x4
 
-	A[0][0] = s[0] * (r[3]*r[3] + r[0]*r[0] - r[1]*r[1] - r[2]*r[2])
-	A[0][1] = s[1] * (r[0]*r[1]*2 - r[3]*r[2]*2)
-	A[0][2] = s[2] * (r[3]*r[1]*2 + r[0]*r[2]*2)
+	*A.Index(0, 0) = s[0] * (r[3]*r[3] + r[0]*r[0] - r[1]*r[1] - r[2]*r[2])
+	*A.Index(0, 1) = s[1] * (r[0]*r[1]*2 - r[3]*r[2]*2)
+	*A.Index(0, 2) = s[2] * (r[3]*r[1]*2 + r[0]*r[2]*2)
 
-	A[1][0] = s[0] * (r[3]*r[2]*2 + r[0]*r[1]*2)
-	A[1][1] = s[1] * (r[3]*r[3] - r[0]*r[0] + r[1]*r[1] - r[2]*r[2])
-	A[1][2] = s[2] * (r[1]*r[2]*2 - r[3]*r[0]*2)
+	*A.Index(1, 0) = s[0] * (r[3]*r[2]*2 + r[0]*r[1]*2)
+	*A.Index(1, 1) = s[1] * (r[3]*r[3] - r[0]*r[0] + r[1]*r[1] - r[2]*r[2])
+	*A.Index(1, 2) = s[2] * (r[1]*r[2]*2 - r[3]*r[0]*2)
 
-	A[2][0] = s[0] * (r[0]*r[2]*2 - r[3]*r[1]*2)
-	A[2][1] = s[1] * (r[3]*r[0]*2 + r[1]*r[2]*2)
-	A[2][2] = s[2] * (r[3]*r[3] - r[0]*r[0] - r[1]*r[1] + r[2]*r[2])
+	*A.Index(2, 0) = s[0] * (r[0]*r[2]*2 - r[3]*r[1]*2)
+	*A.Index(2, 1) = s[1] * (r[3]*r[0]*2 + r[1]*r[2]*2)
+	*A.Index(2, 2) = s[2] * (r[3]*r[3] - r[0]*r[0] - r[1]*r[1] + r[2]*r[2])
 
 	for i := 0; i < 3; i++ {
-		A[i][3] = t[i]
+		*A.Index(i, 3) = t[i]
 	}
 
-	A[3][3] = 1
+	*A.Index(3, 3) = 1
 
 	return A
 }
