@@ -192,7 +192,7 @@ func getShape(w *Scene, id ecs.ID) *physics.Shape {
 	case "Grenade":
 		shape = packGeometry(_Geometry{
 			Rotation: gmath.Rot3One(),
-			Scale:    gmath.Vec3Ones(),
+			Scale:    gmath.Vec3Ones[float32](),
 
 			Kind:       geometrySphere,
 			HalfExtent: gmath.Vec3{0.0568, 0.0568, 0.0568},
@@ -202,7 +202,7 @@ func getShape(w *Scene, id ecs.ID) *physics.Shape {
 		shape = packGeometry(_Geometry{
 			Translation: gmath.Vec3{0, 0, 1.9 / 2}, // TODO: read standing height off Entity
 			Rotation:    gmath.Rot3One(),
-			Scale:       gmath.Vec3Ones(),
+			Scale:       gmath.Vec3Ones[float32](),
 
 			Kind:         geometryCylinder,
 			HalfExtent:   gmath.Vec3{1, 1, 0}.Scale(0.4).Add(gmath.Vec3{0, 0, 1.9 / 2}),

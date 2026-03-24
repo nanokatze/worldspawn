@@ -45,7 +45,7 @@ func DTRS3One() DTRS3 {
 	return DTRS3{
 		T: DVec3{},
 		R: Rot3One(),
-		S: Vec3Ones(),
+		S: Vec3Ones[float32](),
 	}
 }
 
@@ -55,7 +55,7 @@ func (x DTRS3) Mul(y DTRS3) DTRS3 {
 	return DTRS3{
 		T: x.T.Add(x.R.Rotate64(y.T)),
 		R: x.R.Mul(y.R),
-		S: Vec3Ones(),
+		S: Vec3Ones[float32](),
 	}
 }
 

@@ -86,7 +86,7 @@ func (gs *geoNodes) EnqueueEvaluate(jq *gpu.JobQueue, data *gsdata) {
 		if ok {
 			poseHost[i] = m.Mat()
 		} else {
-			poseHost[i] = gmath.Mat4x4One()
+			poseHost[i] = gmath.Mat4x4One[float32]()
 		}
 	}
 

@@ -17,14 +17,15 @@ type {{$affineD}}[T constraints.Float] struct {
 	T gvec{{.D}}[T]    // translation
 }
 
-type Affine{{.D}} = {{$affineD}}[float32]
-
-type DAffine{{.D}} = {{$affineD}}[float64]
+type (
+	Affine{{.D}}  = {{$affineD}}[float32]
+	DAffine{{.D}} = {{$affineD}}[float64]
+)
 
 // TODO: change constructors of other types to the same naming (i.e. generic and no G prefix)
 func Affine{{.D}}One[T constraints.Float]() {{$affineD}}[T] {
 	return {{$affineD}}[T]{
-		M: Mat{{.D}}x{{.D}}One(),
+		M: Mat{{.D}}x{{.D}}One[float32](),
 	}
 }
 
@@ -59,14 +60,15 @@ type {{$trhsD}}[T constraints.Float] struct {
 	S Vec{{.D}}
 }
 
-type TRHS{{.D}} = {{$trhsD}}[float32]
-
-type DTRHS{{.D}} = {{$trhsD}}[float64]
+type (
+	TRHS{{.D}}  = {{$trhsD}}[float32]
+	DTRHS{{.D}} = {{$trhsD}}[float64]
+)
 
 func TRHS{{.D}}One[T constraints.Float]() {{$trhsD}}[T] {
 	return {{$trhsD}}[T]{
 		R: Rot{{.D}}One(),
-		S: Vec{{.D}}Ones(),
+		S: Vec{{.D}}Ones[float32](),
 	}
 }
 

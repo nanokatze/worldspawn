@@ -15,21 +15,10 @@ type (
 	DVec2 = gvec2[float64]
 )
 
-func gvec2Ones[T constraints.Float]() gvec2[T] {
+func Vec2Ones[T constraints.Float]() gvec2[T] {
 	return gvec2[T]{
 		1,
 		1,
-	}
-}
-
-func Vec2Ones() Vec2   { return gvec2Ones[float32]() }
-func DVec2Ones() DVec2 { return gvec2Ones[float64]() }
-
-// TODO: make this a method once generic methods are in?
-func Vec2Convert[To, From constraints.Float](a gvec2[From]) gvec2[To] {
-	return gvec2[To]{
-		To(a[0]),
-		To(a[1]),
 	}
 }
 
@@ -75,6 +64,15 @@ func (a gvec2[T]) NormalizeOr(b gvec2[T]) gvec2[T] {
 	}
 }
 
+// TODO: make this a method once generic methods are in
+func Vec2Convert[To, From constraints.Float](a gvec2[From]) gvec2[To] {
+	return gvec2[To]{
+		To(a[0]),
+		To(a[1]),
+	}
+}
+
+// TODO: kill this
 func (a gvec2[T]) Lerp(b gvec2[T], t T) gvec2[T] {
 	return gvec2[T]{
 		lerp(a[0], b[0], t),
@@ -90,14 +88,12 @@ func (A *gmat2x2[T]) Index(i, j int) *T {
 	return &A[i*2 : (i+1)*2][j]
 }
 
-func gmat2x2One[T constraints.Float]() gmat2x2[T] {
+func Mat2x2One[T constraints.Float]() gmat2x2[T] {
 	var I gmat2x2[T]
 	*I.Index(0, 0) = 1
 	*I.Index(1, 1) = 1
 	return I
 }
-
-func Mat2x2One() Mat2x2 { return gmat2x2One[float32]() }
 
 func Mat2x2Diag[T constraints.Float](d gvec2[T]) gmat2x2[T] {
 	var D gmat2x2[T]
@@ -133,23 +129,11 @@ type (
 	DVec3 = gvec3[float64]
 )
 
-func gvec3Ones[T constraints.Float]() gvec3[T] {
+func Vec3Ones[T constraints.Float]() gvec3[T] {
 	return gvec3[T]{
 		1,
 		1,
 		1,
-	}
-}
-
-func Vec3Ones() Vec3   { return gvec3Ones[float32]() }
-func DVec3Ones() DVec3 { return gvec3Ones[float64]() }
-
-// TODO: make this a method once generic methods are in?
-func Vec3Convert[To, From constraints.Float](a gvec3[From]) gvec3[To] {
-	return gvec3[To]{
-		To(a[0]),
-		To(a[1]),
-		To(a[2]),
 	}
 }
 
@@ -199,6 +183,16 @@ func (a gvec3[T]) NormalizeOr(b gvec3[T]) gvec3[T] {
 	}
 }
 
+// TODO: make this a method once generic methods are in
+func Vec3Convert[To, From constraints.Float](a gvec3[From]) gvec3[To] {
+	return gvec3[To]{
+		To(a[0]),
+		To(a[1]),
+		To(a[2]),
+	}
+}
+
+// TODO: kill this
 func (a gvec3[T]) Lerp(b gvec3[T], t T) gvec3[T] {
 	return gvec3[T]{
 		lerp(a[0], b[0], t),
@@ -215,15 +209,13 @@ func (A *gmat3x3[T]) Index(i, j int) *T {
 	return &A[i*3 : (i+1)*3][j]
 }
 
-func gmat3x3One[T constraints.Float]() gmat3x3[T] {
+func Mat3x3One[T constraints.Float]() gmat3x3[T] {
 	var I gmat3x3[T]
 	*I.Index(0, 0) = 1
 	*I.Index(1, 1) = 1
 	*I.Index(2, 2) = 1
 	return I
 }
-
-func Mat3x3One() Mat3x3 { return gmat3x3One[float32]() }
 
 func Mat3x3Diag[T constraints.Float](d gvec3[T]) gmat3x3[T] {
 	var D gmat3x3[T]
@@ -264,14 +256,15 @@ type GAffine3[T constraints.Float] struct {
 	T gvec3[T] // translation
 }
 
-type Affine3 = GAffine3[float32]
-
-type DAffine3 = GAffine3[float64]
+type (
+	Affine3  = GAffine3[float32]
+	DAffine3 = GAffine3[float64]
+)
 
 // TODO: change constructors of other types to the same naming (i.e. generic and no G prefix)
 func Affine3One[T constraints.Float]() GAffine3[T] {
 	return GAffine3[T]{
-		M: Mat3x3One(),
+		M: Mat3x3One[float32](),
 	}
 }
 
@@ -310,14 +303,15 @@ type GTRHS3[T constraints.Float] struct {
 	S Vec3
 }
 
-type TRHS3 = GTRHS3[float32]
-
-type DTRHS3 = GTRHS3[float64]
+type (
+	TRHS3  = GTRHS3[float32]
+	DTRHS3 = GTRHS3[float64]
+)
 
 func TRHS3One[T constraints.Float]() GTRHS3[T] {
 	return GTRHS3[T]{
 		R: Rot3One(),
-		S: Vec3Ones(),
+		S: Vec3Ones[float32](),
 	}
 }
 
@@ -340,25 +334,12 @@ type (
 	DVec4 = gvec4[float64]
 )
 
-func gvec4Ones[T constraints.Float]() gvec4[T] {
+func Vec4Ones[T constraints.Float]() gvec4[T] {
 	return gvec4[T]{
 		1,
 		1,
 		1,
 		1,
-	}
-}
-
-func Vec4Ones() Vec4   { return gvec4Ones[float32]() }
-func DVec4Ones() DVec4 { return gvec4Ones[float64]() }
-
-// TODO: make this a method once generic methods are in?
-func Vec4Convert[To, From constraints.Float](a gvec4[From]) gvec4[To] {
-	return gvec4[To]{
-		To(a[0]),
-		To(a[1]),
-		To(a[2]),
-		To(a[3]),
 	}
 }
 
@@ -412,6 +393,17 @@ func (a gvec4[T]) NormalizeOr(b gvec4[T]) gvec4[T] {
 	}
 }
 
+// TODO: make this a method once generic methods are in
+func Vec4Convert[To, From constraints.Float](a gvec4[From]) gvec4[To] {
+	return gvec4[To]{
+		To(a[0]),
+		To(a[1]),
+		To(a[2]),
+		To(a[3]),
+	}
+}
+
+// TODO: kill this
 func (a gvec4[T]) Lerp(b gvec4[T], t T) gvec4[T] {
 	return gvec4[T]{
 		lerp(a[0], b[0], t),
@@ -429,7 +421,7 @@ func (A *gmat4x4[T]) Index(i, j int) *T {
 	return &A[i*4 : (i+1)*4][j]
 }
 
-func gmat4x4One[T constraints.Float]() gmat4x4[T] {
+func Mat4x4One[T constraints.Float]() gmat4x4[T] {
 	var I gmat4x4[T]
 	*I.Index(0, 0) = 1
 	*I.Index(1, 1) = 1
@@ -437,8 +429,6 @@ func gmat4x4One[T constraints.Float]() gmat4x4[T] {
 	*I.Index(3, 3) = 1
 	return I
 }
-
-func Mat4x4One() Mat4x4 { return gmat4x4One[float32]() }
 
 func Mat4x4Diag[T constraints.Float](d gvec4[T]) gmat4x4[T] {
 	var D gmat4x4[T]

@@ -58,7 +58,7 @@ func newSceneDirty(n int) *sceneUpdate {
 
 // TODO: rename to something like GlobalTransform?
 func (s *sceneUpdate) Transform(i int, t float32) gmath.Mat4x4 {
-	B := gmath.Mat4x4One()
+	B := gmath.Mat4x4One[float32]()
 	for ; i != -1; i = s.Parent[i] {
 		A := s.TransformT0[i].NLerp(s.TransformT1[i], t).Mat4x4()
 		B = A.Mul(B)

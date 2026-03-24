@@ -33,15 +33,13 @@ func (gen matringGen) Gen(w io.Writer) error {
 var matringTmpl = template.Must(template.New("matring").Parse(`
 {{$gmatMxM := printf "gmat%dx%d" .M .M}}
 
-func {{$gmatMxM}}One[T constraints.Float]() {{$gmatMxM}}[T] {
+func Mat{{.M}}x{{.M}}One[T constraints.Float]() {{$gmatMxM}}[T] {
 	var I {{$gmatMxM}}[T]
 	{{- range .M}}
 	*I.Index({{.}}, {{.}}) = 1
 	{{- end}}
 	return I
 }
-
-func Mat{{.M}}x{{.M}}One() Mat{{.M}}x{{.M}} { return {{$gmatMxM}}One[float32]() }
 
 func Mat{{.M}}x{{.M}}Diag[T constraints.Float](d gvec{{.M}}[T]) {{$gmatMxM}}[T] {
 	var D {{$gmatMxM}}[T]

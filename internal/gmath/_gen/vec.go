@@ -19,22 +19,10 @@ type (
 	DVec{{.D}} = {{$gvecD}}[float64]
 )
 
-func {{$gvecD}}Ones[T constraints.Float]() {{$gvecD}}[T] {
+func Vec{{.D}}Ones[T constraints.Float]() {{$gvecD}}[T] {
 	return {{$gvecD}}[T]{
 		{{- range .D}}
 		1,
-		{{- end}}
-	}
-}
-
-func Vec{{.D}}Ones() Vec{{.D}} { return {{$gvecD}}Ones[float32]() }
-func DVec{{.D}}Ones() DVec{{.D}} { return {{$gvecD}}Ones[float64]() }
-
-// TODO: make this a method once generic methods are in?
-func Vec{{.D}}Convert[To, From constraints.Float](a {{$gvecD}}[From]) {{$gvecD}}[To] {
-	return {{$gvecD}}[To]{
-		{{- range .D}}
-		To(a[{{.}}]),
 		{{- end}}
 	}
 }
@@ -85,7 +73,16 @@ func (a {{$gvecD}}[T]) NormalizeOr(b {{$gvecD}}[T]) {{$gvecD}}[T] {
 	}
 }
 
-{{/* kill this in favor of global lerp that operates on random float arrays? */}}
+// TODO: make this a method once generic methods are in
+func Vec{{.D}}Convert[To, From constraints.Float](a {{$gvecD}}[From]) {{$gvecD}}[To] {
+	return {{$gvecD}}[To]{
+		{{- range .D}}
+		To(a[{{.}}]),
+		{{- end}}
+	}
+}
+
+// TODO: kill this
 func (a {{$gvecD}}[T]) Lerp(b {{$gvecD}}[T], t T) {{$gvecD}}[T] {
 	return {{$gvecD}}[T]{
 		{{- range .D}}

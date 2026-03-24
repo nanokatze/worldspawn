@@ -30,7 +30,7 @@ var grenadeLauncherStats = struct {
 	ViewGeometryTRS: gmath.DTRS3{
 		T: gmath.DVec3{0.18, 0.5, -0.2},
 		R: gmath.Rot3One(),
-		S: gmath.Vec3Ones(),
+		S: gmath.Vec3Ones[float32](),
 	},
 	RenderingGeometry: "weapons/grenade_launcher/geometries/Grenade_Launcher",
 
@@ -71,7 +71,7 @@ func (weapon WeaponGrenadeLauncher) WeaponSubstep(scene *Scene, weaponID ecs.ID,
 			// scene.CreationTime.Set(projectile, scene.Now)
 			scene.SetGlobalTRS(projectile, shootpos.Mul(gmath.DTRS3{
 				R: gmath.Rot3InPlane(gmath.Vec3{-1, 0, 0}, math.Pi/2),
-				S: gmath.Vec3Ones(),
+				S: gmath.Vec3Ones[float32](),
 			}))
 			// TODO: consider velocity set on the prefab?
 			scene.Velocity.Set(projectile, Velocity{Linear: shootpos.R.Rotate(gmath.Vec3{0, grenadeLauncherStats.MuzzleVelocity, 0})})

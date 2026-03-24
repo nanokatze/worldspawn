@@ -497,7 +497,7 @@ func spawnplayer(w *game.Scene, info *game.UpdateParams) ecs.ID {
 	w.SetLocalTRS(camera, gmath.DTRS3{
 		T: gmath.DVec3{0, 0, 1.9 - 0.1}, // standing height
 		R: gmath.Rot3One(),
-		S: gmath.Vec3Ones(),
+		S: gmath.Vec3Ones[float32](),
 	})
 
 	hands := w.CreateEntity(info)
@@ -587,7 +587,7 @@ func main() {
 		s.scene.SetGlobalTRS(test2, gmath.DTRS3{
 			T: gmath.DVec3{0, 0, 0},
 			R: gmath.Rot3One(),
-			S: gmath.Vec3Ones(),
+			S: gmath.Vec3Ones[float32](),
 		})
 		s.scene.RenderingGeometry.Set(test2, "weapons/grenade_launcher/geometries/Grenade_Launcher")
 
@@ -595,7 +595,7 @@ func main() {
 		s.scene.SetGlobalTRS(test, gmath.DTRS3{
 			T: gmath.DVec3{0, 0, 0},
 			R: gmath.Rot3One(),
-			S: gmath.Vec3Ones(),
+			S: gmath.Vec3Ones[float32](),
 		})
 		s.scene.RenderingGeometry.Set(test, "testcharacter4/geometries/TestCharacter4")
 		s.scene.Entity.Set(test, game.Animtest{test2})
@@ -612,7 +612,7 @@ func main() {
 			s.scene.SetGlobalTRS(dropped, gmath.DTRS3{
 				T: gmath.DVec3{0, 0, 1},
 				R: gmath.Rot3One(),
-				S: gmath.Vec3Ones(),
+				S: gmath.Vec3Ones[float32](),
 			})
 		}
 
@@ -624,7 +624,7 @@ func main() {
 			s.scene.SetGlobalTRS(dropped, gmath.DTRS3{
 				T: gmath.DVec3{0, -10, 1},
 				R: gmath.Rot3One(),
-				S: gmath.Vec3Ones(),
+				S: gmath.Vec3Ones[float32](),
 			})
 		}
 	}

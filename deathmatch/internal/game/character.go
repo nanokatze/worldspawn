@@ -131,7 +131,7 @@ func (char Character) CharacterSubstep(w *Scene, id ecs.ID, cmd TimestampedInput
 		shootpos = shootpos.Mul(gmath.DTRS3{
 			T: gmath.DVec3{0, 0, float64(playerStats.StandingViewHeight)},
 			R: gmath.Rot3InPlane(gmath.Vec3{0, 0, -1}, 2*math.Pi*char.Look[0]).Mul(gmath.Rot3InPlane(gmath.Vec3{-1, 0, 0}, 2*math.Pi*char.Look[1])),
-			S: gmath.Vec3Ones(),
+			S: gmath.Vec3Ones[float32](),
 		})
 
 		updateVisual := weapon.WeaponSubstep(w, char.ActiveWeapon, id, shootpos, buttons, info)
@@ -147,7 +147,7 @@ func (char Character) CharacterSubstep(w *Scene, id ecs.ID, cmd TimestampedInput
 	w.SetLocalTRS(char.FirstPersonCamera, gmath.DTRS3{
 		T: gmath.DVec3{0, 0, float64(playerStats.StandingViewHeight)},
 		R: gmath.Rot3InPlane(gmath.Vec3{0, 0, -1}, 2*math.Pi*char.Look[0]).Mul(gmath.Rot3InPlane(gmath.Vec3{-1, 0, 0}, 2*math.Pi*char.Look[1])),
-		S: gmath.Vec3Ones(),
+		S: gmath.Vec3Ones[float32](),
 	})
 }
 
@@ -161,7 +161,7 @@ func (char Character) CharacterUpdate(w *Scene, id ecs.ID, info *UpdateParams) {
 	w.SetLocalTRS(char.Hands, gmath.DTRS3{
 		T: gmath.DVec3{0, math.Sin(float64(w.Now)/1e9*6) * 0.03 * min(float64(velocity.Linear.Length()/6), 1), 0},
 		R: gmath.Rot3One(),
-		S: gmath.Vec3Ones(),
+		S: gmath.Vec3Ones[float32](),
 	})
 }
 
