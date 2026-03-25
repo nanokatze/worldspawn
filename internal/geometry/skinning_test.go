@@ -38,7 +38,7 @@ func TestXxx(t *testing.T) {
 		T: gmath.Vec3{0, 0, 1},
 		R: gmath.Rot3One(),
 		S: gmath.Vec3Ones[float32](),
-	}.Mat4x4()
+	}.ToMat()
 	// pose.Value()[1] = gmath.TRS3{
 	// 	T: gmath.Vec3{0, 0, 0},
 	// 	R: gmath.Rot3One(),

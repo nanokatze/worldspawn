@@ -13,8 +13,8 @@ var affineTmpl = template.Must(template.New("affine").Parse(`
 {{$affineD := printf "GAffine%d" .D}}
 
 type {{$affineD}}[T constraints.Float] struct {
-	M Mat{{.D}}x{{.D}} // rotation * shearing * scaling
-	T gvec{{.D}}[T]    // translation
+	M Mat{{.D}}x{{.D}}
+	T gvec{{.D}}[T]
 }
 
 type (
@@ -51,13 +51,13 @@ func convert9[To, From constraints.Float](x [9]From) [9]To {
 	}
 }
 
+// TODO: rename TRHS back to TRS when we plop scale and shearing into one object
 {{$trhsD := printf "GTRHS%d" .D}}
 
 type {{$trhsD}}[T constraints.Float] struct {
 	T gvec{{.D}}[T]
 	R Rot{{.D}}
-	H Vec{{.D}} // TODO: should be a bivector; for now must be zero
-	S Vec{{.D}}
+	S Shcale{{.D}}
 }
 
 type (
@@ -68,7 +68,7 @@ type (
 func TRHS{{.D}}One[T constraints.Float]() {{$trhsD}}[T] {
 	return {{$trhsD}}[T]{
 		R: Rot{{.D}}One(),
-		S: Vec{{.D}}Ones[float32](),
+		S: Shcale{{.D}}One(),
 	}
 }
 
@@ -79,7 +79,8 @@ func TRHS{{.D}}FromAffine[T constraints.Float](f {{$affineD}}[T]) {{$trhsD}}[T] 
 func (trhs {{$trhsD}}[T]) ToAffine() {{$affineD}}[T] {
 	// TODO: include shearing
 	return {{$affineD}}[T]{
-		M: trhs.R.Mat().Mul(Mat{{.D}}x{{.D}}Diag(trhs.S)),
+		// TODO: special case R.Mat() by S.Mat() and kill those methods...
+		M: trhs.R.ToMat().Mul(trhs.S.ToMat()),
 		T: trhs.T,
 	}
 }

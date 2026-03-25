@@ -36,7 +36,7 @@ func (animtest Animtest) UpdateBeforePhysics(w *Scene, ourID ecs.ID, info *Updat
 				animation.Sample("pose.bones[\""+bone+"\"].rotation_quaternion[3]", t),
 				animation.Sample("pose.bones[\""+bone+"\"].rotation_quaternion[0]", t),
 			},
-			S: gmath.Vec3Ones[float32](),
+			S: gmath.Shcale3One(),
 		}.ToAffine()
 	}
 

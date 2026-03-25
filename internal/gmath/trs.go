@@ -1,39 +1,6 @@
 package gmath
 
-import "golang.org/x/exp/constraints"
-
-// Transitional stuff, TODO: remove
-
-func GAffine3FromMat4x4[T constraints.Float](M gmat4x4[T]) GAffine3[T] {
-	var f GAffine3[T]
-	for i := range 3 {
-		for j := range 3 {
-			*f.M.Index(i, j) = float32(*M.Index(i, j))
-		}
-		f.T[i] = *M.Index(i, 3)
-	}
-	return f
-}
-
-func (f GAffine3[T]) Mat() gmat4x4[T] {
-	var M gmat4x4[T]
-	for i := range 3 {
-		for j := range 3 {
-			*M.Index(i, j) = T(*f.M.Index(i, j))
-		}
-		*M.Index(i, 3) = f.T[i]
-	}
-	*M.Index(3, 3) = 1
-	return M
-}
-
-// TODO: _gen/affine.go should generate this
-func (f GAffine3[T]) Inv() GAffine3[T] {
-	return GAffine3FromMat4x4(f.Mat().Inverse())
-}
-
-// TODO: remove TRS types in favor of Affine once we implement
-// factoring/decomposition and thus can comfortably implement interpolation
+// TODO: kill this file!!!!!!!!!!
 
 type DTRS3 struct {
 	T DVec3
@@ -77,7 +44,7 @@ func (A TRS3) NLerp(B TRS3, t float32) TRS3 {
 	}
 }
 
-func (trs TRS3) Mat4x4() Mat4x4 {
+func (trs TRS3) ToMat() Mat4x4 {
 	t := trs.T
 	r := trs.R
 	s := trs.S

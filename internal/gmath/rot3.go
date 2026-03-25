@@ -20,6 +20,8 @@ func Rot3InPlane(plane Vec3, θ float32) Rot3 {
 	return Rot3{yz, zx, xy, float32(c)}
 }
 
+// TODO: rename this so that it's clear that it's just purely numerical thing
+// and doesn't actually change the rotation that's supposed to be represented.
 func (a Rot3) Normalize() Rot3 {
 	return Rot3(Vec4(a).NormalizeOr(Vec4(Rot3One())))
 }
@@ -33,7 +35,9 @@ func (a Rot3) Mul(b Rot3) (ab Rot3) {
 	return Rot3(quat[float32](a).Mul(quat[float32](b)))
 }
 
-func (r Rot3) Mat() Mat3x3 {
+// TODO: kill this method in favor of TRS to affine conversion rolling its own
+// specialization
+func (r Rot3) ToMat() Mat3x3 {
 	// ughhhhhhhhhhhhhhhhhhhhhh
 	var R Mat3x3
 	*R.Index(0, 0) = r[3]*r[3] + r[0]*r[0] - r[1]*r[1] - r[2]*r[2]
@@ -73,5 +77,3 @@ func (a Rot3) Rotate64(v DVec3) DVec3 {
 	q := quat[float64](convert4[float64](a))
 	return q.Mul(quatFromVec3(v)).Mul(q.Conj()).Imag()
 }
-
-// TODO: conversion routine to Mat4x4

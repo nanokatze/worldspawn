@@ -28,8 +28,8 @@ type sceneUpdate struct {
 	Sky *gpu.Image
 
 	Parent      []int
-	TransformT0 []gmath.TRS3
-	TransformT1 []gmath.TRS3
+	TransformT0 []gmath.TRHS3
+	TransformT1 []gmath.TRHS3
 	// TODO: we also need to carry velocity here for motion blur, or at least
 	// some extra info to disambiguate fast temporally-aliased motions.
 
@@ -44,8 +44,8 @@ type sceneUpdate struct {
 func newSceneDirty(n int) *sceneUpdate {
 	return &sceneUpdate{
 		Parent:      make([]int, n),
-		TransformT0: make([]gmath.TRS3, n),
-		TransformT1: make([]gmath.TRS3, n),
+		TransformT0: make([]gmath.TRHS3, n),
+		TransformT1: make([]gmath.TRHS3, n),
 
 		Mask: make([]uint8, n),
 
@@ -57,11 +57,12 @@ func newSceneDirty(n int) *sceneUpdate {
 }
 
 // TODO: rename to something like GlobalTransform?
-func (s *sceneUpdate) Transform(i int, t float32) gmath.Mat4x4 {
-	B := gmath.Mat4x4One[float32]()
+// TODO: this should use DAffine3
+func (s *sceneUpdate) Transform(i int, t float32) gmath.Affine3 {
+	B := gmath.Affine3One[float32]()
 	for ; i != -1; i = s.Parent[i] {
-		A := s.TransformT0[i].NLerp(s.TransformT1[i], t).Mat4x4()
-		B = A.Mul(B)
+		A := s.TransformT0[i].NLerp(s.TransformT1[i], t)
+		B = A.ToAffine().Mul(B)
 	}
 	return B
 }
@@ -70,9 +71,10 @@ type timeMapping struct {
 	t0sdl, t1sdl   uint64 // TODO: special type to represent SDL ticks?
 	t0game, t1game game.Time
 }
+
 type renderer struct {
 	lastGen       []uint32
-	lastTransform []gmath.TRS3
+	lastTransform []gmath.TRHS3
 
 	// The update that didn't fit into the queue
 	stagingUpdate *sceneUpdate
@@ -147,8 +149,13 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 			}
 
 			tmp, _ := w.GetLocalTRS(id)
+
 			// TODO: we should not record cosmetic offset into renderer.transformT0
-			transformT1 := gmath.TRS3{gmath.Vec3Convert[float32](tmp.T).Add(offset), tmp.R, tmp.S}
+			transformT1 := gmath.TRHS3{
+				T: gmath.Vec3Convert[float32](tmp.T).Add(offset),
+				R: tmp.R,
+				S: gmath.Shcale3FromScale(tmp.S),
+			}
 
 			transformT0 := re.lastTransform[i]
 			if re.lastGen[i] != id.Generation() {
@@ -217,7 +224,7 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 	// Ughhhhhhh
 	{
 		camera := update.Transform(camera.Index(), 0)
-		cameraPos := gmath.Vec3{*camera.Index(0, 3), *camera.Index(1, 3), *camera.Index(2, 3)}
+		cameraPos := camera.T
 
 		scene := re.sfxScene
 
@@ -232,7 +239,7 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 				T: gmath.Vec3Convert[float32](trs.T), // TODO: we should also be applying cosmetic offset like in video
 				R: trs.R,
 				S: trs.S,
-			}.Mat4x4()
+			}.ToMat()
 
 			effect, ok := sources[soundEffect.Effect]
 			if !ok {
@@ -353,16 +360,17 @@ func (re *renderer) Render(jq *gpu.JobQueue, sdlNow uint64, dst *gpu.Image) {
 
 	camera := re.ourCamera
 	if re.scene2 != nil {
-		camera.Transform = re.scene2.Transform(re.ourCameraTransform, float32(t)).Mul(fixup.Inverse())
+		camera.Transform = re.scene2.Transform(re.ourCameraTransform, float32(t)).ToMat().Mul(fixup.Inverse())
 
 		for i := range re.scene2.Mask {
 			tmp := re.scene2.Transform(i, float32(t))
-			// TODO: outline this
+			// TODO: outline this?
 			var tmp2 [3][4]float32
 			for i := range tmp2 {
-				for j := range tmp2[i] {
-					tmp2[i][j] = *tmp.Index(i, j)
-				}
+				tmp2[i][0] = *tmp.M.Index(i, 0)
+				tmp2[i][1] = *tmp.M.Index(i, 1)
+				tmp2[i][2] = *tmp.M.Index(i, 2)
+				tmp2[i][3] = tmp.T[i]
 			}
 			re.scene.SetInstanceTransform(i, tmp2)
 		}

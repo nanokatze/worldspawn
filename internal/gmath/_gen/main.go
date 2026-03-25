@@ -21,19 +21,19 @@ func main() {
 
 	vecGen{2}.Gen(buf)
 	matGen{2, 2}.Gen(buf)
-	matringGen{2}.Gen(buf)
 	matvecGen{2, 2}.Gen(buf)
 
 	vecGen{3}.Gen(buf)
 	matGen{3, 3}.Gen(buf)
-	matringGen{3}.Gen(buf)
 	matvecGen{3, 3}.Gen(buf)
-	affineGen{3}.Gen(buf)
+	trmatGen{3}.Gen(buf)
 
 	vecGen{4}.Gen(buf)
 	matGen{4, 4}.Gen(buf)
-	matringGen{4}.Gen(buf)
 	matvecGen{4, 4}.Gen(buf)
+
+	shcaleGen{3}.Gen(buf)
+	affineGen{3}.Gen(buf)
 
 	src, _ := format.Source(buf.Bytes())
 	os.WriteFile(*out, src, 0644)

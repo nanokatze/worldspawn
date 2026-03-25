@@ -85,7 +85,9 @@ type gmat2x2[T constraints.Float] [2 * 2]T
 type Mat2x2 = gmat2x2[float32]
 
 func (A *gmat2x2[T]) Index(i, j int) *T {
-	return &A[i*2 : (i+1)*2][j]
+	A_i := A[i*2:][:2]
+	A_i_j := &A_i[j]
+	return A_i_j
 }
 
 func Mat2x2One[T constraints.Float]() gmat2x2[T] {
@@ -206,7 +208,9 @@ type gmat3x3[T constraints.Float] [3 * 3]T
 type Mat3x3 = gmat3x3[float32]
 
 func (A *gmat3x3[T]) Index(i, j int) *T {
-	return &A[i*3 : (i+1)*3][j]
+	A_i := A[i*3:][:3]
+	A_i_j := &A_i[j]
+	return A_i_j
 }
 
 func Mat3x3One[T constraints.Float]() gmat3x3[T] {
@@ -251,80 +255,76 @@ func (A gmat3x3[T]) Mulv(b gvec3[T]) gvec3[T] {
 	return c
 }
 
-type GAffine3[T constraints.Float] struct {
-	M Mat3x3   // rotation * shearing * scaling
-	T gvec3[T] // translation
-}
+type Gupmat3x3[T constraints.Float] [3 * (3 + 1) / 2]T
 
-type (
-	Affine3  = GAffine3[float32]
-	DAffine3 = GAffine3[float64]
-)
+type Upmat3x3 = Gupmat3x3[float32]
 
-// TODO: change constructors of other types to the same naming (i.e. generic and no G prefix)
-func Affine3One[T constraints.Float]() GAffine3[T] {
-	return GAffine3[T]{
-		M: Mat3x3One[float32](),
+func (A *Gupmat3x3[T]) Index(i, j int) *T {
+	// TODO: remove this open coded garbage
+	switch i {
+	case 0:
+		return &A[0:3][j]
+	case 1:
+		return &A[3:5][j-1]
+	case 2:
+		return &A[5:6][j-2]
+	default:
+		panic("unreachable")
 	}
+
+	A_i := A[0:][:3-i]
+	A_i_j := &A_i[j-i]
+	return A_i_j
 }
 
-/*
-func (f GAffine3[T]) Inv() GAffine3[T] {
-	panic("not implemented")
-}
-*/
-
-func (f GAffine3[T]) Mul(g GAffine3[T]) GAffine3[T] {
-	return GAffine3[T]{
-		M: f.M.Mul(g.M),
-		T: f.T.Add(gmat3x3[T](convert9[T](f.M)).Mulv(g.T)),
-	}
+func Upmat3x3One[T constraints.Float]() Gupmat3x3[T] {
+	var I Gupmat3x3[T]
+	*I.Index(0, 0) = 1
+	*I.Index(1, 1) = 1
+	*I.Index(2, 2) = 1
+	return I
 }
 
-// TODO: just introduce MatMxMConvert or whatever pls
-func convert9[To, From constraints.Float](x [9]From) [9]To {
-	return [9]To{
-		To(x[0]),
-		To(x[1]),
-		To(x[2]),
-		To(x[3]),
-		To(x[4]),
-		To(x[5]),
-		To(x[6]),
-		To(x[7]),
-		To(x[8]),
-	}
+func Upmat3x3Diag[T constraints.Float](d gvec3[T]) Gupmat3x3[T] {
+	var D Gupmat3x3[T]
+	*D.Index(0, 0) = d[0]
+	*D.Index(1, 1) = d[1]
+	*D.Index(2, 2) = d[2]
+	return D
 }
 
-type GTRHS3[T constraints.Float] struct {
-	T gvec3[T]
-	R Rot3
-	H Vec3 // TODO: should be a bivector; for now must be zero
-	S Vec3
+func Upmat3x3FromMat[T constraints.Float]() Gupmat3x3[T] {
+	var I Gupmat3x3[T]
+	*I.Index(0, 0) = 1
+	*I.Index(1, 1) = 1
+	*I.Index(2, 2) = 1
+	return I
 }
 
-type (
-	TRHS3  = GTRHS3[float32]
-	DTRHS3 = GTRHS3[float64]
-)
-
-func TRHS3One[T constraints.Float]() GTRHS3[T] {
-	return GTRHS3[T]{
-		R: Rot3One(),
-		S: Vec3Ones[float32](),
-	}
-}
-
-func TRHS3FromAffine[T constraints.Float](f GAffine3[T]) GTRHS3[T] {
+func (A Gupmat3x3[T]) Inv() Gupmat3x3[T] {
 	panic("not implemented")
 }
 
-func (trhs GTRHS3[T]) ToAffine() GAffine3[T] {
-	// TODO: include shearing
-	return GAffine3[T]{
-		M: trhs.R.Mat().Mul(Mat3x3Diag(trhs.S)),
-		T: trhs.T,
+func (A Gupmat3x3[T]) Mul(B Gupmat3x3[T]) Gupmat3x3[T] {
+	var AB Gupmat3x3[T]
+	for i := range 3 {
+		for k := i; k < 3; k++ {
+			for j := k; j < 3; j++ {
+				*AB.Index(i, k) += *A.Index(i, j) * *B.Index(j, k)
+			}
+		}
 	}
+	return AB
+}
+
+func (U Gupmat3x3[T]) ToMat() gmat3x3[T] {
+	var M gmat3x3[T]
+	for i := range 3 {
+		for j := i; j < 3; j++ {
+			*M.Index(i, j) = *U.Index(i, j)
+		}
+	}
+	return M
 }
 
 type gvec4[T constraints.Float] [4]T
@@ -418,7 +418,9 @@ type gmat4x4[T constraints.Float] [4 * 4]T
 type Mat4x4 = gmat4x4[float32]
 
 func (A *gmat4x4[T]) Index(i, j int) *T {
-	return &A[i*4 : (i+1)*4][j]
+	A_i := A[i*4:][:4]
+	A_i_j := &A_i[j]
+	return A_i_j
 }
 
 func Mat4x4One[T constraints.Float]() gmat4x4[T] {
@@ -471,4 +473,94 @@ func (A gmat4x4[T]) Mulv(b gvec4[T]) gvec4[T] {
 	c[2] = 0 + *A.Index(2, 0)*b[0] + *A.Index(2, 1)*b[1] + *A.Index(2, 2)*b[2] + *A.Index(2, 3)*b[3]
 	c[3] = 0 + *A.Index(3, 0)*b[0] + *A.Index(3, 1)*b[1] + *A.Index(3, 2)*b[2] + *A.Index(3, 3)*b[3]
 	return c
+}
+
+type Shcale3 Upmat3x3
+
+func Shcale3One() Shcale3 { return Shcale3(Upmat3x3One[float32]()) }
+
+func Shcale3FromScale(s Vec3) Shcale3 { return Shcale3(Upmat3x3Diag(s)) }
+
+func (A Shcale3) Mul(B Shcale3) Shcale3 {
+	A_ := Upmat3x3(A)
+	B_ := Upmat3x3(B)
+	return Shcale3(A_.Mul(B_))
+}
+
+type GAffine3[T constraints.Float] struct {
+	M Mat3x3
+	T gvec3[T]
+}
+
+type (
+	Affine3  = GAffine3[float32]
+	DAffine3 = GAffine3[float64]
+)
+
+// TODO: change constructors of other types to the same naming (i.e. generic and no G prefix)
+func Affine3One[T constraints.Float]() GAffine3[T] {
+	return GAffine3[T]{
+		M: Mat3x3One[float32](),
+	}
+}
+
+/*
+func (f GAffine3[T]) Inv() GAffine3[T] {
+	panic("not implemented")
+}
+*/
+
+func (f GAffine3[T]) Mul(g GAffine3[T]) GAffine3[T] {
+	return GAffine3[T]{
+		M: f.M.Mul(g.M),
+		T: f.T.Add(gmat3x3[T](convert9[T](f.M)).Mulv(g.T)),
+	}
+}
+
+// TODO: just introduce MatMxMConvert or whatever pls
+func convert9[To, From constraints.Float](x [9]From) [9]To {
+	return [9]To{
+		To(x[0]),
+		To(x[1]),
+		To(x[2]),
+		To(x[3]),
+		To(x[4]),
+		To(x[5]),
+		To(x[6]),
+		To(x[7]),
+		To(x[8]),
+	}
+}
+
+// TODO: rename TRHS back to TRS when we plop scale and shearing into one object
+
+type GTRHS3[T constraints.Float] struct {
+	T gvec3[T]
+	R Rot3
+	S Shcale3
+}
+
+type (
+	TRHS3  = GTRHS3[float32]
+	DTRHS3 = GTRHS3[float64]
+)
+
+func TRHS3One[T constraints.Float]() GTRHS3[T] {
+	return GTRHS3[T]{
+		R: Rot3One(),
+		S: Shcale3One(),
+	}
+}
+
+func TRHS3FromAffine[T constraints.Float](f GAffine3[T]) GTRHS3[T] {
+	panic("not implemented")
+}
+
+func (trhs GTRHS3[T]) ToAffine() GAffine3[T] {
+	// TODO: include shearing
+	return GAffine3[T]{
+		// TODO: special case R.Mat() by S.Mat() and probably kill those methods...
+		M: trhs.R.ToMat().Mul(trhs.S.ToMat()),
+		T: trhs.T,
+	}
 }
