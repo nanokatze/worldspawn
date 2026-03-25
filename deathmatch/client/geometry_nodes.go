@@ -16,7 +16,7 @@ type gsdata struct {
 	// TODO: split scratch into host->device scratch and on-device scratch. The
 	// latter could feasibly be served from a fixed size allocation.
 
-	pose             gpu.Slice[gmath.Mat4x4]
+	pose             gpu.Slice[gmath.Mat4x4f32]
 	skinnedPositions gpu.Slice[[3]float32]
 	skinnedNormals   gpu.Slice[[3]float32] // not used right now
 
@@ -77,7 +77,7 @@ func (gs *geoNodes) EnqueueEvaluate(jq *gpu.JobQueue, data *gsdata) {
 
 	if gpu.SliceLen(data.pose) < len(gs.src.joints) {
 		println("allocating pose", len(gs.src.joints))
-		data.pose = gpu.MakeSliceUncached[gmath.Mat4x4](len(gs.src.joints))
+		data.pose = gpu.MakeSliceUncached[gmath.Mat4x4f32](len(gs.src.joints))
 	}
 
 	poseHost := data.pose.Value()

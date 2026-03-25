@@ -25,12 +25,12 @@ type Quality struct {
 type cameraInternal struct {
 	_ structs.HostLayout
 
-	Proj gmath.Mat4x4
-	View gmath.Mat4x4
+	Proj gmath.Mat4x4f32
+	View gmath.Mat4x4f32
 
-	ViewProj    gmath.Mat4x4 // TODO: remove?
-	ProjInverse gmath.Mat4x4
-	ViewInverse gmath.Mat4x4
+	ViewProj    gmath.Mat4x4f32 // TODO: remove?
+	ProjInverse gmath.Mat4x4f32
+	ViewInverse gmath.Mat4x4f32
 }
 
 // TODO: carve out some things that we should push directly and keep others behind a pointer?

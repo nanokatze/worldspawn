@@ -7,8 +7,8 @@ import "math"
 // frustum (not centered around 0) ?
 // TODO: we'll need to review our math with RT
 // TODO: move this out of here and into pathtracer?
-func Mat4x4InfinitePerspective(fov, aspect, near float32) Mat4x4 {
-	return Mat4x4{
+func Mat4x4InfinitePerspective(fov, aspect, near float32) Mat4x4f32 {
+	return Mat4x4f32{
 		1 / float32(math.Tan(float64(fov/2))) / aspect, 0, 0, 0,
 		0, 1 / float32(math.Tan(float64(fov/2))), 0, 0,
 		0, 0, 0, near,
@@ -17,7 +17,7 @@ func Mat4x4InfinitePerspective(fov, aspect, near float32) Mat4x4 {
 }
 
 // TODO: generate this
-func (A gmat4x4[T]) Inverse() (A_inv gmat4x4[T]) {
+func (A Mat4x4[T]) Inverse() (A_inv Mat4x4[T]) {
 	// TODO: write a generalized routine for computing inverse that can be
 	// unrolled and use it to replace this thing
 
@@ -46,7 +46,7 @@ func (A gmat4x4[T]) Inverse() (A_inv gmat4x4[T]) {
 		*A.Index(0, 3)*(*A.Index(1, 0)*A1223-*A.Index(1, 1)*A0223+*A.Index(1, 2)*A0123)
 	det := 1 / invDet
 
-	return gmat4x4[T]{
+	return Mat4x4[T]{
 		det * (*A.Index(1, 1)*A2323 - *A.Index(1, 2)*A1323 + *A.Index(1, 3)*A1223),
 		det * -(*A.Index(0, 1)*A2323 - *A.Index(0, 2)*A1323 + *A.Index(0, 3)*A1223),
 		det * (*A.Index(0, 1)*A2313 - *A.Index(0, 2)*A1313 + *A.Index(0, 3)*A1213),
@@ -65,11 +65,3 @@ func (A gmat4x4[T]) Inverse() (A_inv gmat4x4[T]) {
 		det * (*A.Index(0, 0)*A1212 - *A.Index(0, 1)*A0212 + *A.Index(0, 2)*A0112),
 	}
 }
-
-// TODO: internal api to view matrices and vectors as []float32 or std::mdspan
-
-/*
-func matmul(A, B, C []float32) {
-
-}
-*/

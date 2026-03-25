@@ -29,14 +29,14 @@ type skinMeshEnv struct {
 
 	VertexCount uint32
 
-	Pose gpu.Pointer[gmath.Mat4x4]
+	Pose gpu.Pointer[gmath.Mat4x4f32]
 }
 
 var skinMesh = sync.OnceValue(func() *gpu.ComputeShader[skinMeshEnv] {
 	return gpu.CompileComputeShader[skinMeshEnv](mustReadFile("/home/nanokatze/code/worldspawn/shaders/geometry_skinning.spv"), "skinMesh")
 })
 
-func EnqueueSkinMesh(jq *gpu.JobQueue, skinned, rest gpu.Slice[[3]float32], jointWeights gpu.Slice[Uhh], jointsPerVertex int, pose gpu.Slice[gmath.Mat4x4]) {
+func EnqueueSkinMesh(jq *gpu.JobQueue, skinned, rest gpu.Slice[[3]float32], jointWeights gpu.Slice[Uhh], jointsPerVertex int, pose gpu.Slice[gmath.Mat4x4f32]) {
 	n := gpu.SliceLen(skinned)
 	if gpu.SliceLen(rest) != n {
 		panic("bad")

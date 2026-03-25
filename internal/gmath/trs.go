@@ -3,14 +3,14 @@ package gmath
 // TODO: kill this file!!!!!!!!!!
 
 type DTRS3 struct {
-	T DVec3
+	T Vec3f64
 	R Rot3
-	S Vec3
+	S Vec3f32
 }
 
 func DTRS3One() DTRS3 {
 	return DTRS3{
-		T: DVec3{},
+		T: Vec3f64{},
 		R: Rot3One(),
 		S: Vec3Ones[float32](),
 	}
@@ -27,9 +27,9 @@ func (x DTRS3) Mul(y DTRS3) DTRS3 {
 }
 
 type TRS3 struct {
-	T Vec3
+	T Vec3f32
 	R Rot3
-	S Vec3
+	S Vec3f32
 }
 
 func (A TRS3) Inverse() TRS3 {
@@ -44,7 +44,7 @@ func (A TRS3) NLerp(B TRS3, t float32) TRS3 {
 	}
 }
 
-func (trs TRS3) ToMat() Mat4x4 {
+func (trs TRS3) ToMat() Mat4x4f32 {
 	t := trs.T
 	r := trs.R
 	s := trs.S
@@ -53,7 +53,7 @@ func (trs TRS3) ToMat() Mat4x4 {
 	// TODO: let's just have a Mat4x4() per each component and then compose them
 	// together?
 
-	var A Mat4x4
+	var A Mat4x4f32
 
 	*A.Index(0, 0) = s[0] * (r[3]*r[3] + r[0]*r[0] - r[1]*r[1] - r[2]*r[2])
 	*A.Index(0, 1) = s[1] * (r[0]*r[1]*2 - r[3]*r[2]*2)

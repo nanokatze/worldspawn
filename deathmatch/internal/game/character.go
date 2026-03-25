@@ -36,8 +36,8 @@ type Character struct {
 	FirstPersonCamera ecs.ID
 
 	// TODO: give these more descriptive names
-	Look    gmath.Vec2
-	Move    gmath.Vec2
+	Look    gmath.Vec2f32
+	Move    gmath.Vec2f32
 	Buttons uint64
 
 	Supported bool
@@ -129,8 +129,8 @@ func (char Character) CharacterSubstep(w *Scene, id ecs.ID, cmd TimestampedInput
 
 		shootpos, _ := w.GetGlobalTRS(id)
 		shootpos = shootpos.Mul(gmath.DTRS3{
-			T: gmath.DVec3{0, 0, float64(playerStats.StandingViewHeight)},
-			R: gmath.Rot3InPlane(gmath.Vec3{0, 0, -1}, 2*math.Pi*char.Look[0]).Mul(gmath.Rot3InPlane(gmath.Vec3{-1, 0, 0}, 2*math.Pi*char.Look[1])),
+			T: gmath.Vec3f64{0, 0, float64(playerStats.StandingViewHeight)},
+			R: gmath.Rot3InPlane(gmath.Vec3f32{0, 0, -1}, 2*math.Pi*char.Look[0]).Mul(gmath.Rot3InPlane(gmath.Vec3f32{-1, 0, 0}, 2*math.Pi*char.Look[1])),
 			S: gmath.Vec3Ones[float32](),
 		})
 
@@ -145,8 +145,8 @@ func (char Character) CharacterSubstep(w *Scene, id ecs.ID, cmd TimestampedInput
 
 	// TODO: factor this out
 	w.SetLocalTRS(char.FirstPersonCamera, gmath.DTRS3{
-		T: gmath.DVec3{0, 0, float64(playerStats.StandingViewHeight)},
-		R: gmath.Rot3InPlane(gmath.Vec3{0, 0, -1}, 2*math.Pi*char.Look[0]).Mul(gmath.Rot3InPlane(gmath.Vec3{-1, 0, 0}, 2*math.Pi*char.Look[1])),
+		T: gmath.Vec3f64{0, 0, float64(playerStats.StandingViewHeight)},
+		R: gmath.Rot3InPlane(gmath.Vec3f32{0, 0, -1}, 2*math.Pi*char.Look[0]).Mul(gmath.Rot3InPlane(gmath.Vec3f32{-1, 0, 0}, 2*math.Pi*char.Look[1])),
 		S: gmath.Vec3Ones[float32](),
 	})
 }
@@ -159,7 +159,7 @@ func (char Character) CharacterUpdate(w *Scene, id ecs.ID, info *UpdateParams) {
 
 	// TODO: more elaborate viewmodel sway
 	w.SetLocalTRS(char.Hands, gmath.DTRS3{
-		T: gmath.DVec3{0, math.Sin(float64(w.Now)/1e9*6) * 0.03 * min(float64(velocity.Linear.Length()/6), 1), 0},
+		T: gmath.Vec3f64{0, math.Sin(float64(w.Now)/1e9*6) * 0.03 * min(float64(velocity.Linear.Length()/6), 1), 0},
 		R: gmath.Rot3One(),
 		S: gmath.Vec3Ones[float32](),
 	})
@@ -171,7 +171,7 @@ func (char Character) UpdateBeforePhysics(w *Scene, id ecs.ID, info *UpdateParam
 	trs, _ := w.GetGlobalTRS(id)
 	velocity, _ := w.Velocity.Get(id)
 
-	rotation := trs.R.Mul(gmath.Rot3InPlane(gmath.Vec3{0, 0, -1}, 2*math.Pi*char.Look[0]))
+	rotation := trs.R.Mul(gmath.Rot3InPlane(gmath.Vec3f32{0, 0, -1}, 2*math.Pi*char.Look[0]))
 
 	move := char.Move
 	if lenSq := move.Dot(move); lenSq > 1 {
@@ -198,20 +198,20 @@ func (char Character) UpdateBeforePhysics(w *Scene, id ecs.ID, info *UpdateParam
 	w.Velocity.Set(id, velocity)
 }
 
-func planeNormal(plane gmath.Vec4) gmath.Vec3 {
-	return gmath.Vec3{plane[0], plane[1], plane[2]}
+func planeNormal(plane gmath.Vec4f32) gmath.Vec3f32 {
+	return gmath.Vec3f32{plane[0], plane[1], plane[2]}
 }
 
-func planeSignedDistance(plane gmath.Vec4, point gmath.Vec3) float32 {
+func planeSignedDistance(plane gmath.Vec4f32, point gmath.Vec3f32) float32 {
 	return point.Dot(planeNormal(plane)) + plane[3]
 }
 
-func (char *Character) asdasd(w *Scene, id ecs.ID, velocity gmath.Vec3, Δt time.Duration) gmath.Vec3 {
+func (char *Character) asdasd(w *Scene, id ecs.ID, velocity gmath.Vec3f32, Δt time.Duration) gmath.Vec3f32 {
 	trs, _ := w.GetGlobalTRS(id)
 
-	up := gmath.Vec3{0, 0, 1}
+	up := gmath.Vec3f32{0, 0, 1}
 
-	var planes []gmath.Vec4
+	var planes []gmath.Vec4f32
 
 	hits := make([]physics.QueryHit, 100)
 	n := w.physicsSystem.QueryShape(
@@ -219,7 +219,7 @@ func (char *Character) asdasd(w *Scene, id ecs.ID, velocity gmath.Vec3, Δt time
 		trs.T,
 		trs.R,
 		trs.S,
-		velocity.NormalizeOr(gmath.Vec3{}),
+		velocity.NormalizeOr(gmath.Vec3f32{}),
 		0.1,
 		physics.QueryFilter{Ignore: physics.BodyID(id)},
 		hits)
@@ -233,8 +233,8 @@ func (char *Character) asdasd(w *Scene, id ecs.ID, velocity gmath.Vec3, Δt time
 			if false {
 				// This prevents us from walking up steep ramps, but has an issue in
 				// that sometimes we get a ghost steep ramp
-				normal2 := normal.Cross(up).NormalizeOr(gmath.Vec3{}).Cross(up).Scale(-1)
-				planes = append(planes, gmath.Vec4{
+				normal2 := normal.Cross(up).NormalizeOr(gmath.Vec3f32{}).Cross(up).Scale(-1)
+				planes = append(planes, gmath.Vec4f32{
 					normal2[0],
 					normal2[1],
 					normal2[2],
@@ -244,7 +244,7 @@ func (char *Character) asdasd(w *Scene, id ecs.ID, velocity gmath.Vec3, Δt time
 		} else {
 			char.Supported = true
 		}
-		planes = append(planes, gmath.Vec4{
+		planes = append(planes, gmath.Vec4f32{
 			normal[0],
 			normal[1],
 			normal[2],
@@ -270,7 +270,7 @@ func (char *Character) asdasd(w *Scene, id ecs.ID, velocity gmath.Vec3, Δt time
 	const minSpeed float32 = 1e-6
 
 	if velocity.Dot(velocity) < minSpeed*minSpeed {
-		velocity = gmath.Vec3{}
+		velocity = gmath.Vec3f32{}
 	}
 
 	/*

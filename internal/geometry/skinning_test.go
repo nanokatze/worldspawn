@@ -17,10 +17,10 @@ func TestXxx(t *testing.T) {
 	jointsPerVertex := 1
 	jointWeights := gpu.MakeSliceUncached[Uhh](vertexCount * jointsPerVertex)
 
-	pose := gpu.MakeSliceUncached[gmath.Mat4x4](jointsPerVertex)
+	pose := gpu.MakeSliceUncached[gmath.Mat4x4f32](jointsPerVertex)
 
 	for i := range vertexCount {
-		restPositions.Value()[i] = gmath.Vec3{
+		restPositions.Value()[i] = gmath.Vec3f32{
 			float32(math.Cos(float64(i) / float64(vertexCount) * (2 * math.Pi))),
 			float32(math.Sin(float64(i) / float64(vertexCount) * (2 * math.Pi))),
 			0,
@@ -35,7 +35,7 @@ func TestXxx(t *testing.T) {
 	}
 
 	pose.Value()[0] = gmath.TRS3{
-		T: gmath.Vec3{0, 0, 1},
+		T: gmath.Vec3f32{0, 0, 1},
 		R: gmath.Rot3One(),
 		S: gmath.Vec3Ones[float32](),
 	}.ToMat()

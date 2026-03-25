@@ -22,13 +22,13 @@ const (
 type _Geometry struct {
 	// TODO: remove the transform in favor of an option to use children entities
 	// as a way to specify compound geometry.
-	Translation gmath.Vec3
+	Translation gmath.Vec3f32
 	Rotation    gmath.Rot3
-	Scale       gmath.Vec3
+	Scale       gmath.Vec3f32
 
 	Kind         geometryKind
 	Filename     string // used by Kind=FileBacked
-	HalfExtent   gmath.Vec3
+	HalfExtent   gmath.Vec3f32
 	ConvexRadius float32
 }
 
@@ -39,7 +39,7 @@ func packGeometry(geo _Geometry) geometryPacked {
 	if geo.Rotation == (gmath.Rot3{}) {
 		geo.Rotation = gmath.Rot3One()
 	}
-	if geo.Scale == (gmath.Vec3{}) {
+	if geo.Scale == (gmath.Vec3f32{}) {
 		geo.Scale = gmath.Vec3Ones[float32]()
 	}
 

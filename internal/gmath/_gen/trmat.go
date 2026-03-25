@@ -10,60 +10,40 @@ type trmatGen struct{ M int64 }
 func (gen trmatGen) Gen(w io.Writer) error { return trmatTmpl.Execute(w, &gen) }
 
 var trmatTmpl = template.Must(template.New("trmat").Parse(`
-{{$upmatMxM := printf "Gupmat%dx%d" .M .M}}
+{{$MatMxMU := printf "Mat%dx%dU" .M .M}}
 
-type {{$upmatMxM}}[T constraints.Float] [{{.M}} * ({{.M}} + 1) / 2]T
+type {{$MatMxMU}}[T constraints.Float] [{{.M}} * ({{.M}} + 1) / 2]T
 
-type Upmat{{.M}}x{{.M}} = {{$upmatMxM}}[float32]
+type Mat{{.M}}x{{.M}}Uf32 = {{$MatMxMU}}[float32]
 
-func (A *{{$upmatMxM}}[T]) Index(i, j int) *T {
-	// TODO: remove this open coded garbage
-	switch i {
-	case 0:
-		return &A[0:3][j]
-	case 1:
-		return &A[3:5][j-1]
-	case 2:
-		return &A[5:6][j-2]
-	default:
-		panic("unreachable")
-	}
-
-	A_i := A[0:][:{{.M}}-i]
+func (A *{{$MatMxMU}}[T]) Index(i, j int) *T {
+	A_i := A[len(A)-triangularNumber({{.M}}-i):][:{{.M}}-i]
 	A_i_j := &A_i[j-i]
 	return A_i_j
 }
 
-func Upmat{{.M}}x{{.M}}One[T constraints.Float]() {{$upmatMxM}}[T] {
-	var I {{$upmatMxM}}[T]
+func Mat{{.M}}x{{.M}}UOne[T constraints.Float]() {{$MatMxMU}}[T] {
+	var I {{$MatMxMU}}[T]
 	{{- range .M}}
 	*I.Index({{.}}, {{.}}) = 1
 	{{- end}}
 	return I
 }
 
-func Upmat{{.M}}x{{.M}}Diag[T constraints.Float](d gvec{{.M}}[T]) {{$upmatMxM}}[T] {
-	var D {{$upmatMxM}}[T]
+func Mat{{.M}}x{{.M}}UDiag[T constraints.Float](d Vec{{.M}}[T]) {{$MatMxMU}}[T] {
+	var D {{$MatMxMU}}[T]
 	{{- range .M}}
 	*D.Index({{.}}, {{.}}) = d[{{.}}]
 	{{- end}}
 	return D
 }
 
-func Upmat{{.M}}x{{.M}}FromMat[T constraints.Float]() {{$upmatMxM}}[T] {
-	var I {{$upmatMxM}}[T]
-	{{- range .M}}
-	*I.Index({{.}}, {{.}}) = 1
-	{{- end}}
-	return I
-}
-
-func (A {{$upmatMxM}}[T]) Inv() {{$upmatMxM}}[T] {
+func (A {{$MatMxMU}}[T]) Inv() {{$MatMxMU}}[T] {
 	panic("not implemented")
 }
 
-func (A {{$upmatMxM}}[T]) Mul(B {{$upmatMxM}}[T]) {{$upmatMxM}}[T] {
-	var AB {{$upmatMxM}}[T]
+func (A {{$MatMxMU}}[T]) Mul(B {{$MatMxMU}}[T]) {{$MatMxMU}}[T] {
+	var AB {{$MatMxMU}}[T]
 	for i := range {{.M}} {
 		for k := i; k < {{.M}}; k++ {
 			for j := k; j < {{.M}}; j++ {
@@ -74,10 +54,10 @@ func (A {{$upmatMxM}}[T]) Mul(B {{$upmatMxM}}[T]) {{$upmatMxM}}[T] {
 	return AB
 }
 
-{{$matMxM := printf "gmat%dx%d" .M .M}}
+{{$MatMxM := printf "Mat%dx%d" .M .M}}
 
-func (U {{$upmatMxM}}[T]) ToMat() {{$matMxM}}[T] {
-	var M {{$matMxM}}[T]
+func (U {{$MatMxMU}}[T]) ToMat() {{$MatMxM}}[T] {
+	var M {{$MatMxM}}[T]
 	for i := range {{.M}} {
 		for j := i; j < {{.M}}; j++ {
 			*M.Index(i, j) = *U.Index(i, j)

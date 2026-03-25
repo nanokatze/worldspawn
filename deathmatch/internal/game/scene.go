@@ -19,20 +19,20 @@ var Data fs.FS
 // TODO: split this file up
 
 type TranslationRotation struct {
-	Translation gmath.DVec3
+	Translation gmath.Vec3f64
 	Rotation    gmath.Rot3
 }
 
 type Velocity struct {
-	Linear  gmath.Vec3
-	Angular gmath.Vec3 // this should probably be a bivec3 actually
+	Linear  gmath.Vec3f32
+	Angular gmath.Vec3f32 // this should probably be a bivec3 actually
 }
 
 type SceneGlobals struct {
 	// TODO: replace it with sky material
 	Sky string
 
-	Gravity gmath.Vec3
+	Gravity gmath.Vec3f32
 }
 
 func (SceneGlobals) entity() {}
@@ -67,7 +67,7 @@ type Columns struct {
 	TranslationRotation ecs.Column[TranslationRotation]
 	// Do not access this column directly; use {Get,Set}{Local,Global}TRS
 	// instead.
-	Scale ecs.Column[gmath.Vec3]
+	Scale ecs.Column[gmath.Vec3f32]
 	// TODO: shearing
 
 	// Testing only. We'll kill these columns and replace them with an animation
@@ -99,7 +99,7 @@ type Columns struct {
 	PhysicsFilter          ecs.Column[[]ecs.ID] // TODO: generalize to all physics constraints
 	GravityFactor          ecs.Column[float32]
 	PhysicsMassOverride    ecs.Column[float32] // TODO: remove "Physics" prefix from these
-	PhysicsInertiaOverride ecs.Column[gmath.Mat4x4]
+	PhysicsInertiaOverride ecs.Column[gmath.Mat4x4f32]
 
 	// TODO: generalize to all events, including damage etc?
 	ContactEvents ecs.Column[[]ContactEvent]

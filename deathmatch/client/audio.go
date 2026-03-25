@@ -38,7 +38,7 @@ var au = sync.OnceValue(func() *sdl.AudioStream {
 var sources = make(map[string]*sfx.Source)
 
 // TODO: make this possible to run async pls
-func renderAudio(scene *sfx.Scene, camera gmath.Vec3, t0, Δt int64) {
+func renderAudio(scene *sfx.Scene, camera gmath.Vec3f32, t0, Δt int64) {
 	// TODO: make this tunable at runtime
 	queueingTargetSamples := 48000 / 50
 

@@ -10,63 +10,63 @@ type vecGen struct{ D int64 }
 func (gen vecGen) Gen(w io.Writer) error { return vecTmpl.Execute(w, &gen) }
 
 var vecTmpl = template.Must(template.New("vec").Parse(`
-{{$vecD := printf "gvec%d" .D}}
+{{$VecD := printf "Vec%d" .D}}
 
-type {{$vecD}}[T constraints.Float] [{{.D}}]T
+type {{$VecD}}[T constraints.Float] [{{.D}}]T
 
 type (
-	Vec{{.D}}  = {{$vecD}}[float32]
-	DVec{{.D}} = {{$vecD}}[float64]
+	Vec{{.D}}f32 = {{$VecD}}[float32]
+	Vec{{.D}}f64 = {{$VecD}}[float64]
 )
 
-func Vec{{.D}}Ones[T constraints.Float]() {{$vecD}}[T] {
-	return {{$vecD}}[T]{
+func Vec{{.D}}Ones[T constraints.Float]() {{$VecD}}[T] {
+	return {{$VecD}}[T]{
 		{{- range .D}}
 		1,
 		{{- end}}
 	}
 }
 
-func (a {{$vecD}}[T]) Add(b {{$vecD}}[T]) {{$vecD}}[T] {
-	return {{$vecD}}[T]{
+func (a {{$VecD}}[T]) Add(b {{$VecD}}[T]) {{$VecD}}[T] {
+	return {{$VecD}}[T]{
 		{{- range .D}}
 		a[{{.}}] + b[{{.}}],
 		{{- end}}
 	}
 }
 
-func (a {{$vecD}}[T]) Sub(b {{$vecD}}[T]) {{$vecD}}[T] {
-	return {{$vecD}}[T]{
+func (a {{$VecD}}[T]) Sub(b {{$VecD}}[T]) {{$VecD}}[T] {
+	return {{$VecD}}[T]{
 		{{- range .D}}
 		a[{{.}}] - b[{{.}}],
 		{{- end}}
 	}
 }
 
-func (a {{$vecD}}[T]) Scale(lambda T) {{$vecD}}[T] {
-	return {{$vecD}}[T]{
+func (a {{$VecD}}[T]) Scale(lambda T) {{$VecD}}[T] {
+	return {{$VecD}}[T]{
 		{{- range .D}}
 		lambda * a[{{.}}],
 		{{- end}}
 	}
 }
 
-func (a {{$vecD}}[T]) Length() T {
+func (a {{$VecD}}[T]) Length() T {
 	return T(math.Sqrt(float64(a.Dot(a))))
 }
 
-func (a {{$vecD}}[T]) Dot(b {{$vecD}}[T]) T {
+func (a {{$VecD}}[T]) Dot(b {{$VecD}}[T]) T {
 	return 0 {{- range .D}} + a[{{.}}] * b[{{.}}] {{- end}}
 }
 
 // TODO: simplify this so that it's just an ordinary normalize pls
-func (a {{$vecD}}[T]) NormalizeOr(b {{$vecD}}[T]) {{$vecD}}[T] {
+func (a {{$VecD}}[T]) NormalizeOr(b {{$VecD}}[T]) {{$VecD}}[T] {
 	norm2 := a.Dot(a)
 	if norm2 == 0 {
 		return b
 	}
 	norm := T(math.Sqrt(float64(norm2)))
-	return {{$vecD}}[T]{
+	return {{$VecD}}[T]{
 		{{- range .D}}
 		a[{{.}}] / norm,
 		{{- end}}
@@ -74,8 +74,8 @@ func (a {{$vecD}}[T]) NormalizeOr(b {{$vecD}}[T]) {{$vecD}}[T] {
 }
 
 // TODO: make this a method once generic methods are in
-func Vec{{.D}}Convert[To, From constraints.Float](a {{$vecD}}[From]) {{$vecD}}[To] {
-	return {{$vecD}}[To]{
+func Vec{{.D}}Convert[To, From constraints.Float](a {{$VecD}}[From]) {{$VecD}}[To] {
+	return {{$VecD}}[To]{
 		{{- range .D}}
 		To(a[{{.}}]),
 		{{- end}}
@@ -83,8 +83,8 @@ func Vec{{.D}}Convert[To, From constraints.Float](a {{$vecD}}[From]) {{$vecD}}[T
 }
 
 // TODO: kill this
-func (a {{$vecD}}[T]) Lerp(b {{$vecD}}[T], t T) {{$vecD}}[T] {
-	return {{$vecD}}[T]{
+func (a {{$VecD}}[T]) Lerp(b {{$VecD}}[T], t T) {{$VecD}}[T] {
+	return {{$VecD}}[T]{
 		{{- range .D}}
 		lerp(a[{{.}}], b[{{.}}], t),
 		{{- end}}

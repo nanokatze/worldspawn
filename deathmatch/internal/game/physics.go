@@ -195,17 +195,17 @@ func getShape(w *Scene, id ecs.ID) *physics.Shape {
 			Scale:    gmath.Vec3Ones[float32](),
 
 			Kind:       geometrySphere,
-			HalfExtent: gmath.Vec3{0.0568, 0.0568, 0.0568},
+			HalfExtent: gmath.Vec3f32{0.0568, 0.0568, 0.0568},
 		})
 
 	case "FPSCharacter":
 		shape = packGeometry(_Geometry{
-			Translation: gmath.Vec3{0, 0, 1.9 / 2}, // TODO: read standing height off Entity
+			Translation: gmath.Vec3f32{0, 0, 1.9 / 2}, // TODO: read standing height off Entity
 			Rotation:    gmath.Rot3One(),
 			Scale:       gmath.Vec3Ones[float32](),
 
 			Kind:         geometryCylinder,
-			HalfExtent:   gmath.Vec3{1, 1, 0}.Scale(0.4).Add(gmath.Vec3{0, 0, 1.9 / 2}),
+			HalfExtent:   gmath.Vec3f32{1, 1, 0}.Scale(0.4).Add(gmath.Vec3f32{0, 0, 1.9 / 2}),
 			ConvexRadius: 0.0,
 		})
 

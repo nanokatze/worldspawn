@@ -5,17 +5,17 @@ import "worldspawn/internal/gmath"
 type ContactEvent struct {
 	Type         int32
 	Body1, Body2 PerBodyContactData
-	Normal       gmath.Vec3 // contact normal
+	Normal       gmath.Vec3f32 // contact normal
 }
 
 type PerBodyContactData struct {
 	BodyID          BodyID // TODO: rename to BodyID
 	SubShapeID      uint32
 	Active          bool
-	Position        gmath.DVec3
-	Rotation        gmath.Vec3
-	LinearVelocity  gmath.Vec3
-	AngularVelocity gmath.Vec3
+	Position        gmath.Vec3f64
+	Rotation        gmath.Vec3f32
+	LinearVelocity  gmath.Vec3f32
+	AngularVelocity gmath.Vec3f32
 }
 
 func (ce ContactEvent) SwapBodies() ContactEvent {

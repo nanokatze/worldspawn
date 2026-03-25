@@ -13,7 +13,7 @@ var sniperRifleStats = struct {
 	RenderingGeometry string
 }{
 	ViewGeometryTRS: gmath.DTRS3{
-		T: gmath.DVec3{0.15, 0.4, -0.225},
+		T: gmath.Vec3f64{0.15, 0.4, -0.225},
 		R: gmath.Rot3One(),
 		S: gmath.Vec3Ones[float32](),
 	},

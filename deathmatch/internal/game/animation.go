@@ -64,9 +64,9 @@ type Skeleton struct {
 	// TODO: switch to a plain array with a string map for lookups
 
 	Parent          map[string]string
-	BindPose        map[string]gmath.Affine3
-	BindPoseInverse map[string]gmath.Affine3
-	ParentRelative  map[string]gmath.Affine3
+	BindPose        map[string]gmath.Affine3f32
+	BindPoseInverse map[string]gmath.Affine3f32
+	ParentRelative  map[string]gmath.Affine3f32
 
 	// other stuff
 }
@@ -95,7 +95,7 @@ func loadSkeleton(filename string) (*Skeleton, error) {
 
 	var tmp struct {
 		Parent   map[string]string
-		BindPose map[string]gmath.Mat4x4
+		BindPose map[string]gmath.Mat4x4f32
 	}
 	if err := json.UnmarshalRead(f, &tmp, json.StringifyNumbers(true)); err != nil {
 		return nil, err
@@ -105,17 +105,17 @@ func loadSkeleton(filename string) (*Skeleton, error) {
 
 	skeleton.Parent = tmp.Parent
 
-	skeleton.BindPose = make(map[string]gmath.Affine3)
+	skeleton.BindPose = make(map[string]gmath.Affine3f32)
 	for bone, m := range tmp.BindPose {
 		skeleton.BindPose[bone] = gmath.GAffine3FromMat4x4(m)
 	}
 
-	skeleton.BindPoseInverse = make(map[string]gmath.Affine3)
+	skeleton.BindPoseInverse = make(map[string]gmath.Affine3f32)
 	for bone, v := range skeleton.BindPose {
 		skeleton.BindPoseInverse[bone] = v.Inv()
 	}
 
-	skeleton.ParentRelative = make(map[string]gmath.Affine3)
+	skeleton.ParentRelative = make(map[string]gmath.Affine3f32)
 	for bone := range skeleton.BindPose {
 		umm := gmath.Affine3One[float32]()
 		if parent, hasParent := skeleton.Parent[bone]; hasParent {

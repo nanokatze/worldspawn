@@ -5,29 +5,29 @@ import "text/template"
 type rotGen struct{ D int64 }
 
 var rotTmpl = template.Must(template.New("rot").Parse(`
-{{$rotD := printf "Rot%d" .D}}
+{{$RotD := printf "Rot%d" .D}}
 
-type {{$rotD}} struct {
+type {{$RotD}} struct {
 }
 
-func {{$rotD}}InPlane(???, θ float32) {{$rotD}} {
+func {{$RotD}}InPlane(???, θ float32) {{$RotD}} {
 	s, c := math.Sincos(float64(θ / 2))
-	return {{$rotD}}{}
+	return {{$RotD}}{}
 }
 
-func (a {{$rotD}}) Inverse() {{$rotD}} {
+func (a {{$RotD}}) Inverse() {{$RotD}} {
 	panic("not implemented")
 }
 
-func (a {{$rotD}}) Mul(b {{$rotD}}) {{$rotD}} {
+func (a {{$RotD}}) Mul(b {{$RotD}}) {{$RotD}} {
 	panic("not implemented")
 }
 
-func (a {{$rotD}}) Rotate32(v Vec{{.D}}) Vec{{.D}} {
+func (a {{$RotD}}) Rotate32(v Vec{{.D}}) Vec{{.D}} {
 	panic("not implemented")
 }
 
-func (a {{$rotD}}) Rotate64(v DVec{{.D}}) DVec{{.D}} {
+func (a {{$RotD}}) Rotate64(v DVec{{.D}}) DVec{{.D}} {
 	panic("not implemented")
 }
 `))

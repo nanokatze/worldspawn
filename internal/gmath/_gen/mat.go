@@ -17,13 +17,13 @@ type matGen struct{ M, N int64 }
 func (gen matGen) Gen(w io.Writer) error { return matTmpl.Execute(w, &gen) }
 
 var matTmpl = template.Must(template.New("mat").Parse(`
-{{$matMxN := printf "gmat%dx%d" .M .N}}
+{{$MatMxN := printf "Mat%dx%d" .M .N}}
 
-type {{$matMxN}}[T constraints.Float] [{{.M}} * {{.N}}]T
+type {{$MatMxN}}[T constraints.Float] [{{.M}} * {{.N}}]T
 
-type Mat{{.M}}x{{.N}} = {{$matMxN}}[float32]
+type Mat{{.M}}x{{.N}}f32 = {{$MatMxN}}[float32]
 
-func (A *{{$matMxN}}[T]) Index(i, j int) *T {
+func (A *{{$MatMxN}}[T]) Index(i, j int) *T {
 	A_i := A[i*{{.N}}:][:{{.N}}]
 	A_i_j := &A_i[j]
 	return A_i_j
@@ -31,30 +31,30 @@ func (A *{{$matMxN}}[T]) Index(i, j int) *T {
 
 {{if (eq .M .N)}}
 
-{{$matMxM := printf "gmat%dx%d" .M .M}}
+{{$MatMxM := printf "Mat%dx%d" .M .M}}
 
-func Mat{{.M}}x{{.M}}One[T constraints.Float]() {{$matMxM}}[T] {
-	var I {{$matMxM}}[T]
+func Mat{{.M}}x{{.M}}One[T constraints.Float]() {{$MatMxM}}[T] {
+	var I {{$MatMxM}}[T]
 	{{- range .M}}
 	*I.Index({{.}}, {{.}}) = 1
 	{{- end}}
 	return I
 }
 
-func Mat{{.M}}x{{.M}}Diag[T constraints.Float](d gvec{{.M}}[T]) {{$matMxM}}[T] {
-	var D {{$matMxM}}[T]
+func Mat{{.M}}x{{.M}}Diag[T constraints.Float](d Vec{{.M}}[T]) {{$MatMxM}}[T] {
+	var D {{$MatMxM}}[T]
 	{{- range .M}}
 	*D.Index({{.}}, {{.}}) = d[{{.}}]
 	{{- end}}
 	return D
 }
 
-func (A {{$matMxM}}[T]) Inv() {{$matMxM}}[T] {
+func (A {{$MatMxM}}[T]) Inv() {{$MatMxM}}[T] {
 	panic("not implemented")
 }
 
-func (A {{$matMxM}}[T]) Mul(B {{$matMxM}}[T]) {{$matMxM}}[T] {
-	var AB {{$matMxM}}[T]
+func (A {{$MatMxM}}[T]) Mul(B {{$MatMxM}}[T]) {{$MatMxM}}[T] {
+	var AB {{$MatMxM}}[T]
 	{{- range $i := $.M}}
 	{{- range $k := $.M}}
 	*AB.Index({{$i}}, {{$k}}) = 0 {{range $j := $.M}} + *A.Index({{$i}}, {{$j}}) * *B.Index({{$j}}, {{$k}}) {{end}}
@@ -71,12 +71,12 @@ type matmulGen struct{ M, N, P int64 }
 func (gen matmulGen) Gen(w io.Writer) error { return matmulTmpl.Execute(w, &gen) }
 
 var matmulTmpl = template.Must(template.New("matmul").Parse(`
-{{$matMxN := printf "gmat%dx%d" .M .N}}
-{{$matNxP := printf "gmat%dx%d" .N .P}}
-{{$matMxP := printf "gmat%dx%d" .M .P}}
+{{$MatMxN := printf "Mat%dx%d" .M .N}}
+{{$MatNxP := printf "Mat%dx%d" .N .P}}
+{{$MatMxP := printf "Mat%dx%d" .M .P}}
 
-func (A {{$matMxN}}[T]) Mul{{.N}}x{{.P}}(B {{$matNxP}}[T]) {{$matMxP}}[T] {
-	var AB {{$matMxP}}[T]
+func (A {{$MatMxN}}[T]) Mul{{.N}}x{{.P}}(B {{$MatNxP}}[T]) {{$MatMxP}}[T] {
+	var AB {{$MatMxP}}[T]
 	{{- range $i := $.M}}
 	{{- range $k := $.P}}
 	*AB.Index({{$i}}, {{$k}}) = 0 {{range $j := $.N}} + *A.Index({{$i}}, {{$j}}) * *B.Index({{$j}}, {{$k}}) {{end}}
@@ -91,12 +91,12 @@ type matvecGen struct{ M, N int64 }
 func (gen matvecGen) Gen(w io.Writer) error { return matvecTmpl.Execute(w, &gen) }
 
 var matvecTmpl = template.Must(template.New("matvec").Parse(`
-{{$matMxN := printf "gmat%dx%d" .M .N}}
-{{$vecN := printf "gvec%d" .N}}
-{{$vecM := printf "gvec%d" .M}}
+{{$MatMxN := printf "Mat%dx%d" .M .N}}
+{{$VecN := printf "Vec%d" .N}}
+{{$VecM := printf "Vec%d" .M}}
 
-func (A {{$matMxN}}[T]) Mulv(b {{$vecN}}[T]) {{$vecM}}[T] {
-	var Ab {{$vecM}}[T]
+func (A {{$MatMxN}}[T]) Mulv(b {{$VecN}}[T]) {{$VecM}}[T] {
+	var Ab {{$VecM}}[T]
 	{{- range $i := $.M}}
 	Ab[{{$i}}] = 0 {{range $j := $.N}} + *A.Index({{$i}}, {{$j}}) * b[{{$j}}] {{end}}
 	{{- end}}

@@ -7,7 +7,7 @@ type Scene struct {
 
 // TODO: setting body states and stuff. I guess we should have separate methods for all the fields?
 
-func (s *Scene) SetGravity(gravity gmath.Vec3) {
+func (s *Scene) SetGravity(gravity gmath.Vec3f32) {
 }
 
 func (s *Scene) UpdateAccel() {

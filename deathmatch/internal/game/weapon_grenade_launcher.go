@@ -28,7 +28,7 @@ var grenadeLauncherStats = struct {
 	CycleDuration  time.Duration `json:",format:iso8601"`
 }{
 	ViewGeometryTRS: gmath.DTRS3{
-		T: gmath.DVec3{0.18, 0.5, -0.2},
+		T: gmath.Vec3f64{0.18, 0.5, -0.2},
 		R: gmath.Rot3One(),
 		S: gmath.Vec3Ones[float32](),
 	},
@@ -70,11 +70,11 @@ func (weapon WeaponGrenadeLauncher) WeaponSubstep(scene *Scene, weaponID ecs.ID,
 			projectile := scene.SpawnPrefab(grenadeLauncherStats.Projectile, info)
 			// scene.CreationTime.Set(projectile, scene.Now)
 			scene.SetGlobalTRS(projectile, shootpos.Mul(gmath.DTRS3{
-				R: gmath.Rot3InPlane(gmath.Vec3{-1, 0, 0}, math.Pi/2),
+				R: gmath.Rot3InPlane(gmath.Vec3f32{-1, 0, 0}, math.Pi/2),
 				S: gmath.Vec3Ones[float32](),
 			}))
 			// TODO: consider velocity set on the prefab?
-			scene.Velocity.Set(projectile, Velocity{Linear: shootpos.R.Rotate(gmath.Vec3{0, grenadeLauncherStats.MuzzleVelocity, 0})})
+			scene.Velocity.Set(projectile, Velocity{Linear: shootpos.R.Rotate(gmath.Vec3f32{0, grenadeLauncherStats.MuzzleVelocity, 0})})
 			scene.CollisionLayer.Set(projectile, PhysicsLayerProjectiles)
 			scene.PhysicsFilter.Set(projectile, []ecs.ID{shooterID})
 			scene.Timer.Set(projectile, scene.Now.Add(grenadeStats.FuseDuration))

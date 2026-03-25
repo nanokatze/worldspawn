@@ -17,7 +17,7 @@ import (
 type Camera struct {
 	_ structs.HostLayout
 
-	Transform gmath.Mat4x4
+	Transform gmath.Mat4x4f32
 
 	FieldOfView   float32
 	NearClipPlane float32
@@ -61,7 +61,7 @@ type emissiveInstance struct {
 type lightAccel struct {
 	_ structs.HostLayout
 
-	envTransform gmath.Mat3x3
+	envTransform gmath.Mat3x3f32
 	// TODO: rename
 	env gpu.ImageDescriptors
 
@@ -159,7 +159,7 @@ func NewScene(n int, maxPartsPerMesh int) *Scene {
 }
 
 // TODO: make it async, or make it device-only
-func (scene *Scene) SetSky(transform gmath.Mat3x3, sky *gpu.Image) {
+func (scene *Scene) SetSky(transform gmath.Mat3x3f32, sky *gpu.Image) {
 	scene.lightAccel.envTransform = transform
 	scene.lightAccel.env = sky.Descriptors()
 }

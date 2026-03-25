@@ -28,8 +28,8 @@ type sceneUpdate struct {
 	Sky *gpu.Image
 
 	Parent      []int
-	TransformT0 []gmath.TRHS3
-	TransformT1 []gmath.TRHS3
+	TransformT0 []gmath.TRHS3f32
+	TransformT1 []gmath.TRHS3f32
 	// TODO: we also need to carry velocity here for motion blur, or at least
 	// some extra info to disambiguate fast temporally-aliased motions.
 
@@ -44,8 +44,8 @@ type sceneUpdate struct {
 func newSceneDirty(n int) *sceneUpdate {
 	return &sceneUpdate{
 		Parent:      make([]int, n),
-		TransformT0: make([]gmath.TRHS3, n),
-		TransformT1: make([]gmath.TRHS3, n),
+		TransformT0: make([]gmath.TRHS3f32, n),
+		TransformT1: make([]gmath.TRHS3f32, n),
 
 		Mask: make([]uint8, n),
 
@@ -58,7 +58,7 @@ func newSceneDirty(n int) *sceneUpdate {
 
 // TODO: rename to something like GlobalTransform?
 // TODO: this should use DAffine3
-func (s *sceneUpdate) Transform(i int, t float32) gmath.Affine3 {
+func (s *sceneUpdate) Transform(i int, t float32) gmath.Affine3f32 {
 	B := gmath.Affine3One[float32]()
 	for ; i != -1; i = s.Parent[i] {
 		A := s.TransformT0[i].NLerp(s.TransformT1[i], t)
@@ -74,7 +74,7 @@ type timeMapping struct {
 
 type renderer struct {
 	lastGen       []uint32
-	lastTransform []gmath.TRHS3
+	lastTransform []gmath.TRHS3f32
 
 	// The update that didn't fit into the queue
 	stagingUpdate *sceneUpdate
@@ -143,7 +143,7 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 				update.Parent[i] = parent.Index()
 			}
 
-			var offset gmath.Vec3
+			var offset gmath.Vec3f32
 			if !conf.Developer.DisableCosmeticOffset {
 				offset = cosmeticOffset.Eval(w.Now)
 			}
@@ -151,7 +151,7 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 			tmp, _ := w.GetLocalTRS(id)
 
 			// TODO: we should not record cosmetic offset into renderer.transformT0
-			transformT1 := gmath.TRHS3{
+			transformT1 := gmath.TRHS3f32{
 				T: gmath.Vec3Convert[float32](tmp.T).Add(offset),
 				R: tmp.R,
 				S: gmath.Shcale3FromScale(tmp.S),
@@ -316,7 +316,7 @@ func (re *renderer) Subtick(w *game.Scene, playerID ecs.ID) {
 //
 // TODO: move somewhere further up
 // TODO: improve naming?
-var fixup = gmath.Mat4x4{
+var fixup = gmath.Mat4x4f32{
 	1, 0, 0, 0,
 	0, 0, -1, 0,
 	0, -1, 0, 0,
@@ -335,7 +335,7 @@ func (re *renderer) Render(jq *gpu.JobQueue, sdlNow uint64, dst *gpu.Image) {
 		re.ourCameraTransform = update.cameraTransform
 		re.scene2 = update
 		re.scene.SetSky(
-			gmath.Mat3x3{
+			gmath.Mat3x3f32{
 				0, -1, 0,
 				0, 0, 1,
 				1, 0, 0,
