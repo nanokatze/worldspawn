@@ -510,41 +510,44 @@ func convert9[To, From constraints.Float](x [9]From) [9]To {
 	}
 }
 
-// TODO: rename TRHS back to TRS when we plop scale and shearing into one object
-
-type TRHS3[T constraints.Float] struct {
+type TRS3[T constraints.Float] struct {
 	T Vec3[T]
 	R Rot3
 	S Shcale3
 }
 
 type (
-	TRHS3f32 = TRHS3[float32]
-	TRHS3f64 = TRHS3[float64]
+	TRS3f32 = TRS3[float32]
+	TRS3f64 = TRS3[float64]
 )
 
-func TRHS3One[T constraints.Float]() TRHS3[T] {
-	return TRHS3[T]{
+func TRS3One[T constraints.Float]() TRS3[T] {
+	return TRS3[T]{
 		R: Rot3One(),
 		S: Shcale3One(),
 	}
 }
 
-func TRHS3FromAffine[T constraints.Float](f Affine3[T]) TRHS3[T] {
-	panic("not implemented")
+// TODO: rename to something like "decompose", e.g. AffineDecomposeTRS?
+func TRS3FromAffine[T constraints.Float](f Affine3[T]) TRS3[T] {
+	// TODO: don't assume this is just translation * rotation, properly extract
+	// shcale too or at least scale with scale.
+	Q := f.M
+	R := Mat3x3UOne[float32]()
 
-	// TODO: decompose f.M into R and upper-triangular S
-
-	return TRHS3[T]{
+	return TRS3[T]{
 		T: f.T,
+		R: Rot3FromMat(Q),
+		S: Shcale3(R),
 	}
 }
 
-func (trhs TRHS3[T]) ToAffine() Affine3[T] {
+// TODO: rename this to "Compose"?
+func (trs TRS3[T]) ToAffine() Affine3[T] {
 	return Affine3[T]{
 		// TODO: special case R.Mat() by S.Mat() for more :b:erf and kill those
 		// methods
-		M: trhs.R.ToMat().Mul(trhs.S.ToMat()),
-		T: trhs.T,
+		M: trs.R.ToMat().Mul(trs.S.ToMat()),
+		T: trs.T,
 	}
 }

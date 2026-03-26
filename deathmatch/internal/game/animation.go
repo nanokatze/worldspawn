@@ -107,7 +107,7 @@ func loadSkeleton(filename string) (*Skeleton, error) {
 
 	skeleton.BindPose = make(map[string]gmath.Affine3f32)
 	for bone, m := range tmp.BindPose {
-		skeleton.BindPose[bone] = gmath.GAffine3FromMat4x4(m)
+		skeleton.BindPose[bone] = gmath.Affine3FromMat4x4(m)
 	}
 
 	skeleton.BindPoseInverse = make(map[string]gmath.Affine3f32)

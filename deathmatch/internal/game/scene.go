@@ -32,6 +32,8 @@ type SceneGlobals struct {
 	// TODO: replace it with sky material
 	Sky string
 
+	// TODO: create a separate "physics world" entity/component and move this
+	// stuff there
 	Gravity gmath.Vec3f32
 }
 
@@ -62,12 +64,14 @@ type Columns struct {
 	// TODO: split into transform and deletion hierarchies?
 	Parent ecs.Column[ecs.ID]
 
+	Transform ecs.Column[gmath.Affine3f64]
+
 	// Do not access this column directly; use {Get,Set}{Local,Global}TRS
 	// instead.
-	TranslationRotation ecs.Column[TranslationRotation]
+	// TranslationRotation ecs.Column[TranslationRotation]
 	// Do not access this column directly; use {Get,Set}{Local,Global}TRS
 	// instead.
-	Scale ecs.Column[gmath.Vec3f32]
+	// Scale ecs.Column[gmath.Vec3f32]
 	// TODO: shearing
 
 	// Testing only. We'll kill these columns and replace them with an animation
@@ -205,6 +209,7 @@ func (w *Scene) DeleteEntityImmediately(id ecs.ID) {
 	w.Table.Delete(id)
 }
 
+// TODO: rename to Properties or whatever
 func (w *Scene) Globals() SceneGlobals {
 	globals, _ := SceneGetEntity[SceneGlobals](w, 1)
 	return globals
@@ -228,49 +233,35 @@ func (scene *Scene) SetParent(id, parent ecs.ID) {
 	// children
 }
 
-// TODO: use "Transform" instead of "TRS"
-
-func (scene *Scene) GetLocalTRS(id ecs.ID) (gmath.DTRS3, bool) {
-	tr, ok := scene.TranslationRotation.Get(id)
+func (scene *Scene) GetLocalTransform(id ecs.ID) (gmath.Affine3f64, bool) {
+	transform, ok := scene.Transform.Get(id)
 	if !ok {
-		return gmath.DTRS3One(), false
+		transform = gmath.Affine3One[float64]()
 	}
-	s, ok := scene.Scale.Get(id)
-	if !ok {
-		s = gmath.Vec3Ones[float32]()
-	}
-	return gmath.DTRS3{tr.Translation, tr.Rotation, s}, true
+	return transform, ok
 }
 
-func (scene *Scene) SetLocalTRS(id ecs.ID, trs gmath.DTRS3) {
-	scene.TranslationRotation.Set(id, TranslationRotation{trs.T, trs.R})
-	if trs.S == gmath.Vec3Ones[float32]() {
-		scene.Scale.Delete(id)
-	} else {
-		scene.Scale.Set(id, trs.S)
-	}
+func (scene *Scene) SetLocalTransform(id ecs.ID, transform gmath.Affine3f64) {
+	scene.Transform.Set(id, transform)
 }
 
-// TODO: separate deletion and transform hierarchies?
-func (scene *Scene) GetGlobalTRS(id ecs.ID) (gmath.DTRS3, bool) {
-	if id == 0 {
-		return gmath.DTRS3One(), false
-	}
-	result := gmath.DTRS3One()
+// TODO: unroll a single iteration so that we don't do unnecessary Mul
+func (scene *Scene) GetGlobalTransform(id ecs.ID) (gmath.Affine3f64, bool) {
+	result := gmath.Affine3One[float64]()
 	for id != 0 {
-		trs, ok := scene.GetLocalTRS(id)
+		trs, ok := scene.GetLocalTransform(id)
 		if !ok {
-			return gmath.DTRS3One(), false
+			return gmath.Affine3One[float64](), false
 		}
-		result = trs.Mul(result)
 		id = scene.GetParent(id)
+		result = trs.Mul(result)
 	}
 	return result, true
 }
 
-func (scene *Scene) SetGlobalTRS(id ecs.ID, trs gmath.DTRS3) {
-	// TODO: handle having a parent in some way
-	scene.SetLocalTRS(id, trs)
+func (scene *Scene) SetGlobalTransform(id ecs.ID, transform gmath.Affine3f64) {
+	// TODO: navigate hierarchy properly
+	scene.Transform.Set(id, transform)
 }
 
 func SceneGetEntity[T Entity](w *Scene, id ecs.ID) (T, bool) {

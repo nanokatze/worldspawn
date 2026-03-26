@@ -28,8 +28,8 @@ type sceneUpdate struct {
 	Sky *gpu.Image
 
 	Parent      []int
-	TransformT0 []gmath.TRHS3f32
-	TransformT1 []gmath.TRHS3f32
+	TransformT0 []gmath.TRS3f32
+	TransformT1 []gmath.TRS3f32
 	// TODO: we also need to carry velocity here for motion blur, or at least
 	// some extra info to disambiguate fast temporally-aliased motions.
 
@@ -44,8 +44,8 @@ type sceneUpdate struct {
 func newSceneDirty(n int) *sceneUpdate {
 	return &sceneUpdate{
 		Parent:      make([]int, n),
-		TransformT0: make([]gmath.TRHS3f32, n),
-		TransformT1: make([]gmath.TRHS3f32, n),
+		TransformT0: make([]gmath.TRS3f32, n),
+		TransformT1: make([]gmath.TRS3f32, n),
 
 		Mask: make([]uint8, n),
 
@@ -74,7 +74,7 @@ type timeMapping struct {
 
 type renderer struct {
 	lastGen       []uint32
-	lastTransform []gmath.TRHS3f32
+	lastTransform []gmath.TRS3f32
 
 	// The update that didn't fit into the queue
 	stagingUpdate *sceneUpdate
@@ -134,7 +134,7 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 
 		update.Sky = texture(w.Globals().Sky).Image
 
-		for id := range ecs.All(&w.TranslationRotation) {
+		for id, transform := range ecs.All(&w.Transform) {
 			cosmeticOffset, _ := w.CosmeticOffset.Get(id)
 
 			i := id.Index()
@@ -148,13 +148,13 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 				offset = cosmeticOffset.Eval(w.Now)
 			}
 
-			tmp, _ := w.GetLocalTRS(id)
+			tmp := gmath.TRS3FromAffine(transform)
 
 			// TODO: we should not record cosmetic offset into renderer.transformT0
-			transformT1 := gmath.TRHS3f32{
+			transformT1 := gmath.TRS3f32{
 				T: gmath.Vec3Convert[float32](tmp.T).Add(offset),
 				R: tmp.R,
-				S: gmath.Shcale3FromScale(tmp.S),
+				S: tmp.S,
 			}
 
 			transformT0 := re.lastTransform[i]
@@ -173,7 +173,7 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 		// that when a probe fails, we spawn a new goroutine with fetch and
 		// everything that follows.
 
-		for id, v := range ecs.Join(&w.RenderingGeometry, &w.TranslationRotation) {
+		for id, v := range ecs.Join(&w.RenderingGeometry, &w.Transform) {
 			renderingGeometry := v.V1
 
 			i := id.Index()
@@ -233,13 +233,7 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 		clear(scene.Instance)
 
 		for id, soundEffect := range ecs.All(&w.SoundEffect) {
-			trs, _ := w.GetGlobalTRS(id)
-
-			xform := gmath.TRS3{
-				T: gmath.Vec3Convert[float32](trs.T), // TODO: we should also be applying cosmetic offset like in video
-				R: trs.R,
-				S: trs.S,
-			}.ToMat()
+			transform, _ := w.GetGlobalTransform(id)
 
 			effect, ok := sources[soundEffect.Effect]
 			if !ok {
@@ -272,7 +266,7 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 			}
 
 			scene.Instance[id.Index()] = sfx.Instance{
-				Transform:   xform,
+				Transform:   transform,
 				Samples:     effect.Samples,
 				Attenuation: soundEffect.Attenuation,
 				PlayTime:    int64(soundEffect.PlayTime.Sub(game.Time(0)) * 48000 / 1e9),

@@ -20,9 +20,63 @@ func Rot3InPlane(plane Vec3f32, θ float32) Rot3 {
 	return Rot3{yz, zx, xy, float32(c)}
 }
 
+func Rot3FromMat(m Mat3x3f32) Rot3 {
+	// TODO: generalized rewrite pls?
+
+	r00 := *m.Index(0, 0)
+	r01 := *m.Index(0, 1)
+	r02 := *m.Index(0, 2)
+	r10 := *m.Index(1, 0)
+	r11 := *m.Index(1, 1)
+	r12 := *m.Index(1, 2)
+	r20 := *m.Index(2, 0)
+	r21 := *m.Index(2, 1)
+	r22 := *m.Index(2, 2)
+
+	tw := 1.0 + r00 + r11 + r22
+	tx := 1.0 + r00 - r11 - r22
+	ty := 1.0 - r00 + r11 - r22
+	tz := 1.0 - r00 - r11 + r22
+
+	max_t := max(tw, tx, ty, tz)
+
+	sqrt := func(x float32) float32 { return float32(math.Sqrt(float64(x))) }
+
+	var w, x, y, z float32
+	switch max_t {
+	case tw:
+		w = 0.5 * sqrt(tw)
+		s := 0.25 / w
+		x = (r21 - r12) * s
+		y = (r02 - r20) * s
+		z = (r10 - r01) * s
+	case tx:
+		x = 0.5 * sqrt(tx)
+		s := 0.25 / x
+		w = (r21 - r12) * s
+		y = (r01 + r10) * s
+		z = (r02 + r20) * s
+	case ty:
+		y = 0.5 * sqrt(ty)
+		s := 0.25 / y
+		w = (r02 - r20) * s
+		x = (r01 + r10) * s
+		z = (r12 + r21) * s
+	case tz:
+		z = 0.5 * sqrt(tz)
+		s := 0.25 / z
+		w = (r10 - r01) * s
+		x = (r02 + r20) * s
+		y = (r12 + r21) * s
+	}
+
+	return Rot3{x, y, z, w}
+}
+
 // TODO: rename this so that it's clear that it's just purely numerical thing
 // and doesn't actually change the rotation that's supposed to be represented.
-func (a Rot3) Normalize() Rot3 {
+// TODO: rename to Renormalize and make it have a pointer receiver?
+func (a Rot3) Renormalize() Rot3 {
 	return Rot3(Vec4f32(a).NormalizeOr(Vec4f32(Rot3One())))
 }
 
@@ -31,8 +85,7 @@ func (a Rot3) Inverse() Rot3 {
 }
 
 func (a Rot3) Mul(b Rot3) (ab Rot3) {
-	// TODO: normalize as well?
-	return Rot3(quat[float32](a).Mul(quat[float32](b)))
+	return Rot3(quat[float32](a).Mul(quat[float32](b))).Renormalize()
 }
 
 // TODO: kill this method in favor of TRS to affine conversion rolling its own
@@ -64,7 +117,7 @@ func (a Rot3) NLerp(b Rot3, t float32) Rot3 {
 	for i := range 4 {
 		c[i] = a[i]*u + b[i]*v
 	}
-	return c.Normalize()
+	return c.Renormalize()
 }
 
 // TODO: rename to Rotate32 probably

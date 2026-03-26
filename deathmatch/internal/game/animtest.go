@@ -29,7 +29,7 @@ func (animtest Animtest) UpdateBeforePhysics(w *Scene, ourID ecs.ID, info *Updat
 	} {
 		t := int(w.Now.Sub(0) / 1e8 % 30)
 
-		localTransforms[bone] = gmath.TRHS3f32{
+		localTransforms[bone] = gmath.TRS3f32{
 			R: gmath.Rot3{
 				animation.Sample("pose.bones[\""+bone+"\"].rotation_quaternion[1]", t),
 				animation.Sample("pose.bones[\""+bone+"\"].rotation_quaternion[2]", t),
@@ -71,18 +71,11 @@ func (animtest Animtest) UpdateBeforePhysics(w *Scene, ourID ecs.ID, info *Updat
 
 	relativeToBase := pose.Bones["hand.L"].Mul(skelly.BindPose["hand.L"])
 
-	// TODO: use Get/SetGlobalTRS
-
-	pos, _ := w.TranslationRotation.Get(ourID)
+	pos, _ := w.GetGlobalTransform(ourID)
 
 	// In reality we'll have support for parenting to bone in GetGlobalTRS
-	w.TranslationRotation.Set(animtest.Entity, TranslationRotation{
-		Translation: pos.Translation.Add(gmath.Vec3Convert[float64](relativeToBase.T)),
-		Rotation: gmath.Rot3{
-			0,
-			0,
-			1,
-			0,
-		},
-	})
+	w.SetGlobalTransform(animtest.Entity, pos.Mul(gmath.Affine3f64{
+		M: relativeToBase.M,
+		T: gmath.Vec3Convert[float64](relativeToBase.T),
+	}))
 }

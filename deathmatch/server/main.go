@@ -480,12 +480,12 @@ func spawnplayer(w *game.Scene, info *game.UpdateParams) ecs.ID {
 			playerSpawns = append(playerSpawns, id)
 		}
 	}
-	t, _ := w.GetGlobalTRS(playerSpawns[rand.IntN(len(playerSpawns))])
+	t, _ := w.GetGlobalTransform(playerSpawns[rand.IntN(len(playerSpawns))])
 
 	camera := w.CreateEntity(info)
 
 	// meh
-	w.SetGlobalTRS(character, t)
+	w.SetGlobalTransform(character, t)
 	w.CollisionGeometry.Set(character, "FPSCharacter")
 	w.CollisionLayer.Set(character, game.PhysicsLayerMovingKinematic)
 	w.PhysicsMassOverride.Set(character, 100)
@@ -494,15 +494,15 @@ func spawnplayer(w *game.Scene, info *game.UpdateParams) ecs.ID {
 
 	w.SetParent(camera, character)
 	// TODO: poke a method on Player to perform this
-	w.SetLocalTRS(camera, gmath.DTRS3{
+	w.SetLocalTransform(camera, gmath.TRS3f64{
 		T: gmath.Vec3f64{0, 0, 1.9 - 0.1}, // standing height
 		R: gmath.Rot3One(),
-		S: gmath.Vec3Ones[float32](),
-	})
+		S: gmath.Shcale3One(),
+	}.ToAffine())
 
 	hands := w.CreateEntity(info)
 	w.SetParent(hands, camera)
-	w.SetLocalTRS(hands, gmath.DTRS3One())
+	w.SetLocalTransform(hands, gmath.Affine3One[float64]())
 
 	w.Entity.Set(character, game.Character{
 		FirstPersonCamera: camera,
@@ -584,19 +584,19 @@ func main() {
 
 	{
 		test2 := s.scene.CreateEntity(info)
-		s.scene.SetGlobalTRS(test2, gmath.DTRS3{
+		s.scene.SetGlobalTransform(test2, gmath.TRS3f64{
 			T: gmath.Vec3f64{0, 0, 0},
 			R: gmath.Rot3One(),
-			S: gmath.Vec3Ones[float32](),
-		})
+			S: gmath.Shcale3One(),
+		}.ToAffine())
 		s.scene.RenderingGeometry.Set(test2, "weapons/grenade_launcher/geometries/Grenade_Launcher")
 
 		test := s.scene.CreateEntity(info)
-		s.scene.SetGlobalTRS(test, gmath.DTRS3{
+		s.scene.SetGlobalTransform(test, gmath.TRS3f64{
 			T: gmath.Vec3f64{0, 0, 0},
 			R: gmath.Rot3One(),
-			S: gmath.Vec3Ones[float32](),
-		})
+			S: gmath.Shcale3One(),
+		}.ToAffine())
 		s.scene.RenderingGeometry.Set(test, "testcharacter4/geometries/TestCharacter4")
 		s.scene.Entity.Set(test, game.Animtest{test2})
 	}
@@ -609,11 +609,11 @@ func main() {
 			// Aaand "drop" the weapon
 
 			dropped := s.scene.CreateDroppedWeapon(weapon, info)
-			s.scene.SetGlobalTRS(dropped, gmath.DTRS3{
+			s.scene.SetGlobalTransform(dropped, gmath.TRS3f64{
 				T: gmath.Vec3f64{0, 0, 1},
 				R: gmath.Rot3One(),
-				S: gmath.Vec3Ones[float32](),
-			})
+				S: gmath.Shcale3One(),
+			}.ToAffine())
 		}
 
 		{
@@ -621,11 +621,11 @@ func main() {
 			s.scene.Entity.Set(weapon, game.WeaponSniperRifle{})
 
 			dropped := s.scene.CreateDroppedWeapon(weapon, info)
-			s.scene.SetGlobalTRS(dropped, gmath.DTRS3{
+			s.scene.SetGlobalTransform(dropped, gmath.TRS3f64{
 				T: gmath.Vec3f64{0, -10, 1},
 				R: gmath.Rot3One(),
-				S: gmath.Vec3Ones[float32](),
-			})
+				S: gmath.Shcale3One(),
+			}.ToAffine())
 		}
 	}
 

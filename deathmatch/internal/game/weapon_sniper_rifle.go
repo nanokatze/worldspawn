@@ -8,14 +8,14 @@ import (
 )
 
 var sniperRifleStats = struct {
-	ViewGeometryTRS gmath.DTRS3 // TODO: this should be killed
+	ViewGeometryTRS gmath.TRS3f64 // TODO: this should be killed
 
 	RenderingGeometry string
 }{
-	ViewGeometryTRS: gmath.DTRS3{
+	ViewGeometryTRS: gmath.TRS3f64{
 		T: gmath.Vec3f64{0.15, 0.4, -0.225},
 		R: gmath.Rot3One(),
-		S: gmath.Vec3Ones[float32](),
+		S: gmath.Shcale3One(),
 	},
 
 	RenderingGeometry: "weapons/sniper_rifle/geometries/Sniper_Rifle_001",
@@ -32,13 +32,13 @@ func (WeaponSniperRifle) entity() {}
 func (weapon WeaponSniperRifle) WeaponCreateGeometry(scene *Scene, parent ecs.ID, info *UpdateParams) ecs.ID {
 	root := scene.CreateEntity(info)
 	scene.SetParent(root, parent)
-	scene.SetLocalTRS(root, sniperRifleStats.ViewGeometryTRS)
+	scene.Transform.Set(root, sniperRifleStats.ViewGeometryTRS.ToAffine())
 	scene.RenderingGeometry.Set(root, sniperRifleStats.RenderingGeometry)
 
 	sound := scene.CreateEntity(info)
 	// scene.CreationTime.Set(sound, scene.Now)
 	scene.SetParent(sound, root)
-	scene.SetLocalTRS(sound, gmath.DTRS3One())
+	scene.Transform.Set(sound, gmath.Affine3One[float64]())
 	guh := LoopedSound{
 		Sound:       "lamphum.wav", // TODO: don't bother setting it here pls
 		Attenuation: 0.1,
@@ -49,6 +49,6 @@ func (weapon WeaponSniperRifle) WeaponCreateGeometry(scene *Scene, parent ecs.ID
 	return root
 }
 
-func (weapon WeaponSniperRifle) WeaponSubstep(scene *Scene, weaponID ecs.ID, shooterID ecs.ID, shootpos gmath.DTRS3, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.ID) {
+func (weapon WeaponSniperRifle) WeaponSubstep(scene *Scene, weaponID ecs.ID, shooterID ecs.ID, shootpos gmath.Affine3f64, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.ID) {
 	return nil
 }

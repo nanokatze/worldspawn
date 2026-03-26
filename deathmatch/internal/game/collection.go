@@ -98,13 +98,12 @@ func (w *Scene) SpawnPrefab(filename string, info *UpdateParams) ecs.ID {
 
 // TODO: this should create the collection entities
 func (w *Scene) InstanceCollectionAt(id ecs.ID, prefabRef PrefabRef) {
-	translationRotation, _ := w.TranslationRotation.Get(id)
-	scale, _ := w.Scale.Get(id)
+	transform, _ := w.Transform.Get(id)
+	// scale, _ := w.Scale.Get(id)
 
 	w.CopyEntities(id, prefab(prefabRef.Filename))
 	// TODO: actually compose these rather than override!
-	w.TranslationRotation.Set(id, translationRotation)
-	w.Scale.Set(id, scale)
+	w.Transform.Set(id, transform)
 
 	// TODO: we also need to take velocity into account
 }
@@ -116,11 +115,8 @@ func (dst *Columns) CopyEntities(id ecs.ID, src *Columns) {
 	if v, ok := src.Entity.Get(1); ok {
 		dst.Entity.Set(id, v)
 	}
-	if v, ok := src.TranslationRotation.Get(1); ok {
-		dst.TranslationRotation.Set(id, v)
-	}
-	if v, ok := src.Scale.Get(1); ok {
-		dst.Scale.Set(id, v)
+	if v, ok := src.Transform.Get(1); ok {
+		dst.Transform.Set(id, v)
 	}
 	if v, ok := src.RenderingGeometry.Get(1); ok {
 		dst.RenderingGeometry.Set(id, v)

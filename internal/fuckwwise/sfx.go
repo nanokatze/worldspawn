@@ -19,7 +19,7 @@ type Source struct {
 // TODO: should use something else in place of time.Duration probably
 
 type Instance struct {
-	Transform gmath.Mat4x4f32
+	Transform gmath.Affine3f64
 
 	// TODO: stop using this in favor of Source (ReaderAt)
 	Samples []float32
@@ -75,11 +75,7 @@ func Render(scene *Scene, camera gmath.Vec3f32, now int64, dst []float32, channe
 
 		t0 := now - instance.PlayTime
 
-		dist := gmath.Vec3f32{
-			*instance.Transform.Index(0, 3),
-			*instance.Transform.Index(1, 3),
-			*instance.Transform.Index(2, 3),
-		}.Sub(camera).Length()
+		dist := gmath.Vec3Convert[float32](instance.Transform.T).Sub(camera).Length()
 		contribution := min(10.0/(dist*dist), 1) * instance.Attenuation
 
 		for i := 0; i < L; i++ {

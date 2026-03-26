@@ -25,7 +25,7 @@ func (A Shcale3) Lerp(B Shcale3, t float32) Shcale3 {
 
 // Transitional stuff, TODO: remove
 
-func GAffine3FromMat4x4[T constraints.Float](M Mat4x4[T]) Affine3[T] {
+func Affine3FromMat4x4[T constraints.Float](M Mat4x4[T]) Affine3[T] {
 	var f Affine3[T]
 	for i := range 3 {
 		for j := range 3 {
@@ -50,14 +50,14 @@ func (f Affine3[T]) ToMat() Mat4x4[T] {
 
 // TODO: _gen/affine.go should generate this
 func (f Affine3[T]) Inv() Affine3[T] {
-	return GAffine3FromMat4x4(f.ToMat().Inverse())
+	return Affine3FromMat4x4(f.ToMat().Inverse())
 }
 
 // TODO: delegate interpolation to the user?
-func (A TRHS3[T]) NLerp(B TRHS3[T], t float32) TRHS3[T] {
-	return TRHS3[T]{
-		T: A.T.Lerp(B.T, T(t)),
-		R: A.R.NLerp(B.R, t),
-		S: A.S.Lerp(B.S, t),
+func (trs TRS3[T]) NLerp(B TRS3[T], t float32) TRS3[T] {
+	return TRS3[T]{
+		T: trs.T.Lerp(B.T, T(t)),
+		R: trs.R.NLerp(B.R, t),
+		S: trs.S.Lerp(B.S, t),
 	}
 }

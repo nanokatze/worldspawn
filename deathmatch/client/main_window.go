@@ -64,7 +64,7 @@ func (w *mainWindow) Run() {
 	// TODO: the renderer should autoresize its resources on Ticks
 	w.renderer = &renderer{
 		lastGen:       make([]uint32, 10000),
-		lastTransform: make([]gmath.TRHS3f32, 10000),
+		lastTransform: make([]gmath.TRS3f32, 10000),
 
 		updates: make(chan *sceneUpdate, 1),
 

@@ -10,24 +10,33 @@ var rotTmpl = template.Must(template.New("rot").Parse(`
 type {{$RotD}} struct {
 }
 
-func {{$RotD}}InPlane(???, θ float32) {{$RotD}} {
+func Rot{{.D}}One() {{$RotD}} {
+	panic("not implemented")
+}
+
+func Rot{{.D}}InPlane(???, θ float32) {{$RotD}} {
 	s, c := math.Sincos(float64(θ / 2))
 	return {{$RotD}}{}
 }
 
-func (a {{$RotD}}) Inverse() {{$RotD}} {
+func Rot{{.D}}FromMat(M Mat{{.D}}x{{.D}}f32) {{$RotD}} {
 	panic("not implemented")
 }
 
-func (a {{$RotD}}) Mul(b {{$RotD}}) {{$RotD}} {
+func (R {{$RotD}}) Renormalize() {{$RotD}} {
 	panic("not implemented")
 }
 
-func (a {{$RotD}}) Rotate32(v Vec{{.D}}) Vec{{.D}} {
+func (R {{$RotD}}) Inv() {{$RotD}} {
 	panic("not implemented")
 }
 
-func (a {{$RotD}}) Rotate64(v DVec{{.D}}) DVec{{.D}} {
+func (R1 {{$RotD}}) Mul(R2 {{$RotD}}) {{$RotD}} {
+	panic("not implemented")
+}
+
+// TODO: make this generic once generic methods land
+func (R {{$RotD}}) Rotate32(v Vec{{.D}}f32) Vec{{.D}}f32 {
 	panic("not implemented")
 }
 `))

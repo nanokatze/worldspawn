@@ -20,7 +20,7 @@ func (w *Scene) CreateDroppedWeapon(weaponID ecs.ID, info *UpdateParams) ecs.ID 
 	weapon := mustOk(SceneGetEntity[Weapon](w, weaponID))
 
 	dropped := w.CreateEntity(info)
-	w.SetGlobalTRS(dropped, gmath.DTRS3One())
+	w.Transform.Set(dropped, gmath.Affine3One[float64]())
 	w.Entity.Set(dropped, DroppedWeapon{Weapon: weaponID})
 
 	weapon.WeaponCreateGeometry(w, dropped, info)
@@ -32,11 +32,11 @@ func (w *Scene) CreateDroppedWeapon(weaponID ecs.ID, info *UpdateParams) ecs.ID 
 
 // TODO: move handling of this into Character
 func (dropped DroppedWeapon) UpdateBeforePhysics(w *Scene, ourID ecs.ID, info *UpdateParams) {
-	trsOurs := mustOk(w.GetGlobalTRS(ourID))
+	trsOurs := mustOk(w.GetGlobalTransform(ourID))
 
 	for playerID, entity := range ecs.All(&w.Entity) {
 		if character, ok := entity.(Character); ok {
-			trsPlayer := mustOk(w.GetGlobalTRS(playerID))
+			trsPlayer := mustOk(w.GetGlobalTransform(playerID))
 
 			if trsOurs.T.Sub(trsPlayer.T).Length() <= 1.1 {
 				freeSlot := slices.Index(character.Slots[:], 0)

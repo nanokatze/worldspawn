@@ -51,8 +51,7 @@ func convert9[To, From constraints.Float](x [9]From) [9]To {
 	}
 }
 
-// TODO: rename TRHS back to TRS when we plop scale and shearing into one object
-{{$TRSD := printf "TRHS%d" .D}}
+{{$TRSD := printf "TRS%d" .D}}
 
 type {{$TRSD}}[T constraints.Float] struct {
 	T Vec{{.D}}[T]
@@ -61,33 +60,38 @@ type {{$TRSD}}[T constraints.Float] struct {
 }
 
 type (
-	TRHS{{.D}}f32 = {{$TRSD}}[float32]
-	TRHS{{.D}}f64 = {{$TRSD}}[float64]
+	TRS{{.D}}f32 = {{$TRSD}}[float32]
+	TRS{{.D}}f64 = {{$TRSD}}[float64]
 )
 
-func TRHS{{.D}}One[T constraints.Float]() {{$TRSD}}[T] {
+func TRS{{.D}}One[T constraints.Float]() {{$TRSD}}[T] {
 	return {{$TRSD}}[T]{
 		R: Rot{{.D}}One(),
 		S: Shcale{{.D}}One(),
 	}
 }
 
-func TRHS{{.D}}FromAffine[T constraints.Float](f {{$AffineD}}[T]) {{$TRSD}}[T] {
-	panic("not implemented")
-
-	// TODO: f.M into R and S using QR decomp
+// TODO: rename to something like "decompose", e.g. AffineDecomposeTRS?
+func TRS{{.D}}FromAffine[T constraints.Float](f {{$AffineD}}[T]) {{$TRSD}}[T] {
+	// TODO: don't assume this is just translation * rotation, properly extract
+	// shcale too or at least scale with scale.
+	Q := f.M
+	R := Mat{{.D}}x{{.D}}UOne[float32]()
 
 	return {{$TRSD}}[T]{
 		T: f.T,
+		R: Rot{{.D}}FromMat(Q),
+		S: Shcale{{.D}}(R),
 	}
 }
 
-func (trhs {{$TRSD}}[T]) ToAffine() {{$AffineD}}[T] {
+// TODO: rename this to "Compose"?
+func (trs {{$TRSD}}[T]) ToAffine() {{$AffineD}}[T] {
 	return {{$AffineD}}[T]{
 		// TODO: special case R.Mat() by S.Mat() for more :b:erf and kill those
 		// methods
-		M: trhs.R.ToMat().Mul(trhs.S.ToMat()),
-		T: trhs.T,
+		M: trs.R.ToMat().Mul(trs.S.ToMat()),
+		T: trs.T,
 	}
 }
 `))

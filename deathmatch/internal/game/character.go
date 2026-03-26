@@ -127,12 +127,12 @@ func (char Character) CharacterSubstep(w *Scene, id ecs.ID, cmd TimestampedInput
 			buttons |= WeaponTrigger
 		}
 
-		shootpos, _ := w.GetGlobalTRS(id)
-		shootpos = shootpos.Mul(gmath.DTRS3{
+		shootpos, _ := w.GetGlobalTransform(id)
+		shootpos = shootpos.Mul(gmath.TRS3f64{
 			T: gmath.Vec3f64{0, 0, float64(playerStats.StandingViewHeight)},
 			R: gmath.Rot3InPlane(gmath.Vec3f32{0, 0, -1}, 2*math.Pi*char.Look[0]).Mul(gmath.Rot3InPlane(gmath.Vec3f32{-1, 0, 0}, 2*math.Pi*char.Look[1])),
-			S: gmath.Vec3Ones[float32](),
-		})
+			S: gmath.Shcale3One(),
+		}.ToAffine())
 
 		updateVisual := weapon.WeaponSubstep(w, char.ActiveWeapon, id, shootpos, buttons, info)
 		if updateVisual != nil {
@@ -144,11 +144,11 @@ func (char Character) CharacterSubstep(w *Scene, id ecs.ID, cmd TimestampedInput
 	w.Entity.Set(id, char)
 
 	// TODO: factor this out
-	w.SetLocalTRS(char.FirstPersonCamera, gmath.DTRS3{
+	w.Transform.Set(char.FirstPersonCamera, gmath.TRS3f64{
 		T: gmath.Vec3f64{0, 0, float64(playerStats.StandingViewHeight)},
 		R: gmath.Rot3InPlane(gmath.Vec3f32{0, 0, -1}, 2*math.Pi*char.Look[0]).Mul(gmath.Rot3InPlane(gmath.Vec3f32{-1, 0, 0}, 2*math.Pi*char.Look[1])),
-		S: gmath.Vec3Ones[float32](),
-	})
+		S: gmath.Shcale3One(),
+	}.ToAffine())
 }
 
 func (char Character) CharacterUpdate(w *Scene, id ecs.ID, info *UpdateParams) {
@@ -158,18 +158,20 @@ func (char Character) CharacterUpdate(w *Scene, id ecs.ID, info *UpdateParams) {
 	velocity, _ := w.Velocity.Get(id)
 
 	// TODO: more elaborate viewmodel sway
-	w.SetLocalTRS(char.Hands, gmath.DTRS3{
+	w.Transform.Set(char.Hands, gmath.TRS3f64{
 		T: gmath.Vec3f64{0, math.Sin(float64(w.Now)/1e9*6) * 0.03 * min(float64(velocity.Linear.Length()/6), 1), 0},
 		R: gmath.Rot3One(),
-		S: gmath.Vec3Ones[float32](),
-	})
+		S: gmath.Shcale3One(),
+	}.ToAffine())
 }
 
 var _ UpdateBeforePhysics = Character{}
 
 func (char Character) UpdateBeforePhysics(w *Scene, id ecs.ID, info *UpdateParams) {
-	trs, _ := w.GetGlobalTRS(id)
+	transform, _ := w.GetGlobalTransform(id)
 	velocity, _ := w.Velocity.Get(id)
+
+	trs := gmath.TRS3FromAffine(transform)
 
 	rotation := trs.R.Mul(gmath.Rot3InPlane(gmath.Vec3f32{0, 0, -1}, 2*math.Pi*char.Look[0]))
 
@@ -207,7 +209,9 @@ func planeSignedDistance(plane gmath.Vec4f32, point gmath.Vec3f32) float32 {
 }
 
 func (char *Character) asdasd(w *Scene, id ecs.ID, velocity gmath.Vec3f32, Δt time.Duration) gmath.Vec3f32 {
-	trs, _ := w.GetGlobalTRS(id)
+	transform, _ := w.GetGlobalTransform(id)
+
+	trs := gmath.TRS3FromAffine(transform)
 
 	up := gmath.Vec3f32{0, 0, 1}
 
@@ -218,7 +222,7 @@ func (char *Character) asdasd(w *Scene, id ecs.ID, velocity gmath.Vec3f32, Δt t
 		getShape(w, id),
 		trs.T,
 		trs.R,
-		trs.S,
+		gmath.Vec3Ones[float32](),
 		velocity.NormalizeOr(gmath.Vec3f32{}),
 		0.1,
 		physics.QueryFilter{Ignore: physics.BodyID(id)},
