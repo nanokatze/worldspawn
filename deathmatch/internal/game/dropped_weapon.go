@@ -20,7 +20,7 @@ func (w *Scene) CreateDroppedWeapon(weaponID ecs.ID, info *UpdateParams) ecs.ID 
 	weapon := mustOk(SceneGetEntity[Weapon](w, weaponID))
 
 	dropped := w.CreateEntity(info)
-	w.Transform.Set(dropped, gmath.Affine3One[float64]())
+	w.SetTransform(dropped, gmath.TRS3One[float64]())
 	w.Entity.Set(dropped, DroppedWeapon{Weapon: weaponID})
 
 	weapon.WeaponCreateGeometry(w, dropped, info)

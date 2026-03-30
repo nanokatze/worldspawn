@@ -23,6 +23,14 @@ type {{$MatMxN}}[T constraints.Float] [{{.M}} * {{.N}}]T
 
 type Mat{{.M}}x{{.N}}f32 = {{$MatMxN}}[float32]
 
+func Mat{{.M}}x{{.N}}Convert[To, From constraints.Float](M {{$MatMxN}}[From]) {{$MatMxN}}[To] {
+	var M2 {{$MatMxN}}[To]
+	for i, v := range M {
+		M2[i] = To(v)
+	}
+	return M2
+}
+
 func (A *{{$MatMxN}}[T]) Index(i, j int) *T {
 	A_i := A[i*{{.N}}:][:{{.N}}]
 	A_i_j := &A_i[j]

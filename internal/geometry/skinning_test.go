@@ -34,11 +34,12 @@ func TestXxx(t *testing.T) {
 		}
 	}
 
-	pose.Value()[0] = gmath.TRS3f32{
-		T: gmath.Vec3f32{0, 0, 1},
-		R: gmath.Rot3One(),
-		S: gmath.Shcale3One(),
-	}.ToAffine().ToMat()
+	pose.Value()[0] =
+		gmath.TRS3f32{
+			T: gmath.Vec3f32{0, 0, 1},
+			R: gmath.Rot3One(),
+			S: gmath.Mat3x3UOne[float32](),
+		}.Compose().ToMat()
 
 	jq := new(gpu.JobQueue)
 	EnqueueSkinMesh(jq, skinnedPositions, restPositions, jointWeights, jointsPerVertex, pose)

@@ -61,8 +61,8 @@ func newSceneDirty(n int) *sceneUpdate {
 func (s *sceneUpdate) Transform(i int, t float32) gmath.Affine3f32 {
 	B := gmath.Affine3One[float32]()
 	for ; i != -1; i = s.Parent[i] {
-		A := s.TransformT0[i].NLerp(s.TransformT1[i], t)
-		B = A.ToAffine().Mul(B)
+		A := s.TransformT0[i].NLerp(s.TransformT1[i], t).Compose()
+		B = A.Mul(B)
 	}
 	return B
 }
@@ -134,28 +134,45 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 
 		update.Sky = texture(w.Globals().Sky).Image
 
-		for id, transform := range ecs.All(&w.Transform) {
-			cosmeticOffset, _ := w.CosmeticOffset.Get(id)
-
+		for id, tr := range ecs.All(&w.TransformTR) {
 			i := id.Index()
 
-			if parent := w.GetParent(id); parent != 0 {
-				update.Parent[i] = parent.Index()
+			s, ok := w.TransformS.Get(id)
+			if !ok {
+				s = gmath.Mat3x3UOne[float32]()
 			}
+
+			cosmeticOffset, _ := w.CosmeticOffset.Get(id)
 
 			var offset gmath.Vec3f32
 			if !conf.Developer.DisableCosmeticOffset {
 				offset = cosmeticOffset.Eval(w.Now)
 			}
 
-			tmp := gmath.TRS3FromAffine(transform)
-
-			// TODO: we should not record cosmetic offset into renderer.transformT0
-			transformT1 := gmath.TRS3f32{
-				T: gmath.Vec3Convert[float32](tmp.T).Add(offset),
-				R: tmp.R,
-				S: tmp.S,
+			trs := gmath.TRS3f32{
+				// TODO: we should not record cosmetic offset into renderer.transformT0
+				T: gmath.Vec3Convert[float32](tr.T).Add(offset),
+				R: tr.R,
+				S: s,
 			}
+
+			parent := w.GetParent(id)
+			if parent != 0 {
+				update.Parent[i] = parent.Index()
+			}
+
+			if parentBone, parentedToBone := w.ParentBone.Get(id); parentedToBone {
+				pose, _ := w.Pose.Get(parent)
+				tmp := pose.Bones[parentBone].Mul(pose.Skelly.BindPose[parentBone])
+
+				// kinda yikes but will do for now
+				//
+				// TODO: teach the renderer to understand skelly hierarchy and
+				// thus properly interpolate the transform?
+				trs = tmp.Mul(trs.Compose()).TRS()
+			}
+
+			transformT1 := trs
 
 			transformT0 := re.lastTransform[i]
 			if re.lastGen[i] != id.Generation() {
@@ -173,7 +190,7 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 		// that when a probe fails, we spawn a new goroutine with fetch and
 		// everything that follows.
 
-		for id, v := range ecs.Join(&w.RenderingGeometry, &w.Transform) {
+		for id, v := range ecs.Join(&w.RenderingGeometry, &w.TransformTR) {
 			renderingGeometry := v.V1
 
 			i := id.Index()

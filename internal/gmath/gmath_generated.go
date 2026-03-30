@@ -15,6 +15,14 @@ type (
 	Vec2f64 = Vec2[float64]
 )
 
+// TODO: make this a method once generic methods are in
+func Vec2Convert[To, From constraints.Float](a Vec2[From]) Vec2[To] {
+	return Vec2[To]{
+		To(a[0]),
+		To(a[1]),
+	}
+}
+
 func Vec2Ones[T constraints.Float]() Vec2[T] {
 	return Vec2[T]{
 		1,
@@ -64,14 +72,6 @@ func (a Vec2[T]) NormalizeOr(b Vec2[T]) Vec2[T] {
 	}
 }
 
-// TODO: make this a method once generic methods are in
-func Vec2Convert[To, From constraints.Float](a Vec2[From]) Vec2[To] {
-	return Vec2[To]{
-		To(a[0]),
-		To(a[1]),
-	}
-}
-
 // TODO: kill this
 func (a Vec2[T]) Lerp(b Vec2[T], t T) Vec2[T] {
 	return Vec2[T]{
@@ -83,6 +83,14 @@ func (a Vec2[T]) Lerp(b Vec2[T], t T) Vec2[T] {
 type Mat2x2[T constraints.Float] [2 * 2]T
 
 type Mat2x2f32 = Mat2x2[float32]
+
+func Mat2x2Convert[To, From constraints.Float](M Mat2x2[From]) Mat2x2[To] {
+	var M2 Mat2x2[To]
+	for i, v := range M {
+		M2[i] = To(v)
+	}
+	return M2
+}
 
 func (A *Mat2x2[T]) Index(i, j int) *T {
 	A_i := A[i*2:][:2]
@@ -130,6 +138,15 @@ type (
 	Vec3f32 = Vec3[float32]
 	Vec3f64 = Vec3[float64]
 )
+
+// TODO: make this a method once generic methods are in
+func Vec3Convert[To, From constraints.Float](a Vec3[From]) Vec3[To] {
+	return Vec3[To]{
+		To(a[0]),
+		To(a[1]),
+		To(a[2]),
+	}
+}
 
 func Vec3Ones[T constraints.Float]() Vec3[T] {
 	return Vec3[T]{
@@ -185,15 +202,6 @@ func (a Vec3[T]) NormalizeOr(b Vec3[T]) Vec3[T] {
 	}
 }
 
-// TODO: make this a method once generic methods are in
-func Vec3Convert[To, From constraints.Float](a Vec3[From]) Vec3[To] {
-	return Vec3[To]{
-		To(a[0]),
-		To(a[1]),
-		To(a[2]),
-	}
-}
-
 // TODO: kill this
 func (a Vec3[T]) Lerp(b Vec3[T], t T) Vec3[T] {
 	return Vec3[T]{
@@ -206,6 +214,14 @@ func (a Vec3[T]) Lerp(b Vec3[T], t T) Vec3[T] {
 type Mat3x3[T constraints.Float] [3 * 3]T
 
 type Mat3x3f32 = Mat3x3[float32]
+
+func Mat3x3Convert[To, From constraints.Float](M Mat3x3[From]) Mat3x3[To] {
+	var M2 Mat3x3[To]
+	for i, v := range M {
+		M2[i] = To(v)
+	}
+	return M2
+}
 
 func (A *Mat3x3[T]) Index(i, j int) *T {
 	A_i := A[i*3:][:3]
@@ -314,6 +330,16 @@ type (
 	Vec4f64 = Vec4[float64]
 )
 
+// TODO: make this a method once generic methods are in
+func Vec4Convert[To, From constraints.Float](a Vec4[From]) Vec4[To] {
+	return Vec4[To]{
+		To(a[0]),
+		To(a[1]),
+		To(a[2]),
+		To(a[3]),
+	}
+}
+
 func Vec4Ones[T constraints.Float]() Vec4[T] {
 	return Vec4[T]{
 		1,
@@ -373,16 +399,6 @@ func (a Vec4[T]) NormalizeOr(b Vec4[T]) Vec4[T] {
 	}
 }
 
-// TODO: make this a method once generic methods are in
-func Vec4Convert[To, From constraints.Float](a Vec4[From]) Vec4[To] {
-	return Vec4[To]{
-		To(a[0]),
-		To(a[1]),
-		To(a[2]),
-		To(a[3]),
-	}
-}
-
 // TODO: kill this
 func (a Vec4[T]) Lerp(b Vec4[T], t T) Vec4[T] {
 	return Vec4[T]{
@@ -396,6 +412,14 @@ func (a Vec4[T]) Lerp(b Vec4[T], t T) Vec4[T] {
 type Mat4x4[T constraints.Float] [4 * 4]T
 
 type Mat4x4f32 = Mat4x4[float32]
+
+func Mat4x4Convert[To, From constraints.Float](M Mat4x4[From]) Mat4x4[To] {
+	var M2 Mat4x4[To]
+	for i, v := range M {
+		M2[i] = To(v)
+	}
+	return M2
+}
 
 func (A *Mat4x4[T]) Index(i, j int) *T {
 	A_i := A[i*4:][:4]
@@ -455,16 +479,6 @@ func (A Mat4x4[T]) Mulv(b Vec4[T]) Vec4[T] {
 	return Ab
 }
 
-type Shcale3 Mat3x3Uf32
-
-func Shcale3One() Shcale3 { return Shcale3(Mat3x3UOne[float32]()) }
-
-func Shcale3FromScale(s Vec3f32) Shcale3 { return Shcale3(Mat3x3UDiag(s)) }
-
-func (A Shcale3) Mul(B Shcale3) Shcale3 {
-	return Shcale3(Mat3x3Uf32(A).Mul(Mat3x3Uf32(B)))
-}
-
 type Affine3[T constraints.Float] struct {
 	M Mat3x3f32
 	T Vec3[T]
@@ -475,7 +489,13 @@ type (
 	Affine3f64 = Affine3[float64]
 )
 
-// TODO: change constructors of other types to the same naming (i.e. generic and no G prefix)
+func Affine3Convert[To, From constraints.Float](A Affine3[From]) Affine3[To] {
+	return Affine3[To]{
+		M: A.M,
+		T: Vec3Convert[To](A.T),
+	}
+}
+
 func Affine3One[T constraints.Float]() Affine3[T] {
 	return Affine3[T]{
 		M: Mat3x3One[float32](),
@@ -483,37 +503,35 @@ func Affine3One[T constraints.Float]() Affine3[T] {
 }
 
 /*
-func (f Affine3[T]) Inv() Affine3[T] {
+func (A Affine3[T]) Inv() Affine3[T] {
 	panic("not implemented")
 }
 */
 
-func (f Affine3[T]) Mul(g Affine3[T]) Affine3[T] {
+func (A Affine3[T]) Mul(B Affine3[T]) Affine3[T] {
 	return Affine3[T]{
-		M: f.M.Mul(g.M),
-		T: f.T.Add(Mat3x3[T](convert9[T](f.M)).Mulv(g.T)),
+		M: A.M.Mul(B.M),
+		T: A.T.Add(Mat3x3Convert[T](A.M).Mulv(B.T)),
 	}
 }
 
-// TODO: just introduce MatMxMConvert or whatever pls
-func convert9[To, From constraints.Float](x [9]From) [9]To {
-	return [9]To{
-		To(x[0]),
-		To(x[1]),
-		To(x[2]),
-		To(x[3]),
-		To(x[4]),
-		To(x[5]),
-		To(x[6]),
-		To(x[7]),
-		To(x[8]),
+func (A Affine3[T]) TRS() TRS3[T] {
+	// TODO: don't assume this is just translation * rotation, properly extract
+	// shcale too or at least scale with scale.
+	Q := A.M
+	R := Mat3x3UOne[float32]()
+
+	return TRS3[T]{
+		T: A.T,
+		R: Rot3FromMat(Q),
+		S: R,
 	}
 }
 
 type TRS3[T constraints.Float] struct {
 	T Vec3[T]
 	R Rot3
-	S Shcale3
+	S Mat3x3Uf32
 }
 
 type (
@@ -524,26 +542,11 @@ type (
 func TRS3One[T constraints.Float]() TRS3[T] {
 	return TRS3[T]{
 		R: Rot3One(),
-		S: Shcale3One(),
+		S: Mat3x3UOne[float32](),
 	}
 }
 
-// TODO: rename to something like "decompose", e.g. AffineDecomposeTRS?
-func TRS3FromAffine[T constraints.Float](f Affine3[T]) TRS3[T] {
-	// TODO: don't assume this is just translation * rotation, properly extract
-	// shcale too or at least scale with scale.
-	Q := f.M
-	R := Mat3x3UOne[float32]()
-
-	return TRS3[T]{
-		T: f.T,
-		R: Rot3FromMat(Q),
-		S: Shcale3(R),
-	}
-}
-
-// TODO: rename this to "Compose"?
-func (trs TRS3[T]) ToAffine() Affine3[T] {
+func (trs TRS3[T]) Compose() Affine3[T] {
 	return Affine3[T]{
 		// TODO: special case R.Mat() by S.Mat() for more :b:erf and kill those
 		// methods

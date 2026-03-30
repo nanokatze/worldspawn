@@ -18,9 +18,9 @@ var Data fs.FS
 
 // TODO: split this file up
 
-type TranslationRotation struct {
-	Translation gmath.Vec3f64
-	Rotation    gmath.Rot3
+type TR3f64 struct {
+	T gmath.Vec3f64
+	R gmath.Rot3
 }
 
 type Velocity struct {
@@ -44,40 +44,44 @@ type Camera struct {
 	FieldOfView float32
 }
 
+// TODO: fold almost all scripty stuff into the same column? Although I guess
+// that's more up to how we wanna represent things for authoring etc. I'm not
+// sure it would make sense to fold animation graph script into the same column
+// as game logic script. However...
+
 // TODO: add a type for representing non-mutable lists and stuff?
 
-// TODO: we can update OldWorld (against which we compute delta) only sometimes
-// and incrementally (this is the actually useful bit, as updating "sometimes"
-// will make certain ticks longer, potentially making them miss deadline.) we
-// should also update it reactively when we add dirty tracking, to minimize the
-// amount of work we do.
-
-// type (pose Pose) RelativeToBase(bone string)
-
-// TODO: introduce struct tags like compatibility names etc
 type Columns struct {
 	// Name ecs.ComponentStore[string]
 
 	// TODO: explore if we can make CreateEntity set this component
 	//CreationTime ecs.Column[Time]
 
-	// TODO: split into transform and deletion hierarchies?
-	Parent ecs.Column[ecs.ID]
+	// Do not access this column directly; use {Get,Set}Parent.
+	Parent     ecs.Column[ecs.ID]
+	ParentBone ecs.Column[string]
+	// Do not access this column directly; use {Get,Set}Transform and
+	// GetGlobalTransform instead.
+	//
+	// The translation and rotation parts of the object's parent-relative
+	// transform.
+	TransformTR ecs.Column[TR3f64]
+	// Do not access this column directly; use {Get,Set}Transform and
+	// GetGlobalTransform instead.
+	//
+	// The scale and shearing part of the object's parent-relative transform.
+	//
+	// It is possible for there to be an entry in TransformTR but not in
+	// TransformS, in which case no scaling or shearing is applied to the
+	// object.
+	TransformS ecs.Column[gmath.Mat3x3Uf32]
 
-	Transform ecs.Column[gmath.Affine3f64]
-
-	// Do not access this column directly; use {Get,Set}{Local,Global}TRS
-	// instead.
-	// TranslationRotation ecs.Column[TranslationRotation]
-	// Do not access this column directly; use {Get,Set}{Local,Global}TRS
-	// instead.
-	// Scale ecs.Column[gmath.Vec3f32]
-	// TODO: shearing
-
-	// Testing only. We'll kill these columns and replace them with an animation
-	// graph esque thingy which will fundamentally be the same thing (several
-	// joint -> transform maps for different purposes, e.g. for deformation and
-	// for absolute transform) but be more flexible about pose
+	// Testing only. We'll make this a shadow column which will be updated by an
+	// animation graph esque thingy. Also Armature should probably be a separate
+	// column so that bone parenting works even when there's no animation
+	// playing... On the other hand idk actually there's not really much point
+	// to having Armature but no Pose, hmm. I guess it doesn't really matter if
+	// we're going to switch to script anyway.
 	Pose ecs.Column[Pose]
 
 	Velocity ecs.Column[Velocity]
@@ -209,7 +213,6 @@ func (w *Scene) DeleteEntityImmediately(id ecs.ID) {
 	w.Table.Delete(id)
 }
 
-// TODO: rename to Properties or whatever
 func (w *Scene) Globals() SceneGlobals {
 	globals, _ := SceneGetEntity[SceneGlobals](w, 1)
 	return globals
@@ -233,37 +236,76 @@ func (scene *Scene) SetParent(id, parent ecs.ID) {
 	// children
 }
 
-func (scene *Scene) GetLocalTransform(id ecs.ID) (gmath.Affine3f64, bool) {
-	transform, ok := scene.Transform.Get(id)
+// TODO: don't return a bool but do a panic or oops (depending on config)?
+func (scene *Scene) GetTransform(id ecs.ID) (gmath.TRS3f64, bool) {
+	tr, ok := scene.TransformTR.Get(id)
 	if !ok {
-		transform = gmath.Affine3One[float64]()
+		return gmath.TRS3One[float64](), false
 	}
-	return transform, ok
+	s, ok := scene.TransformS.Get(id)
+	if !ok {
+		s = gmath.Mat3x3UOne[float32]()
+	}
+	return gmath.TRS3f64{tr.T, tr.R, s}, true
 }
 
-func (scene *Scene) SetLocalTransform(id ecs.ID, transform gmath.Affine3f64) {
-	scene.Transform.Set(id, transform)
+func (scene *Scene) SetTransform(id ecs.ID, T gmath.TRS3f64) {
+	scene.TransformTR.Set(id, TR3f64{T.T, T.R})
+	if T.S != gmath.Mat3x3UOne[float32]() {
+		scene.TransformS.Set(id, T.S)
+	} else {
+		scene.TransformS.Delete(id)
+	}
 }
 
-// TODO: unroll a single iteration so that we don't do unnecessary Mul
+// TODO: we should probs do a best effort so that even if a transform is missing
+// in the sequence (especially if we're parented to a bone that doesn't exist)
+// we just replace it with an identity, report it, and move on. We'd want to
+// figure out the reporting infrastructure so that we can decide whether to
+// suppress diagnostics, print diagnostics (where?) or panic.
+//
+// TODO: replace T.Mul(A) with just A on the first iteration to optimize the
+// common case
+//
+// TODO: clean up
 func (scene *Scene) GetGlobalTransform(id ecs.ID) (gmath.Affine3f64, bool) {
-	result := gmath.Affine3One[float64]()
-	for id != 0 {
-		trs, ok := scene.GetLocalTransform(id)
+	getTransform := func(id ecs.ID) (gmath.Affine3f64, bool) {
+		if tmp, ok := scene.GetTransform(id); ok {
+			return tmp.Compose(), true
+		}
+		return gmath.Affine3One[float64](), false
+	}
+
+	A := gmath.Affine3One[float64]()
+	for range 5000 {
+		T, ok := getTransform(id)
 		if !ok {
 			return gmath.Affine3One[float64](), false
 		}
-		id = scene.GetParent(id)
-		result = trs.Mul(result)
+		A = T.Mul(A)
+
+		parent := scene.GetParent(id)
+		if parent == 0 {
+			break
+		}
+
+		parentBone, parentedToBone := scene.ParentBone.Get(id)
+		// TODO: we should report badness if we run into a case that we're
+		// parented to a bone but don't have a parent.
+		if parentedToBone {
+			pose, ok := scene.Pose.Get(parent)
+			if !ok {
+				return gmath.Affine3One[float64](), false
+			}
+			A = gmath.Affine3Convert[float64](pose.Bones[parentBone].Mul(pose.Skelly.BindPose[parentBone])).Mul(A)
+		}
+
+		id = parent
 	}
-	return result, true
+	return A, true
 }
 
-func (scene *Scene) SetGlobalTransform(id ecs.ID, transform gmath.Affine3f64) {
-	// TODO: navigate hierarchy properly
-	scene.Transform.Set(id, transform)
-}
-
+// TODO: convert this to generic method once generic methods land
 func SceneGetEntity[T Entity](w *Scene, id ecs.ID) (T, bool) {
 	entity, _ := w.Entity.Get(id)
 	entityT, ok := entity.(T)

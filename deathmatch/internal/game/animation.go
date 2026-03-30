@@ -58,18 +58,7 @@ func loadAnimation(filename string) (*animgraph.Animation, error) {
 	return &animation, nil
 }
 
-type Skeleton struct {
-	// Joints          []string
-
-	// TODO: switch to a plain array with a string map for lookups
-
-	Parent          map[string]string
-	BindPose        map[string]gmath.Affine3f32
-	BindPoseInverse map[string]gmath.Affine3f32
-	ParentRelative  map[string]gmath.Affine3f32
-
-	// other stuff
-}
+type Skeleton = animgraph.Skeleton
 
 var skeletonCache sync.Map
 

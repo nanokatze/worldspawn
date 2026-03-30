@@ -106,7 +106,7 @@ func (w *Scene) updatePhysicsShadow() {
 	}
 
 	for id, layer := range ecs.All(&w.CollisionLayer) {
-		transform := mustOk(w.GetLocalTransform(id))
+		trs := mustOk(w.GetTransform(id)) // ok tbf just TODO: include TransformTR into the query
 		velocity, _ := w.Velocity.Get(id)
 		filter, _ := w.PhysicsFilter.Get(id)
 
@@ -144,8 +144,6 @@ func (w *Scene) updatePhysicsShadow() {
 		}
 
 		bodyID := physics.BodyID(id)
-
-		trs := gmath.TRS3FromAffine(transform)
 
 		_, bodyExists := w.physicsBodyExists.Get(id)
 		if !bodyExists {
@@ -235,7 +233,7 @@ func (w *Scene) physicsStep(Δt time.Duration) {
 
 		pos, rot, linVel, angVel := w.physicsSystem.WritebackBody(bodyID)
 
-		w.SetLocalTransform(entityID, gmath.TRS3f64{T: pos, R: rot, S: gmath.Shcale3One()}.ToAffine())
+		w.TransformTR.Set(entityID, TR3f64{T: pos, R: rot})
 
 		// TODO: don't store velocity back for kinematic bodies
 		w.Velocity.Set(entityID, Velocity{Linear: linVel, Angular: angVel})

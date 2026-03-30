@@ -32,7 +32,6 @@ func main() {
 	matGen{4, 4}.Gen(buf)
 	matvecGen{4, 4}.Gen(buf)
 
-	shcaleGen{3}.Gen(buf)
 	affineGen{3}.Gen(buf)
 
 	src, _ := format.Source(buf.Bytes())

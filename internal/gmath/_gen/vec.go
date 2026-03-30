@@ -19,6 +19,15 @@ type (
 	Vec{{.D}}f64 = {{$VecD}}[float64]
 )
 
+// TODO: make this a method once generic methods are in
+func Vec{{.D}}Convert[To, From constraints.Float](a {{$VecD}}[From]) {{$VecD}}[To] {
+	return {{$VecD}}[To]{
+		{{- range .D}}
+		To(a[{{.}}]),
+		{{- end}}
+	}
+}
+
 func Vec{{.D}}Ones[T constraints.Float]() {{$VecD}}[T] {
 	return {{$VecD}}[T]{
 		{{- range .D}}
@@ -69,15 +78,6 @@ func (a {{$VecD}}[T]) NormalizeOr(b {{$VecD}}[T]) {{$VecD}}[T] {
 	return {{$VecD}}[T]{
 		{{- range .D}}
 		a[{{.}}] / norm,
-		{{- end}}
-	}
-}
-
-// TODO: make this a method once generic methods are in
-func Vec{{.D}}Convert[To, From constraints.Float](a {{$VecD}}[From]) {{$VecD}}[To] {
-	return {{$VecD}}[To]{
-		{{- range .D}}
-		To(a[{{.}}]),
 		{{- end}}
 	}
 }

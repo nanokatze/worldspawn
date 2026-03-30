@@ -6,7 +6,6 @@ import (
 )
 
 type Animtest struct {
-	Entity ecs.ID
 }
 
 func (Animtest) entity() {}
@@ -36,12 +35,13 @@ func (animtest Animtest) UpdateBeforePhysics(w *Scene, ourID ecs.ID, info *Updat
 				animation.Sample("pose.bones[\""+bone+"\"].rotation_quaternion[3]", t),
 				animation.Sample("pose.bones[\""+bone+"\"].rotation_quaternion[0]", t),
 			},
-			S: gmath.Shcale3One(),
-		}.ToAffine()
+			S: gmath.Mat3x3UOne[float32](),
+		}.Compose()
 	}
 
 	pose := Pose{
-		Bones: map[string]gmath.Affine3f32{},
+		Skelly: skelly,
+		Bones:  map[string]gmath.Affine3f32{},
 	}
 
 	// TODO: this should probably be a method on Pose.
@@ -68,14 +68,4 @@ func (animtest Animtest) UpdateBeforePhysics(w *Scene, ourID ecs.ID, info *Updat
 	}
 
 	w.Pose.Set(ourID, pose)
-
-	relativeToBase := pose.Bones["hand.L"].Mul(skelly.BindPose["hand.L"])
-
-	pos, _ := w.GetGlobalTransform(ourID)
-
-	// In reality we'll have support for parenting to bone in GetGlobalTRS
-	w.SetGlobalTransform(animtest.Entity, pos.Mul(gmath.Affine3f64{
-		M: relativeToBase.M,
-		T: gmath.Vec3Convert[float64](relativeToBase.T),
-	}))
 }

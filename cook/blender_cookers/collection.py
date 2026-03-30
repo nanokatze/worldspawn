@@ -70,24 +70,16 @@ def cook_objects_into(context, xform, collection, cooked_scene):
 
         values['Name'] = obj.name
 
-        values['Transform'] = {
-            'M': [
-                obj.matrix_local[0][0],
-                obj.matrix_local[0][1],
-                obj.matrix_local[0][2],
-                obj.matrix_local[1][0],
-                obj.matrix_local[1][1],
-                obj.matrix_local[1][2],
-                obj.matrix_local[2][0],
-                obj.matrix_local[2][1],
-                obj.matrix_local[2][2],
-            ],
-            'T': [
-                obj.matrix_local[0][3],
-                obj.matrix_local[1][3],
-                obj.matrix_local[2][3],
-            ]
+        T, R, S = obj.matrix_local.decompose()
+        values['TransformTR'] = {
+            'T': T,
+            'R': R,
         }
+        values['TransformS'] = [
+            S[0], 0, 0,
+               S[1], 0,
+                  S[2],
+        ]
 
         if __should_cook_object_data(obj):
             geometry = context.path_for_datablock(obj)

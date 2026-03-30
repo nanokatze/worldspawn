@@ -8,15 +8,8 @@ func triangularNumber(n int) int {
 	return n * (n + 1) / 2
 }
 
-// TODO: kill this method in favor of TRS to affine conversion rolling its own
-// specialization
-func (S Shcale3) ToMat() Mat3x3f32 {
-	return Mat3x3Uf32(S).ToMat()
-}
-
-// TODO: leave it up to the user to implement lerp?
-func (A Shcale3) Lerp(B Shcale3, t float32) Shcale3 {
-	var C Shcale3
+func Lerp9(A, B Mat3x3Uf32, t float32) Mat3x3Uf32 {
+	var C Mat3x3Uf32
 	for i := range C {
 		C[i] = lerp(A[i], B[i], t)
 	}
@@ -58,6 +51,6 @@ func (trs TRS3[T]) NLerp(B TRS3[T], t float32) TRS3[T] {
 	return TRS3[T]{
 		T: trs.T.Lerp(B.T, T(t)),
 		R: trs.R.NLerp(B.R, t),
-		S: trs.S.Lerp(B.S, t),
+		S: Lerp9(trs.S, B.S, t),
 	}
 }

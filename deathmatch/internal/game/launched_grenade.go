@@ -21,11 +21,11 @@ type LaunchedGrenade struct{}
 func (LaunchedGrenade) entity() {}
 
 func (grenade LaunchedGrenade) TimerExpired(w *Scene, grenadeID ecs.ID, info *UpdateParams) {
-	trs := mustOk(w.GetGlobalTransform(grenadeID))
+	grenadeT := mustOk(w.GetGlobalTransform(grenadeID)).TRS()
 
 	if !info.Speculating {
 		eff := w.CreateEntity(info)
-		w.SetGlobalTransform(eff, trs)
+		w.SetTransform(eff, grenadeT)
 		w.Timer.Set(eff, w.Now.Add(2*time.Second))
 		w.Entity.Set(eff, DeleteAfter{})
 		w.SoundEffect.Set(eff, SoundEmitter{

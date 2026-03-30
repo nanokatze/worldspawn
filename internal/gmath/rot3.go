@@ -70,7 +70,9 @@ func Rot3FromMat(m Mat3x3f32) Rot3 {
 		y = (r12 + r21) * s
 	}
 
-	return Rot3{x, y, z, w}
+	r := Rot3{x, y, z, w}
+	r.Renormalize()
+	return r
 }
 
 // TODO: rename this so that it's clear that it's just purely numerical thing
@@ -127,6 +129,6 @@ func (a Rot3) Rotate(v Vec3f32) Vec3f32 {
 }
 
 func (a Rot3) Rotate64(v Vec3f64) Vec3f64 {
-	q := quat[float64](convert4[float64](a))
+	q := quat[float64](Vec4Convert[float64](Vec4f32(a)))
 	return q.Mul(quatFromVec3(v)).Mul(q.Conj()).Imag()
 }

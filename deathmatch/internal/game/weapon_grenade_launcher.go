@@ -30,7 +30,7 @@ var grenadeLauncherStats = struct {
 	ViewGeometryTRS: gmath.TRS3f64{
 		T: gmath.Vec3f64{0.18, 0.5, -0.2},
 		R: gmath.Rot3One(),
-		S: gmath.Shcale3One(),
+		S: gmath.Mat3x3UOne[float32](),
 	},
 	RenderingGeometry: "weapons/grenade_launcher/geometries/Grenade_Launcher",
 
@@ -51,7 +51,7 @@ func (WeaponGrenadeLauncher) entity() {}
 func (weapon WeaponGrenadeLauncher) WeaponCreateGeometry(scene *Scene, parent ecs.ID, info *UpdateParams) ecs.ID {
 	root := scene.CreateEntity(info)
 	scene.SetParent(root, parent)
-	scene.Transform.Set(root, grenadeLauncherStats.ViewGeometryTRS.ToAffine())
+	scene.SetTransform(root, grenadeLauncherStats.ViewGeometryTRS)
 	scene.Entity.Set(root, Testburger{
 		BaseColor: [4]float32{1, 1, 1, 1}, // pretend it's a team color
 	})
@@ -69,10 +69,13 @@ func (weapon WeaponGrenadeLauncher) WeaponSubstep(scene *Scene, weaponID ecs.ID,
 		if !info.Speculating {
 			projectile := scene.SpawnPrefab(grenadeLauncherStats.Projectile, info)
 			// scene.CreationTime.Set(projectile, scene.Now)
-			scene.SetGlobalTransform(projectile, shootpos.Mul(gmath.TRS3f64{
-				R: gmath.Rot3InPlane(gmath.Vec3f32{-1, 0, 0}, math.Pi/2),
-				S: gmath.Shcale3One(),
-			}.ToAffine()))
+			scene.SetTransform(projectile,
+				shootpos.
+					Mul(gmath.TRS3f64{
+						R: gmath.Rot3InPlane(gmath.Vec3f32{-1, 0, 0}, math.Pi/2),
+						S: gmath.Mat3x3UOne[float32](),
+					}.Compose()).
+					TRS())
 			// TODO: consider velocity set on the prefab?
 			scene.Velocity.Set(projectile, Velocity{Linear: shootpos.M.Mulv(gmath.Vec3f32{0, grenadeLauncherStats.MuzzleVelocity, 0})})
 			scene.CollisionLayer.Set(projectile, PhysicsLayerProjectiles)
