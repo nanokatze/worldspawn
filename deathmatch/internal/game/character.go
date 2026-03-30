@@ -127,14 +127,14 @@ func (char Character) CharacterSubstep(w *Scene, id ecs.ID, cmd TimestampedInput
 			buttons |= WeaponTrigger
 		}
 
-		shootpos, _ := w.GetGlobalTransform(id)
-		shootpos = shootpos.Mul(gmath.TRS3f64{
+		shootT, _ := w.GetGlobalTransform(id)
+		shootT = shootT.Mul(gmath.TRS3f64{
 			T: gmath.Vec3f64{0, 0, float64(playerStats.StandingViewHeight)},
 			R: gmath.Rot3InPlane(gmath.Vec3f32{0, 0, -1}, 2*math.Pi*char.Look[0]).Mul(gmath.Rot3InPlane(gmath.Vec3f32{-1, 0, 0}, 2*math.Pi*char.Look[1])),
 			S: gmath.Mat3x3UOne[float32](),
 		}.Compose())
 
-		updateVisual := weapon.WeaponSubstep(w, char.ActiveWeapon, id, shootpos, buttons, info)
+		updateVisual := weapon.WeaponSubstep(w, char.ActiveWeapon, id, shootT, buttons, info)
 		if updateVisual != nil {
 			updateVisual(w, char.ActiveWeaponViewmodel)
 		}

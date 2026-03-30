@@ -60,7 +60,7 @@ func (weapon WeaponGrenadeLauncher) WeaponCreateGeometry(scene *Scene, parent ec
 	return root
 }
 
-func (weapon WeaponGrenadeLauncher) WeaponSubstep(scene *Scene, weaponID ecs.ID, shooterID ecs.ID, shootpos gmath.Affine3f64, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.ID) {
+func (weapon WeaponGrenadeLauncher) WeaponSubstep(scene *Scene, weaponID ecs.ID, shooterID ecs.ID, shootT gmath.Affine3f64, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.ID) {
 	if buttons&WeaponTrigger != 0 {
 		if weapon.CycleEnds.After(scene.Now) {
 			return nil
@@ -70,14 +70,14 @@ func (weapon WeaponGrenadeLauncher) WeaponSubstep(scene *Scene, weaponID ecs.ID,
 			projectile := scene.SpawnPrefab(grenadeLauncherStats.Projectile, info)
 			// scene.CreationTime.Set(projectile, scene.Now)
 			scene.SetTransform(projectile,
-				shootpos.
+				shootT.
 					Mul(gmath.TRS3f64{
 						R: gmath.Rot3InPlane(gmath.Vec3f32{-1, 0, 0}, math.Pi/2),
 						S: gmath.Mat3x3UOne[float32](),
 					}.Compose()).
 					TRS())
 			// TODO: consider velocity set on the prefab?
-			scene.Velocity.Set(projectile, Velocity{Linear: shootpos.M.Mulv(gmath.Vec3f32{0, grenadeLauncherStats.MuzzleVelocity, 0})})
+			scene.Velocity.Set(projectile, Velocity{Linear: shootT.M.Mulv(gmath.Vec3f32{0, grenadeLauncherStats.MuzzleVelocity, 0})})
 			scene.CollisionLayer.Set(projectile, PhysicsLayerProjectiles)
 			scene.PhysicsFilter.Set(projectile, []ecs.ID{shooterID})
 			scene.Timer.Set(projectile, scene.Now.Add(grenadeStats.FuseDuration))

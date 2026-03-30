@@ -49,6 +49,6 @@ func (weapon WeaponSniperRifle) WeaponCreateGeometry(scene *Scene, parent ecs.ID
 	return root
 }
 
-func (weapon WeaponSniperRifle) WeaponSubstep(scene *Scene, weaponID ecs.ID, shooterID ecs.ID, shootpos gmath.Affine3f64, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.ID) {
+func (weapon WeaponSniperRifle) WeaponSubstep(scene *Scene, weaponID ecs.ID, shooterID ecs.ID, shootT gmath.Affine3f64, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.ID) {
 	return nil
 }

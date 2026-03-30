@@ -250,7 +250,7 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 		clear(scene.Instance)
 
 		for id, soundEffect := range ecs.All(&w.SoundEffect) {
-			transform, _ := w.GetGlobalTransform(id)
+			T, _ := w.GetGlobalTransform(id)
 
 			effect, ok := sources[soundEffect.Effect]
 			if !ok {
@@ -283,7 +283,7 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 			}
 
 			scene.Instance[id.Index()] = sfx.Instance{
-				Transform:   transform,
+				Transform:   T,
 				Samples:     effect.Samples,
 				Attenuation: soundEffect.Attenuation,
 				PlayTime:    int64(soundEffect.PlayTime.Sub(game.Time(0)) * 48000 / 1e9),
