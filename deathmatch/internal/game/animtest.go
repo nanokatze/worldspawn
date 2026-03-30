@@ -29,15 +29,16 @@ func (animtest Animtest) UpdateBeforePhysics(w *Scene, ourID ecs.ID, info *Updat
 	} {
 		t := int(w.Now.Sub(0) / 1e8 % 30)
 
-		localTransforms[skelly.JointByName(bone)] = gmath.TRS3f32{
-			R: gmath.Rot3{
-				animation.Sample("pose.bones[\""+bone+"\"].rotation_quaternion[1]", t),
-				animation.Sample("pose.bones[\""+bone+"\"].rotation_quaternion[2]", t),
-				animation.Sample("pose.bones[\""+bone+"\"].rotation_quaternion[3]", t),
-				animation.Sample("pose.bones[\""+bone+"\"].rotation_quaternion[0]", t),
-			},
-			S: gmath.Mat3x3UOne[float32](),
-		}.Compose()
+		localTransforms[skelly.JointByName(bone)] =
+			gmath.TRS3f32{
+				R: gmath.Rot3{
+					animation.Sample("pose.bones[\""+bone+"\"].rotation_quaternion[1]", t),
+					animation.Sample("pose.bones[\""+bone+"\"].rotation_quaternion[2]", t),
+					animation.Sample("pose.bones[\""+bone+"\"].rotation_quaternion[3]", t),
+					animation.Sample("pose.bones[\""+bone+"\"].rotation_quaternion[0]", t),
+				}.Renormalize(),
+				S: gmath.Mat3x3UOne[float32](),
+			}.Compose()
 	}
 
 	pose := animgraph.Pose{
