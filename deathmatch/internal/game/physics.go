@@ -20,6 +20,11 @@ type UpdateAfterPhysics interface {
 	UpdateAfterPhysics(w *Scene, id ecs.ID, info *UpdateParams)
 }
 
+type Velocity struct {
+	Linear  gmath.Vec3f32
+	Angular gmath.Vec3f32 // this should probably be a bivec3 actually
+}
+
 // TODO: rename to just Layer and move it to worldspawn.go? We'll want another
 // component for en/disabling physics if we do so.
 // TODO: rename to CollisionFilterGroup or CollisionClass or idk

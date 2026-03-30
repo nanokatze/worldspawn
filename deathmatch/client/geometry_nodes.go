@@ -3,8 +3,8 @@ package main
 import (
 	"slices"
 
-	"worldspawn/deathmatch/internal/game"
 	"worldspawn/gpu"
+	"worldspawn/internal/animgraph"
 	"worldspawn/internal/geometry"
 	"worldspawn/internal/gmath"
 	"worldspawn/internal/pathtracer"
@@ -29,7 +29,7 @@ type gsdata struct {
 // TODO: rename this
 type geoNodes struct {
 	src  *fileBackedMesh
-	pose game.Pose
+	pose animgraph.Pose
 }
 
 // TODO: factor out allocation requests into its own function so that we can run

@@ -1,6 +1,7 @@
 package game
 
 import (
+	"worldspawn/internal/animgraph"
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/gmath"
 )
@@ -39,7 +40,7 @@ func (animtest Animtest) UpdateBeforePhysics(w *Scene, ourID ecs.ID, info *Updat
 		}.Compose()
 	}
 
-	pose := Pose{
+	pose := animgraph.Pose{
 		Skelly: skelly,
 		Bones:  map[int]gmath.Affine3f32{},
 	}

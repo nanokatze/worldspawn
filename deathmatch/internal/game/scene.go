@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"time"
 
+	"worldspawn/internal/animgraph"
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/gmath"
 	"worldspawn/physics"
@@ -18,16 +19,6 @@ var Data fs.FS
 
 // TODO: split this file up
 
-type TR3f64 struct {
-	T gmath.Vec3f64
-	R gmath.Rot3
-}
-
-type Velocity struct {
-	Linear  gmath.Vec3f32
-	Angular gmath.Vec3f32 // this should probably be a bivec3 actually
-}
-
 type SceneGlobals struct {
 	// TODO: replace it with sky material
 	Sky string
@@ -38,6 +29,11 @@ type SceneGlobals struct {
 }
 
 func (SceneGlobals) entity() {}
+
+type TR3f64 struct {
+	T gmath.Vec3f64
+	R gmath.Rot3
+}
 
 // TODO: introduce Camera component which will specify fov etc
 type Camera struct {
@@ -57,8 +53,10 @@ type Columns struct {
 	// TODO: explore if we can make CreateEntity set this component
 	//CreationTime ecs.Column[Time]
 
-	// Do not access this column directly; use {Get,Set}Parent.
-	Parent     ecs.Column[ecs.ID]
+	// Do not access this column directly; use {Get,Set}Parent. Specifies the
+	// parent object.
+	Parent ecs.Column[ecs.ID]
+	// The bone in the parent's skeleton that transforms this object.
 	ParentBone ecs.Column[string]
 	// Do not access this column directly; use {Get,Set}Transform and
 	// GetGlobalTransform instead.
@@ -82,9 +80,9 @@ type Columns struct {
 	// playing... On the other hand idk actually there's not really much point
 	// to having Armature but no Pose, hmm. I guess it doesn't really matter if
 	// we're going to switch to script anyway.
-	Pose ecs.Column[Pose]
-
-	Velocity ecs.Column[Velocity]
+	//
+	// Right now we're also serializing the entire skeleton over the network.
+	Pose ecs.Column[animgraph.Pose]
 
 	// Physics should only run for bodies that have no parent. We could
 	// generalize a little by having an entity be "physics scene" and run sim
@@ -102,6 +100,7 @@ type Columns struct {
 
 	// TODO: merge some of these components?
 
+	Velocity               ecs.Column[Velocity]
 	CollisionGeometry      ecs.Column[string]
 	CollisionLayer         ecs.Column[CollisionLayer]
 	PhysicsFilter          ecs.Column[[]ecs.ID] // TODO: generalize to all physics constraints

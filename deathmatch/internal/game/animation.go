@@ -13,9 +13,6 @@ import (
 
 // TODO: move this stuff into its own package probably
 
-// TODO: kill
-type Pose = animgraph.Pose
-
 /*
 func cached[T, U any](f func(x T) U) func(x T) U {
 	var cache sync.Map
@@ -60,13 +57,11 @@ func loadAnimation(filename string) (*animgraph.Animation, error) {
 	return &animation, nil
 }
 
-type Skeleton = animgraph.Skeleton
-
 var skeletonCache sync.Map
 
-func skeleton(filename string) *Skeleton {
+func skeleton(filename string) *animgraph.Skeleton {
 	if m, ok := skeletonCache.Load(filename); ok {
-		return m.(*Skeleton)
+		return m.(*animgraph.Skeleton)
 	}
 
 	m, err := loadSkeleton(filename)
@@ -74,10 +69,10 @@ func skeleton(filename string) *Skeleton {
 		panic(err)
 	}
 	m2, _ := skeletonCache.LoadOrStore(filename, m)
-	return m2.(*Skeleton)
+	return m2.(*animgraph.Skeleton)
 }
 
-func loadSkeleton(filename string) (*Skeleton, error) {
+func loadSkeleton(filename string) (*animgraph.Skeleton, error) {
 	f, err := Data.Open(filename)
 	if err != nil {
 		return nil, err
