@@ -19,7 +19,7 @@ func (animtest Animtest) UpdateBeforePhysics(w *Scene, ourID ecs.ID, info *Updat
 
 	_ = skelly
 
-	localTransforms := map[string]gmath.Affine3f32{}
+	localTransforms := map[int]gmath.Affine3f32{}
 
 	for _, bone := range []string{
 		"upper_arm.L",
@@ -28,7 +28,7 @@ func (animtest Animtest) UpdateBeforePhysics(w *Scene, ourID ecs.ID, info *Updat
 	} {
 		t := int(w.Now.Sub(0) / 1e8 % 30)
 
-		localTransforms[bone] = gmath.TRS3f32{
+		localTransforms[skelly.JointByName(bone)] = gmath.TRS3f32{
 			R: gmath.Rot3{
 				animation.Sample("pose.bones[\""+bone+"\"].rotation_quaternion[1]", t),
 				animation.Sample("pose.bones[\""+bone+"\"].rotation_quaternion[2]", t),
@@ -41,11 +41,11 @@ func (animtest Animtest) UpdateBeforePhysics(w *Scene, ourID ecs.ID, info *Updat
 
 	pose := Pose{
 		Skelly: skelly,
-		Bones:  map[string]gmath.Affine3f32{},
+		Bones:  map[int]gmath.Affine3f32{},
 	}
 
 	// TODO: this should probably be a method on Pose.
-	for bone := range skelly.BindPose {
+	for bone := range skelly.JointNames {
 		A := gmath.Affine3One[float32]()
 
 		tmp := bone
@@ -57,8 +57,8 @@ func (animtest Animtest) UpdateBeforePhysics(w *Scene, ourID ecs.ID, info *Updat
 
 			A = skelly.ParentRelative[tmp].Mul(B).Mul(A)
 
-			parent, hasParent := skelly.Parent[tmp]
-			if !hasParent {
+			parent := skelly.Parent[tmp]
+			if parent == -1 {
 				break
 			}
 			tmp = parent

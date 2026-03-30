@@ -163,7 +163,8 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 
 			if parentBone, parentedToBone := w.ParentBone.Get(id); parentedToBone {
 				pose, _ := w.Pose.Get(parent)
-				tmp := pose.Bones[parentBone].Mul(pose.Skelly.BindPose[parentBone])
+				parentBoneIndex := pose.Skelly.JointByName(parentBone)
+				tmp := pose.Bones[parentBoneIndex].Mul(pose.Skelly.BindPose[parentBoneIndex])
 
 				// kinda yikes but will do for now
 				//

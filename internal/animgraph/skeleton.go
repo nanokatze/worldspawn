@@ -2,26 +2,20 @@ package animgraph
 
 import "worldspawn/internal/gmath"
 
-/*
+// TODO: make the internals private probably?
 type Skeleton struct {
-	// jointNames []string
-	// jointByName map[string]int
+	JointNames   []string
+	JointByName_ map[string]int
 
-	parent          []int
-	bindPose        []gmath.Affine3f32
-	bindPoseInverse []gmath.Affine3f32
+	Parent          []int
+	BindPose        []gmath.Affine3f32
+	BindPoseInverse []gmath.Affine3f32
+	ParentRelative  []gmath.Affine3f32
 }
-*/
 
-type Skeleton struct {
-	// Joints          []string
-
-	// TODO: switch to a plain array with a string map for lookups
-
-	Parent          map[string]string
-	BindPose        map[string]gmath.Affine3f32
-	BindPoseInverse map[string]gmath.Affine3f32
-	ParentRelative  map[string]gmath.Affine3f32
-
-	// other stuff
+func (s *Skeleton) JointByName(name string) int {
+	if i, ok := s.JointByName_[name]; ok {
+		return i
+	}
+	return -1
 }

@@ -1,6 +1,8 @@
 package game
 
 import (
+	"maps"
+	"slices"
 	"sync"
 
 	"github.com/go-json-experiment/json"
@@ -90,28 +92,49 @@ func loadSkeleton(filename string) (*Skeleton, error) {
 		return nil, err
 	}
 
-	var skeleton Skeleton
-
-	skeleton.Parent = tmp.Parent
-
-	skeleton.BindPose = make(map[string]gmath.Affine3f32)
-	for bone, m := range tmp.BindPose {
-		skeleton.BindPose[bone] = gmath.Affine3FromMat4x4(m)
-	}
-
-	skeleton.BindPoseInverse = make(map[string]gmath.Affine3f32)
-	for bone, v := range skeleton.BindPose {
-		skeleton.BindPoseInverse[bone] = v.Inv()
-	}
-
-	skeleton.ParentRelative = make(map[string]gmath.Affine3f32)
-	for bone := range skeleton.BindPose {
-		umm := gmath.Affine3One[float32]()
-		if parent, hasParent := skeleton.Parent[bone]; hasParent {
-			umm = skeleton.BindPoseInverse[parent]
+	bones := slices.Sorted(maps.Keys(tmp.Parent))
+	bonesInv := maps.Collect(func(yield func(string, int) bool) {
+		for k, v := range bones {
+			yield(v, k)
 		}
-		skeleton.ParentRelative[bone] = umm.Mul(skeleton.BindPose[bone])
-	}
+	})
+
+	var skeleton animgraph.Skeleton
+
+	skeleton.JointNames = bones
+	skeleton.JointByName_ = bonesInv
+
+	skeleton.Parent = slices.Collect(func(yield func(int) bool) {
+		for _, bone := range bones {
+			parent, hasParent := skeleton.JointByName_[tmp.Parent[bone]]
+			if !hasParent {
+				parent = -1
+			}
+			yield(parent)
+		}
+	})
+
+	skeleton.BindPose = slices.Collect(func(yield func(gmath.Affine3f32) bool) {
+		for _, bone := range bones {
+			yield(gmath.Affine3FromMat4x4(tmp.BindPose[bone]))
+		}
+	})
+
+	skeleton.BindPoseInverse = slices.Collect(func(yield func(gmath.Affine3f32) bool) {
+		for _, bone := range bones {
+			yield(gmath.Affine3FromMat4x4(tmp.BindPose[bone]).Inv())
+		}
+	})
+
+	skeleton.ParentRelative = slices.Collect(func(yield func(gmath.Affine3f32) bool) {
+		for bone := range bones {
+			umm := gmath.Affine3One[float32]()
+			if parent := skeleton.Parent[bone]; parent != -1 {
+				umm = skeleton.BindPoseInverse[parent]
+			}
+			yield(umm.Mul(skeleton.BindPose[bone]))
+		}
+	})
 
 	return &skeleton, nil
 }

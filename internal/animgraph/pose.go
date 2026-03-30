@@ -11,5 +11,5 @@ type Pose struct {
 	// reutilize storage. We might honestly just kill Pose in favor of
 	// plain []gmath.Affine3f32 × *Skeleton.
 	Skelly *Skeleton
-	Bones  map[string]gmath.Affine3f32
+	Bones  map[int]gmath.Affine3f32
 }

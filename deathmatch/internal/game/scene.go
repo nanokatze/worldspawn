@@ -297,7 +297,8 @@ func (scene *Scene) GetGlobalTransform(id ecs.ID) (gmath.Affine3f64, bool) {
 			if !ok {
 				return gmath.Affine3One[float64](), false
 			}
-			A = gmath.Affine3Convert[float64](pose.Bones[parentBone].Mul(pose.Skelly.BindPose[parentBone])).Mul(A)
+			parentBoneIndex := pose.Skelly.JointByName(parentBone)
+			A = gmath.Affine3Convert[float64](pose.Bones[parentBoneIndex].Mul(pose.Skelly.BindPose[parentBoneIndex])).Mul(A)
 		}
 
 		id = parent
