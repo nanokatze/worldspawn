@@ -47,6 +47,12 @@ func (swapchain *Swapchain) Present2(jq *gpu.JobQueue, image *gpu.Image) bool {
 		image.Extent())
 	swapchain.images[index].EnqueueTransitionLayout(jq, vk.IMAGE_LAYOUT_GENERAL, vk.IMAGE_LAYOUT_PRESENT_SRC_KHR)
 
+	// Establish sync between work and presentation.
+	//
+	// TODO: do this correctly. The current approach isn't correct and might
+	// deadlock the thread, we need to establish sync with e.g. vkQueuePresent.
+	gpu.WaitForIdle(jq)
+
 	// TODO: properly sync this so all vkQueuePresents to this swapchain are in
 	// order
 	jq.Enqueue(&presentJob{
