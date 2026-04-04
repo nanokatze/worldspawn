@@ -22,9 +22,6 @@ func (instance *AccelInstance) SetAccel(accel Accel) {
 	instance.accel = accel.data
 }
 
-// TODO: rename to InstanceAccel?
-type TLAS struct{ tlas Accel }
-
 // TODO: accel build config. We'll need to split config into two parts, one used
 // to calculate the size and the other would actually equip it with data. This
 // is necessary so that the user can allocate a random buffer for their own use
@@ -32,6 +29,8 @@ type TLAS struct{ tlas Accel }
 // idk.
 
 /*
+type TLAS struct{ tlas Accel }
+
 type TLASBuildConfig struct {
 	// TODO: allow this to either be Slice[AccelInstance] or Slice[Pointer[AccelInstance]]
 	Instances Slice[AccelInstance]

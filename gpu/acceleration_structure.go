@@ -7,6 +7,7 @@ import (
 	"worldspawn/gpu/vk"
 )
 
+// TODO: make this private and replace with strongly typed wrappers (BLAS, TLAS)
 type Accel struct {
 	data UnsafePointer
 	size int
