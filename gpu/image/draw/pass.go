@@ -36,6 +36,7 @@ type Config struct {
 type Attachment struct {
 	Image *gpu.Image
 
+	// TODO: can we fold LoadOp + ClearValue in one?
 	LoadOp  vk.AttachmentLoadOp
 	StoreOp vk.AttachmentStoreOp
 	// When LoadOp is CLEAR, ClearValue specifies the bit pattern that the
