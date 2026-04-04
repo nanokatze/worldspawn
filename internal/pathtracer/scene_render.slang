@@ -121,13 +121,13 @@ struct Path {
 
 [[shader("raygeneration")]]
 void raygen() {
-    uint3 LaunchID = DispatchRaysIndex();
-    uint3 LaunchSize = DispatchRaysDimensions();
+    let LaunchID = DispatchRaysIndex().xy;
+    let LaunchSize = DispatchRaysDimensions().xy;
 
     Path path = {};
     path.beta = Spectrum(1.0);
     path.vampire = true;
-    push.camera.Ray(LaunchID.xy, LaunchSize.xy, path.rayOrigin, path.rayDir);
+    push.camera.Ray(LaunchID, LaunchSize, path.rayOrigin, path.rayDir);
 
     for (;;) {
         RayQuery<RAY_FLAG_FORCE_OPAQUE> rq;
@@ -156,8 +156,8 @@ void raygen() {
         } else if (rq.CommittedStatus() == COMMITTED_NOTHING) {
             // TODO: this is miss code, it should live in its own func
 
-            float3 V = rq.WorldRayDirection();
-            float3 W = mul(push.scene->lightAccel.envTransform, V);
+            let V = rq.WorldRayDirection();
+            let W = mul(push.scene->lightAccel.envTransform, V);
 
             // TODO: use SampleCubeGrad. We can use aniso sampling for cube textures.
             // Actually, aniso sampling is broken across many impls. We might wanna look
@@ -177,7 +177,7 @@ void raygen() {
         }
     }
 
-    push.film.color.Store2D((int2)DispatchRaysIndex().xy, float4(oetf(0, path.L), 1));
+    push.film.color.Store2D(LaunchID, float4(oetf(0, path.L), 1));
 }
 
 struct ShaderRecordData {
@@ -204,7 +204,7 @@ Spectrum sampleDirectLight(
     let emissiveInstanceIndex = (int)(asd * (float)lightAccel->emissiveInstanceCount);
     let emissiveInstance = &lightAccel->emissiveInstances.data[emissiveInstanceIndex];
 
-    float u = fract(asd * (float)lightAccel->emissiveInstanceCount);
+    let u = fract(asd * (float)lightAccel->emissiveInstanceCount);
 
     let instancePMF = 1.0 / (float)lightAccel->emissiveInstanceCount;
 
@@ -256,7 +256,7 @@ Spectrum sampleDirectLight(
 // like that.
 bool closesthit(
     __ref Path path,
-    uint3 dispatchRaysIndex,
+    uint2 dispatchRaysIndex,
     uint instanceIndex,
     uint geometryIndex,
     uint primitiveIndex,
@@ -269,11 +269,11 @@ bool closesthit(
     // couldn't have hit a vampire instance, so we don't need to check the
     // visibility mask.
     // TODO: rename to something like "vampireInstance" or whatever
-    bool vampire = ((push.scene->accelInstances[instanceIndex].instanceIDAndMask >> 24) & 0b11) == 0b01;
+    let vampire = ((push.scene->accelInstances[instanceIndex].instanceIDAndMask >> 24) & 0b11) == 0b01;
 
     BlueNoiseSampler<R2LDS> sampler = {
         R2LDS(),
-        dispatchRaysIndex.xy,
+        dispatchRaysIndex,
         push.number * 69 * SamplesPerBounce + path.depth * SamplesPerBounce,
     };
 
@@ -309,18 +309,18 @@ bool closesthit(
     // TODO: implement "primary surface replacement"
     if (path.depth == 0) {
         // TODO: proper diffuse and specular albedos
-        push.film.diffuseAlbedo.Store2D((int2)DispatchRaysIndex().xy, float4(material.Albedo(), 1));
+        push.film.diffuseAlbedo.Store2D(dispatchRaysIndex, float4(material.Albedo(), 1));
         // TODO: transform normal properly
         // TODO: spell out that it's intended to be denoising normal?
         // TODO: drop one of the components? We can also do octahexdral encoding
         // but it's not clear whether we really need it (in full generality)
         // given that one of the components should always be positive.
         // TODO: roughness
-        push.film.normalAndRoughness.Store2D((int2)DispatchRaysIndex().xy, float4(mul(float3x3(push.camera.view), normal), 1));
+        push.film.normalAndRoughness.Store2D(dispatchRaysIndex, float4(mul(float3x3(push.camera.view), normal), 1));
 
         let hitposClip = mul(push.camera.viewProj, float4(hitpos, 1));
         let depth = hitposClip.z / hitposClip.w;
-        push.film.depth.Store2D((int2)DispatchRaysIndex().xy, float4(depth, 0, 0, 1));
+        push.film.depth.Store2D(dispatchRaysIndex, float4(depth, 0, 0, 1));
     }
 
     let wo = -WorldRayDirection;
@@ -376,7 +376,7 @@ bool closesthit(
     // Russian roulette
     //
     // TODO: I guess we could also use an ordinary RNG here. Should we?
-    float rr = sampler.Get1D();
+    let rr = sampler.Get1D();
     if (path.depth >= push.quality.russianRouletteThreshold) {
         // TODO: introduce Spectrum.MaxComponentValue()
         float p = saturate(max(max(path.beta.x, path.beta.y), path.beta.z));
