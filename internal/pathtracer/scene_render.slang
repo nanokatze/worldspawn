@@ -62,6 +62,18 @@ struct cameraInternal {
     matrix<float, 4, 4> viewProj;
     matrix<float, 4, 4> projInverse;
     matrix<float, 4, 4> viewInverse;
+
+    void Ray(uint2 pixel, uint2 dimensions, __ref float3 rayOrigin, __ref float3 rayDir) {
+        let pixelCenter = float2(pixel) + float2(0.5, 0.5);
+        // TODO: the host should do the jittering
+        let inUV = pixelCenter / float2(dimensions);
+        let d = inUV * 2.0 - 1.0;
+        let target = mul(push.camera.projInverse, float4(d.x, d.y, 1, 1));
+
+        rayOrigin = mul(viewInverse, float4(0, 0, 0, 1)).xyz;
+        // TODO: do we actually need normalize here?
+        rayDir = normalize(mul(viewInverse, float4(normalize(target.xyz), 0)).xyz);
+    }
 }
 
 struct frameParams {
@@ -112,22 +124,10 @@ void raygen() {
     uint3 LaunchID = DispatchRaysIndex();
     uint3 LaunchSize = DispatchRaysDimensions();
 
-    float2 pixelCenter = float2(LaunchID.xy) + float2(0.5, 0.5);
-    // TODO: the host should fill this in.
-    // float2 pixelCenter = float2(LaunchID.xy) + float2(getLDSValue(0, 0), getLDSValue(0, 1));
-    float2 inUV = pixelCenter / float2(LaunchSize.xy);
-    float2 d = inUV * 2.0 - 1.0;
-    float4 target = mul(push.camera.projInverse, float4(d.x, d.y, 1, 1));
-
     Path path = {};
-    path.L = Spectrum(0.0);
     path.beta = Spectrum(1.0);
-    path.depth = 0;
     path.vampire = true;
-    // path.specularBounce = false;
-    path.rayOrigin = mul(push.camera.viewInverse, float4(0, 0, 0, 1)).xyz;
-    // TODO: do we actually need normalize here?
-    path.rayDir = normalize(mul(push.camera.viewInverse, float4(normalize(target.xyz), 0)).xyz);
+    push.camera.Ray(LaunchID.xy, LaunchSize.xy, path.rayOrigin, path.rayDir);
 
     for (;;) {
         RayQuery<RAY_FLAG_FORCE_OPAQUE> rq;
