@@ -27,7 +27,7 @@ func (animtest Animtest) UpdateBeforePhysics(w *Scene, ourID ecs.ID, info *Updat
 		"forearm.L",
 		"hand.L",
 	} {
-		t := int(w.Now.Sub(0) / 1e8 % 30)
+		t := float64(w.Now.Sub(0)%1e9) / 1e9 * 30
 
 		localTransforms[skelly.JointByName(bone)] =
 			gmath.TRS3f32{
