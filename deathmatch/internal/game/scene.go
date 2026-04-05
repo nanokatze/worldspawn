@@ -150,6 +150,8 @@ type Scene struct {
 	// with UpdateInfo
 	physicsSystem     *physics.System
 	physicsBodyExists ecs.Column[struct{}]
+
+	Logger *slog.Logger
 }
 
 func NewScene(n int) *Scene {
@@ -170,6 +172,8 @@ func NewScene(n int) *Scene {
 		PhysicsLayerToBroadPhaseLayer[:],
 		ShouldPhysicsLayersCollide)
 	w.physicsBodyExists.Init(w.Table)
+
+	w.Logger = slog.Default()
 
 	// TODO: we should expose an OptimizeBroadPhase call on physicsSystem which
 	// we'll (optionally) call after loading the world and perhaps every so
@@ -235,17 +239,17 @@ func (scene *Scene) SetParent(id, parent ecs.ID) {
 	// children
 }
 
-// TODO: don't return a bool but do a panic or oops (depending on config)?
-func (scene *Scene) GetTransform(id ecs.ID) (gmath.TRS3f64, bool) {
+func (scene *Scene) GetTransform(id ecs.ID) gmath.TRS3f64 {
 	tr, ok := scene.TransformTR.Get(id)
 	if !ok {
-		return gmath.TRS3One[float64](), false
+		scene.Logger.Warn("transform queried on an object that has none", "id", id)
+		return gmath.TRS3One[float64]()
 	}
 	s, ok := scene.TransformS.Get(id)
 	if !ok {
 		s = gmath.Mat3x3UOne[float32]()
 	}
-	return gmath.TRS3f64{tr.T, tr.R, s}, true
+	return gmath.TRS3f64{tr.T, tr.R, s}
 }
 
 func (scene *Scene) SetTransform(id ecs.ID, T gmath.TRS3f64) {
@@ -257,52 +261,71 @@ func (scene *Scene) SetTransform(id ecs.ID, T gmath.TRS3f64) {
 	}
 }
 
-// TODO: we should probs do a best effort so that even if a transform is missing
-// in the sequence (especially if we're parented to a bone that doesn't exist)
-// we just replace it with an identity, report it, and move on. We'd want to
-// figure out the reporting infrastructure so that we can decide whether to
-// suppress diagnostics, print diagnostics (where?) or panic.
+// TODO: if we encounter errors during hierarchy traversal we should restart
+// traversal with diagnostics collection and print the collected diagnostics
+// after.
+//
+// TODO: cycle detection
 //
 // TODO: replace T.Mul(A) with just A on the first iteration to optimize the
 // common case
 //
 // TODO: clean up
-func (scene *Scene) GetGlobalTransform(id ecs.ID) (gmath.Affine3f64, bool) {
-	getTransform := func(id ecs.ID) (gmath.Affine3f64, bool) {
-		if tmp, ok := scene.GetTransform(id); ok {
-			return tmp.Compose(), true
+func (scene *Scene) GetGlobalTransform(id ecs.ID) gmath.Affine3f64 {
+	getTransform := func(id ecs.ID) gmath.Affine3f64 {
+		tr, ok := scene.TransformTR.Get(id)
+		if !ok {
+			return gmath.Affine3One[float64]()
 		}
-		return gmath.Affine3One[float64](), false
+		s, ok := scene.TransformS.Get(id)
+		if !ok {
+			s = gmath.Mat3x3UOne[float32]()
+		}
+		return gmath.TRS3f64{tr.T, tr.R, s}.Compose()
 	}
+
+	getBoneTransform := func(id ecs.ID, bone string) gmath.Affine3f32 {
+		pose, ok := scene.Pose.Get(id)
+		if !ok {
+			return gmath.Affine3One[float32]()
+		}
+		skelly := pose.Skelly
+		if skelly == nil {
+			return gmath.Affine3One[float32]()
+		}
+		boneIndex := skelly.JointByName(bone)
+		if boneIndex == -1 {
+			return gmath.Affine3One[float32]()
+		}
+		boneTransform, ok := pose.Bones[boneIndex]
+		if !ok {
+			return skelly.BindPose[boneIndex]
+		}
+		return boneTransform.Mul(skelly.BindPose[boneIndex])
+	}
+
+	// TODO: don't hardcode the hierarchy depth bound
+	//
+	// NOTE: the hierarchy depth is bounded by no. of entries in the table
 
 	A := gmath.Affine3One[float64]()
 	for range 5000 {
-		T, ok := getTransform(id)
-		if !ok {
-			return gmath.Affine3One[float64](), false
-		}
-		A = T.Mul(A)
+		A = getTransform(id).Mul(A)
 
 		parent := scene.GetParent(id)
 		if parent == 0 {
+			// TODO: ensure that parent to bone isn't set
 			break
 		}
 
-		parentBone, parentedToBone := scene.ParentBone.Get(id)
-		// TODO: we should report badness if we run into a case that we're
-		// parented to a bone but don't have a parent.
-		if parentedToBone {
-			pose, ok := scene.Pose.Get(parent)
-			if !ok {
-				return gmath.Affine3One[float64](), false
-			}
-			parentBoneIndex := pose.Skelly.JointByName(parentBone)
-			A = gmath.Affine3Convert[float64](pose.Bones[parentBoneIndex].Mul(pose.Skelly.BindPose[parentBoneIndex])).Mul(A)
+		if parentBone, parentedToBone := scene.ParentBone.Get(id); parentedToBone {
+			A = gmath.Affine3Convert[float64](getBoneTransform(parent, parentBone)).Mul(A)
 		}
 
 		id = parent
 	}
-	return A, true
+
+	return A
 }
 
 // TODO: convert this to generic method once generic methods land
@@ -319,7 +342,7 @@ type UpdateParams struct {
 	// Now         Time // for substeps
 	Δt          time.Duration
 	Speculating bool
-	Logger      *slog.Logger
+	Logger      *slog.Logger // TODO: kill this in favor of scene.Logger
 }
 
 // TODO: parallel for in blender for example specifies bulk number for tasks so

@@ -21,7 +21,7 @@ type LaunchedGrenade struct{}
 func (LaunchedGrenade) entity() {}
 
 func (grenade LaunchedGrenade) TimerExpired(w *Scene, grenadeID ecs.ID, info *UpdateParams) {
-	grenadeT := mustOk(w.GetGlobalTransform(grenadeID)).TRS()
+	grenadeT := w.GetGlobalTransform(grenadeID).TRS()
 
 	if !info.Speculating {
 		eff := w.CreateEntity(info)

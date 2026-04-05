@@ -32,11 +32,11 @@ func (w *Scene) CreateDroppedWeapon(weaponID ecs.ID, info *UpdateParams) ecs.ID 
 
 // TODO: move handling of this into Character
 func (dropped DroppedWeapon) UpdateBeforePhysics(w *Scene, ourID ecs.ID, info *UpdateParams) {
-	T := mustOk(w.GetGlobalTransform(ourID))
+	T := w.GetGlobalTransform(ourID)
 
 	for playerID, entity := range ecs.All(&w.Entity) {
 		if character, ok := entity.(Character); ok {
-			playerT := mustOk(w.GetGlobalTransform(playerID))
+			playerT := w.GetGlobalTransform(playerID)
 
 			if T.T.Sub(playerT.T).Length() <= 1.1 {
 				freeSlot := slices.Index(character.Slots[:], 0)

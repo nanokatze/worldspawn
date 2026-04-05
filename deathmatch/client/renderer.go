@@ -251,7 +251,7 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 		clear(scene.Instance)
 
 		for id, soundEffect := range ecs.All(&w.SoundEffect) {
-			T, _ := w.GetGlobalTransform(id)
+			T := w.GetGlobalTransform(id)
 
 			effect, ok := sources[soundEffect.Effect]
 			if !ok {

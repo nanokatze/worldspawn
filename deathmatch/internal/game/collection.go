@@ -98,7 +98,7 @@ func (w *Scene) SpawnPrefab(filename string, info *UpdateParams) ecs.ID {
 
 // TODO: this should create the collection entities
 func (w *Scene) InstanceCollectionAt(id ecs.ID, prefabRef PrefabRef) {
-	T, _ := w.GetTransform(id)
+	T := w.GetTransform(id)
 
 	w.CopyEntities(id, prefab(prefabRef.Filename))
 	// TODO: actually compose these rather than override!

@@ -127,12 +127,12 @@ func (char Character) CharacterSubstep(w *Scene, id ecs.ID, cmd TimestampedInput
 			buttons |= WeaponTrigger
 		}
 
-		shootT, _ := w.GetGlobalTransform(id)
-		shootT = shootT.Mul(gmath.TRS3f64{
-			T: gmath.Vec3f64{0, 0, float64(playerStats.StandingViewHeight)},
-			R: gmath.Rot3InPlane(gmath.Vec3f32{0, 0, -1}, 2*math.Pi*char.Look[0]).Mul(gmath.Rot3InPlane(gmath.Vec3f32{-1, 0, 0}, 2*math.Pi*char.Look[1])),
-			S: gmath.Mat3x3UOne[float32](),
-		}.Compose())
+		shootT := w.GetGlobalTransform(id).
+			Mul(gmath.TRS3f64{
+				T: gmath.Vec3f64{0, 0, float64(playerStats.StandingViewHeight)},
+				R: gmath.Rot3InPlane(gmath.Vec3f32{0, 0, -1}, 2*math.Pi*char.Look[0]).Mul(gmath.Rot3InPlane(gmath.Vec3f32{-1, 0, 0}, 2*math.Pi*char.Look[1])),
+				S: gmath.Mat3x3UOne[float32](),
+			}.Compose())
 
 		updateVisual := weapon.WeaponSubstep(w, char.ActiveWeapon, id, shootT, buttons, info)
 		if updateVisual != nil {
@@ -168,7 +168,7 @@ func (char Character) CharacterUpdate(w *Scene, id ecs.ID, info *UpdateParams) {
 var _ UpdateBeforePhysics = Character{}
 
 func (char Character) UpdateBeforePhysics(w *Scene, id ecs.ID, info *UpdateParams) {
-	trs, _ := w.GetTransform(id)
+	trs := w.GetTransform(id)
 	velocity, _ := w.Velocity.Get(id)
 
 	rotation := trs.R.Mul(gmath.Rot3InPlane(gmath.Vec3f32{0, 0, -1}, 2*math.Pi*char.Look[0]))
@@ -207,7 +207,7 @@ func planeSignedDistance(plane gmath.Vec4f32, point gmath.Vec3f32) float32 {
 }
 
 func (char *Character) asdasd(w *Scene, id ecs.ID, velocity gmath.Vec3f32, Δt time.Duration) gmath.Vec3f32 {
-	trs, _ := w.GetTransform(id)
+	trs := w.GetTransform(id)
 
 	up := gmath.Vec3f32{0, 0, 1}
 

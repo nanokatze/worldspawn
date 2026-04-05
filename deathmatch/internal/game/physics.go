@@ -111,7 +111,7 @@ func (w *Scene) updatePhysicsShadow() {
 	}
 
 	for id, layer := range ecs.All(&w.CollisionLayer) {
-		trs := mustOk(w.GetTransform(id)) // ok tbf just TODO: include TransformTR into the query
+		tr, _ := w.TransformTR.Get(id) // ok tbf just TODO: include TransformTR into the query
 		velocity, _ := w.Velocity.Get(id)
 		filter, _ := w.PhysicsFilter.Get(id)
 
@@ -155,8 +155,8 @@ func (w *Scene) updatePhysicsShadow() {
 			w.physicsSystem.AddBody(
 				bodyID,
 				shape2,
-				trs.T,
-				trs.R,
+				tr.T,
+				tr.R,
 				velocity.Linear,
 				velocity.Angular,
 				int(layer),
@@ -170,8 +170,8 @@ func (w *Scene) updatePhysicsShadow() {
 			w.physicsSystem.UpdateBody(
 				bodyID,
 				shape2,
-				trs.T,
-				trs.R,
+				tr.T,
+				tr.R,
 				velocity.Linear,
 				velocity.Angular,
 				int(layer),

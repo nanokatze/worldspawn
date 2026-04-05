@@ -480,7 +480,7 @@ func spawnplayer(w *game.Scene, info *game.UpdateParams) ecs.ID {
 			playerSpawns = append(playerSpawns, id)
 		}
 	}
-	T, _ := w.GetGlobalTransform(playerSpawns[rand.IntN(len(playerSpawns))])
+	T := w.GetGlobalTransform(playerSpawns[rand.IntN(len(playerSpawns))])
 
 	camera := w.CreateEntity(info)
 
