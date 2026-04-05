@@ -219,7 +219,7 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 			for j := range update.Materials[i] {
 				m2 := getmaterial(geometry.materials[j])
 				update.Materials[i][j] = m2.material
-				m2.preamble(update.MaterialArgs[i][j][:], &matPropReader{w, id})
+				m2.preamble(update.MaterialArgs[i][j][:], &attributeGetter{w, id})
 			}
 		}
 
@@ -405,13 +405,13 @@ func (re *renderer) Render(jq *gpu.JobQueue, sdlNow uint64, dst *gpu.Image) {
 	re.frameNumber++
 }
 
-type matPropReader struct {
+type attributeGetter struct {
 	scene  *game.Scene
 	object ecs.ID
 }
 
-func (sr *matPropReader) UniformAttribute(name string, out *[4]float32) bool {
-	objectData, ok := sr.scene.Entity.Get(sr.object)
+func (getter *attributeGetter) UniformAttribute(name string, out *[4]float32) bool {
+	objectData, ok := getter.scene.Entity.Get(getter.object)
 	if !ok {
 		return false
 	}
