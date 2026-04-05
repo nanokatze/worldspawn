@@ -19,10 +19,5 @@ func (track Track) Sample(t float64) float32 {
 type Animation struct {
 	// TODO: rename to tracks?
 	Frames   int
-	Channels map[string][]float32
-}
-
-// TODO: kill this
-func (a *Animation) Sample(channel string, t float64) float32 {
-	return Track(a.Channels[channel]).Sample(t)
+	Channels map[string]Track
 }

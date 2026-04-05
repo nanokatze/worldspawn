@@ -11,14 +11,6 @@ type Animtest struct {
 
 func (Animtest) entity() {}
 
-func (scene *Scene) GetSkeleton(id ecs.ID) *animgraph.Skeleton {
-	skellyName, ok := scene.Skeleton.Get(id)
-	if !ok {
-		return nil
-	}
-	return skeleton(skellyName)
-}
-
 func (animtest Animtest) UpdateBeforePhysics(w *Scene, ourID ecs.ID, info *UpdateParams) {
 	animation := animation("testcharacter4/animations/metarigAction")
 
@@ -36,10 +28,10 @@ func (animtest Animtest) UpdateBeforePhysics(w *Scene, ourID ecs.ID, info *Updat
 		localTransforms[skelly.JointByName(bone)] =
 			gmath.TRS3f32{
 				R: gmath.Rot3{
-					animation.Sample("pose.bones[\""+bone+"\"].rotation_quaternion[1]", t),
-					animation.Sample("pose.bones[\""+bone+"\"].rotation_quaternion[2]", t),
-					animation.Sample("pose.bones[\""+bone+"\"].rotation_quaternion[3]", t),
-					animation.Sample("pose.bones[\""+bone+"\"].rotation_quaternion[0]", t),
+					animation.Channels["pose.bones[\""+bone+"\"].rotation_quaternion[1]"].Sample(t),
+					animation.Channels["pose.bones[\""+bone+"\"].rotation_quaternion[2]"].Sample(t),
+					animation.Channels["pose.bones[\""+bone+"\"].rotation_quaternion[3]"].Sample(t),
+					animation.Channels["pose.bones[\""+bone+"\"].rotation_quaternion[0]"].Sample(t),
 				}.Renormalize(),
 				S: gmath.Mat3x3UOne[float32](),
 			}.Compose()

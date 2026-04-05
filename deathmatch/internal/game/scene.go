@@ -333,6 +333,14 @@ func (scene *Scene) GetGlobalTransform(id ecs.ID) gmath.Affine3f64 {
 	return A
 }
 
+func (scene *Scene) GetSkeleton(id ecs.ID) *animgraph.Skeleton {
+	skellyName, ok := scene.Skeleton.Get(id)
+	if !ok {
+		return nil
+	}
+	return skeleton(skellyName)
+}
+
 // TODO: convert this to generic method once generic methods land
 func SceneGetEntity[T Entity](w *Scene, id ecs.ID) (T, bool) {
 	entity, _ := w.Entity.Get(id)
