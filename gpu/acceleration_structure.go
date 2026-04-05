@@ -15,6 +15,8 @@ type Accel struct {
 
 func (accel Accel) Size() int { return accel.size }
 
+type BLAS Accel
+
 // TODO: rename to AccelGeometry?
 type AccelBuildInput interface {
 	vkAccelerationStructureGeometry(geometry *vk.AccelerationStructureGeometryKHR, primitiveCount *uint32)

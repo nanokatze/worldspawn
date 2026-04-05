@@ -23,7 +23,7 @@ type gsdata struct {
 	// output
 
 	geometry *pathtracer.Geometry
-	accel    gpu.Accel
+	accel    gpu.BLAS
 }
 
 // TODO: rename this
@@ -38,10 +38,10 @@ type geoNodes struct {
 
 // TODO: rename?
 
-func (gs *geoNodes) Outputs(data *gsdata) (*pathtracer.Geometry, gpu.Accel) {
+func (gs *geoNodes) Outputs(data *gsdata) (*pathtracer.Geometry, gpu.BLAS) {
 	if len(gs.pose.Bones) == 0 {
 		if gs.src == nil {
-			return nil, gpu.Accel{}
+			return nil, gpu.BLAS{}
 		}
 		return &gs.src.pathtracerGeometry, gs.src.pathtracerAccel
 	}
@@ -92,13 +92,13 @@ func (gs *geoNodes) EnqueueEvaluate(jq *gpu.JobQueue, data *gsdata) {
 
 	accelConfig := skinned.AccelConfig()
 	accelSizes := accelConfig.CalcSizes()
-	if data.accel.Size() < accelSizes.Accel {
+	if gpu.Accel(data.accel).Size() < accelSizes.Accel {
 		println("allocating accel", accelSizes.Accel)
-		data.accel = gpu.NewAccel(accelSizes.Accel)
+		data.accel = gpu.BLAS(gpu.NewAccel(accelSizes.Accel))
 	}
 
 	// TODO: we need to run this every frame, interpolating stuff.
 	geometry.EnqueueSkinMesh(jq, skinnedPositions, restPositions, gs.src.jointWeights, gs.src.jointsPerVertex, data.pose)
 
-	accelConfig.EnqueueBuild(jq, data.accel)
+	accelConfig.EnqueueBuild(jq, gpu.Accel(data.accel))
 }

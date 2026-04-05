@@ -18,9 +18,12 @@ type AccelInstance struct {
 
 // TODO: or make a constructor instead? Func vararg constructor would've been
 // pretty nice I guess.
-func (instance *AccelInstance) SetAccel(accel Accel) {
-	instance.accel = accel.data
+func (instance *AccelInstance) SetAccel(blas BLAS) {
+	instance.accel = blas.data
 }
+
+// TODO: hide the internals i.e. make it be struct{ tlas TLAS }
+type TLAS Accel
 
 // TODO: accel build config. We'll need to split config into two parts, one used
 // to calculate the size and the other would actually equip it with data. This
@@ -29,8 +32,6 @@ func (instance *AccelInstance) SetAccel(accel Accel) {
 // idk.
 
 /*
-type TLAS struct{ tlas Accel }
-
 type TLASBuildConfig struct {
 	// TODO: allow this to either be Slice[AccelInstance] or Slice[Pointer[AccelInstance]]
 	Instances Slice[AccelInstance]

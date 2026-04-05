@@ -198,7 +198,7 @@ type fileBackedMesh struct {
 	materials []string
 
 	pathtracerGeometry pathtracer.Geometry
-	pathtracerAccel    gpu.Accel
+	pathtracerAccel    gpu.BLAS
 }
 
 // TODO: equip AttributeBuffer with size so we don't have to pull in vertex count
@@ -308,10 +308,10 @@ func loadmesh(filename string) *fileBackedMesh {
 	}
 
 	accelConfig := pathtracerGeometry.AccelConfig()
-	accel := gpu.NewAccel(accelConfig.CalcSizes().Accel)
+	accel := gpu.BLAS(gpu.NewAccel(accelConfig.CalcSizes().Accel))
 
 	jq := new(gpu.JobQueue)
-	accelConfig.EnqueueBuild(jq, accel)
+	accelConfig.EnqueueBuild(jq, gpu.Accel(accel))
 	gpu.WaitForIdle(jq)
 
 	return &fileBackedMesh{

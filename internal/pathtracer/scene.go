@@ -82,7 +82,7 @@ type Scene struct {
 
 	accelData gpu.Slice[gpu.AccelInstance]
 
-	accel gpu.Accel
+	accel gpu.TLAS
 
 	lightAccel lightAccel
 
@@ -135,7 +135,7 @@ func NewScene(n int, maxPartsPerMesh int) *Scene {
 		sbt:                     gpu.MakeShaderBindingTable(raygenRecord, gpu.Slice[struct{}]{}, gpu.Slice[struct{}]{}, gpu.Slice[struct{}]{}),
 		materialArgs:            materialArgs,
 		accelData:               accelData,
-		accel:                   gpu.NewTopLevelAccel(n),
+		accel:                   gpu.TLAS(gpu.NewTopLevelAccel(n)),
 		lightAccel: lightAccel{
 			emissiveInstances: lightAccelData,
 		},
@@ -170,7 +170,7 @@ func (scene *Scene) SetInstanceTransform(i int, x [3][4]float32) {
 }
 
 // TODO: this should only exist on the device/in the shader
-func (scene *Scene) SetInstanceGeometry(i int, mask uint8, geometry *Geometry, accel gpu.Accel, materials []*InterpretedMaterial, materialArgs [][256]byte) {
+func (scene *Scene) SetInstanceGeometry(i int, mask uint8, geometry *Geometry, accel gpu.BLAS, materials []*InterpretedMaterial, materialArgs [][256]byte) {
 	// TODO: this really begs for a func vararg constructor tbh.
 	var accelInstance gpu.AccelInstance
 	accelInstance.InstanceIDAndMask = pack24_8(0, uint32(mask))
@@ -209,5 +209,5 @@ func (scene *Scene) EnqueueUpdateAccel(jq *gpu.JobQueue) {
 				InstanceCount: uint32(gpu.SliceLen(scene.accelData)),
 			},
 		},
-	}).EnqueueBuild(jq, scene.accel)
+	}).EnqueueBuild(jq, gpu.Accel(scene.accel))
 }
