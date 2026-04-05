@@ -163,8 +163,13 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 
 			if parentBone, parentedToBone := w.ParentBone.Get(id); parentedToBone {
 				pose, _ := w.Pose.Get(parent)
-				parentBoneIndex := pose.Skelly.JointByName(parentBone)
-				tmp := pose.Bones[parentBoneIndex].Mul(pose.Skelly.BindPose[parentBoneIndex])
+				skelly := w.GetSkeleton(parent)
+				parentBoneIndex := skelly.JointByName(parentBone)
+				hmm, ok := pose.Bones[parentBoneIndex]
+				if !ok {
+					hmm = gmath.Affine3One[float32]()
+				}
+				tmp := hmm.Mul(skelly.BindPose[parentBoneIndex])
 
 				// kinda yikes but will do for now
 				//
@@ -208,8 +213,9 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 			pose, _ := w.Pose.Get(id)
 
 			update.GeoNodes[i] = geoNodes{
-				src:  geometry,
-				pose: pose,
+				src:    geometry,
+				skelly: w.GetSkeleton(id),
+				pose:   pose,
 			}
 
 			// TODO: stop allocating a new slice every time

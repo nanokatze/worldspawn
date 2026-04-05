@@ -590,6 +590,7 @@ func main() {
 			R: gmath.Rot3One(),
 			S: gmath.Mat3x3UOne[float32](),
 		})
+		s.scene.Skeleton.Set(test, "testcharacter4/skeletons/metarig")
 		s.scene.RenderingGeometry.Set(test, "testcharacter4/geometries/TestCharacter4")
 		s.scene.Entity.Set(test, game.Animtest{})
 
@@ -602,6 +603,7 @@ func main() {
 			S: gmath.Mat3x3UOne[float32](),
 		})
 		s.scene.RenderingGeometry.Set(test2, "weapons/grenade_launcher/geometries/Grenade_Launcher")
+		s.scene.Entity.Set(test2, game.Testburger{BaseColor: [4]float32{0.8, 0.8, 0.8, 1}})
 	}
 
 	if false {

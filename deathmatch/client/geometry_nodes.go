@@ -28,8 +28,9 @@ type gsdata struct {
 
 // TODO: rename this
 type geoNodes struct {
-	src  *fileBackedMesh
-	pose animgraph.Pose
+	src    *fileBackedMesh
+	skelly *animgraph.Skeleton
+	pose   animgraph.Pose
 }
 
 // TODO: factor out allocation requests into its own function so that we can run
@@ -82,7 +83,7 @@ func (gs *geoNodes) EnqueueEvaluate(jq *gpu.JobQueue, data *gsdata) {
 
 	poseHost := data.pose.Value()
 	for i, name := range gs.src.joints {
-		m, ok := gs.pose.Bones[gs.pose.Skelly.JointByName(name)]
+		m, ok := gs.pose.Bones[gs.skelly.JointByName(name)]
 		if ok {
 			poseHost[i] = m.ToMat()
 		} else {

@@ -11,14 +11,18 @@ type Animtest struct {
 
 func (Animtest) entity() {}
 
+func (scene *Scene) GetSkeleton(id ecs.ID) *animgraph.Skeleton {
+	skellyName, ok := scene.Skeleton.Get(id)
+	if !ok {
+		return nil
+	}
+	return skeleton(skellyName)
+}
+
 func (animtest Animtest) UpdateBeforePhysics(w *Scene, ourID ecs.ID, info *UpdateParams) {
 	animation := animation("testcharacter4/animations/metarigAction")
 
-	_ = animation
-
-	skelly := skeleton("testcharacter4/skeletons/metarig")
-
-	_ = skelly
+	skelly := w.GetSkeleton(ourID)
 
 	localTransforms := map[int]gmath.Affine3f32{}
 
@@ -42,11 +46,10 @@ func (animtest Animtest) UpdateBeforePhysics(w *Scene, ourID ecs.ID, info *Updat
 	}
 
 	pose := animgraph.Pose{
-		Skelly: skelly,
-		Bones:  map[int]gmath.Affine3f32{},
+		Bones: map[int]gmath.Affine3f32{},
 	}
 
-	// TODO: this should probably be a method on Pose.
+	// TODO: flooding would be more efficient
 	for bone := range skelly.JointNames {
 		A := gmath.Affine3One[float32]()
 

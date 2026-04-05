@@ -74,14 +74,19 @@ type Columns struct {
 	// object.
 	TransformS ecs.Column[gmath.Mat3x3Uf32]
 
+	Skeleton ecs.Column[string]
+
 	// Testing only. We'll make this a shadow column which will be updated by an
 	// animation graph esque thingy. Also Armature should probably be a separate
 	// column so that bone parenting works even when there's no animation
 	// playing... On the other hand idk actually there's not really much point
 	// to having Armature but no Pose, hmm. I guess it doesn't really matter if
-	// we're going to switch to script anyway.
+	// we're going to switch to script anyway. Actually it does: having a
+	// separate Armature column would let us have no animation script assigned.
 	//
 	// Right now we're also serializing the entire skeleton over the network.
+	//
+	// TODO: replace this with Animgraph or something column
 	Pose ecs.Column[animgraph.Pose]
 
 	// Physics should only run for bodies that have no parent. We could
@@ -289,7 +294,7 @@ func (scene *Scene) GetGlobalTransform(id ecs.ID) gmath.Affine3f64 {
 		if !ok {
 			return gmath.Affine3One[float32]()
 		}
-		skelly := pose.Skelly
+		skelly := scene.GetSkeleton(id)
 		if skelly == nil {
 			return gmath.Affine3One[float32]()
 		}
