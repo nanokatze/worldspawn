@@ -61,7 +61,7 @@ var blueNoise = sync.OnceValue(func() *gpu.Image {
 	gpuImg := gpu.NewImage(
 		vk.FORMAT_R16G16B16A16_UNORM,
 		[]int{256, 256},
-		gpu.WithLayers2(8),
+		gpu.WithLayers(8),
 		gpu.WithUsage(vk.IMAGE_USAGE_SAMPLED_BIT))
 	gpuImg.EnqueueInit(jq)
 
@@ -97,7 +97,7 @@ var blueNoise = sync.OnceValue(func() *gpu.Image {
 
 			gpu.EnqueueCopyMemoryToImage(
 				jq,
-				gpuImg.SubImage(gpu.WithLayers{i, i + 1}), nil,
+				gpuImg.SubImage(gpu.WithLayerRange{i, i + 1}), nil,
 				staging, 0, 0,
 				[]int{imgNRGBA.Rect.Max.X, imgNRGBA.Rect.Max.Y})
 
@@ -130,7 +130,7 @@ func (scene *Scene) Render(
 	quality *Quality) {
 	bn := blueNoise()
 
-	bnLayer := bn.SubImage(gpu.WithLayers{int(frameNumber) % bn.Layers(), int(frameNumber)%bn.Layers() + 1})
+	bnLayer := bn.SubImage(gpu.WithLayerRange{int(frameNumber) % bn.Layers(), int(frameNumber)%bn.Layers() + 1})
 	defer jq.Cleanup(bnLayer.Destroy)
 
 	dscene := gpu.NewUncached[Scene]()

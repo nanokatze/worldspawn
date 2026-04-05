@@ -85,21 +85,21 @@ type ImageConfig struct {
 	Usages vk.ImageUsageFlags
 }
 
-type ImageOption interface{ apply2(config *ImageConfig) }
+type ImageOption interface{ apply(config *ImageConfig) }
 
-type WithLayers2 int
+type WithLayers int
 
-func (layers WithLayers2) apply2(config *ImageConfig) {
-	config.Layers = int(layers)
-}
+func (layers WithLayers) apply(config *ImageConfig) { config.Layers = int(layers) }
 
-type WithMips2 int
+type WithMips int
 
-func (mips WithMips2) apply2(config *ImageConfig) {
-	config.Mips = int(mips)
-}
+func (mips WithMips) apply(config *ImageConfig) { config.Mips = int(mips) }
 
-// TODO: rename?
+type WithUsage vk.ImageUsageFlagBits
+
+func (usage WithUsage) apply(config *ImageConfig) { config.Usages |= vk.ImageUsageFlags(usage) }
+
+// TODO: rename?; make this a method on ImageConfig?
 func JoinImageOptions(format vk.Format, extent []int, opts ...ImageOption) ImageConfig {
 	var conf ImageConfig
 	conf.Dim = len(extent)
@@ -110,7 +110,7 @@ func JoinImageOptions(format vk.Format, extent []int, opts ...ImageOption) Image
 	conf.Usages = vk.ImageUsageFlags(vk.IMAGE_USAGE_TRANSFER_DST_BIT) | vk.ImageUsageFlags(vk.IMAGE_USAGE_TRANSFER_SRC_BIT)
 	for _, opt := range opts {
 		// TODO: switch over types so that we don't leak the config
-		opt.apply2(&conf)
+		opt.apply(&conf)
 	}
 	return conf
 }
@@ -284,38 +284,35 @@ type SubImageOption interface{ apply(config *subImageConfig) }
 // TODO: rename?
 type ViewAs ImageDim
 
-func (dim ViewAs) apply(config *subImageConfig) { config.Dim = ImageDim(dim) }
+func (dim ViewAs) apply(config *subImageConfig) {
+	// TODO: validation
+	config.Dim = ImageDim(dim)
+}
 
-// TODO: separate WithLayers and WithMips ImageOptions pls? So that we don't
-// need to specify First/End but just no. of mips.
+type Reinterpret vk.Format
 
-// TODO: rename back to Reinterpret?
-type WithFormat vk.Format
-
-func (format WithFormat) apply(config *subImageConfig) { config.Format = vk.Format(format) }
+func (format Reinterpret) apply(config *subImageConfig) {
+	// TODO: validation
+	config.Format = vk.Format(format)
+}
 
 // TODO: make a variant of this called WithSlices which would have to be used for 3D images?
-type WithLayers struct{ First, End int }
+type WithLayerRange [2]int
 
-func (layers WithLayers) apply(config *subImageConfig) {
-	config.FirstLayer = config.FirstLayer + layers.First
-	config.Layers = layers.End - layers.First
+func (layers WithLayerRange) apply(config *subImageConfig) {
+	// TODO: validation
+	config.FirstLayer = config.FirstLayer + layers[0]
+	config.Layers = layers[1] - layers[0]
 }
 
-type WithMips struct{ First, End int }
+type WithMipRange [2]int
 
-func (mips WithMips) apply(config *subImageConfig) {
-	config.FirstMip = config.FirstMip + mips.First
-	config.Mips = mips.End - mips.First
+func (mips WithMipRange) apply(config *subImageConfig) {
+	// TODO: validation
+	config.FirstMip = config.FirstMip + mips[0]
+	config.Mips = mips[1] - mips[0]
 }
 
-type WithUsage vk.ImageUsageFlagBits
-
-func (usage WithUsage) apply2(config *ImageConfig) {
-	config.Usages |= vk.ImageUsageFlags(usage)
-}
-
-// TODO: make it a method on the *subImageConfig?
 func (conf *subImageConfig) join(opts ...SubImageOption) {
 	// TODO: switch over common impls so that we noescape things
 
@@ -329,11 +326,6 @@ func (conf *subImageConfig) bounds() imageBounds {
 	return makeImageBounds(formatutil.Aspects(conf.Format), conf.FirstLayer, conf.Layers, conf.FirstMip, conf.Mips)
 }
 
-// Format specifies what format to reinterpret this image
-//
-// TODO: make this use vararg options (implemented in terms of interface so that
-// we can handle things in a switch and avoid escapes)
-//
 // TODO: for multi-planar images we'd also want to specify aspect mask. Instead,
 // we can pretend all images are multi-planar and specify *plane mask* (up to 3
 // bits). Depth-stencil images always have depth be plane 0 and stencil plane 1.

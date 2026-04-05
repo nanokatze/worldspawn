@@ -17,7 +17,7 @@ func Bloom(jq *gpu.JobQueue, dst, src *gpu.Image) {
 	tmp := gpu.NewImage(
 		vk.FORMAT_E5B9G9R9_UFLOAT_PACK32,
 		extent[:],
-		gpu.WithMips2(7), // TODO: compute it from something?
+		gpu.WithMips(7), // TODO: compute it from something?
 		gpu.WithUsage(vk.IMAGE_USAGE_STORAGE_BIT),
 		gpu.WithUsage(vk.IMAGE_USAGE_SAMPLED_BIT),
 	)
@@ -25,7 +25,7 @@ func Bloom(jq *gpu.JobQueue, dst, src *gpu.Image) {
 
 	tmpMips := make([]*gpu.Image, tmp.Mips())
 	for i := range tmpMips {
-		tmpMips[i] = tmp.SubImage(gpu.WithMips{i, i + 1})
+		tmpMips[i] = tmp.SubImage(gpu.WithMipRange{i, i + 1})
 		defer jq.Cleanup(tmpMips[i].Destroy)
 	}
 

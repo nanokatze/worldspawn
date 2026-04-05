@@ -10,13 +10,13 @@ import (
 func TestImageExtent(t *testing.T) {
 	// TODO: introduce WithCompleteMipChain()?
 
-	img := NewImage(vk.FORMAT_BC7_SRGB_BLOCK, []int{15, 15}, WithMips2(completeMipChainLength(15, 15, 1)))
+	img := NewImage(vk.FORMAT_BC7_SRGB_BLOCK, []int{15, 15}, WithMips(completeMipChainLength(15, 15, 1)))
 	defer img.Destroy()
 
 	for i := range 4 {
 		t.Log(
-			img.SubImage(WithMips{i, i + 1}).Extent(),
-			img.SubImage(WithMips{i, i + 1}, WithFormat(vk.FORMAT_R32G32B32A32_UINT)).Extent())
+			img.SubImage(WithMipRange{i, i + 1}).Extent(),
+			img.SubImage(WithMipRange{i, i + 1}, Reinterpret(vk.FORMAT_R32G32B32A32_UINT)).Extent())
 	}
 }
 
@@ -58,7 +58,7 @@ func TestImageCopy2(t *testing.T) {
 	img := NewImage(vk.FORMAT_BC7_UNORM_BLOCK, []int{6, 6})
 	defer img.Destroy()
 
-	img2 := img.SubImage(WithFormat(vk.FORMAT_R32G32B32A32_UINT))
+	img2 := img.SubImage(Reinterpret(vk.FORMAT_R32G32B32A32_UINT))
 
 	tmp := MakeSliceUncached[byte](2 * 2 * 16)
 	defer Free(UnsafePointer(SliceData(tmp)))

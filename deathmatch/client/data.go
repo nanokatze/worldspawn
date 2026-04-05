@@ -57,8 +57,8 @@ func texture(filename string) *pathtracer.Texture {
 		t.Image = gpu.NewImage(
 			vk.Format(conf.Format),
 			conf.Extent[:conf.Dim],
-			gpu.WithLayers2(conf.Layers),
-			gpu.WithMips2(conf.Mips),
+			gpu.WithLayers(conf.Layers),
+			gpu.WithMips(conf.Mips),
 			gpu.WithUsage(vk.IMAGE_USAGE_SAMPLED_BIT))
 		if conf.Cube {
 			t.Image = t.Image.SubImage(gpu.ViewAs(gpu.ImageDimCube))
@@ -70,7 +70,7 @@ func texture(filename string) *pathtracer.Texture {
 
 			jq := new(gpu.JobQueue)
 
-			img := t.Image.SubImage(gpu.WithMips{i, i + 1})
+			img := t.Image.SubImage(gpu.WithMipRange{i, i + 1})
 			img.EnqueueInit(jq)
 
 			d.EnqueueDecode(jq, img, i)
