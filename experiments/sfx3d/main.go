@@ -63,8 +63,7 @@ var getmesh = sync.OnceValue(func() *mymesh {
 	}
 })
 
-// +Y forward +X right +Z up to -Z forward +X right -Y up
-var fixup = gmath.Mat4x4f32{
+var blenderToPathTracer = gmath.Mat4x4f32{
 	1, 0, 0, 0,
 	0, 0, -1, 0,
 	0, -1, 0, 0,
@@ -352,7 +351,7 @@ func main() {
 			float32(swapchainImage.Extent()[0])/float32(swapchainImage.Extent()[1]),
 			0.01)
 
-		viewInverse := camera.Compose().ToMat().Mul(fixup.Inverse())
+		viewInverse := camera.Compose().ToMat().Mul(blenderToPathTracer.Inverse())
 
 		inputMu.Unlock()
 
