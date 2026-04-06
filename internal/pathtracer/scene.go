@@ -28,7 +28,7 @@ type Camera struct {
 type meshPart2 struct {
 	_ structs.HostLayout
 
-	Triangles    gpu.Pointer[[3]uint16]
+	Triangles    gpu.Pointer[[3]uint32]
 	NumTriangles uint32
 	PosBuffer    gpu.Pointer[[3]float32]
 	Normals      gpu.Pointer[[3]float32]

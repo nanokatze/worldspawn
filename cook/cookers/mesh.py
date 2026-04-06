@@ -175,7 +175,7 @@ def cook(raw, directory):
 
     indices = np.arange(3 * primitive_count)
 
-    index_type = 2
+    index_type = 4
 
     # Joint weights
     # TODO: compact joint weights

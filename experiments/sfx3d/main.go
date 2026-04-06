@@ -40,13 +40,13 @@ var getmesh = sync.OnceValue(func() *mymesh {
 	verts := gpu.MakeSliceUncached[[3]float32](len(room) / (4 * 3))
 	copy(byteslice(verts.Value()), room)
 
-	indexBuffer := gpu.MakeSliceUncached[[3]uint16](gpu.SliceLen(verts))
+	indexBuffer := gpu.MakeSliceUncached[[3]uint32](gpu.SliceLen(verts))
 	indexBufferHost := indexBuffer.Value()
 	for i := range indexBufferHost {
-		indexBufferHost[i] = [3]uint16{
-			uint16(i*3 + 0),
-			uint16(i*3 + 1),
-			uint16(i*3 + 2),
+		indexBufferHost[i] = [3]uint32{
+			uint32(i*3 + 0),
+			uint32(i*3 + 1),
+			uint32(i*3 + 2),
 		}
 	}
 

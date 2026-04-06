@@ -84,7 +84,7 @@ func NewFileBackedShape(fsys fs.FS, filename string, concave bool) (*Shape, erro
 
 	blob := io.NewSectionReader(rat, preamble.B.Off, preamble.B.Len)
 
-	indexBuffer := make([][3]uint16, header2.PrimitiveCount)
+	indexBuffer := make([][3]uint32, header2.PrimitiveCount)
 	blob.Seek(header2.IndexBuffer.Data, io.SeekStart)
 	if err := binary.Read(blob, binary.LittleEndian, &indexBuffer); err != nil {
 		return nil, err

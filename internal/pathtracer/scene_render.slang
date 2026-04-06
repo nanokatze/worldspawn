@@ -213,7 +213,7 @@ Spectrum sampleDirectLight(
             emissiveInstance->originalInstanceIndex * push.scene->maxPartsPerMesh +
             emissiveInstance->originalGeometryIndex];
 
-        IndexSlice idxs2 = {(uint8_t*)lightMaterialParams->meshPart.triangles, (uint64_t)2 << 62};
+        IndexSlice idxs2 = {(uint8_t*)lightMaterialParams->meshPart.triangles, (uint64_t)3 << 62};
 
         let triPMF = 1.0 / (float)lightMaterialParams->meshPart.num_triangles;
         // TODO: we need to make sure this actually triangle < len always
@@ -280,7 +280,7 @@ bool closesthit(
     let materialParams = &push.scene->materialParams.data[instanceIndex * push.scene->maxPartsPerMesh + geometryIndex];
 
     // TODO: pass the entire thing from host, rather than constructing it here.
-    IndexSlice idxBuffer = {(uint8_t*)materialParams->meshPart.triangles, (uint64_t)2 << 62};
+    IndexSlice idxBuffer = {(uint8_t*)materialParams->meshPart.triangles, (uint64_t)3 << 62};
 
     let triIdxs = idxBuffer.Load3(primitiveIndex);
 
