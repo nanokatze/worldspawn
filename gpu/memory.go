@@ -84,9 +84,13 @@ func (p UnsafePointer) Value() unsafe.Pointer {
 	}
 	if 0 <= i && i < len(deviceAddrs) && deviceAddrs[i] <= uint64(p) && uint64(p) < deviceAddrs[i]+uint64(allocs[i].size) {
 		off := int(uint64(p) - deviceAddrs[i])
-		return unsafe.Pointer(allocs[i].hostAddr + uintptr(off))
+		return unsafe.Add(unsafe.Pointer(allocs[i].hostAddr), off)
 	}
 	return nil
+}
+
+func UnsafePointerAdd(p UnsafePointer, off int) UnsafePointer {
+	return p + UnsafePointer(off)
 }
 
 // Needs to be public for rendering. We should make it private as soon as we
@@ -121,8 +125,10 @@ const (
 // TODO: see if we can/should pass unsafe.Pointer for hostAddr
 // TODO: this will have to become public at one point
 func malloc(size int, flags uint32) UnsafePointer {
-	// TODO: handle size=0
 	if size <= 0 {
+		if size == 0 {
+			return 0xaaaaaaaaaa0
+		}
 		panic("bad")
 	}
 	if size > 1<<60 {
@@ -244,6 +250,14 @@ func MakeSliceUncached[T any](n int) Slice[T] {
 		data: Pointer[T](malloc(int(unsafe.Sizeof(*new(T)))*n, hostMapped /*|hostUncached*/)),
 		len:  n,
 		cap:  n,
+	}
+}
+
+func SliceAt[T any](data Pointer[T], len int) Slice[T] {
+	return Slice[T]{
+		data: data,
+		len:  len,
+		cap:  len,
 	}
 }
 

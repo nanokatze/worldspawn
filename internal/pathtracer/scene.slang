@@ -1,3 +1,4 @@
+import attribute_buffer;
 import gpu;
 import internal.material.interpreter;
 import internal.spectrum;
@@ -18,10 +19,8 @@ public struct lightAccel {
     public uint64_t emissiveInstanceCount; // !
 };
 
-// TODO: should be moved to scene.slang
 public struct MeshPart {
-    public void *triangles;
-    public uint32_t num_triangles;
+    public IndexBuffer indexBuffer;
     public float3 *posBuffer;
     public float3 *normals;
 }

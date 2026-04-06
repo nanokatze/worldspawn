@@ -25,7 +25,7 @@ interpolate3(float3 verts[3], float2 barys)
 }
 
 float4
-interpolate3(float4 verts[3], float2 barys)
+interpolate4(float4 verts[3], float2 barys)
 {
     return float4(
         interpolate(verts[0].x, verts[1].x, verts[2].x, barys),

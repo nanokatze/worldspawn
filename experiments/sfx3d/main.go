@@ -40,23 +40,13 @@ var getmesh = sync.OnceValue(func() *mymesh {
 	verts := gpu.MakeSliceUncached[[3]float32](len(room) / (4 * 3))
 	copy(byteslice(verts.Value()), room)
 
-	indexBuffer := gpu.MakeSliceUncached[[3]uint32](gpu.SliceLen(verts))
-	indexBufferHost := indexBuffer.Value()
-	for i := range indexBufferHost {
-		indexBufferHost[i] = [3]uint32{
-			uint32(i*3 + 0),
-			uint32(i*3 + 1),
-			uint32(i*3 + 2),
-		}
-	}
-
 	mesh := new(pathtracer.Geometry)
 	mesh.AttributeBuffers = []any{
 		pathtracer.AttributePosition: verts,
 	}
 	mesh.Parts = []pathtracer.GeometryPart{
 		{
-			IndexBuffer: indexBuffer,
+			IndexBuffer: pathtracer.MakeIndexBuffer(pathtracer.IndexNone, 3*gpu.SliceLen(verts)),
 		},
 	}
 
@@ -301,7 +291,6 @@ func main() {
 			for channel := range 2 {
 				for i := range 48000 / 32 {
 					var sum float32
-					_ = kernel[2*i+2*(len(kernel)-1)+channel]
 					for j := range kernel {
 						sum += kernel[j] * debussy[2*i+2*j+channel]
 					}

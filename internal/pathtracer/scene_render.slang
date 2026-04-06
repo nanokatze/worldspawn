@@ -1,4 +1,4 @@
-import attribute;
+import attribute_buffer;
 import film;
 import gpu;
 import internal.integration.lds;
@@ -213,11 +213,11 @@ Spectrum sampleDirectLight(
             emissiveInstance->originalInstanceIndex * push.scene->maxPartsPerMesh +
             emissiveInstance->originalGeometryIndex];
 
-        IndexSlice idxs2 = {(uint8_t*)lightMaterialParams->meshPart.triangles, (uint64_t)3 << 62};
+        IndexBuffer idxs2 = lightMaterialParams->meshPart.indexBuffer;
 
-        let triPMF = 1.0 / (float)lightMaterialParams->meshPart.num_triangles;
+        let triPMF = 1.0 / (float)(idxs2.Len() / 3);
         // TODO: we need to make sure this actually triangle < len always
-        let triIdx = (int)((float)lightMaterialParams->meshPart.num_triangles * u);
+        let triIdx = (int)((float)(idxs2.Len() / 3) * u);
         let vertIdxs = idxs2.Load3(triIdx);
 
         meshTriangleLight light = {
@@ -252,6 +252,24 @@ Spectrum sampleDirectLight(
     return Spectrum(0);
 }
 
+// TODO: expand this structure and use it in more situations
+public struct Interaction {
+    public float2 barys_yz;
+
+    // public uint primitiveIndex;
+    public uint3 vertexIndices;
+
+    float4 Attribute(AttributeBuffer buffer) {
+        return interpolate4(
+            float4[3](
+                buffer.Load(vertexIndices[0]),
+                buffer.Load(vertexIndices[1]),
+                buffer.Load(vertexIndices[2]),
+            ),
+            barys_yz);
+    }
+}
+
 // TODO: encapsulate this garbage into a nice Interaction struct or something
 // like that.
 bool closesthit(
@@ -279,19 +297,21 @@ bool closesthit(
 
     let materialParams = &push.scene->materialParams.data[instanceIndex * push.scene->maxPartsPerMesh + geometryIndex];
 
-    // TODO: pass the entire thing from host, rather than constructing it here.
-    IndexSlice idxBuffer = {(uint8_t*)materialParams->meshPart.triangles, (uint64_t)3 << 62};
+    IndexBuffer idxBuffer = materialParams->meshPart.indexBuffer;
 
-    let triIdxs = idxBuffer.Load3(primitiveIndex);
+    Interaction interaction = {
+        barys_yz,
+        idxBuffer.Load3(primitiveIndex),
+    };
 
-    let normal = mul((float3x3)ObjectToWorld,
-        interpolate3(
-            float3[3](
-                materialParams->meshPart.normals[triIdxs[0]],
-                materialParams->meshPart.normals[triIdxs[1]],
-                materialParams->meshPart.normals[triIdxs[2]],
-            ),
-            barys_yz));
+    AttributeBuffer normalBuffer = {
+        0,
+        (uint8_t*)materialParams->meshPart.normals,
+        0,
+        12,
+    };
+
+    let normal = mul((float3x3)ObjectToWorld, interaction.Attribute(normalBuffer).xyz);
 
     EvaluatedInterpretedMaterial material;
     material.abi = &materialParams->program.abi;
@@ -301,7 +321,7 @@ bool closesthit(
         normal,
         (void*)&materialParams->args,
         ObjectToWorld,
-        triIdxs,
+        interaction.vertexIndices,
         barys_yz);
 
     // TODO: when we get around to using separate shaders, specialize them for

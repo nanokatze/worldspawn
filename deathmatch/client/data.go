@@ -252,8 +252,8 @@ func loadmesh(filename string) *fileBackedMesh {
 
 	blob2 := io.NewSectionReader(r, preamble.Blob.Off, preamble.Blob.Size)
 
-	indexBuffer := gpu.MakeSliceUncached[[3]uint32](int(header2.PrimitiveCount))
-	if _, err := blob2.ReadAt(byteslice(indexBuffer.Value()), header2.IndexBuffer.Data); err != nil {
+	indexBuffer := pathtracer.MakeIndexBuffer(pathtracer.Index32, 3*int(header2.PrimitiveCount))
+	if _, err := blob2.ReadAt(indexBuffer.AsByteSlice().Value(), header2.IndexBuffer.Data); err != nil {
 		panic(err)
 	}
 
@@ -304,7 +304,7 @@ func loadmesh(filename string) *fileBackedMesh {
 	for materialIndex, range_ := range header2.MaterialIndexRanges {
 		materials[materialIndex] = header2.Materials[range_.MaterialIndex]
 		part := &pathtracerGeometry.Parts[materialIndex]
-		part.IndexBuffer = indexBuffer.Slice(int(range_.First), int(range_.First)+int(range_.Count))
+		part.IndexBuffer = indexBuffer.Slice(3*int(range_.First), 3*(int(range_.First)+int(range_.Count)))
 	}
 
 	accelConfig := pathtracerGeometry.AccelConfig()

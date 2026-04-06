@@ -15,10 +15,9 @@ const (
 	AttributeNormal
 )
 
-// TODO: make this gpu-accessible
-// TODO: rename
+// TODO: kill this structure?
 type GeometryPart struct {
-	IndexBuffer gpu.Slice[[3]uint32]
+	IndexBuffer IndexBuffer
 }
 
 // TODO: come up with a solution to preserve authored material index? It would
@@ -53,9 +52,9 @@ func (m *Geometry) AccelConfig() *gpu.AccelBuildConfig {
 			VertexBuffer:  gpu.UnsafePointer(gpu.SliceData(positions)),
 			VertexCount:   gpu.SliceLen(positions),
 			VertexStride:  int(unsafe.Sizeof(positions.Value()[0])),
-			IndexType:     vk.INDEX_TYPE_UINT32, // TODO: infer from type of d.IndexBuffer
-			IndexBuffer:   gpu.UnsafePointer(gpu.SliceData(part.IndexBuffer)),
-			TriangleCount: gpu.SliceLen(part.IndexBuffer),
+			IndexType:     part.IndexBuffer.type_.vkIndexType(),
+			IndexBuffer:   part.IndexBuffer.data,
+			TriangleCount: part.IndexBuffer.len / 3,
 		}
 	}
 

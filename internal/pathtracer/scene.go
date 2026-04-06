@@ -28,10 +28,9 @@ type Camera struct {
 type meshPart2 struct {
 	_ structs.HostLayout
 
-	Triangles    gpu.Pointer[[3]uint32]
-	NumTriangles uint32
-	PosBuffer    gpu.Pointer[[3]float32]
-	Normals      gpu.Pointer[[3]float32]
+	IndexBuffer IndexBuffer
+	PosBuffer   gpu.Pointer[[3]float32]
+	Normals     gpu.Pointer[[3]float32]
 }
 
 // TODO: kill!!!!!!!!!
@@ -188,10 +187,9 @@ func (scene *Scene) SetInstanceGeometry(i int, mask uint8, geometry *Geometry, a
 
 				// TODO: make Mesh device-accessible so we don't have to do these redundant copies every time
 				MeshPart: meshPart2{
-					Triangles:    gpu.SliceData(part.IndexBuffer),
-					NumTriangles: uint32(gpu.SliceLen(part.IndexBuffer)),
-					PosBuffer:    gpu.SliceData(geometry.AttributeBuffers[AttributePosition].(gpu.Slice[[3]float32])),
-					Normals:      gpu.SliceData(geometry.AttributeBuffers[AttributeNormal].(gpu.Slice[[3]float32])),
+					IndexBuffer: part.IndexBuffer,
+					PosBuffer:   gpu.SliceData(geometry.AttributeBuffers[AttributePosition].(gpu.Slice[[3]float32])),
+					Normals:     gpu.SliceData(geometry.AttributeBuffers[AttributeNormal].(gpu.Slice[[3]float32])),
 				},
 
 				Args: materialArgs[partIdx],
