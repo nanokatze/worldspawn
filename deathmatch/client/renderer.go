@@ -330,11 +330,7 @@ func (re *renderer) Subtick(w *game.Scene, playerID ecs.ID) {
 	// }
 }
 
-// +Y forward +X right +Z up to -Z forward +X right -Y up
-//
-// TODO: move somewhere further up
-// TODO: improve naming?
-var fixup = gmath.Mat4x4f32{
+var worldspawnToPathTracer = gmath.Mat4x4f32{
 	1, 0, 0, 0,
 	0, 0, -1, 0,
 	0, -1, 0, 0,
@@ -378,7 +374,7 @@ func (re *renderer) Render(jq *gpu.JobQueue, sdlNow uint64, dst *gpu.Image) {
 
 	camera := re.ourCamera
 	if re.scene2 != nil {
-		camera.Transform = re.scene2.Transform(re.ourCameraTransform, float32(t)).ToMat().Mul(fixup.Inverse())
+		camera.Transform = re.scene2.Transform(re.ourCameraTransform, float32(t)).ToMat().Mul(worldspawnToPathTracer.Inverse())
 
 		for i := range re.scene2.Mask {
 			tmp := re.scene2.Transform(i, float32(t))
