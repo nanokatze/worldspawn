@@ -32,7 +32,7 @@ public struct AccelInstance {
     public float transform[3][4]; // TODO: we could have this be a float3x4 or w/e
     public uint32_t instanceIDAndMask;
     public uint32_t sbtOffsetAndFlags;
-    public uint8_t *accel; // TODO: replace with Accel when we make it match on host as well.
+    public uint8_t *accel;
 };
 
 public struct ImageDescriptors {
