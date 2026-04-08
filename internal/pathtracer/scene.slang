@@ -1,5 +1,6 @@
 import attribute_buffer;
 import gpu;
+import index_buffer;
 import internal.material.interpreter;
 import internal.spectrum;
 

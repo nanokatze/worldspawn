@@ -1,6 +1,7 @@
 import attribute_buffer;
 import film;
 import gpu;
+import index_buffer;
 import internal.integration.lds;
 import internal.integration.mapping;
 import internal.interpolation;
@@ -218,7 +219,7 @@ Spectrum sampleDirectLight(
         let triPMF = 1.0 / (float)(idxs2.Len() / 3);
         // TODO: we need to make sure this actually triangle < len always
         let triIdx = (int)((float)(idxs2.Len() / 3) * u);
-        let vertIdxs = idxs2.Load3(triIdx);
+        let vertIdxs = idxs2.Load3(3 * triIdx);
 
         meshTriangleLight light = {
             emissiveInstance->transform,
@@ -301,7 +302,7 @@ bool closesthit(
 
     Interaction interaction = {
         barys_yz,
-        idxBuffer.Load3(primitiveIndex),
+        idxBuffer.Load3(3 * primitiveIndex),
     };
 
     AttributeBuffer normalBuffer = {
