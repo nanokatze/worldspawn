@@ -223,9 +223,9 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 			update.MaterialArgs[i] = make([][256]byte, len(geometry.materials))
 
 			for j := range update.Materials[i] {
-				m2 := getmaterial(geometry.materials[j])
-				update.Materials[i][j] = m2.material
-				m2.preamble(update.MaterialArgs[i][j][:], &attributeGetter{w, id})
+				material := getmaterial(geometry.materials[j])
+				update.Materials[i][j] = material.material
+				material.preamble.Call(update.MaterialArgs[i][j][:], &attributeGetter{w, id})
 			}
 		}
 

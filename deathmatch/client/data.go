@@ -145,7 +145,6 @@ func getmaterial(identifier string) material {
 
 bail:
 	// TODO: stop using gotos lmao aaa
-	m.preamble = func(dst []byte, props matc.Attributes) {}
 	m.material = errorMaterial()
 	materialcache[identifier] = m
 	return m
