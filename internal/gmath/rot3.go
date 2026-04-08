@@ -83,7 +83,7 @@ func Rot3FromMat(m Mat3x3f32) Rot3 {
 
 func (a Rot3) Renormalize() Rot3 {
 	tmp := Vec4f32(a)
-	if tmp.Dot(tmp) == 0 {
+	if !(tmp.Dot(tmp) > 0) {
 		return Rot3One()
 	}
 	return Rot3(tmp.Normalize())
