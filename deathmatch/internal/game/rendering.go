@@ -3,6 +3,7 @@ package game
 import (
 	"io"
 	"log"
+	"math"
 
 	"worldspawn/internal/ecs"
 	sfx "worldspawn/internal/fuckwwise"
@@ -19,18 +20,14 @@ type VisibilityMask struct {
 }
 
 type CosmeticOffset struct {
-	Offset gmath.Vec3f32
+	Alpha  float32
 	T0     Time
-	T1     Time // replace with time.Duration?
+	Offset gmath.Vec3f32
 }
 
 func (cosmeticOffset CosmeticOffset) Eval(now Time) gmath.Vec3f32 {
-	// TODO: rename
-	x := durationToFloatSeconds(cosmeticOffset.T1.Sub(now)) /
-		durationToFloatSeconds(cosmeticOffset.T1.Sub(cosmeticOffset.T0))
-	xClamped := min(max(x, 0), 1)
-
-	return cosmeticOffset.Offset.Scale(float32(xClamped))
+	extinction := math.Exp(-1 * float64(cosmeticOffset.Alpha) * durationToFloatSeconds(max(now.Sub(cosmeticOffset.T0), 0)))
+	return cosmeticOffset.Offset.Scale(float32(extinction))
 }
 
 // TODO: replace with string identifying the effect and a bag of state for that
