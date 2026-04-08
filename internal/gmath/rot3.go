@@ -97,8 +97,6 @@ func (a Rot3) Mul(b Rot3) (ab Rot3) {
 	return Rot3(quat[float32](a).Mul(quat[float32](b))).Renormalize()
 }
 
-// TODO: kill this method in favor of TRS to affine conversion rolling its own
-// specialization
 func (r Rot3) ToMat() Mat3x3f32 {
 	// ughhhhhhhhhhhhhhhhhhhhhh
 	var R Mat3x3f32
