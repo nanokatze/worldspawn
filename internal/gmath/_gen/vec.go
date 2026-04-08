@@ -68,16 +68,15 @@ func (a {{$VecD}}[T]) Dot(b {{$VecD}}[T]) T {
 	return 0 {{- range .D}} + a[{{.}}] * b[{{.}}] {{- end}}
 }
 
-// TODO: simplify this so that it's just an ordinary normalize pls
-func (a {{$VecD}}[T]) NormalizeOr(b {{$VecD}}[T]) {{$VecD}}[T] {
-	norm2 := a.Dot(a)
-	if norm2 == 0 {
-		return b
+func (v {{$VecD}}[T]) Normalize() {{$VecD}}[T] {
+	lengthSqr := v.Dot(v)
+	if !(lengthSqr > 0) {
+		return {{$VecD}}[T]{}
 	}
-	norm := T(math.Sqrt(float64(norm2)))
+	length := T(math.Sqrt(float64(lengthSqr)))
 	return {{$VecD}}[T]{
 		{{- range .D}}
-		a[{{.}}] / norm,
+		v[{{.}}] / length,
 		{{- end}}
 	}
 }

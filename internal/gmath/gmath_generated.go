@@ -59,16 +59,15 @@ func (a Vec2[T]) Dot(b Vec2[T]) T {
 	return 0 + a[0]*b[0] + a[1]*b[1]
 }
 
-// TODO: simplify this so that it's just an ordinary normalize pls
-func (a Vec2[T]) NormalizeOr(b Vec2[T]) Vec2[T] {
-	norm2 := a.Dot(a)
-	if norm2 == 0 {
-		return b
+func (v Vec2[T]) Normalize() Vec2[T] {
+	lengthSqr := v.Dot(v)
+	if !(lengthSqr > 0) {
+		return Vec2[T]{}
 	}
-	norm := T(math.Sqrt(float64(norm2)))
+	length := T(math.Sqrt(float64(lengthSqr)))
 	return Vec2[T]{
-		a[0] / norm,
-		a[1] / norm,
+		v[0] / length,
+		v[1] / length,
 	}
 }
 
@@ -188,17 +187,16 @@ func (a Vec3[T]) Dot(b Vec3[T]) T {
 	return 0 + a[0]*b[0] + a[1]*b[1] + a[2]*b[2]
 }
 
-// TODO: simplify this so that it's just an ordinary normalize pls
-func (a Vec3[T]) NormalizeOr(b Vec3[T]) Vec3[T] {
-	norm2 := a.Dot(a)
-	if norm2 == 0 {
-		return b
+func (v Vec3[T]) Normalize() Vec3[T] {
+	lengthSqr := v.Dot(v)
+	if !(lengthSqr > 0) {
+		return Vec3[T]{}
 	}
-	norm := T(math.Sqrt(float64(norm2)))
+	length := T(math.Sqrt(float64(lengthSqr)))
 	return Vec3[T]{
-		a[0] / norm,
-		a[1] / norm,
-		a[2] / norm,
+		v[0] / length,
+		v[1] / length,
+		v[2] / length,
 	}
 }
 
@@ -384,18 +382,17 @@ func (a Vec4[T]) Dot(b Vec4[T]) T {
 	return 0 + a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3]
 }
 
-// TODO: simplify this so that it's just an ordinary normalize pls
-func (a Vec4[T]) NormalizeOr(b Vec4[T]) Vec4[T] {
-	norm2 := a.Dot(a)
-	if norm2 == 0 {
-		return b
+func (v Vec4[T]) Normalize() Vec4[T] {
+	lengthSqr := v.Dot(v)
+	if !(lengthSqr > 0) {
+		return Vec4[T]{}
 	}
-	norm := T(math.Sqrt(float64(norm2)))
+	length := T(math.Sqrt(float64(lengthSqr)))
 	return Vec4[T]{
-		a[0] / norm,
-		a[1] / norm,
-		a[2] / norm,
-		a[3] / norm,
+		v[0] / length,
+		v[1] / length,
+		v[2] / length,
+		v[3] / length,
 	}
 }
 

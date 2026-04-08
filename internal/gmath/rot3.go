@@ -75,11 +75,12 @@ func Rot3FromMat(m Mat3x3f32) Rot3 {
 	return r
 }
 
-// TODO: rename this so that it's clear that it's just purely numerical thing
-// and doesn't actually change the rotation that's supposed to be represented.
-// TODO: rename to Renormalize and make it have a pointer receiver?
 func (a Rot3) Renormalize() Rot3 {
-	return Rot3(Vec4f32(a).NormalizeOr(Vec4f32(Rot3One())))
+	tmp := Vec4f32(a)
+	if tmp.Dot(tmp) == 0 {
+		return Rot3One()
+	}
+	return Rot3(tmp.Normalize())
 }
 
 func (a Rot3) Inverse() Rot3 {

@@ -219,7 +219,7 @@ func (char *Character) asdasd(w *Scene, id ecs.ID, velocity gmath.Vec3f32, Δt t
 		trs.T,
 		trs.R,
 		gmath.Vec3Ones[float32](),
-		velocity.NormalizeOr(gmath.Vec3f32{}),
+		velocity.Normalize(),
 		0.1,
 		physics.QueryFilter{Ignore: physics.BodyID(id)},
 		hits)
@@ -233,7 +233,7 @@ func (char *Character) asdasd(w *Scene, id ecs.ID, velocity gmath.Vec3f32, Δt t
 			if false {
 				// This prevents us from walking up steep ramps, but has an issue in
 				// that sometimes we get a ghost steep ramp
-				normal2 := normal.Cross(up).NormalizeOr(gmath.Vec3f32{}).Cross(up).Scale(-1)
+				normal2 := normal.Cross(up).Normalize().Cross(up).Scale(-1)
 				planes = append(planes, gmath.Vec4f32{
 					normal2[0],
 					normal2[1],
