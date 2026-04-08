@@ -130,7 +130,8 @@ func (char Character) CharacterSubstep(w *Scene, id ecs.ID, cmd TimestampedInput
 		shootT := w.GetGlobalTransform(id).
 			Mul(gmath.TRS3f64{
 				T: gmath.Vec3f64{0, 0, float64(playerStats.StandingViewHeight)},
-				R: gmath.Rot3InPlane(gmath.Vec3f32{0, 0, -1}, 2*math.Pi*char.Look[0]).Mul(gmath.Rot3InPlane(gmath.Vec3f32{-1, 0, 0}, 2*math.Pi*char.Look[1])),
+				R: gmath.Rot3InPlane(gmath.Plane3f32{0, 0, -1}, 2*math.Pi*char.Look[0]).
+					Mul(gmath.Rot3InPlane(gmath.Plane3f32{-1, 0, 0}, 2*math.Pi*char.Look[1])),
 				S: gmath.Mat3x3UOne[float32](),
 			}.Compose())
 
@@ -146,7 +147,8 @@ func (char Character) CharacterSubstep(w *Scene, id ecs.ID, cmd TimestampedInput
 	// TODO: factor this out
 	w.SetTransform(char.FirstPersonCamera, gmath.TRS3f64{
 		T: gmath.Vec3f64{0, 0, float64(playerStats.StandingViewHeight)},
-		R: gmath.Rot3InPlane(gmath.Vec3f32{0, 0, -1}, 2*math.Pi*char.Look[0]).Mul(gmath.Rot3InPlane(gmath.Vec3f32{-1, 0, 0}, 2*math.Pi*char.Look[1])),
+		R: gmath.Rot3InPlane(gmath.Plane3f32{0, 0, -1}, 2*math.Pi*char.Look[0]).
+			Mul(gmath.Rot3InPlane(gmath.Plane3f32{-1, 0, 0}, 2*math.Pi*char.Look[1])),
 		S: gmath.Mat3x3UOne[float32](),
 	})
 }
@@ -171,7 +173,7 @@ func (char Character) UpdateBeforePhysics(w *Scene, id ecs.ID, info *UpdateParam
 	trs := w.GetTransform(id)
 	velocity, _ := w.Velocity.Get(id)
 
-	rotation := trs.R.Mul(gmath.Rot3InPlane(gmath.Vec3f32{0, 0, -1}, 2*math.Pi*char.Look[0]))
+	rotation := trs.R.Mul(gmath.Rot3InPlane(gmath.Plane3f32{0, 0, -1}, 2*math.Pi*char.Look[0]))
 
 	move := char.Move
 	if lenSq := move.Dot(move); lenSq > 1 {

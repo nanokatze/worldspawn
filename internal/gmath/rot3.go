@@ -2,7 +2,13 @@ package gmath
 
 import (
 	"math"
+
+	"golang.org/x/exp/constraints"
 )
+
+type Plane3[T constraints.Float] [3]T
+
+type Plane3f32 = Plane3[float32]
 
 // TODO: kill quat and generate RotN types
 
@@ -12,7 +18,8 @@ func Rot3One() Rot3 {
 	return Rot3{0, 0, 0, 1}
 }
 
-func Rot3InPlane(plane Vec3f32, θ float32) Rot3 {
+// TODO: take two Vec3f32 instead of one, or introduce PlaneN type?
+func Rot3InPlane(plane Plane3f32, θ float32) Rot3 {
 	s, c := math.Sincos(float64(θ / 2))
 	yz := plane[0] * float32(s)
 	zx := plane[1] * float32(s)

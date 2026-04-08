@@ -72,7 +72,7 @@ func (weapon WeaponGrenadeLauncher) WeaponSubstep(scene *Scene, weaponID ecs.ID,
 			scene.SetTransform(projectile,
 				shootT.
 					Mul(gmath.TRS3f64{
-						R: gmath.Rot3InPlane(gmath.Vec3f32{-1, 0, 0}, math.Pi/2),
+						R: gmath.Rot3InPlane(gmath.Plane3f32{-1, 0, 0}, math.Pi/2),
 						S: gmath.Mat3x3UOne[float32](),
 					}.Compose()).
 					TRS())

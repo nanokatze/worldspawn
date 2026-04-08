@@ -327,7 +327,8 @@ func main() {
 
 		camera := gmath.TRS3f32{
 			T: move,
-			R: gmath.Rot3InPlane(gmath.Vec3f32{0, 0, -1}, float32(look[0])).Mul(gmath.Rot3InPlane(gmath.Vec3f32{-1, 0, 0}, float32(look[1]))),
+			R: gmath.Rot3InPlane(gmath.Plane3f32{0, 0, -1}, float32(look[0])).
+				Mul(gmath.Rot3InPlane(gmath.Plane3f32{-1, 0, 0}, float32(look[1]))),
 			S: gmath.Mat3x3UOne[float32](),
 		}
 		if _, ok := heldKeys[sdl.K_W]; ok {
