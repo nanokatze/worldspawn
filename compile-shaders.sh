@@ -9,5 +9,5 @@ SLANG_FLAGS="-target spirv -profile spirv_1_6 -fvk-use-entrypoint-name -fvk-use-
 
 $SLANG $SLANG_FLAGS -o "$OUTDIR/experiments_sfx3d_main.spv" experiments/sfx3d/main.slang
 $SLANG $SLANG_FLAGS -o "$OUTDIR/geometry_skinning.spv" internal/geometry/skinning.slang
-$SLANG $SLANG_FLAGS -o "$OUTDIR/pathtracer_scene_render.spv" internal/pathtracer/scene_render.slang
+$SLANG $SLANG_FLAGS -o "$OUTDIR/grenderer_scene_render.spv" internal/grenderer/scene_render.slang
 $SLANG $SLANG_FLAGS -o "$OUTDIR/postprocess_bloom.spv" internal/postprocess/bloom.slang

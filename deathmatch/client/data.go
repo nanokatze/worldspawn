@@ -21,8 +21,8 @@ import (
 	"worldspawn/internal/compiler/core"
 	sfx "worldspawn/internal/fuckwwise"
 	"worldspawn/internal/geometry"
-	"worldspawn/internal/pathtracer"
-	"worldspawn/internal/pathtracer/matc"
+	"worldspawn/internal/grenderer"
+	"worldspawn/internal/grenderer/matc"
 	"worldspawn/internal/wmaterial"
 	"worldspawn/internal/wmesh"
 )
@@ -30,12 +30,12 @@ import (
 // TODO: rename this file to something else
 // TODO: outline this into its own package. pathtracerio?
 
-var texturecache = make(map[string]*pathtracer.Texture)
+var texturecache = make(map[string]*grenderer.Texture)
 var materialcache = make(map[string]material)
 var modelcache = make(map[string]*fileBackedMesh)
 
 // TODO: should support streaming etc.
-func texture(filename string) *pathtracer.Texture {
+func texture(filename string) *grenderer.Texture {
 	t, ok := texturecache[filename]
 	if !ok {
 		// TODO: move this code into its own func + handle errors and everything.
@@ -53,7 +53,7 @@ func texture(filename string) *pathtracer.Texture {
 
 		conf := d.Config()
 
-		t = new(pathtracer.Texture)
+		t = new(grenderer.Texture)
 		t.Image = gpu.NewImage(
 			vk.Format(conf.Format),
 			conf.Extent[:conf.Dim],
@@ -91,7 +91,7 @@ func texture(filename string) *pathtracer.Texture {
 
 type material struct {
 	preamble matc.Preamble
-	material *pathtracer.InterpretedMaterial
+	material *grenderer.InterpretedMaterial
 }
 
 func getmaterial(identifier string) material {
@@ -138,7 +138,7 @@ func getmaterial(identifier string) material {
 		}
 
 		m.preamble = matc.CompilePreamble(paramsTuple, header.Preamble)
-		m.material = pathtracer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(paramsTuple, sea, ir, debuglog))
+		m.material = grenderer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(paramsTuple, sea, ir, debuglog))
 	}
 	materialcache[identifier] = m
 	return m
@@ -150,7 +150,7 @@ bail:
 	return m
 }
 
-var errorMaterial = sync.OnceValue(func() *pathtracer.InterpretedMaterial {
+var errorMaterial = sync.OnceValue(func() *grenderer.InterpretedMaterial {
 	sea := compiler.NewSea()
 	b := &compiler.Builder{
 		Sea:   sea,
@@ -174,7 +174,7 @@ var errorMaterial = sync.OnceValue(func() *pathtracer.InterpretedMaterial {
 		b.Value2(matc.OpDFWeightedSum, matc.EDFType{}, nil),
 	)
 
-	return pathtracer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(matc.ParamsTuple{}, sea, program, nil))
+	return grenderer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(matc.ParamsTuple{}, sea, program, nil))
 })
 
 type fileBackedMesh struct {
@@ -196,8 +196,8 @@ type fileBackedMesh struct {
 
 	materials []string
 
-	pathtracerGeometry pathtracer.Geometry
-	pathtracerAccel    gpu.BLAS
+	ggeometry grenderer.Geometry
+	gaccel    gpu.BLAS
 }
 
 // TODO: equip AttributeBuffer with size so we don't have to pull in vertex count
@@ -255,12 +255,12 @@ func loadmesh(filename string) *fileBackedMesh {
 	if _, err := blob2.ReadAt(byteslice(indexBufferData.Value()), header2.IndexBuffer.Data); err != nil {
 		panic(err)
 	}
-	indexBuffer := pathtracer.IndexBufferFromUint32Slice(indexBufferData)
+	indexBuffer := grenderer.IndexBufferFromUint32Slice(indexBufferData)
 
 	attrs := make([]any, 2)
 
-	attrs[pathtracer.AttributePosition] = loadattrbuf(blob2, int(header2.VertexCount), header2.Positions)
-	attrs[pathtracer.AttributeNormal] = loadattrbuf(blob2, int(header2.VertexCount), header2.Normals)
+	attrs[grenderer.AttributePosition] = loadattrbuf(blob2, int(header2.VertexCount), header2.Positions)
+	attrs[grenderer.AttributeNormal] = loadattrbuf(blob2, int(header2.VertexCount), header2.Normals)
 
 	// for i, desc := range header2.AttributeBuffers {
 	// 	if desc.Domain != 0 {
@@ -296,18 +296,18 @@ func loadmesh(filename string) *fileBackedMesh {
 		}
 	}
 
-	pathtracerGeometry := pathtracer.Geometry{}
-	pathtracerGeometry.AttributeBuffers = attrs
-	pathtracerGeometry.Parts = make([]pathtracer.GeometryPart, len(header2.MaterialIndexRanges))
+	ggeometry := grenderer.Geometry{}
+	ggeometry.AttributeBuffers = attrs
+	ggeometry.Parts = make([]grenderer.GeometryPart, len(header2.MaterialIndexRanges))
 
 	materials := make([]string, len(header2.MaterialIndexRanges)) // TODO: eventually it would be nice if we could just directly use header2.Materials
 	for materialIndex, range_ := range header2.MaterialIndexRanges {
 		materials[materialIndex] = header2.Materials[range_.MaterialIndex]
-		part := &pathtracerGeometry.Parts[materialIndex]
+		part := &ggeometry.Parts[materialIndex]
 		part.IndexBuffer = indexBuffer.Slice(3*int(range_.First), 3*(int(range_.First)+int(range_.Count)))
 	}
 
-	accelConfig := pathtracerGeometry.AccelConfig()
+	accelConfig := ggeometry.AccelConfig()
 	accel := gpu.BLAS(gpu.NewAccel(accelConfig.CalcSizes().Accel))
 
 	jq := new(gpu.JobQueue)
@@ -315,13 +315,13 @@ func loadmesh(filename string) *fileBackedMesh {
 	gpu.WaitForIdle(jq)
 
 	return &fileBackedMesh{
-		materials:          materials,
-		attrs:              attrs,
-		joints:             header2.Joints,
-		jointsPerVertex:    int(header2.MaxInfluencesPerVertex),
-		jointWeights:       jointWeights,
-		pathtracerGeometry: pathtracerGeometry,
-		pathtracerAccel:    accel,
+		materials:       materials,
+		attrs:           attrs,
+		joints:          header2.Joints,
+		jointsPerVertex: int(header2.MaxInfluencesPerVertex),
+		jointWeights:    jointWeights,
+		ggeometry:       ggeometry,
+		gaccel:          accel,
 	}
 }
 

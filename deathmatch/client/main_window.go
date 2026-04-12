@@ -15,7 +15,7 @@ import (
 	"worldspawn/gpu/wsi"
 	sfx "worldspawn/internal/fuckwwise"
 	"worldspawn/internal/gmath"
-	"worldspawn/internal/pathtracer"
+	"worldspawn/internal/grenderer"
 	"worldspawn/internal/sdl"
 	"worldspawn/internal/sdlrouter"
 )
@@ -68,7 +68,7 @@ func (w *mainWindow) Run() {
 
 		updates: make(chan *sceneUpdate, 1),
 
-		scene: pathtracer.NewScene(10000, 6),
+		scene: grenderer.NewScene(10000, 6),
 
 		gsdata: make([]gsdata, 10000),
 

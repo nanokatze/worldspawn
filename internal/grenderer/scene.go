@@ -1,4 +1,4 @@
-package pathtracer
+package grenderer
 
 import (
 	"structs"
@@ -6,7 +6,7 @@ import (
 	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
 	"worldspawn/internal/gmath"
-	"worldspawn/internal/pathtracer/internal/material"
+	"worldspawn/internal/grenderer/internal/material"
 )
 
 // TODO: DVec3 baseOffset

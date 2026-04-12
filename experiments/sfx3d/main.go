@@ -19,7 +19,7 @@ import (
 	"worldspawn/gpu/wsi"
 	"worldspawn/internal/fuckwwise/opusfile"
 	"worldspawn/internal/gmath"
-	"worldspawn/internal/pathtracer"
+	"worldspawn/internal/grenderer"
 	"worldspawn/internal/sdl"
 )
 
@@ -32,21 +32,21 @@ func byteslice[T any](s []T) []byte {
 }
 
 type mymesh struct {
-	ptMesh  *pathtracer.Geometry
-	ptAccel gpu.BLAS
+	gmesh  *grenderer.Geometry
+	gaccel gpu.BLAS
 }
 
 var getmesh = sync.OnceValue(func() *mymesh {
 	verts := gpu.MakeSliceUncached[[3]float32](len(room) / (4 * 3))
 	copy(byteslice(verts.Value()), room)
 
-	mesh := new(pathtracer.Geometry)
+	mesh := new(grenderer.Geometry)
 	mesh.AttributeBuffers = []any{
-		pathtracer.AttributePosition: verts,
+		grenderer.AttributePosition: verts,
 	}
-	mesh.Parts = []pathtracer.GeometryPart{
+	mesh.Parts = []grenderer.GeometryPart{
 		{
-			IndexBuffer: pathtracer.MakeIndexBuffer(pathtracer.IndexNone, 3*gpu.SliceLen(verts)),
+			IndexBuffer: grenderer.IndexBufferIdentity(3 * gpu.SliceLen(verts)),
 		},
 	}
 
@@ -58,8 +58,8 @@ var getmesh = sync.OnceValue(func() *mymesh {
 	gpu.WaitForIdle(jq)
 
 	return &mymesh{
-		ptMesh:  mesh,
-		ptAccel: accel,
+		gmesh:  mesh,
+		gaccel: accel,
 	}
 })
 
@@ -154,7 +154,7 @@ func main() {
 
 	var swapchain *wsi.Swapchain
 
-	ptMesh := getmesh()
+	mesh := getmesh()
 
 	tlasInstances := gpu.MakeSliceUncached[gpu.AccelInstance](1)
 	var tmp gpu.AccelInstance
@@ -164,7 +164,7 @@ func main() {
 		{0, 1, 0, 0},
 		{0, 0, 1, 0},
 	}
-	tmp.SetAccel(ptMesh.ptAccel)
+	tmp.SetAccel(mesh.gaccel)
 	tlasInstances.Value()[0] = tmp
 
 	tlasConfig := gpu.AccelBuildConfig{

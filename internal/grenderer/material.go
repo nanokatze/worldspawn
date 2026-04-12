@@ -1,9 +1,9 @@
-package pathtracer
+package grenderer
 
 import (
 	"worldspawn/gpu"
-	"worldspawn/internal/pathtracer/internal/material"
-	"worldspawn/internal/pathtracer/matc"
+	"worldspawn/internal/grenderer/internal/material"
+	"worldspawn/internal/grenderer/matc"
 )
 
 /*

@@ -1,4 +1,4 @@
-package pathtracer
+package grenderer
 
 import (
 	"worldspawn/gpu"

@@ -7,7 +7,7 @@ import (
 	"worldspawn/internal/animgraph"
 	"worldspawn/internal/geometry"
 	"worldspawn/internal/gmath"
-	"worldspawn/internal/pathtracer"
+	"worldspawn/internal/grenderer"
 )
 
 type gsdata struct {
@@ -22,7 +22,7 @@ type gsdata struct {
 
 	// output
 
-	geometry *pathtracer.Geometry
+	geometry *grenderer.Geometry
 	accel    gpu.BLAS
 }
 
@@ -39,25 +39,24 @@ type geoNodes struct {
 
 // TODO: rename?
 
-func (gs *geoNodes) Outputs(data *gsdata) (*pathtracer.Geometry, gpu.BLAS) {
+func (gs *geoNodes) Outputs(data *gsdata) (*grenderer.Geometry, gpu.BLAS) {
 	if len(gs.pose.Bones) == 0 {
 		if gs.src == nil {
 			return nil, gpu.BLAS{}
 		}
-		return &gs.src.pathtracerGeometry, gs.src.pathtracerAccel
+		return &gs.src.ggeometry, gs.src.gaccel
 	}
 	return data.geometry, data.accel
 }
 
-// TODO: rename?
 func (gs *geoNodes) EnqueueEvaluate(jq *gpu.JobQueue, data *gsdata) {
 	if len(gs.pose.Bones) == 0 {
 		return
 	}
 
-	rest := gs.src.pathtracerGeometry
+	rest := gs.src.ggeometry
 
-	restPositions := gs.src.attrs[pathtracer.AttributePosition].(gpu.Slice[[3]float32])
+	restPositions := gs.src.attrs[grenderer.AttributePosition].(gpu.Slice[[3]float32])
 
 	skinnedPositions := data.skinnedPositions
 	if gpu.SliceCap(skinnedPositions) < gpu.SliceLen(restPositions) {
@@ -70,10 +69,10 @@ func (gs *geoNodes) EnqueueEvaluate(jq *gpu.JobQueue, data *gsdata) {
 	// TODO: we should probably have our own geometry structure with a method to
 	// copy it over into pathtracer.Geometry so that we don't need to do this
 	// weird patching.
-	skinned := new(pathtracer.Geometry)
+	skinned := new(grenderer.Geometry)
 	skinned.AttributeBuffers = slices.Clone(rest.AttributeBuffers)
-	skinned.AttributeBuffers[pathtracer.AttributePosition] = skinnedPositions
-	skinned.Parts = slices.Clone(gs.src.pathtracerGeometry.Parts)
+	skinned.AttributeBuffers[grenderer.AttributePosition] = skinnedPositions
+	skinned.Parts = slices.Clone(gs.src.ggeometry.Parts)
 	data.geometry = skinned
 
 	if gpu.SliceLen(data.pose) < len(gs.src.joints) {

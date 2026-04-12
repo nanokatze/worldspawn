@@ -15,14 +15,14 @@ import (
 	"worldspawn/internal/fuckwwise/opusfile"
 	"worldspawn/internal/fuckwwise/wav"
 	"worldspawn/internal/gmath"
-	"worldspawn/internal/pathtracer"
+	"worldspawn/internal/grenderer"
 	"worldspawn/internal/sdl"
 )
 
 type sceneUpdate struct {
 	tm timeMapping
 
-	camera          pathtracer.Camera
+	camera          grenderer.Camera
 	cameraTransform int
 
 	Sky *gpu.Image
@@ -37,7 +37,7 @@ type sceneUpdate struct {
 
 	GeoNodes []geoNodes // TODO: rename this
 
-	Materials    [][]*pathtracer.InterpretedMaterial
+	Materials    [][]*grenderer.InterpretedMaterial
 	MaterialArgs [][][256]byte
 }
 
@@ -51,7 +51,7 @@ func newSceneDirty(n int) *sceneUpdate {
 
 		GeoNodes: make([]geoNodes, n),
 
-		Materials:    make([][]*pathtracer.InterpretedMaterial, n),
+		Materials:    make([][]*grenderer.InterpretedMaterial, n),
 		MaterialArgs: make([][][256]byte, n),
 	}
 }
@@ -87,11 +87,11 @@ type renderer struct {
 	// TODO: what if we want to pass multiple cameras to the composition
 	// pipeline?
 	// TODO: camera states need to be t0 and t1 too
-	ourCamera          pathtracer.Camera
+	ourCamera          grenderer.Camera
 	ourCameraTransform int
 	scene2             *sceneUpdate
 	gsdata             []gsdata
-	scene              *pathtracer.Scene
+	scene              *grenderer.Scene
 
 	// Uhh
 	sfxScene *sfx.Scene
@@ -219,7 +219,7 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 			}
 
 			// TODO: stop allocating a new slice every time
-			update.Materials[i] = make([]*pathtracer.InterpretedMaterial, len(geometry.materials))
+			update.Materials[i] = make([]*grenderer.InterpretedMaterial, len(geometry.materials))
 			update.MaterialArgs[i] = make([][256]byte, len(geometry.materials))
 
 			for j := range update.Materials[i] {
@@ -239,7 +239,7 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 
 		// TODO: also the camera itself might not be valid or w/e
 		update.cameraTransform = camera.Index()
-		update.camera = pathtracer.Camera{
+		update.camera = grenderer.Camera{
 			FieldOfView:   float32(gmath.Radians(67.5)),
 			NearClipPlane: 0.01,
 		}
@@ -396,11 +396,11 @@ func (re *renderer) Render(jq *gpu.JobQueue, sdlNow uint64, dst *gpu.Image) {
 		jq,
 		re.frameNumber,
 		&camera,
-		pathtracer.Film{
+		grenderer.Film{
 			Extent: [2]int(dst.Extent()),
 			Color:  dst,
 		},
-		&pathtracer.Quality{
+		&grenderer.Quality{
 			MaxBounces:               conf.Quality.MaxBounces,
 			RussianRouletteThreshold: conf.Quality.RussianRouletteThreshold,
 		})

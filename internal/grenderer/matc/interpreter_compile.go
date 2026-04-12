@@ -7,7 +7,7 @@ import (
 
 	"worldspawn/internal/compiler"
 	"worldspawn/internal/compiler/core"
-	"worldspawn/internal/pathtracer/internal/material"
+	"worldspawn/internal/grenderer/internal/material"
 )
 
 func cost(v *compiler.Value) int {
