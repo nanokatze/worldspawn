@@ -5,32 +5,32 @@ import (
 	"worldspawn/gpu/vk"
 )
 
-type IndexType uint8
+type indexType uint8
 
 const (
-	IndexNone IndexType = iota
-	Index8
-	Index16
-	Index32
+	indexIdentity indexType = iota
+	index8
+	index16
+	index32
 )
 
-func (indexType IndexType) Size() int {
-	if indexType == IndexNone {
+func (indexType indexType) Size() int {
+	if indexType == indexIdentity {
 		return 0
 	}
 	return 1 << (int(indexType) - 1)
 }
 
 // TODO: make public? Rename to ToVkIndexType()?
-func (indexType IndexType) vkIndexType() vk.IndexType {
+func (indexType indexType) vkIndexType() vk.IndexType {
 	switch indexType {
-	case IndexNone:
+	case indexIdentity:
 		return vk.INDEX_TYPE_NONE_KHR
-	case Index8:
+	case index8:
 		return vk.INDEX_TYPE_UINT8
-	case Index16:
+	case index16:
 		return vk.INDEX_TYPE_UINT16
-	case Index32:
+	case index32:
 		return vk.INDEX_TYPE_UINT32
 	default:
 		panic("unreachable")
@@ -38,20 +38,26 @@ func (indexType IndexType) vkIndexType() vk.IndexType {
 }
 
 type IndexBuffer struct {
-	type_ IndexType
+	type_ indexType
 	data  gpu.UnsafePointer
 	len   int
 }
 
-func MakeIndexBuffer(indexType IndexType, len int) IndexBuffer {
-	return IndexBuffer{
-		type_: indexType,
-		data:  gpu.UnsafePointer(gpu.SliceData(gpu.MakeSliceUncached[byte](len * indexType.Size()))),
-		len:   len,
-	}
+func IndexBufferIdentity(len int) IndexBuffer {
+	return IndexBuffer{indexIdentity, 0, len}
 }
 
-func (buf IndexBuffer) Type() IndexType { return buf.type_ }
+func IndexBufferFromUint8Slice(data gpu.Slice[uint8]) IndexBuffer {
+	return IndexBuffer{index8, gpu.UnsafePointer(gpu.SliceData(data)), gpu.SliceLen(data)}
+}
+
+func IndexBufferFromUint16Slice(data gpu.Slice[uint16]) IndexBuffer {
+	return IndexBuffer{index16, gpu.UnsafePointer(gpu.SliceData(data)), gpu.SliceLen(data)}
+}
+
+func IndexBufferFromUint32Slice(data gpu.Slice[uint32]) IndexBuffer {
+	return IndexBuffer{index32, gpu.UnsafePointer(gpu.SliceData(data)), gpu.SliceLen(data)}
+}
 
 func (buf IndexBuffer) Len() int { return buf.len }
 
@@ -74,11 +80,4 @@ func (buf IndexBuffer) Slice(i, j int) IndexBuffer {
 		data:  data,
 		len:   len,
 	}
-}
-
-// TODO: replace with AsSlice() that returns appropriately typed slice? We might
-// still want a (private) function to pull the unsafe pointer to data out of
-// IndexBuffer for (*Geometry).AccelConfig
-func (buf IndexBuffer) AsByteSlice() gpu.Slice[byte] {
-	return gpu.SliceAt(gpu.Pointer[byte](buf.data), buf.len*buf.type_.Size())
 }

@@ -251,10 +251,11 @@ func loadmesh(filename string) *fileBackedMesh {
 
 	blob2 := io.NewSectionReader(r, preamble.Blob.Off, preamble.Blob.Size)
 
-	indexBuffer := pathtracer.MakeIndexBuffer(pathtracer.Index32, 3*int(header2.PrimitiveCount))
-	if _, err := blob2.ReadAt(indexBuffer.AsByteSlice().Value(), header2.IndexBuffer.Data); err != nil {
+	indexBufferData := gpu.MakeSliceUncached[uint32](3 * int(header2.PrimitiveCount))
+	if _, err := blob2.ReadAt(byteslice(indexBufferData.Value()), header2.IndexBuffer.Data); err != nil {
 		panic(err)
 	}
+	indexBuffer := pathtracer.IndexBufferFromUint32Slice(indexBufferData)
 
 	attrs := make([]any, 2)
 
