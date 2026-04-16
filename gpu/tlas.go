@@ -13,11 +13,7 @@ type AccelInstance struct {
 	accel             UnsafePointer
 }
 
-// WithTransform(stuff), WithInstanceID(instanceID uint32), WithMask(mask uint8)
-// func MakeTLASInstance(opts ...TLASOption)
-
-// TODO: or make a constructor instead? Func vararg constructor would've been
-// pretty nice I guess.
+// TODO: or make a With() thing instead? Or introduce BLASPointer or whatever.
 func (instance *AccelInstance) SetAccel(blas BLAS) {
 	instance.accel = blas.data
 }

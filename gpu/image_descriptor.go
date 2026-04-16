@@ -7,12 +7,13 @@ import (
 
 var imageViews = make([]vk.ImageView, 1e6)
 
-type ImageDescriptors struct {
+// TODO: rename to singular ImageDescriptor tbh
+type ImageDescriptor struct {
 	// TODO: explain how things are packed
 	bits uint32
 }
 
-func newImageDescriptors(data *imageData, config *subImageConfig) ImageDescriptors {
+func newImageDescriptor(data *imageData, config *subImageConfig) ImageDescriptor {
 	formatProps := getFormatImageProperties(config.Format)
 	if !formatProps.Supported {
 		panic("unsupported format")
@@ -25,13 +26,13 @@ func newImageDescriptors(data *imageData, config *subImageConfig) ImageDescripto
 	sampling := usages&vk.ImageUsageFlags(vk.IMAGE_USAGE_SAMPLED_BIT) != 0
 	loadStore := usages&vk.ImageUsageFlags(vk.IMAGE_USAGE_STORAGE_BIT) != 0
 	if !(sampling || loadStore) {
-		return ImageDescriptors{}
+		return ImageDescriptor{}
 	}
 
 	index := 2 * resourceDescAlloc.Alloc(&resourceDescAllocHint)
 	var tag uint32
 	if sampling {
-		initImageDescriptor(
+		initVulkanImageDescriptor(
 			data,
 			config,
 			vk.DESCRIPTOR_TYPE_SAMPLED_IMAGE,
@@ -44,7 +45,7 @@ func newImageDescriptors(data *imageData, config *subImageConfig) ImageDescripto
 		tag |= 1 << 0
 	}
 	if loadStore {
-		initImageDescriptor(
+		initVulkanImageDescriptor(
 			data,
 			config,
 			vk.DESCRIPTOR_TYPE_STORAGE_IMAGE,
@@ -57,10 +58,10 @@ func newImageDescriptors(data *imageData, config *subImageConfig) ImageDescripto
 		tag |= 1 << 1
 	}
 
-	return ImageDescriptors{uint32(index) | tag<<20}
+	return ImageDescriptor{uint32(index) | tag<<20}
 }
 
-func destroyImageDescriptors(descriptors ImageDescriptors) {
+func destroyImageDescriptor(descriptors ImageDescriptor) {
 	index := int(descriptors.bits & (1<<20 - 1))
 	tag := descriptors.bits >> 20
 
@@ -79,7 +80,7 @@ type pointerToDescriptor struct {
 	ArrayElement uint32
 }
 
-func initImageDescriptor(data *imageData, config *subImageConfig, descriptorType vk.DescriptorType, imageView *vk.ImageView, descriptor pointerToDescriptor) {
+func initVulkanImageDescriptor(data *imageData, config *subImageConfig, descriptorType vk.DescriptorType, imageView *vk.ImageView, descriptor pointerToDescriptor) {
 	must(vkFns.CreateImageView(device, &vk.ImageViewCreateInfo{
 		SType: vk.STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 		PNext: unsafe.Pointer(&vk.ImageViewUsageCreateInfo{

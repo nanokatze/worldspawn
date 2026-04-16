@@ -56,8 +56,8 @@ func (dim ImageDim) vkImageViewType() vk.ImageViewType {
 }
 
 type Image struct {
-	data        *imageData
-	descriptors ImageDescriptors
+	data       *imageData
+	descriptor ImageDescriptor
 
 	dim    ImageDim
 	format vk.Format
@@ -255,15 +255,15 @@ func newImage(data *imageData, config *subImageConfig) *Image {
 	}
 
 	img := &Image{
-		data:        data,
-		descriptors: newImageDescriptors(data, config),
-		dim:         config.Dim,
-		format:      config.Format,
-		bounds:      config.bounds(),
-		extent:      vkExtent3DFromInt3(extent),
+		data:       data,
+		descriptor: newImageDescriptor(data, config),
+		dim:        config.Dim,
+		format:     config.Format,
+		bounds:     config.bounds(),
+		extent:     vkExtent3DFromInt3(extent),
 	}
-	if img.descriptors != (ImageDescriptors{}) {
-		img.cleanup = runtime.AddCleanup(img, destroyImageDescriptors, img.descriptors)
+	if img.descriptor != (ImageDescriptor{}) {
+		img.cleanup = runtime.AddCleanup(img, destroyImageDescriptor, img.descriptor)
 	}
 
 	return img
@@ -360,11 +360,11 @@ func (img *Image) EnqueueInit(jq *JobQueue) {
 	img.EnqueueTransitionLayout(jq, vk.IMAGE_LAYOUT_UNDEFINED, vk.IMAGE_LAYOUT_GENERAL)
 }
 
-func (img *Image) Descriptors() ImageDescriptors {
+func (img *Image) Descriptor() ImageDescriptor {
 	if img == nil {
-		return ImageDescriptors{}
+		return ImageDescriptor{}
 	}
-	return img.descriptors
+	return img.descriptor
 }
 
 func (img *Image) VkImage() (vk.Image, vk.ImageSubresourceRange) {
@@ -378,7 +378,7 @@ func (img *Image) Destroy() {
 	// Stop the cleanup first.
 	img.cleanup.Stop()
 
-	destroyImageDescriptors(img.descriptors)
+	destroyImageDescriptor(img.descriptor)
 
 	if img.ownsData {
 		img.data.destroy()
