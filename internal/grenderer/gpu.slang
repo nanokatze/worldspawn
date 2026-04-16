@@ -35,7 +35,7 @@ public struct AccelInstance {
     public uint8_t *accel;
 };
 
-public struct ImageDescriptors {
+public struct ImageDescriptor {
 	public uint32_t bits;
 
 	[require(spirv, nonuniformqualifier)]

@@ -21,6 +21,8 @@ type Quality struct {
 	RussianRouletteThreshold int32
 }
 
+// TODO: make Scene, Camera and Film interfaces eventually?
+
 // TODO: rename to just Camera with all fields private and provide constructors
 type cameraInternal struct {
 	_ structs.HostLayout
@@ -40,14 +42,14 @@ type frameParams struct {
 
 	Scene gpu.Pointer[Scene]
 
-	Number uint32
-
-	// TODO: as a temporary solution we could have a globals struct that we'd
-	// pass through params, and BlueNoise among other things would live there.
-	BlueNoise gpu.ImageDescriptors
+	Film _Film
 
 	Camera cameraInternal
-	Film   _Film
+
+	Number uint32
+	// TODO: as a temporary solution we could have a globals struct that we'd
+	// pass through params, and BlueNoise among other things would live there.
+	BlueNoise gpu.ImageDescriptor
 
 	Quality Quality
 }
@@ -122,12 +124,7 @@ func mustReadFile(filename string) []byte {
 	return data
 }
 
-func (scene *Scene) Render(
-	jq *gpu.JobQueue,
-	frameNumber uint32,
-	camera *Camera,
-	film Film,
-	quality *Quality) {
+func (scene *Scene) EnqueueRender(jq *gpu.JobQueue, film Film, camera *Camera, cameraTransform gmath.Mat4x4f32, frameNumber uint32, quality *Quality) {
 	bn := blueNoise()
 
 	bnLayer := bn.SubImage(gpu.WithLayerRange{int(frameNumber) % bn.Layers(), int(frameNumber)%bn.Layers() + 1})
@@ -153,15 +150,19 @@ func (scene *Scene) Render(
 		// See also
 		// https://blog.demofox.org/2022/01/01/interleaved-gradient-noise-a-different-kind-of-low-discrepancy-sequence/
 
-		viewInverse := camera.Transform
+		viewInverse := cameraTransform
 		view := viewInverse.Inverse()
 
 		*frame.Value() = frameParams{
+			Film: _Film{
+				Color:              film.Color.Descriptor(),
+				DiffuseAlbedo:      film.DiffuseAlbedo.Descriptor(),
+				NormalAndRoughness: film.NormalAndRoughness.Descriptor(),
+				Depth:              film.Depth.Descriptor(),
+				Motion:             film.Motion.Descriptor(),
+			},
+
 			Scene: dscene,
-
-			Number: frameNumber,
-
-			BlueNoise: bnLayer.Descriptors(),
 
 			Camera: cameraInternal{
 				Proj: proj,
@@ -171,13 +172,10 @@ func (scene *Scene) Render(
 				ProjInverse: proj.Inverse(),
 				ViewInverse: viewInverse,
 			},
-			Film: _Film{
-				Color:              film.Color.Descriptors(),
-				DiffuseAlbedo:      film.DiffuseAlbedo.Descriptors(),
-				NormalAndRoughness: film.NormalAndRoughness.Descriptors(),
-				Depth:              film.Depth.Descriptors(),
-				Motion:             film.Motion.Descriptors(),
-			},
+
+			Number: frameNumber,
+
+			BlueNoise: bnLayer.Descriptor(),
 
 			Quality: *quality,
 		}

@@ -14,7 +14,7 @@ public struct emissiveInstance {
 // TODO: rename to lightAccel
 public struct lightAccel {
     public float3x3 envTransform;
-    public ImageDescriptors env;
+    public ImageDescriptor env;
 
     public Slice<emissiveInstance> emissiveInstances;
     public uint64_t emissiveInstanceCount; // !

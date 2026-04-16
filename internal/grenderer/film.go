@@ -14,10 +14,10 @@ type Film struct {
 }
 
 type _Film struct {
-	Color gpu.ImageDescriptors
+	Color gpu.ImageDescriptor
 
-	DiffuseAlbedo      gpu.ImageDescriptors
-	NormalAndRoughness gpu.ImageDescriptors
-	Depth              gpu.ImageDescriptors
-	Motion             gpu.ImageDescriptors
+	DiffuseAlbedo      gpu.ImageDescriptor
+	NormalAndRoughness gpu.ImageDescriptor
+	Depth              gpu.ImageDescriptor
+	Motion             gpu.ImageDescriptor
 }

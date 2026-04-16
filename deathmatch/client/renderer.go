@@ -373,8 +373,9 @@ func (re *renderer) Render(jq *gpu.JobQueue, sdlNow uint64, dst *gpu.Image) {
 	}
 
 	camera := re.ourCamera
+	cameraTransform := gmath.Mat4x4One[float32]()
 	if re.scene2 != nil {
-		camera.Transform = re.scene2.Transform(re.ourCameraTransform, float32(t)).ToMat().Mul(worldspawnToPathTracer.Inverse())
+		cameraTransform = re.scene2.Transform(re.ourCameraTransform, float32(t)).ToMat().Mul(worldspawnToPathTracer.Inverse())
 
 		for i := range re.scene2.Mask {
 			tmp := re.scene2.Transform(i, float32(t))
@@ -392,18 +393,17 @@ func (re *renderer) Render(jq *gpu.JobQueue, sdlNow uint64, dst *gpu.Image) {
 
 	re.scene.EnqueueUpdateAccel(jq)
 
-	re.scene.Render(
-		jq,
-		re.frameNumber,
-		&camera,
-		grenderer.Film{
-			Extent: [2]int(dst.Extent()),
-			Color:  dst,
-		},
-		&grenderer.Quality{
-			MaxBounces:               conf.Quality.MaxBounces,
-			RussianRouletteThreshold: conf.Quality.RussianRouletteThreshold,
-		})
+	film := grenderer.Film{
+		Extent: [2]int(dst.Extent()),
+		Color:  dst,
+	}
+
+	quality := grenderer.Quality{
+		MaxBounces:               conf.Quality.MaxBounces,
+		RussianRouletteThreshold: conf.Quality.RussianRouletteThreshold,
+	}
+
+	re.scene.EnqueueRender(jq, film, &camera, cameraTransform, re.frameNumber, &quality)
 	re.frameNumber++
 }
 

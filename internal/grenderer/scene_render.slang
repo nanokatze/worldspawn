@@ -80,12 +80,12 @@ struct cameraInternal {
 struct frameParams {
     Scene *scene;
 
-    uint32_t number;
-
-    ImageDescriptors blueNoise;
+    Film film;
 
     cameraInternal camera;
-    Film film;
+
+    uint32_t number;
+    ImageDescriptor blueNoise;
 
     Quality quality;
 }

@@ -14,10 +14,9 @@ import (
 // TODO: this needs to be more abstract
 // TODO: provide NewCamera with func args? Or some other kind of camera builder
 // thing.
+// TODO: split camera affine out of Camera?
 type Camera struct {
 	_ structs.HostLayout
-
-	Transform gmath.Mat4x4f32
 
 	FieldOfView   float32
 	NearClipPlane float32
@@ -62,7 +61,7 @@ type lightAccel struct {
 
 	envTransform gmath.Mat3x3f32
 	// TODO: rename
-	env gpu.ImageDescriptors
+	env gpu.ImageDescriptor
 
 	emissiveInstances     gpu.Slice[emissiveInstance]
 	emissiveInstanceCount int
@@ -160,7 +159,7 @@ func NewScene(n int, maxPartsPerMesh int) *Scene {
 // TODO: make it async, or make it device-only
 func (scene *Scene) SetSky(transform gmath.Mat3x3f32, sky *gpu.Image) {
 	scene.lightAccel.envTransform = transform
-	scene.lightAccel.env = sky.Descriptors()
+	scene.lightAccel.env = sky.Descriptor()
 }
 
 // TODO: this should only exist on the device/in the shader
