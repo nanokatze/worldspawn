@@ -8,7 +8,6 @@ import (
 	"math"
 	"strconv"
 
-	sfx "worldspawn/internal/fuckwwise"
 	"worldspawn/internal/fuckwwise/wav/internal/riff"
 )
 
@@ -25,14 +24,14 @@ func (e unsupportedBitsPerSampleError) Error() string {
 }
 
 type config struct {
-	format     sfx.Format
+	format     Format
 	channels   int32
 	sampleRate uint32
 }
 
 type Reader struct {
-	r    *io.SectionReader
 	conf config
+	r    *io.SectionReader
 }
 
 func NewReader(r io.ReaderAt) (*Reader, error) {
@@ -79,7 +78,7 @@ func NewReader(r io.ReaderAt) (*Reader, error) {
 				return nil, fmt.Errorf("unsupported sample rate %d", wavefmt.SamplesPerSec)
 			}
 
-			var format sfx.Format
+			var format Format
 			switch wavefmt.FormatTag {
 			case _WAVE_FORMAT_PCM:
 				var wavefmt _PCMWAVEFORMAT
@@ -89,7 +88,7 @@ func NewReader(r io.ReaderAt) (*Reader, error) {
 
 				switch wavefmt.BitsPerSample {
 				case 16:
-					format = sfx.FORMAT_S16
+					format = FORMAT_S16
 				default:
 					return nil, unsupportedBitsPerSampleError(wavefmt.BitsPerSample)
 				}
@@ -102,7 +101,7 @@ func NewReader(r io.ReaderAt) (*Reader, error) {
 
 				switch wavefmt.BitsPerSample {
 				case 32:
-					format = sfx.FORMAT_F32
+					format = FORMAT_F32
 				default:
 					return nil, unsupportedBitsPerSampleError(wavefmt.BitsPerSample)
 				}
@@ -123,8 +122,8 @@ func NewReader(r io.ReaderAt) (*Reader, error) {
 			}
 
 			return &Reader{
-				r:    data,
 				conf: conf,
+				r:    data,
 			}, nil
 
 		default:
@@ -134,7 +133,15 @@ func NewReader(r io.ReaderAt) (*Reader, error) {
 	}
 }
 
-func (r *Reader) Format() sfx.Format {
+type Format int
+
+const (
+	_ Format = iota
+	FORMAT_S16
+	FORMAT_F32
+)
+
+func (r *Reader) Format() Format {
 	return r.conf.format
 }
 

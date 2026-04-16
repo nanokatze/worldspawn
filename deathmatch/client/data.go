@@ -19,7 +19,7 @@ import (
 	"worldspawn/gpu/vk"
 	"worldspawn/internal/compiler"
 	"worldspawn/internal/compiler/core"
-	sfx "worldspawn/internal/fuckwwise"
+	"worldspawn/internal/fuckwwise/wav"
 	"worldspawn/internal/geometry"
 	"worldspawn/internal/grenderer"
 	"worldspawn/internal/grenderer/matc"
@@ -366,14 +366,14 @@ func byteslice[T any](s []T) []byte {
 	return unsafe.Slice((*byte)(unsafe.Pointer(unsafe.SliceData(s))), len(s)*sizeofT)
 }
 
-func readSamples(r io.Reader, format sfx.Format) ([]float32, error) {
+func readSamples(r io.Reader, format wav.Format) ([]float32, error) {
 	buf, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
 
 	switch format {
-	case sfx.FORMAT_S16:
+	case wav.FORMAT_S16:
 		bufSNORM16 := unsafe.Slice((*int16)(unsafe.Pointer(unsafe.SliceData(buf))), len(buf)/2)
 		bufFLOAT32 := make([]float32, len(bufSNORM16))
 		for i := range bufFLOAT32 {
@@ -381,7 +381,7 @@ func readSamples(r io.Reader, format sfx.Format) ([]float32, error) {
 		}
 		return bufFLOAT32, nil
 
-	case sfx.FORMAT_F32:
+	case wav.FORMAT_F32:
 		bufFLOAT32 := unsafe.Slice((*float32)(unsafe.Pointer(unsafe.SliceData(buf))), len(buf)/4)
 		return bufFLOAT32, nil
 

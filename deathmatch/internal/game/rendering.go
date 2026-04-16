@@ -6,7 +6,6 @@ import (
 	"math"
 
 	"worldspawn/internal/ecs"
-	sfx "worldspawn/internal/fuckwwise"
 	"worldspawn/internal/fuckwwise/wav"
 	"worldspawn/internal/gmath"
 )
@@ -76,9 +75,9 @@ func (a *LoopedSound) Init() {
 
 	var siz int
 	switch wr.Format() {
-	case sfx.FORMAT_S16:
+	case wav.FORMAT_S16:
 		siz = 2
-	case sfx.FORMAT_F32:
+	case wav.FORMAT_F32:
 		siz = 4
 	default:
 		panic("unreachable")

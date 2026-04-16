@@ -8,7 +8,7 @@ import (
 	"log"
 	"os"
 
-	"worldspawn/fuckwwise/opusfile"
+	"worldspawn/internal/fuckwwise/opusfile"
 )
 
 func main() {

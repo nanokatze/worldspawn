@@ -1,13 +1,19 @@
 package main
 
 import (
+	"fmt"
+	"io"
 	"log"
 	"math"
+	"path"
 	"sync"
 	"unsafe"
 
-	sfx "worldspawn/internal/fuckwwise"
-	"worldspawn/internal/fuckwwise/interpolators"
+	"worldspawn/deathmatch/internal/game"
+	"worldspawn/internal/apostprocess"
+	"worldspawn/internal/arenderer"
+	"worldspawn/internal/fuckwwise/opusfile"
+	"worldspawn/internal/fuckwwise/wav"
 	"worldspawn/internal/gmath"
 	"worldspawn/internal/sdl"
 )
@@ -35,10 +41,8 @@ var au = sync.OnceValue(func() *sdl.AudioStream {
 	return au
 })
 
-var sources = make(map[string]*sfx.Source)
-
-// TODO: make this possible to run async pls
-func renderAudio(scene *sfx.Scene, camera gmath.Vec3f32, t0, Δt int64) {
+// TODO: rethink wtf is going on here pls
+func renderAudio(scene *arenderer.Scene, cameraTransform gmath.Affine3f32, Δt int64) {
 	// TODO: make this tunable at runtime
 	queueingTargetSamples := 48000 / 50
 
@@ -50,7 +54,12 @@ func renderAudio(scene *sfx.Scene, camera gmath.Vec3f32, t0, Δt int64) {
 
 	tmp := make([]float32, L*2)
 
-	sfx.Render(scene, camera, t0, tmp, 2, sampleRate)
+	scene.Render(
+		arenderer.Film{
+			Samples:  tmp,
+			Channels: 2,
+		},
+		cameraTransform)
 
 	nudge := queueingTargetSamples - au().Queued()/(2*4)
 
@@ -60,29 +69,42 @@ func renderAudio(scene *sfx.Scene, camera gmath.Vec3f32, t0, Δt int64) {
 
 	tmp2 := make([]float32, Lnudged*2)
 
-	resample(tmp2, tmp, 2, resamplingRatio)
+	apostprocess.Resample(tmp2, tmp, 2, resamplingRatio)
 
 	au().Write(unsafe.Slice((*byte)(unsafe.Pointer(unsafe.SliceData(tmp2))), len(tmp2)*4))
 }
 
-func resample(dst []float32, src []float32, channels int, ratio float64) {
-	for i := range len(dst) / channels {
-		for channel := range channels {
-			t := float64(i) * ratio
-			j := int(t)
-			dst[i*channels+channel] = interpolators.LagrangeP4O3(
-				sliceLoadOrZero(src, (j-1)*channels+channel),
-				sliceLoadOrZero(src, (j+0)*channels+channel),
-				sliceLoadOrZero(src, (j+1)*channels+channel),
-				sliceLoadOrZero(src, (j+2)*channels+channel),
-				float32(t-float64(j)))
-		}
-	}
-}
+var sources = make(map[string][]float32)
 
-func sliceLoadOrZero[T any](x []T, i int) T {
-	if 0 <= i && i < len(x) {
-		return x[i]
+func lookupsound(id string) []float32 {
+	effect, ok := sources[id]
+	if !ok {
+		f, err := game.Data.Open(id)
+		if err != nil {
+			// TODO: should be non-fatal
+			panic(fmt.Sprintf("failed to open file %v", id))
+		}
+
+		switch path.Ext(id) {
+		case ".wav":
+			reader, err := wav.NewReader(f.(io.ReaderAt))
+			if err != nil {
+				panic(err)
+			}
+			samples, _ := readSamples(reader, reader.Format())
+			effect = extractChannel(samples, reader.Channels(), 0)
+
+		case ".opus":
+			reader, _ := opusfile.NewReader(f)
+			samples, _ := readSamples(reader, wav.FORMAT_F32)
+			effect = extractChannel(samples, reader.Channels(), 0)
+
+		default:
+			panic("unsupported")
+		}
+
+		sources[id] = effect
 	}
-	return *new(T)
+
+	return effect
 }

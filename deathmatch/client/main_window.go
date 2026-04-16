@@ -13,7 +13,7 @@ import (
 	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
 	"worldspawn/gpu/wsi"
-	sfx "worldspawn/internal/fuckwwise"
+	"worldspawn/internal/arenderer"
 	"worldspawn/internal/gmath"
 	"worldspawn/internal/grenderer"
 	"worldspawn/internal/sdl"
@@ -72,9 +72,7 @@ func (w *mainWindow) Run() {
 
 		gsdata: make([]gsdata, 10000),
 
-		sfxScene: &sfx.Scene{
-			Instance: make([]sfx.Instance, 10000),
-		},
+		ascene: arenderer.NewScene(10000),
 	}
 	for i := range w.renderer.lastGen {
 		w.renderer.lastGen[i] = 0xffffffff

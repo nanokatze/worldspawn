@@ -1,19 +1,14 @@
 package main
 
 import (
-	"fmt"
-	"io"
-	"path"
 	"reflect"
 	"sync"
 	"time"
 
 	"worldspawn/deathmatch/internal/game"
 	"worldspawn/gpu"
+	"worldspawn/internal/arenderer"
 	"worldspawn/internal/ecs"
-	sfx "worldspawn/internal/fuckwwise"
-	"worldspawn/internal/fuckwwise/opusfile"
-	"worldspawn/internal/fuckwwise/wav"
 	"worldspawn/internal/gmath"
 	"worldspawn/internal/grenderer"
 	"worldspawn/internal/sdl"
@@ -93,8 +88,18 @@ type renderer struct {
 	gsdata             []gsdata
 	scene              *grenderer.Scene
 
-	// Uhh
-	sfxScene *sfx.Scene
+	// NOTE: sound renderer works very differently from graphics renderer: we'll
+	// probably tie it to simulation ticks. Or I guess we could also piggyback
+	// off renderer but that's varying degrees of annoying...
+	//
+	// Anyway, we'll have an equivalent of pathtracer.Scene but for audio.
+	// EXCEPT, we'll also need to access the output buffers on host (I'm not
+	// sure if these will be per-instance or per-point-on-a-sphere.)
+	//
+	// We'll also need to have a huge output buffer so that we can write sound
+	// into the future (for doppler) and also a per-instance buffer of samples
+	// that we'll use wavegen or whatever to write into.
+	ascene *arenderer.Scene
 }
 
 // TODO: remove this in favor of merging updates at commitUpdate time. I.e.
@@ -245,61 +250,27 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 		}
 	}
 
-	// Ughhhhhhh
 	{
-		camera := update.Transform(camera.Index(), 0)
-		cameraPos := camera.T
+		cameraTransform := update.Transform(camera.Index(), 0)
 
-		scene := re.sfxScene
+		scene := re.ascene
 
-		a := int64(t1.Sub(t0) * 48000 / 1e9)
-
-		clear(scene.Instance)
+		clear(scene.Emitters)
 
 		for id, soundEffect := range ecs.All(&w.SoundEffect) {
 			T := w.GetGlobalTransform(id)
 
-			effect, ok := sources[soundEffect.Effect]
-			if !ok {
-				f, err := game.Data.Open(soundEffect.Effect)
-				if err != nil {
-					// TODO: should be non-fatal
-					panic(fmt.Sprintf("failed to open file %v", soundEffect.Effect))
-				}
+			effect := lookupsound(soundEffect.Effect)
 
-				switch path.Ext(soundEffect.Effect) {
-				case ".wav":
-					reader, _ := wav.NewReader(f.(io.ReaderAt))
-					samples, _ := readSamples(reader, reader.Format())
-					effect = &sfx.Source{
-						Samples: extractChannel(samples, reader.Channels(), 0),
-					}
+			scene.Transform[id.Index()] = gmath.Affine3Convert[float32](T).TRS()
 
-				case ".opus":
-					reader, _ := opusfile.NewReader(f)
-					samples, _ := readSamples(reader, sfx.FORMAT_F32)
-					effect = &sfx.Source{
-						Samples: extractChannel(samples, reader.Channels(), 0),
-					}
-
-				default:
-					panic("unsupported")
-				}
-
-				sources[soundEffect.Effect] = effect
-			}
-
-			scene.Instance[id.Index()] = sfx.Instance{
-				Transform:   T,
-				Samples:     effect.Samples,
-				Attenuation: soundEffect.Attenuation,
-				PlayTime:    int64(soundEffect.PlayTime.Sub(game.Time(0)) * 48000 / 1e9),
-			}
+			hmm := min(max(int64(t0.Sub(soundEffect.PlayTime)*48000/1e9), 0), int64(len(effect)))
+			scene.Emitters[id.Index()] = effect[hmm:]
 		}
 
-		// TODO: let us do multiple audio renders per frame. Should be nice for
-		// sessions with long ticks
-		renderAudio(re.sfxScene, cameraPos, int64(t0.Sub(game.Time(0))*48000/1e9), a)
+		// TODO: for long ticks we'd like to do several short audio renders per
+		// tick
+		renderAudio(re.ascene, cameraTransform, int64(t1.Sub(t0)*48000/1e9))
 	}
 }
 
