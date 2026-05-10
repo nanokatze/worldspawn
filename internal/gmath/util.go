@@ -12,9 +12,10 @@ func Radians(x float64) float64 {
 	return x * k
 }
 
-// TODO: make this public?
-// TODO: make sure the numeric properties of this are nice
-// TODO: switch to https://rfcs.luau.org/function-math-lerp.html ?
+// TODO: add xy < 0 handling from https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p0811r3.html ?
 func lerp[T constraints.Float](x, y T, t T) T {
-	return x*(T(1)-t) + y*t
+	if t == 1 {
+		return y
+	}
+	return x + (y-x)*t
 }
