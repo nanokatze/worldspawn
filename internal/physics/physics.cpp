@@ -90,11 +90,14 @@ private:
 namespace
 {
 
-template<typename T>
-bool lowerTriangleIndex(const T &m, size_t i, size_t j) {
-	auto row = std::max(i, j);
-	auto col = std::min(i, j);
-	return m[row * (row + 1) / 2 + col];
+size_t triangularNumber(size_t n) {
+	return n * (n + 1) / 2;
+}
+
+size_t upperTriangularIndex(size_t n, size_t i, size_t j) {
+	assert(0 <= i && i < n);
+	assert(i <= j && j < n);
+	return triangularNumber(n) - triangularNumber(n - i) + j - i;
 }
 
 }
@@ -109,7 +112,7 @@ public:
 		shouldCollide.resize(objectLayerCount * broadPhaseLayerCount);
 		for (int i = 0; i < objectLayerCount; i++) {
 			for (int j = 0; j < objectLayerCount; j++) {
-				if (lowerTriangleIndex(shouldObjectLayersCollide, i, j))
+				if (shouldObjectLayersCollide[upperTriangularIndex(objectLayerCount, std::min(i, j), std::max(i, j))])
 					shouldCollide[i * broadPhaseLayerCount + objectLayerToBroadPhaseLayer[j]] = true;
 			}
 		}
@@ -141,7 +144,7 @@ public:
 	{
 		JPH_ASSERT(inObject1 < objectLayerCount);
 		JPH_ASSERT(inObject2 < objectLayerCount);
-		return lowerTriangleIndex(shouldCollide, inObject1, inObject2);
+		return shouldCollide[upperTriangularIndex(objectLayerCount, std::min(inObject1, inObject2), std::max(inObject1, inObject2))];
 	}
 
 private:
@@ -193,12 +196,6 @@ struct Physics {
 	// We should try making the methods be ecs stages along with various
 	// queries
 
-	JPH::TempAllocatorMalloc tempAllocator;
-
-	// TODO: we'll probably want to share this between different instances of
-	// PhysicsSystem
-	// JPH::JobSystemThreadPool jobSystem;
-
 	JPH::PhysicsSystem physicsSystem;
 
 	BroadPhaseLayerInterface broadPhaseLayerInterface;
@@ -207,10 +204,11 @@ struct Physics {
 	ContactListener contactListener;
 
 	JPH::BodyIDVector activeBodies;
+
+	JPH::TempAllocatorMalloc tempAllocator;
 };
 
 Physics::Physics(int broadPhaseLayerCount, int objectLayerCount, std::span<const JPH::BroadPhaseLayer::Type> objectLayerToBroadPhaseLayer, std::span<const bool> shouldObjectLayersCollide) :
-	// jobSystem(JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers, -1),
 	broadPhaseLayerInterface(broadPhaseLayerCount, objectLayerCount, objectLayerToBroadPhaseLayer),
 	objectVsBroadphaseLayerFilter(broadPhaseLayerCount, objectLayerCount, objectLayerToBroadPhaseLayer, shouldObjectLayersCollide),
 	objectLayerPairFilter(objectLayerCount, shouldObjectLayersCollide)
@@ -331,140 +329,139 @@ JPH::RMat44 GetCenterOfMassTransform(JPH::RVec3Arg inPosition, JPH::QuatArg inRo
 
 }
 
+class MyObjectLayerFilter : public JPH::ObjectLayerFilter {
+public:
+	MyObjectLayerFilter(void *pipeline) : pipeline(pipeline) {}
+
+	virtual bool ShouldCollide(JPH::ObjectLayer layer) const override {
+		return physicsFilterLayerImpl(pipeline, (size_t)layer);
+	}
+
+private:
+	void *pipeline;
+};
+
+class MyBodyFilter : public JPH::BodyFilter
+{
+public:
+	MyBodyFilter(void *pipeline) : pipeline(pipeline) {}
+
+	virtual bool ShouldCollide(const JPH::BodyID &inBodyID) const override {
+		return physicsFilterBodyImpl(pipeline, inBodyID.GetIndexAndSequenceNumber());
+	}
+
+	void *pipeline;
+};
+
 // TODO: to implement per-subshape friction and restitution we just need to set
 // custom friction and restitution combine functions which will pull stuff out
 // of subshapes. We'll also want to disable "manifold combining" or whatever it
 // was called for select shapes.
 
-/*
-class Material : public JPH::PhysicsMaterial {
-public:
+void physicsTraceRay(Physics *system, Ray ray, void *pipeline) {
+	// Ideally passing inf would be a supported use case.
+	ray.tmax = std::min(ray.tmax, 1e9f);
 
-private:
-	float friction;
-	float restitution;
-	float density;
-};
-*/
-
-class MyBodyFilter : public JPH::BodyFilter
-{
-public:
-	MyBodyFilter(JPH::BodyID ignore) : ignore(ignore) {}
-
-	virtual bool ShouldCollide(const JPH::BodyID &inBodyID) const override
-	{
-		return inBodyID != ignore;
-	}
-
-private:
-	// TODO: specify bodies we pretend to be so as to apply those body's filter
-	JPH::BodyID ignore;
-};
-
-void physicsQueryRayClosestHit(Physics *system, const dvec3 *pos, const vec3 *dir) {
-	JPH::RayCastResult result;
-}
-
-size_t physicsQueryShape(Physics *system, const Shape *shape_, const dvec3 *pos, const Rot3 *rot, const vec3 *scale, const vec3 *movementDirection, float maxSeparationDistance, QueryFilter filter, QueryHit *outHits, size_t maxHits) {
-	class Collector : public JPH::CollideShapeCollector {
+	class MyCollector : public JPH::CastRayCollector {
 	public:
-		// TODO: option for contact reduction
-
-		virtual void AddHit(const JPH::CollideShapeResult &result) override {
-			if (i >= out.size()) {
+		virtual void AddHit(const JPH::RayCastResult &result) {
+			switch (physicsRayHitImpl(pipeline,
+				SceneRayHit{
+					.bodyID = result.mBodyID.GetIndexAndSequenceNumber(),
+					.t = tmax * result.mFraction,
+					// TODO: subshape
+				})) {
+			case 0:
 				ForceEarlyOut();
-				return;
-			}
+				break;
 
-			out[i++] = QueryHit{
-				.point  = JPHDVec3ToDVec3(baseOffset + result.mContactPointOn2),
-				.normal = JPHVec3ToVec3(result.mPenetrationAxis.NormalizedOr(JPH::Vec3::sZero())),
-				.depth  = result.mPenetrationDepth,
-			};
+			case 1:
+				UpdateEarlyOutFraction(result.GetEarlyOutFraction());
+				break;
+
+			case 2:
+				break;
+			}
 		}
 
-		JPH::RVec3 baseOffset;
-		std::span<QueryHit> out;
-		size_t i = 0;
+		float tmax;
+		void *pipeline;
 	};
 
-	auto shape = reinterpret_cast<const JPH::Shape*>(shape_);
+	MyCollector collector;
+	collector.tmax = ray.tmax;
+	collector.pipeline = pipeline;
+
+	system->physicsSystem.GetNarrowPhaseQuery().CastRay(
+		JPH::RRayCast(dvec3ToJPHDVec3(ray.origin), vec3ToJPHVec3(ray.direction) * ray.tmax),
+		JPH::RayCastSettings{}, // TODO: pass these down
+		collector,
+		{},
+		MyObjectLayerFilter(pipeline),
+		MyBodyFilter(pipeline),
+		{});
+}
+
+void physicsOverlapQuery(Physics *system, Overlap overlap, void *pipeline) {
+	class MyCollector : public JPH::CollideShapeCollector {
+	public:
+		virtual void AddHit(const JPH::CollideShapeResult &result) override {
+			switch (physicsOverlapHitTramp(pipeline,
+				SceneOverlapHit{
+					.bodyID = result.mBodyID2.GetIndexAndSequenceNumber(),
+					.contactPointOn1 = JPHVec3ToVec3(result.mContactPointOn1),
+					.contactPointOn2 = JPHVec3ToVec3(result.mContactPointOn2),
+					.penetrationAxis = JPHVec3ToVec3(result.mPenetrationAxis),
+					.penetrationDepth = result.mPenetrationDepth,
+					// TODO: subshapes
+				})) {
+			case 0:
+				ForceEarlyOut();
+				break;
+
+			case 1:
+				UpdateEarlyOutFraction(result.GetEarlyOutFraction());
+				break;
+
+			case 2:
+				break;
+			}
+		};
+
+		void *pipeline;
+	};
+
+	MyCollector collector;
+	collector.pipeline = pipeline;
+
+	auto shape = reinterpret_cast<const JPH::Shape*>(overlap.shape);
 
 	JPH::CollideShapeSettings settings;
-	settings.mActiveEdgeMovementDirection = vec3ToJPHVec3(*movementDirection);
-	settings.mMaxSeparationDistance = maxSeparationDistance;
-
-	Collector collector;
-	collector.baseOffset = dvec3ToJPHDVec3(*pos);
-	collector.out = std::span<QueryHit>(outHits, outHits + maxHits);
+	settings.mActiveEdgeMovementDirection = vec3ToJPHVec3(overlap.movementDirection);
+	settings.mMaxSeparationDistance = overlap.maxSeparationDistance;
 
 	system->physicsSystem.GetNarrowPhaseQuery().CollideShape(
 		shape,
-		vec3ToJPHVec3(*scale),
-		GetCenterOfMassTransform(dvec3ToJPHDVec3(*pos), rotation3ToJPHQuat(*rot), shape),
+		vec3ToJPHVec3(overlap.scale),
+		GetCenterOfMassTransform(dvec3ToJPHDVec3(overlap.pos), rotation3ToJPHQuat(overlap.rot), shape),
 		settings,
-		dvec3ToJPHDVec3(*pos),
+		dvec3ToJPHDVec3(overlap.pos),
 		collector,
 		{},
-		{},
-		MyBodyFilter(JPH::BodyID(filter.ignore)),
+		MyObjectLayerFilter(pipeline),
+		MyBodyFilter(pipeline),
 		{});
-
-	return collector.i;
 }
 
-CastQueryResult physicsQuerySweptShapeClosestHit(Physics *system, const Shape *shape_, const dvec3 *pos, const Rot3 *rot, const vec3 *scale, const vec3 *displacement, QueryFilter filter) {
-	class Collector : public JPH::CastShapeCollector {
-	public:
-		virtual void AddHit(const JPH::ShapeCastResult &result) override {
-			hit = CastQueryResult{
-				.fraction = result.mFraction,
-				.base = {
-					.point  = JPHDVec3ToDVec3(baseOffset + result.mContactPointOn2),
-					.normal = JPHVec3ToVec3(result.mPenetrationAxis.NormalizedOr(JPH::Vec3::sZero())),
-					.depth  = result.mPenetrationDepth,
-				},
-			};
-
-			UpdateEarlyOutFraction(result.mFraction);
-		}
-
-		JPH::RVec3 baseOffset;
-		CastQueryResult hit;
-	};
-
-	auto shape = reinterpret_cast<const JPH::Shape*>(shape_);
-
-	JPH::ShapeCastSettings settings;
-
-	Collector collector;
-	collector.baseOffset = dvec3ToJPHDVec3(*pos);
-	collector.hit = CastQueryResult{.fraction = 1.0f + FLT_EPSILON};
-
-	system->physicsSystem.GetNarrowPhaseQuery().CastShape(
-		JPH::RShapeCast(
-			shape,
-			vec3ToJPHVec3(*scale),
-			GetCenterOfMassTransform(dvec3ToJPHDVec3(*pos), rotation3ToJPHQuat(*rot), shape),
-			vec3ToJPHVec3(*displacement)),
-		settings,
-		dvec3ToJPHDVec3(*pos),
-		collector,
-		{},
-		{},
-		MyBodyFilter(JPH::BodyID(filter.ignore)),
-		{});
-
-	return collector.hit;
+void physicsSweepQuery(Physics *system, Overlap overlap, void *pipeline) {
 }
 
-void physicsSetGravity(Physics *system, const vec3 *gravity) {
-	system->physicsSystem.SetGravity(vec3ToJPHVec3(*gravity));
+void physicsSetGravity(Physics *system, const vec3 gravity) {
+	system->physicsSystem.SetGravity(vec3ToJPHVec3(gravity));
 }
 
 // TODO: the user should provide the container to write results (active bodies
-// and contact events) into
+// and contact events) into. Or maybe not.
 void physicsUpdate(Physics *system, float dt) {
 	system->contactListener.contactEvents.clear();
 	system->physicsSystem.Update(dt, 1, &system->tempAllocator, &jobSystem);

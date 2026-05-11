@@ -1,10 +1,5 @@
 package main
 
-// #cgo LDFLAGS: -lphysics
-// #cgo LDFLAGS: -lJolt
-// #cgo LDFLAGS: -lm -lstdc++
-import "C"
-
 import (
 	"bytes"
 	"context"

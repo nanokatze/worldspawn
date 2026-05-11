@@ -101,8 +101,6 @@ newMeshShape(const vec3 *vertices, size_t vertexCount, const void *triangles, si
 Shape*
 newTransformedShape(const vec3 *translation, const Rot3 *rotation, const vec3 *scale, const Shape *shape)
 {
-	// TODO: it's not clear whether rotation is happening around center of mass
-	// or origin, but if it's around COM, we'll need to do some extra work here
 	// TODO: scale
 	return newShape(JPH::RotatedTranslatedShapeSettings(vec3ToJPHVec3(*translation), rotation3ToJPHQuat(*rotation), reinterpret_cast<const JPH::Shape*>(shape)));
 }

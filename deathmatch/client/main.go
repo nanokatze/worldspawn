@@ -1,9 +1,5 @@
 package main
 
-// #cgo LDFLAGS: -lphysics -lJolt
-// #cgo LDFLAGS: -lm -lstdc++
-import "C"
-
 import (
 	"flag"
 	"fmt"

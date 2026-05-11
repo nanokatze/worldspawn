@@ -25,18 +25,7 @@ math_dep = cc.find_library('m', required : false)
 
 vulkan_headers_dep = dependency('Vulkan-Headers')
 
-jolt_options = cmake.subproject_options()
-jolt_options.add_cmake_defines({
-  'CROSS_PLATFORM_DETERMINISTIC': true,
-  'DOUBLE_PRECISION': true,
-  'USE_ASSERTS': true,
-})
-jolt_dep = cmake.subproject('JoltPhysics', options : jolt_options).dependency('Jolt')
-go_env.append('CGO_LDFLAGS', '"-L@0@"'.format(meson.current_build_dir() / 'subprojects/JoltPhysics'), separator : ' ')
-
 go_src_dir = meson.current_source_dir() # TODO: rename
-
-subdir('physics')
 
 subdir('deathmatch/client')
 subdir('deathmatch/server')

@@ -1,16 +1,15 @@
 #pragma once
 
-#include "../../geometry/matrix_types.h"
-#include "../../geometry/rot3.h"
-#include "../../geometry/vector_types.h"
+#include <bit>
+#include <array>
+
+#include "gmath.h"
 
 #include <Jolt/Jolt.h>
 
 namespace worldspawn {
 
 namespace physics {
-
-// or rename to "From", e.g. JPHVec3FromVec3?
 
 inline vec3 JPHVec3ToVec3(JPH::Vec3 v)
 {

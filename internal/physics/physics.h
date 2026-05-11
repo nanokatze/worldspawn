@@ -4,21 +4,19 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "../../geometry/matrix_types.h"
-#include "../../geometry/rot3.h"
-#include "../../geometry/vector_types.h"
+#include "gmath.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// TODO: split this up into several headers
+// TODO: split this up into several headers?
 
 typedef uint32_t BodyID;
 
 typedef uint32_t SubShapeID;
 
-// TODO: rename to PhysicsSystem and use "system" for param name
+// TODO: rename to PhysicsSystem or PhysicsScene
 typedef struct Physics Physics;
 
 typedef struct Shape Shape;
@@ -50,11 +48,6 @@ struct MotionProperties {
 	mat4 inertia;
 };
 
-typedef struct QueryFilter QueryFilter;
-struct QueryFilter {
-	BodyID ignore;
-};
-
 typedef enum ContactEventType {
 	ContactAdded = 1,
 	ContactRemoved,
@@ -82,64 +75,71 @@ Physics* newPhysics(
 	const uint8_t *objectLayerToBroadPhaseLayer,
 	const bool *shouldObjectLayersCollide);
 
-// TODO: we'll have lots of different query type things be our physics API, and
-// implement them in terms of whatever the physics engine can do.
+bool physicsFilterLayerImpl(void *pipeline, uint32_t layer);
 
-typedef struct QueryShapeResult QueryShapeResult;
-struct QueryShapeResult {
+bool physicsFilterBodyImpl(void *pipeline, BodyID bodyID);
+
+// TODO: naming
+
+typedef struct Ray Ray;
+struct Ray {
+	dvec3 origin;
+	vec3 direction;
+	float tmax;
+};
+
+typedef struct SceneRayHit SceneRayHit;
+struct SceneRayHit {
+	BodyID bodyID;
+	float t;
+	// SubShapeID subShapeID;
+};
+
+void physicsTraceRay(Physics *system, Ray ray, void *pipeline);
+
+// TODO: we need a enum for this
+int physicsRayHitImpl(void *pipeline, SceneRayHit hit);
+
+// TODO: pass base offset explicitly?
+typedef struct Overlap Overlap;
+struct Overlap {
+	dvec3 pos;
+	Rot3 rot;
+	vec3 scale;
+	Shape *shape;
+	// TODO: this is used by player controller atm but we should kill these
+	vec3 movementDirection;
+	float maxSeparationDistance;
+};
+
+typedef struct SceneOverlapHit SceneOverlapHit;
+struct SceneOverlapHit {
+	BodyID bodyID;
+	vec3 contactPointOn1;
+	vec3 contactPointOn2;
+	vec3 penetrationAxis;
+	float penetrationDepth;
+	// subshape 1 and 2 here
+};
+
+// TODO: rename
+void physicsOverlapQuery(Physics *system, Overlap overlap, void *pipeline);
+
+int physicsOverlapHitTramp(void *pipeline, SceneOverlapHit hit);
+
+typedef struct Sweep Sweep;
+struct Sweep {
 	dvec3 pos;
 };
 
-// casts also have a time to impact that we want in the result
-typedef struct QueryHit QueryHit;
-struct QueryHit {
-	// TODO: just copy CollisionResult or whatever from jolt
-	dvec3 point;
-	vec3  normal;
-	float depth;
-};
+void physicsSweepQuery(Physics *system, Sweep sweep, void *pipeline);
 
-typedef struct QueryResult QueryResult;
-struct QueryResult {
-	QueryHit *data;
-	size_t len;
-	size_t cap;
-};
-
-typedef struct CastQueryResult CastQueryResult;
-struct CastQueryResult {
-	float fraction;
-	QueryHit base;
-};
-
-// TODO: pass base offset explicitly?
-
-// TODO: change all queries to have an out parameter for query results
-
-void physicsQueryCastRayClosestHit(
-	Physics *system,
-	const dvec3 *pos, const vec3 *dir);
-
-size_t physicsQueryShape(
-	Physics *system,
-	const Shape *shape_, const dvec3 *pos, const Rot3 *rot, const vec3 *scale,
-	const vec3 *movementDirection, float maxSeparationDistance,
-	QueryFilter filter,
-	QueryHit *outHits, size_t maxHitCount);
-
-CastQueryResult physicsQuerySweptShapeClosestHit(
-	Physics *physics,
-	const Shape *shape, const dvec3 *pos, const Rot3 *rot, const vec3 *scale,
-	const vec3 *displacement,
-	QueryFilter filter);
-
-void physicsSetGravity(Physics *physics, const vec3 *gravity);
+void physicsSetGravity(Physics *physics, vec3 gravity);
 
 void physicsAddBody(Physics *physics, BodyID bodyID, MotionProperties motionProperties);
 void physicsUpdateBody(Physics *physics, BodyID bodyID, MotionProperties motionProperties);
 void physicsRemoveBody(Physics *system, BodyID bodyID);
 void physicsUpdate(Physics *physics, float deltaTime);
-// TODO: merge this into physicsActiveBodies?
 void physicsWritebackBody(Physics *physics, BodyID bodyID, MotionState *out);
 
 // TODO: return structs?

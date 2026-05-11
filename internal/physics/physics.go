@@ -1,85 +1,53 @@
 package physics
 
-// #include "c/physics.h"
+// #cgo CXXFLAGS: -std=c++20
+// #cgo CXXFLAGS: -DJPH_CROSS_PLATFORM_DETERMINISTIC -DJPH_DOUBLE_PRECISION -DJPH_ENABLE_ASSERTS -DJPH_OBJECT_STREAM -DJPH_USE_AVX -DJPH_USE_AVX2 -DJPH_USE_CPU_COMPUTE -DJPH_USE_F16C -DJPH_USE_LZCNT -DJPH_USE_SSE4_1 -DJPH_USE_SSE4_2 -DJPH_USE_TZCNT
+// #cgo CXXFLAGS: -mavx2 -mfpmath=sse
+// #cgo LDFLAGS: -lJolt
+// #cgo LDFLAGS: -lm -lstdc++
+//
+// #include "physics.h"
 import "C"
 
-// xasdasd
-
 import (
-	"errors"
+	"slices"
 	"unsafe"
 
 	"worldspawn/internal/gmath"
 )
 
-// TODO: redo this package so that it's relatively straightforward bindings to
-// JPH. Callbacks should use C convention by default
-
-// TODO: we should move most of worldspawn/physics.go code into this package. Or
-// not. IDK. We'll need to think hard about it.
-//
-// TODO: see if we can move .cpp files and .go in the same directory.
-
+// TODO: replace with a plain int
 type BodyID uint32
 
+// TODO: rename to Scene?
 type System C.Physics
 
+// TODO: rename to Geometry
 type Shape C.Shape
-
-// Used by deserializer only
-type ShapeKind int
-
-const (
-	_ ShapeKind = iota
-	ShapeSphere
-	ShapeBox
-	ShapeCylinder
-	ShapeConvexHull
-	ShapeMesh
-)
-
-var shapeKindFromString = map[string]ShapeKind{
-	"Sphere":     ShapeSphere,
-	"Box":        ShapeBox,
-	"Cylinder":   ShapeCylinder,
-	"ConvexHull": ShapeConvexHull,
-	"Mesh":       ShapeMesh,
-}
-
-func (shapeType *ShapeKind) UnmarshalText(text []byte) error {
-	var ok bool
-	if *shapeType, ok = shapeKindFromString[string(text)]; !ok {
-		return errors.New("unknown shape type")
-	}
-	return nil
-}
-
-type Stuff struct {
-	Material       int
-	VertexBuffer   int
-	VertexCount    int
-	TriangleBuffer int
-	TriangleCount  int
-}
 
 type Triangle struct {
 	VertexIndices [3]uint32
 	MaterialIndex uint32
 }
 
-type BroadPhaseLayer uint8
+type LayerCollisionRules []bool
 
 func NewSystem(
-	BroadPhaseLayerCount int,
 	ObjectLayerCount int,
-	ObjectLayerToBroadPhaseLayer []BroadPhaseLayer,
-	ShouldObjectLayersCollide []bool, // TODO: change this to only store/specify the lower triangle
+	ObjectLayerToBroadPhaseLayer []uint8, // TODO: use plain int here?
+	layerRules LayerCollisionRules,
 ) *System {
+	if len(layerRules) != ObjectLayerCount*(ObjectLayerCount+1)/2 {
+		panic("pls fix your rules")
+	}
+
+	BroadPhaseLayerCount := int(slices.Max(ObjectLayerToBroadPhaseLayer)) + 1
+
 	return (*System)(C.newPhysics(
 		C.int(BroadPhaseLayerCount),
 		C.int(ObjectLayerCount),
 		(*C.uint8_t)(unsafe.SliceData(ObjectLayerToBroadPhaseLayer)),
-		(*C.bool)(unsafe.SliceData(ShouldObjectLayersCollide))))
+		(*C.bool)(unsafe.SliceData(layerRules))))
 }
 
 type QueryFilter struct {
@@ -94,39 +62,8 @@ type QueryHit struct {
 	Depth  float32
 }
 
-type CastQueryResult struct {
-	Fraction float32
-	QueryHit
-}
-
-func (system *System) QueryShape(shape *Shape, pos gmath.Vec3f64, rot gmath.Rot3, scale gmath.Vec3f32, movementDirection gmath.Vec3f32, maxSeparationDistance float32, filter QueryFilter, hits []QueryHit) int {
-	return int(C.physicsQueryShape(
-		(*C.Physics)(system),
-		(*C.Shape)(shape),
-		(*C.dvec3)(unsafe.Pointer(&pos)),
-		(*C.Rot3)(unsafe.Pointer(&rot)),
-		(*C.vec3)(unsafe.Pointer(&scale)),
-		(*C.vec3)(unsafe.Pointer(&movementDirection)),
-		C.float(maxSeparationDistance),
-		C.QueryFilter{ignore: C.BodyID(filter.Ignore)},
-		(*C.QueryHit)(unsafe.Pointer(unsafe.SliceData(hits))),
-		C.size_t(len(hits))))
-}
-
-func (system *System) QuerySweptShapeClosestHit(shape *Shape, pos gmath.Vec3f64, rot gmath.Rot3, scale gmath.Vec3f32, displacement gmath.Vec3f32, filter QueryFilter) CastQueryResult {
-	result := C.physicsQuerySweptShapeClosestHit(
-		(*C.Physics)(system),
-		(*C.Shape)(shape),
-		(*C.dvec3)(unsafe.Pointer(&pos)),
-		(*C.Rot3)(unsafe.Pointer(&rot)),
-		(*C.vec3)(unsafe.Pointer(&scale)),
-		(*C.vec3)(unsafe.Pointer(&displacement)),
-		C.QueryFilter{ignore: C.BodyID(filter.Ignore)})
-	return *(*CastQueryResult)(unsafe.Pointer(&result))
-}
-
 func (system *System) SetGravity(gravity gmath.Vec3f32) {
-	C.physicsSetGravity((*C.Physics)(system), (*C.vec3)(unsafe.Pointer(&gravity)))
+	C.physicsSetGravity((*C.Physics)(system), *(*C.vec3)(unsafe.Pointer(&gravity)))
 }
 
 func (system *System) Update(dt float32) {
@@ -153,6 +90,7 @@ func (system *System) AddBody(bodyID BodyID, shape *Shape, pos gmath.Vec3f64, ro
 	C.physicsAddBody((*C.Physics)(system), C.BodyID(bodyID), motionProperties)
 }
 
+// TODO: merge AddBody and UpdateBody into one
 func (system *System) UpdateBody(bodyID BodyID, shape *Shape, pos gmath.Vec3f64, rot gmath.Rot3, vel, angVel gmath.Vec3f32, objectLayer int, ignoreBodyIDs []BodyID, motionType int, gravityFactor float32, mass float32, inertia gmath.Mat4x4f32) {
 	motionProperties := C.MotionProperties{
 		shape: (*C.Shape)(shape),

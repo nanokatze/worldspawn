@@ -1,8 +1,6 @@
 package physics
 
-//go:generate stringer -trimprefix Shape -type ShapeKind -output shape_kind_string.go
-
-// #include "c/physics.h"
+// #include "physics.h"
 import "C"
 
 import (
