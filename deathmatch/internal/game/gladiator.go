@@ -13,8 +13,8 @@ import (
 
 // TODO: the users of this should be factored out into a function
 
-var planeXY = gmath.Plane3OnVectors(gmath.Vec3f32{1, 0, 0}, gmath.Vec3f32{0, 1, 0})
-var planeYZ = gmath.Plane3OnVectors(gmath.Vec3f32{0, 1, 0}, gmath.Vec3f32{0, 0, 1})
+var rotXY = gmath.Rot3AToB(gmath.Vec3f32{1, 0, 0}, gmath.Vec3f32{0, 1, 0})
+var rotYZ = gmath.Rot3AToB(gmath.Vec3f32{0, 1, 0}, gmath.Vec3f32{0, 0, 1})
 
 var gladiatorStats = struct {
 	StandingHeight     float32
@@ -206,8 +206,7 @@ func (gladiator Gladiator) CharacterSubstep(w *Scene, id ecs.ID, cmd Timestamped
 		shootT := w.GetGlobalTransform(id).
 			Mul(gmath.TRS3f64{
 				T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
-				R: gmath.Rot3InPlane(gmath.Vecf32{1, 0, 0}, gmath.Vec3f32{}, 2*math.Pi*gladiator.LookDir[0]).
-					Mul(gmath.Rot3InPlane(planeYZ, 2*math.Pi*gladiator.LookDir[1])),
+				R: rotXY.Pow(4 * gladiator.LookDir[0]).Mul(rotYZ.Pow(4 * gladiator.LookDir[1])),
 				S: gmath.Mat3x3UOne[float32](),
 			}.Compose())
 
@@ -253,8 +252,7 @@ func (gladiator Gladiator) CharacterSubstep(w *Scene, id ecs.ID, cmd Timestamped
 	w.SetTransform(gladiator.FirstPersonCamera,
 		gmath.TRS3f64{
 			T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
-			R: gmath.Rot3InPlane(planeXY, 2*math.Pi*gladiator.LookDir[0]).
-				Mul(gmath.Rot3InPlane(planeYZ, 2*math.Pi*gladiator.LookDir[1])),
+			R: rotXY.Pow(4 * gladiator.LookDir[0]).Mul(rotYZ.Pow(4 * gladiator.LookDir[1])),
 			S: gmath.Mat3x3UOne[float32](),
 		})
 }
@@ -278,7 +276,7 @@ func (gladiator Gladiator) CharacterStep(w *Scene, id ecs.ID, info *UpdateParams
 
 	trs := w.GetTransform(id)
 
-	rotation := trs.R.Mul(gmath.Rot3InPlane(planeXY, 2*math.Pi*gladiator.LookDir[0]))
+	rotation := trs.R.Mul(rotXY.Pow(4 * gladiator.LookDir[0]))
 
 	move := gladiator.MoveVec
 	if lengthSqr := move.Dot(move); lengthSqr > 1 {

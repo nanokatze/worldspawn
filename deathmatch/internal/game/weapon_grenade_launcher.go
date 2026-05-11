@@ -88,7 +88,7 @@ func (weapon WeaponGrenadeLauncher) WeaponSubstep(
 			scene.SetTransform(projectile,
 				T.
 					Mul(gmath.TRS3f64{
-						R: gmath.Rot3InPlane(gmath.Vec3f32{0, 0, 1}, gmath.Vec3f32{0, 1, 0}, math.Pi/2),
+						R: gmath.Rot3AToB(gmath.Vec3f32{0, 0, 1}, gmath.Vec3f32{0, 1, 0}),
 						S: gmath.Mat3x3UOne[float32](),
 					}.Compose()).
 					TRS())
@@ -135,7 +135,7 @@ func (weapon WeaponGrenadeLauncher) WeaponSubstep(
 		rng := Rand(scene.Now, weaponID, T)
 
 		θ := 0.1 * 2 * math.Pi * (rng.Float64() - 0.5)
-		r := 0.0 // 0.02
+		r := 0.02
 
 		return WeaponStepResult{
 			Recoil: [2]float32{

@@ -4,13 +4,6 @@ import (
 	"math"
 )
 
-// Deprecated; TODO: kill this
-type Plane3f32 [3]float32
-
-func Plane3OnVectors(a, b Vec3f32) Plane3f32 {
-	return Plane3f32(a.Cross(b))
-}
-
 // TODO: kill quat and generate RotN types
 
 // TODO: move scalar to be at [0]
@@ -30,15 +23,6 @@ func Rot3AToB(a, b Vec3f32) Rot3 {
 	B := a.Cross(b)
 	scalar := float32(math.Sqrt(float64(1 - B.Dot(B))))
 	return Rot3{B[0], B[1], B[2], scalar}.Sqrt()
-}
-
-// Deprecated; TODO: kill this
-func Rot3InPlane(plane Plane3f32, θ float32) Rot3 {
-	sinTheta, cosTheta := math.Sincos(float64(θ / 2))
-	yz := plane[0] * float32(sinTheta)
-	zx := plane[1] * float32(sinTheta)
-	xy := plane[2] * float32(sinTheta)
-	return Rot3{yz, zx, xy, float32(cosTheta)}
 }
 
 func Rot3FromMat(m Mat3x3f32) Rot3 {
