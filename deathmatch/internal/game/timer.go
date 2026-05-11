@@ -1,6 +1,10 @@
 package game
 
-import "worldspawn/internal/ecs"
+import (
+	"fmt"
+
+	"worldspawn/internal/ecs"
+)
 
 // TODO: rename
 type Timer interface {
@@ -15,6 +19,11 @@ func (w *Scene) processTimers(updateParams *UpdateParams) {
 			continue
 		}
 
-		mustOk(SceneGetEntity[Timer](w, id)).TimerExpired(w, id, updateParams)
+		timer, ok := SceneGetEntity[Timer](w, id)
+		if !ok {
+			panic(fmt.Sprintf("timer expired on an object that does not implement the interface id=%d", id))
+			continue
+		}
+		timer.TimerExpired(w, id, updateParams)
 	}
 }

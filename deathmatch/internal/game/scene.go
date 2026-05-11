@@ -1,6 +1,8 @@
 package game
 
 import (
+	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"reflect"
@@ -9,7 +11,9 @@ import (
 	"worldspawn/internal/animgraph"
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/gmath"
-	"worldspawn/physics"
+	"worldspawn/internal/physics"
+
+	"github.com/go-json-experiment/json"
 )
 
 // TODO: actually indeed stick it onto Scene or pass it through UpdateInfo
@@ -76,17 +80,7 @@ type Columns struct {
 
 	Skeleton ecs.Column[string]
 
-	// Testing only. We'll make this a shadow column which will be updated by an
-	// animation graph esque thingy. Also Armature should probably be a separate
-	// column so that bone parenting works even when there's no animation
-	// playing... On the other hand idk actually there's not really much point
-	// to having Armature but no Pose, hmm. I guess it doesn't really matter if
-	// we're going to switch to script anyway. Actually it does: having a
-	// separate Armature column would let us have no animation script assigned.
-	//
-	// Right now we're also serializing the entire skeleton over the network.
-	//
-	// TODO: replace this with Animgraph or something column
+	// TODO: this should just point to an animgraph script
 	Pose ecs.Column[animgraph.Pose]
 
 	// Physics should only run for bodies that have no parent. We could
@@ -95,15 +89,8 @@ type Columns struct {
 	// Though on the other hand it might turn out to be annoying to figure out
 	// what to parent newly spawned object to.
 
-	// NOTE: constraints and pairwise filter
-	//
-	// Should we have an identifier for each filtered/constrained entity so that
-	// we can have multiple filters against the same entity? Another option
-	// would be to have any entity specify filtered/constrained pairs. Yet
-	// another would be to have constraints and nocollide pairs be its own
-	// concept in the world
-
-	// TODO: merge some of these components?
+	// TODO: generalize PhysicsFilter to PhysicsConstraint (singular) or
+	// whatever
 
 	Velocity               ecs.Column[Velocity]
 	CollisionGeometry      ecs.Column[string]
@@ -114,6 +101,7 @@ type Columns struct {
 	PhysicsInertiaOverride ecs.Column[gmath.Mat4x4f32]
 
 	// TODO: generalize to all events, including damage etc?
+	// TODO: these don't need to be networked
 	ContactEvents ecs.Column[[]ContactEvent]
 
 	// TODO: kill this column and handle it at prefab instantination
@@ -127,19 +115,27 @@ type Columns struct {
 
 	// Renderer
 
-	VisibilityMask ecs.Column[VisibilityMask]
-
 	CosmeticOffset                ecs.Column[CosmeticOffset]
 	DeleteCosmeticOffsetOnContact ecs.Column[struct{}]
 
+	VisibilityMask ecs.Column[VisibilityMask]
+
 	RenderingGeometry ecs.Column[string]
 
-	SoundEffect      ecs.Column[SoundEmitter] // TODO: should be a simple filename string
-	SoundEffectState ecs.Column[LoopedSound]
+	// TODO: so the way we'll probably go about sounds is by having 2 networked
+	// columns and one shadow column. The shadow column will feed the actual
+	// audio player, so it should contain basically sound files and t0 (a mix of
+	// game time and sample count) and the networked columns be the "audio
+	// program" identifier and audio program state. For now we can start with
+	// just the shadow column.
+
+	// TODO: rethink sounds
+	SoundEffect      ecs.Column[SoundEmitter]
+	SoundEffectState ecs.Column[LoopedSound] // TODO: kill this column
 
 	// Deletion
 
-	// TODO: move it out of the Columns struct, there's no reason to replicate this
+	// TODO: this doesn't need to be networked
 	Delete ecs.Column[struct{}]
 }
 
@@ -151,12 +147,9 @@ type Scene struct {
 	Table *ecs.Table
 	Columns
 
-	// TODO: delegate managing this to the caller? We would get access to this
-	// with UpdateInfo
+	// TODO: factor these into "Shadow column" or whatever
 	physicsSystem     *physics.System
 	physicsBodyExists ecs.Column[struct{}]
-
-	Logger *slog.Logger
 }
 
 func NewScene(n int) *Scene {
@@ -172,13 +165,10 @@ func NewScene(n int) *Scene {
 	}
 
 	w.physicsSystem = physics.NewSystem(
-		int(NumBroadPhaseLayers),
-		int(NumPhysicsLayers),
-		PhysicsLayerToBroadPhaseLayer[:],
-		ShouldPhysicsLayersCollide)
+		int(numCollisionLayers),
+		collisionLayerToBroadPhaseLayer[:],
+		collisionLayerRules)
 	w.physicsBodyExists.Init(w.Table)
-
-	w.Logger = slog.Default()
 
 	// TODO: we should expose an OptimizeBroadPhase call on physicsSystem which
 	// we'll (optionally) call after loading the world and perhaps every so
@@ -187,12 +177,32 @@ func NewScene(n int) *Scene {
 	return w
 }
 
+func (scene *Scene) Cap() int { return scene.Table.IDs().Cap() }
+
+// TODO: we'd benefit from an additional step before Restore so we can know the
+// min capacity necessary for this save.
+func (scene *Scene) Restore(r io.Reader) error {
+	// TODO: we should deserialize into an intermediate structure and do various
+	// checks first. I think ideally we'd not return an error if we ended up
+	// modifying the Scene?
+	//
+	// TODO: we should zero out Scene before restoring I guess.
+
+	if err := json.UnmarshalRead(r, scene, JSONOptions); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (scene *Scene) Save(w io.Writer) error {
+	panic("not implemented")
+}
+
 func (w *Scene) Destroy() {
 	// TODO: stop and destroy physicsSystem here
 }
 
-// TODO: rename to EntityExists
-func (w *Scene) IsEntityValid(id ecs.ID) bool { return w.Table.IDs().Exists(id) }
+func (w *Scene) EntityExists(id ecs.ID) bool { return w.Table.IDs().Exists(id) }
 
 // TODO: do we need client-only entities? I don't think we do with this tbh
 // TODO: make this private?
@@ -247,7 +257,10 @@ func (scene *Scene) SetParent(id, parent ecs.ID) {
 func (scene *Scene) GetTransform(id ecs.ID) gmath.TRS3f64 {
 	tr, ok := scene.TransformTR.Get(id)
 	if !ok {
-		scene.Logger.Warn("transform queried on an object that has none", "id", id)
+		// TODO: replace this panic with an oops-esque thing which can be just a
+		// warning or whatever if need be, or return error from GetTransform and
+		// have a helper on UpdateParams.
+		panic(fmt.Sprintf("transform queried on an object that has none id=%d", id))
 		return gmath.TRS3One[float64]()
 	}
 	s, ok := scene.TransformS.Get(id)
@@ -268,7 +281,7 @@ func (scene *Scene) SetTransform(id ecs.ID, T gmath.TRS3f64) {
 
 // TODO: if we encounter errors during hierarchy traversal we should restart
 // traversal with diagnostics collection and print the collected diagnostics
-// after.
+// after using Scene.Logger.Error
 //
 // TODO: cycle detection
 //
@@ -290,10 +303,6 @@ func (scene *Scene) GetGlobalTransform(id ecs.ID) gmath.Affine3f64 {
 	}
 
 	getBoneTransform := func(id ecs.ID, bone string) gmath.Affine3f32 {
-		pose, ok := scene.Pose.Get(id)
-		if !ok {
-			return gmath.Affine3One[float32]()
-		}
 		skelly := scene.GetSkeleton(id)
 		if skelly == nil {
 			return gmath.Affine3One[float32]()
@@ -302,6 +311,8 @@ func (scene *Scene) GetGlobalTransform(id ecs.ID) gmath.Affine3f64 {
 		if boneIndex == -1 {
 			return gmath.Affine3One[float32]()
 		}
+
+		pose, _ := scene.Pose.Get(id)
 		boneTransform, ok := pose.Bones[boneIndex]
 		if !ok {
 			return skelly.BindPose[boneIndex]
@@ -310,6 +321,9 @@ func (scene *Scene) GetGlobalTransform(id ecs.ID) gmath.Affine3f64 {
 	}
 
 	// TODO: don't hardcode the hierarchy depth bound
+	// TODO: actually maybe have a bloom filter/small hashmap to track cycles?
+	// It would be nice to avoid having a different behavior regardless of
+	// whether we have cycle detection on or not.
 	//
 	// NOTE: the hierarchy depth is bounded by no. of entries in the table
 
@@ -351,11 +365,12 @@ func SceneGetEntity[T Entity](w *Scene, id ecs.ID) (T, bool) {
 	return entityT, true
 }
 
+// TODO: rename to StepContext or something
 type UpdateParams struct {
 	// Now         Time // for substeps
 	Δt          time.Duration
 	Speculating bool
-	Logger      *slog.Logger // TODO: kill this in favor of scene.Logger
+	Logger      *slog.Logger
 }
 
 // TODO: parallel for in blender for example specifies bulk number for tasks so
@@ -377,8 +392,8 @@ func (w *Scene) Step(updateParams *UpdateParams) {
 
 	// TODO: move into updatePhysicsShadow?
 	for id, entity := range ecs.All(&w.Entity) {
-		if entity, ok := entity.(UpdateBeforePhysics); ok {
-			entity.UpdateBeforePhysics(w, id, updateParams)
+		if entity, ok := entity.(PrePhysicsStep); ok {
+			entity.PrePhysicsStep(w, id, updateParams)
 		}
 	}
 
@@ -386,8 +401,8 @@ func (w *Scene) Step(updateParams *UpdateParams) {
 	w.physicsStep(updateParams.Δt)
 
 	for id, entity := range ecs.All(&w.Entity) {
-		if entity, ok := entity.(UpdateAfterPhysics); ok {
-			entity.UpdateAfterPhysics(w, id, updateParams)
+		if entity, ok := entity.(PostPhysicsStep); ok {
+			entity.PostPhysicsStep(w, id, updateParams)
 		}
 	}
 

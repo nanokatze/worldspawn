@@ -20,46 +20,45 @@ type sceneUpdate struct {
 	camera          grenderer.Camera
 	cameraTransform int
 
-	Sky *gpu.Image
+	sky *gpu.Image
 
-	Parent      []int
-	TransformT0 []gmath.TRS3f32
-	TransformT1 []gmath.TRS3f32
+	parent      []int
+	transformT0 []gmath.TRS3f32
+	transformT1 []gmath.TRS3f32
 	// TODO: we also need to carry velocity here for motion blur, or at least
 	// some extra info to disambiguate fast temporally-aliased motions.
 
-	Mask []uint8
+	mask []uint8
 
-	GeoNodes []geoNodes // TODO: rename this
+	geoNodes []geoNodes // TODO: rename this
 
-	Materials    [][]*grenderer.InterpretedMaterial
-	MaterialArgs [][][256]byte
+	materials    [][]*grenderer.InterpretedMaterial
+	materialArgs [][][256]byte
 }
 
 func newSceneDirty(n int) *sceneUpdate {
 	return &sceneUpdate{
-		Parent:      make([]int, n),
-		TransformT0: make([]gmath.TRS3f32, n),
-		TransformT1: make([]gmath.TRS3f32, n),
+		parent:      make([]int, n),
+		transformT0: make([]gmath.TRS3f32, n),
+		transformT1: make([]gmath.TRS3f32, n),
 
-		Mask: make([]uint8, n),
+		mask: make([]uint8, n),
 
-		GeoNodes: make([]geoNodes, n),
+		geoNodes: make([]geoNodes, n),
 
-		Materials:    make([][]*grenderer.InterpretedMaterial, n),
-		MaterialArgs: make([][][256]byte, n),
+		materials:    make([][]*grenderer.InterpretedMaterial, n),
+		materialArgs: make([][][256]byte, n),
 	}
 }
 
-// TODO: rename to something like GlobalTransform?
-// TODO: this should use DAffine3
+// TODO: this should use Affine3f64
 func (s *sceneUpdate) Transform(i int, t float32) gmath.Affine3f32 {
-	B := gmath.Affine3One[float32]()
-	for ; i != -1; i = s.Parent[i] {
-		A := s.TransformT0[i].NLerp(s.TransformT1[i], t).Compose()
-		B = A.Mul(B)
+	A := gmath.Affine3One[float32]()
+	for ; i != -1; i = s.parent[i] {
+		T := s.transformT0[i].NLerp(s.transformT1[i], t).Compose()
+		A = T.Mul(A)
 	}
-	return B
+	return A
 }
 
 type timeMapping struct {
@@ -68,8 +67,13 @@ type timeMapping struct {
 }
 
 type renderer struct {
-	lastGen       []uint32
-	lastTransform []gmath.TRS3f32
+	n int
+
+	idGen []uint32
+	// parent []int
+	transform []gmath.TRS3f32
+
+	// TODO: outline things into video and audio parts?
 
 	// The update that didn't fit into the queue
 	stagingUpdate *sceneUpdate
@@ -86,7 +90,7 @@ type renderer struct {
 	ourCameraTransform int
 	scene2             *sceneUpdate
 	gsdata             []gsdata
-	scene              *grenderer.Scene
+	gscene             *grenderer.Scene
 
 	// NOTE: sound renderer works very differently from graphics renderer: we'll
 	// probably tie it to simulation ticks. Or I guess we could also piggyback
@@ -102,12 +106,17 @@ type renderer struct {
 	ascene *arenderer.Scene
 }
 
+func (re *renderer) Reset(n int) {
+	// NOTE: this is called concurrently with Redraw. Keep that in mind when
+	// implementing this function.
+}
+
 // TODO: remove this in favor of merging updates at commitUpdate time. I.e.
 // we'll start off with a clean update every time.
 func (re *renderer) beginUpdate() *sceneUpdate {
 	if re.stagingUpdate == nil {
 		// TODO: pool this stuff
-		return newSceneDirty(10000)
+		return newSceneDirty(re.n)
 	}
 	tmp := re.stagingUpdate
 	re.stagingUpdate = nil
@@ -133,11 +142,11 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 	camera := fpsCharacter.Camera(w)
 
 	{
-		for i := range update.Parent {
-			update.Parent[i] = -1
+		for i := range update.parent {
+			update.parent[i] = -1
 		}
 
-		update.Sky = texture(w.Globals().Sky).Image
+		update.sky = texture(w.Globals().Sky).Image
 
 		for id, tr := range ecs.All(&w.TransformTR) {
 			i := id.Index()
@@ -155,7 +164,6 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 			}
 
 			trs := gmath.TRS3f32{
-				// TODO: we should not record cosmetic offset into renderer.transformT0
 				T: gmath.Vec3Convert[float32](tr.T).Add(offset),
 				R: tr.R,
 				S: s,
@@ -163,7 +171,7 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 
 			parent := w.GetParent(id)
 			if parent != 0 {
-				update.Parent[i] = parent.Index()
+				update.parent[i] = parent.Index()
 			}
 
 			if parentBone, parentedToBone := w.ParentBone.Get(id); parentedToBone {
@@ -185,16 +193,16 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 
 			transformT1 := trs
 
-			transformT0 := re.lastTransform[i]
-			if re.lastGen[i] != id.Generation() {
+			transformT0 := re.transform[i]
+			if re.idGen[i] != id.Generation() {
 				transformT0 = transformT1
 			}
 
-			update.TransformT0[i] = transformT0
-			update.TransformT1[i] = transformT1
+			update.transformT0[i] = transformT0
+			update.transformT1[i] = transformT1
 
-			re.lastGen[i] = id.Generation()
-			re.lastTransform[i] = transformT1
+			re.idGen[i] = id.Generation()
+			re.transform[i] = transformT1
 		}
 
 		// TODO: we need to split operations on caches into probe and fetch, so
@@ -211,26 +219,26 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 			if visibility.Camera != camera {
 				mask ^= 0b11
 			}
-			update.Mask[i] = mask
+			update.mask[i] = mask
 
 			geometry := getgeometry(renderingGeometry)
 
 			pose, _ := w.Pose.Get(id)
 
-			update.GeoNodes[i] = geoNodes{
+			update.geoNodes[i] = geoNodes{
 				src:    geometry,
 				skelly: w.GetSkeleton(id),
 				pose:   pose,
 			}
 
 			// TODO: stop allocating a new slice every time
-			update.Materials[i] = make([]*grenderer.InterpretedMaterial, len(geometry.materials))
-			update.MaterialArgs[i] = make([][256]byte, len(geometry.materials))
+			update.materials[i] = make([]*grenderer.InterpretedMaterial, len(geometry.materials))
+			update.materialArgs[i] = make([][256]byte, len(geometry.materials))
 
-			for j := range update.Materials[i] {
+			for j := range update.materials[i] {
 				material := getmaterial(geometry.materials[j])
-				update.Materials[i][j] = material.material
-				material.preamble.Call(update.MaterialArgs[i][j][:], &attributeGetter{w, id})
+				update.materials[i][j] = material.material
+				material.preamble.Call(update.materialArgs[i][j][:], &attributeGetter{w, id})
 			}
 		}
 
@@ -301,14 +309,14 @@ func (re *renderer) Subtick(w *game.Scene, playerID ecs.ID) {
 	// }
 }
 
-var worldspawnToPathTracer = gmath.Mat4x4f32{
+var worldspawnToRenderer = gmath.Mat4x4f32{
 	1, 0, 0, 0,
 	0, 0, -1, 0,
 	0, -1, 0, 0,
 	0, 0, 0, 1,
 }
 
-func (re *renderer) Render(jq *gpu.JobQueue, sdlNow uint64, dst *gpu.Image) {
+func (re *renderer) Redraw(jq *gpu.JobQueue, dst *gpu.Image, sdlNow uint64) {
 	conf := config.Load()
 
 	select {
@@ -319,19 +327,20 @@ func (re *renderer) Render(jq *gpu.JobQueue, sdlNow uint64, dst *gpu.Image) {
 		re.ourCamera = update.camera
 		re.ourCameraTransform = update.cameraTransform
 		re.scene2 = update
-		re.scene.SetSky(
+		re.gscene.SetSky(
 			gmath.Mat3x3f32{
 				0, -1, 0,
 				0, 0, 1,
 				1, 0, 0,
 			},
-			update.Sky)
-		for i := range update.Mask {
-			update.GeoNodes[i].EnqueueEvaluate(jq, &re.gsdata[i])
+			update.sky)
+		for i := range re.n {
+			// TODO: evaluate geometry nodes in parallel
+			update.geoNodes[i].EnqueueEvaluate(jq, &re.gsdata[i])
 
-			geometry, accel := update.GeoNodes[i].Outputs(&re.gsdata[i])
+			geometry, accel := update.geoNodes[i].Outputs(&re.gsdata[i])
 
-			re.scene.SetInstanceGeometry(i, update.Mask[i], geometry, accel, update.Materials[i], update.MaterialArgs[i])
+			re.gscene.SetInstanceGeometry(i, update.mask[i], geometry, accel, update.materials[i], update.materialArgs[i])
 		}
 	default:
 	}
@@ -346,9 +355,9 @@ func (re *renderer) Render(jq *gpu.JobQueue, sdlNow uint64, dst *gpu.Image) {
 	camera := re.ourCamera
 	cameraTransform := gmath.Mat4x4One[float32]()
 	if re.scene2 != nil {
-		cameraTransform = re.scene2.Transform(re.ourCameraTransform, float32(t)).ToMat().Mul(worldspawnToPathTracer.Inverse())
+		cameraTransform = re.scene2.Transform(re.ourCameraTransform, float32(t)).ToMat().Mul(worldspawnToRenderer.Inverse())
 
-		for i := range re.scene2.Mask {
+		for i := range re.scene2.mask {
 			tmp := re.scene2.Transform(i, float32(t))
 			// TODO: outline this?
 			var tmp2 [3][4]float32
@@ -358,11 +367,11 @@ func (re *renderer) Render(jq *gpu.JobQueue, sdlNow uint64, dst *gpu.Image) {
 				tmp2[i][2] = *tmp.M.Index(i, 2)
 				tmp2[i][3] = tmp.T[i]
 			}
-			re.scene.SetInstanceTransform(i, tmp2)
+			re.gscene.SetInstanceTransform(i, tmp2)
 		}
 	}
 
-	re.scene.EnqueueUpdateAccel(jq)
+	re.gscene.EnqueueUpdateAccel(jq)
 
 	film := grenderer.Film{
 		Extent: [2]int(dst.Extent()),
@@ -374,7 +383,7 @@ func (re *renderer) Render(jq *gpu.JobQueue, sdlNow uint64, dst *gpu.Image) {
 		RussianRouletteThreshold: conf.Quality.RussianRouletteThreshold,
 	}
 
-	re.scene.EnqueueRender(jq, film, &camera, cameraTransform, re.frameNumber, &quality)
+	re.gscene.EnqueueRender(jq, film, &camera, cameraTransform, re.frameNumber, &quality)
 	re.frameNumber++
 }
 

@@ -23,8 +23,8 @@ import (
 	"worldspawn/internal/geometry"
 	"worldspawn/internal/grenderer"
 	"worldspawn/internal/grenderer/matc"
-	"worldspawn/internal/wmaterial"
-	"worldspawn/internal/wmesh"
+	"worldspawn/internal/loaders/wmaterial"
+	"worldspawn/internal/loaders/wmesh"
 )
 
 // TODO: rename this file to something else

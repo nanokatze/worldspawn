@@ -61,21 +61,23 @@ func (w *mainWindow) Run() {
 
 	w.resized = make(chan struct{}, 1)
 
-	// TODO: the renderer should autoresize its resources on Ticks
+	// TODO: implement Reset
 	w.renderer = &renderer{
-		lastGen:       make([]uint32, 10000),
-		lastTransform: make([]gmath.TRS3f32, 10000),
+		n: 10000,
+
+		idGen:     make([]uint32, 10000),
+		transform: make([]gmath.TRS3f32, 10000),
 
 		updates: make(chan *sceneUpdate, 1),
 
-		scene: grenderer.NewScene(10000, 6),
+		gscene: grenderer.NewScene(10000, 6),
 
 		gsdata: make([]gsdata, 10000),
 
 		ascene: arenderer.NewScene(10000),
 	}
-	for i := range w.renderer.lastGen {
-		w.renderer.lastGen[i] = 0xffffffff
+	for i := range w.renderer.idGen {
+		w.renderer.idGen[i] = 0xffffffff
 	}
 
 	if err := sdlWindow.SetRelativeMouseMode(true); err != nil {
@@ -286,7 +288,7 @@ func (w *mainWindow) redrawLocked() bool {
 
 	w.swapchainImage.EnqueueInit(jq)
 
-	w.renderer.Render(jq, sdl.TicksNS(), w.swapchainImage)
+	w.renderer.Redraw(jq, w.swapchainImage, sdl.TicksNS())
 
 	// TODO: it would probably be a good idea to inject overlay rendering into
 	// Render so that we can avoid breaking the render pass. This should become

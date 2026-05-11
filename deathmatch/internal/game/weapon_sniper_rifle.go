@@ -29,26 +29,33 @@ var _ Weapon = WeaponSniperRifle{}
 
 func (WeaponSniperRifle) entity() {}
 
-func (weapon WeaponSniperRifle) WeaponCreateGeometry(scene *Scene, parent ecs.ID, info *UpdateParams) ecs.ID {
+func (weapon WeaponSniperRifle) CreateProp(scene *Scene, info *UpdateParams) ecs.ID {
 	root := scene.CreateEntity(info)
-	scene.SetParent(root, parent)
 	scene.SetTransform(root, sniperRifleStats.ViewGeometryTRS)
 	scene.RenderingGeometry.Set(root, sniperRifleStats.RenderingGeometry)
 
-	sound := scene.CreateEntity(info)
-	// scene.CreationTime.Set(sound, scene.Now)
-	scene.SetParent(sound, root)
-	scene.SetTransform(sound, gmath.TRS3One[float64]())
-	guh := LoopedSound{
-		Sound:       "lamphum.wav", // TODO: don't bother setting it here pls
-		Attenuation: 0.1,
-	}
-	guh.Init()
-	scene.SoundEffectState.Set(sound, guh)
+	// sound := scene.CreateEntity(info)
+	// // scene.CreationTime.Set(sound, scene.Now)
+	// scene.SetParent(sound, root)
+	// scene.SetTransform(sound, gmath.TRS3One[float64]())
+	// guh := LoopedSound{
+	// 	Sound:       "lamphum.wav", // TODO: don't bother setting it here pls
+	// 	Attenuation: 0.1,
+	// }
+	// guh.Init()
+	// scene.SoundEffectState.Set(sound, guh)
 
 	return root
 }
 
-func (weapon WeaponSniperRifle) WeaponSubstep(scene *Scene, weaponID ecs.ID, shooterID ecs.ID, shootT gmath.Affine3f64, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.ID) {
-	return nil
+func (weapon WeaponSniperRifle) WeaponSubstep(
+	scene *Scene,
+	weaponID ecs.ID,
+	propIDs []ecs.ID,
+	shooterID ecs.ID,
+	T gmath.Affine3f64,
+	v Velocity,
+	buttons WeaponButtons,
+	info *UpdateParams) WeaponStepResult {
+	return WeaponStepResult{}
 }

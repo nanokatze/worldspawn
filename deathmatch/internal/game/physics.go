@@ -7,82 +7,21 @@ import (
 
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/gmath"
-	"worldspawn/physics"
+	"worldspawn/internal/physics"
 )
 
-// TODO: kill these interfaces
-
-type UpdateBeforePhysics interface {
-	UpdateBeforePhysics(w *Scene, id ecs.ID, info *UpdateParams)
+// TODO: kill this
+type PrePhysicsStep interface {
+	PrePhysicsStep(w *Scene, id ecs.ID, info *UpdateParams)
 }
 
-type UpdateAfterPhysics interface {
-	UpdateAfterPhysics(w *Scene, id ecs.ID, info *UpdateParams)
+type PostPhysicsStep interface {
+	PostPhysicsStep(w *Scene, id ecs.ID, info *UpdateParams)
 }
 
 type Velocity struct {
 	Linear  gmath.Vec3f32
-	Angular gmath.Vec3f32 // this should probably be a bivec3 actually
-}
-
-// TODO: rename to just Layer and move it to worldspawn.go? We'll want another
-// component for en/disabling physics if we do so.
-// TODO: rename to CollisionFilterGroup or CollisionClass or idk
-type CollisionLayer int8
-
-const (
-	PhysicsLayerNonMoving CollisionLayer = iota
-	PhysicsLayerMoving
-	PhysicsLayerProjectiles
-	PhysicsLayerMovingKinematic // used by character controllers
-	NumPhysicsLayers
-)
-
-var collisionLayerMotionType = map[CollisionLayer]int{
-	PhysicsLayerNonMoving:       0,
-	PhysicsLayerMoving:          2,
-	PhysicsLayerProjectiles:     2,
-	PhysicsLayerMovingKinematic: 1,
-}
-
-var physicsLayerFromString = map[string]CollisionLayer{
-	"NonMoving":       PhysicsLayerNonMoving,
-	"Moving":          PhysicsLayerMoving,
-	"Projectiles":     PhysicsLayerProjectiles,
-	"MovingKinematic": PhysicsLayerMovingKinematic,
-}
-
-/*
-func (physicsLayer *PhysicsLayer) UnmarshalText(text []byte) error {
-	tmp, ok := physicsLayerFromString[string(text)]
-	if !ok {
-		return errors.New("unknown shape type")
-	}
-	*physicsLayer = tmp
-	return nil
-}
-*/
-
-// TODO: add helpers for filling this out to physics package so that we don't
-// need to fill this out explicitly
-var ShouldPhysicsLayersCollide = []bool{
-	/*                NonM.  Mov.  Proj. */
-	/* NonMoving   */ false,
-	/* Moving      */ true, true,
-	/* Projectiles */ true, true, false,
-}
-
-const (
-	BroadPhaseLayerNonMoving = iota
-	BroadPhaseLayerMoving
-	NumBroadPhaseLayers
-)
-
-var PhysicsLayerToBroadPhaseLayer = [NumPhysicsLayers]physics.BroadPhaseLayer{
-	PhysicsLayerNonMoving:       BroadPhaseLayerNonMoving,
-	PhysicsLayerMoving:          BroadPhaseLayerMoving,
-	PhysicsLayerProjectiles:     BroadPhaseLayerMoving,
-	PhysicsLayerMovingKinematic: BroadPhaseLayerMoving,
+	Angular gmath.Vec3f32 // TODO: this should probably be something else
 }
 
 /*
@@ -98,11 +37,18 @@ type ContactEvent struct {
 	EntityID2 ecs.ID
 }
 
-// TODO: add ability to sync per-entity, e.g. we need this to crouch and
-// uncrouch the player
+/*
+func (scene *Scene) RayQuery(ray physics.Ray) iter.Seq[] {
 
-// Always execute this system before systems performing physics queries!!!
+}
+*/
+
+// TODO: add ability to sync per-entity, e.g. we need this to crouch and
+// uncrouch the player I think
+
+// Always run this before performing physics queries!!!
 func (w *Scene) updatePhysicsShadow() {
+	// TODO: remove bodies when we delete entities!!!!!!!!
 	for id := range ecs.All(&w.physicsBodyExists) {
 		if _, ok := w.CollisionLayer.Get(id); !ok {
 			w.physicsSystem.RemoveBody(physics.BodyID(id))
@@ -111,7 +57,8 @@ func (w *Scene) updatePhysicsShadow() {
 	}
 
 	for id, layer := range ecs.All(&w.CollisionLayer) {
-		tr, _ := w.TransformTR.Get(id) // ok tbf just TODO: include TransformTR into the query
+		trs := w.GetTransform(id)
+		// TODO: ensure trs.S is 1
 		velocity, _ := w.Velocity.Get(id)
 		filter, _ := w.PhysicsFilter.Get(id)
 
@@ -155,8 +102,8 @@ func (w *Scene) updatePhysicsShadow() {
 			w.physicsSystem.AddBody(
 				bodyID,
 				shape2,
-				tr.T,
-				tr.R,
+				trs.T,
+				trs.R,
 				velocity.Linear,
 				velocity.Angular,
 				int(layer),
@@ -170,8 +117,8 @@ func (w *Scene) updatePhysicsShadow() {
 			w.physicsSystem.UpdateBody(
 				bodyID,
 				shape2,
-				tr.T,
-				tr.R,
+				trs.T,
+				trs.R,
 				velocity.Linear,
 				velocity.Angular,
 				int(layer),
@@ -248,10 +195,12 @@ func (w *Scene) physicsStep(Δt time.Duration) {
 		entityID1 := ecs.ID(ce.Body1.BodyID)
 		entityID2 := ecs.ID(ce.Body2.BodyID)
 
+		// TODO: spawn sounds on collision
+
 		// One or both entities in the contact event might've been removed
 		// before the last Update
 
-		if w.IsEntityValid(entityID1) {
+		if w.EntityExists(entityID1) {
 			contactEvents, _ := w.ContactEvents.Get(entityID1)
 			contactEvents = append(contactEvents, ContactEvent{
 				Type:      ce.Type,
@@ -260,7 +209,7 @@ func (w *Scene) physicsStep(Δt time.Duration) {
 			w.ContactEvents.Set(entityID1, contactEvents)
 		}
 
-		if w.IsEntityValid(entityID2) {
+		if w.EntityExists(entityID2) {
 			contactEvents, _ := w.ContactEvents.Get(entityID2)
 			contactEvents = append(contactEvents, ContactEvent{
 				Type:      ce.Type,

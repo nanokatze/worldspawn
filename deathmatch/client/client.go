@@ -26,8 +26,9 @@ import (
 
 type Renderer interface {
 	// TODO: rename to Update
-	Subtick(w *game.Scene, playerID ecs.ID)
+	Reset(n int)
 	Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration)
+	Subtick(w *game.Scene, playerID ecs.ID)
 }
 
 type Client struct {
@@ -40,8 +41,8 @@ type Client struct {
 
 	inputCmds []game.TimestampedInputCmd
 
-	Δt    time.Duration
-	world *game.Scene
+	tickPeriod time.Duration
+	world      *game.Scene
 
 	player ecs.ID
 
@@ -98,38 +99,30 @@ func newClient(renderer Renderer, addr string) (*Client, error) {
 				log.Fatal(err)
 			}
 
-			// TODO: rewrite this mess
 			switch msgtype {
-			case replication.SetDeltaTime:
-				// TODO: add a method on the Session to set delta time or
-				// whatever?
-				binary.Read(deframer, binary.LittleEndian, &s.Δt)
+			case replication.ResetTicker:
+				// TODO: we should restart the ticker with the new period when this happens
+				binary.Read(deframer, binary.LittleEndian, &s.tickPeriod)
 
-			case replication.ResetWorld:
-				var maxEntities int64
-				binary.Read(deframer, binary.LittleEndian, &maxEntities)
+			case replication.ResetScene:
+				var sceneCap int64
+				binary.Read(deframer, binary.LittleEndian, &sceneCap)
 				// TODO: for client-only entities we can use the high
 				// indices that server won't use. For this we'll want to
 				// change IDAlloc to be aware of two heaps, one primary
 				// (indices 0 to server's entity limit) and one
 				// secondary (above the primary)
-				log.Print("maxEntities=", maxEntities)
+				slog.Info("scene reset", "cap", sceneCap)
 				s.mu.Lock()
-				s.world = game.NewScene(int(maxEntities))
+				s.world = game.NewScene(int(sceneCap))
 				// TODO: we should also stop rendering until we get the first
 				// UpdateWorld
+				s.renderer.Reset(int(sceneCap))
 				s.mu.Unlock()
 
 				// The renderer will resize its scene by itself
 
-			case replication.SetPlayer:
-				var player ecs.ID
-				binary.Read(deframer, binary.LittleEndian, &player)
-				s.mu.Lock()
-				s.player = player
-				s.mu.Unlock()
-
-			case replication.UpdateWorld:
+			case replication.UpdateScene:
 				// TODO: be careful to only read up to a limit.
 				buf, err := io.ReadAll(deframer)
 				if err != nil {
@@ -145,6 +138,13 @@ func newClient(renderer Renderer, addr string) (*Client, error) {
 					log.Println("received the first snapshot")
 				default:
 				}
+
+			case replication.SetPlayer:
+				var player ecs.ID
+				binary.Read(deframer, binary.LittleEndian, &player)
+				s.mu.Lock()
+				s.player = player
+				s.mu.Unlock()
 
 			default:
 				slog.Warn("unknown message type", "msgtype", msgtype)
@@ -163,17 +163,16 @@ func newClient(renderer Renderer, addr string) (*Client, error) {
 	<-ready
 
 	go func() {
-		ticker := time.NewTicker(s.Δt)
-		defer ticker.Stop()
+		ticker := time.NewTicker(s.tickPeriod)
 
 		for {
 			select {
-			case <-ticker.C:
 			case <-s.done:
 				return
+			case <-ticker.C:
 			}
 
-			s.tick(s.Δt)
+			s.tick(s.tickPeriod)
 		}
 	}()
 
@@ -198,7 +197,7 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 			return err
 		}
 		for range n {
-			var indexGen struct{ Index, Gen uint32 }
+			var indexGen struct{ Index, Gen uint32 } // TODO: replace with plain id?
 			if err := nice.UnmarshalDecode(dec, &indexGen); err != nil {
 				return err
 			}
@@ -259,7 +258,7 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 
 			id := s.world.Table.IDs().Index(int(index))
 			if id == 0 {
-				logger.Warn("update for a non-existent object", "index", index, "component", replication.Columns.Field(columnIndex).Name)
+				logger.Warn("snapshot refers to a non-existent object", "t", s.world.Now, "index", index, "column", replication.Columns.Field(columnIndex).Name)
 				continue
 			}
 
@@ -285,7 +284,7 @@ func (s *Client) HandleInput(cmds []game.TimestampedInputCmd) {
 	s.inputCmds = append(s.inputCmds, cmds...)
 
 	for _, cmd := range cmds {
-		s.world.HandleInput(s.player, cmd, &game.UpdateParams{Δt: s.Δt, Speculating: true, Logger: slog.Default()})
+		s.world.HandleInput(s.player, cmd, &game.UpdateParams{Δt: s.tickPeriod, Speculating: true, Logger: slog.Default()})
 	}
 	s.renderer.Subtick(s.world, s.player)
 }

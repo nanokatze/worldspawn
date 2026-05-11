@@ -10,14 +10,6 @@ import (
 	"worldspawn/internal/gmath"
 )
 
-// TODO: give this a better name
-type VisibilityMask struct {
-	Mask uint8
-	// TODO: replace with an arbitrary int64 id so we can have the same cameras
-	// share visibility sets? Or should this be a set of ids/ecs.IDs?
-	Camera ecs.ID
-}
-
 type CosmeticOffset struct {
 	Alpha  float32
 	T0     Time
@@ -25,20 +17,34 @@ type CosmeticOffset struct {
 }
 
 func (cosmeticOffset CosmeticOffset) Eval(now Time) gmath.Vec3f32 {
-	extinction := math.Exp(-1 * float64(cosmeticOffset.Alpha) * durationToFloatSeconds(max(now.Sub(cosmeticOffset.T0), 0)))
+	extinction := math.Exp(-float64(cosmeticOffset.Alpha) * durationToFloatSeconds(max(now.Sub(cosmeticOffset.T0), 0)))
 	return cosmeticOffset.Offset.Scale(float32(extinction))
 }
 
-// TODO: replace with string identifying the effect and a bag of state for that
-// effect. Alternatively we could use an interface for now, which would be the
-// better option.
+// TODO: give this a better name
+// TODO: should this apply to children?
+type VisibilityMask struct {
+	Mask uint8
+	// TODO: replace with an arbitrary int64 id so we can have the same cameras
+	// share visibility sets? Or should this be a set of ids/ecs.IDs?
+	Camera ecs.ID
+}
+
+/*
+type SoundTrack struct {
+	Filename string
+	T0 Time
+	// T0
+	// TODO: I guess other state like which effects (FIR) to apply and how could
+	// be derived at render time either from sound state or w/e
+}
+*/
+
 type SoundEmitter struct {
 	Effect      string
 	Attenuation float32
-	PlayTime    Time
+	PlayTime    Time // TODO: we also need to equip it with a sample offset
 }
-
-// TODO: add ability to randomize the repeating segments
 
 type LoopedSound struct {
 	Sound           string

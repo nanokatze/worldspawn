@@ -1,13 +1,14 @@
 package replication
 
-// TODO: make these private and make things more typed instead.
+// TODO: make things more typed than this. http2 frames would probably be kinda
+// what we want.
 const (
 	_ = iota
 
-	SetDeltaTime = 5
-	SetPlayer    = 7
-	ResetWorld   = 6
-	UpdateWorld  = 9
+	ResetTicker
+	ResetScene
+	UpdateScene
+	SetPlayer
 )
 
 // methods called by client, on the server

@@ -8,9 +8,9 @@ type Entity interface{ entity() }
 
 var EntityTypes = []reflect.Type{
 	reflect.TypeFor[Animtest](),
-	reflect.TypeFor[Character](),
 	reflect.TypeFor[DeleteAfter](),
 	reflect.TypeFor[DroppedWeapon](),
+	reflect.TypeFor[Gladiator](),
 	reflect.TypeFor[LaunchedGrenade](),
 	reflect.TypeFor[PlayerSpawn](),
 	reflect.TypeFor[Player](),

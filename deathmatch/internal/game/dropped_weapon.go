@@ -1,9 +1,6 @@
 package game
 
 import (
-	"log"
-	"slices"
-
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/gmath"
 )
@@ -14,8 +11,6 @@ type DroppedWeapon struct {
 
 func (DroppedWeapon) entity() {}
 
-// TODO: this probs should be global? and moved to dropped_weapon.go.......
-// TODO: use weaponState in place of weapon?
 func (w *Scene) CreateDroppedWeapon(weaponID ecs.ID, info *UpdateParams) ecs.ID {
 	weapon := mustOk(SceneGetEntity[Weapon](w, weaponID))
 
@@ -23,32 +18,24 @@ func (w *Scene) CreateDroppedWeapon(weaponID ecs.ID, info *UpdateParams) ecs.ID 
 	w.SetTransform(dropped, gmath.TRS3One[float64]())
 	w.Entity.Set(dropped, DroppedWeapon{Weapon: weaponID})
 
-	weapon.WeaponCreateGeometry(w, dropped, info)
+	w.SetParent(weapon.CreateProp(w, info), dropped)
 
 	w.SetParent(weaponID, dropped)
 
 	return dropped
 }
 
-// TODO: move handling of this into Character
-func (dropped DroppedWeapon) UpdateBeforePhysics(w *Scene, ourID ecs.ID, info *UpdateParams) {
+// TODO: move handling of this into Gladiator entirely
+func (dropped DroppedWeapon) PrePhysicsStep(w *Scene, ourID ecs.ID, info *UpdateParams) {
 	T := w.GetGlobalTransform(ourID)
 
 	for playerID, entity := range ecs.All(&w.Entity) {
-		if character, ok := entity.(Character); ok {
+		if _, ok := entity.(Gladiator); ok {
 			playerT := w.GetGlobalTransform(playerID)
 
 			if T.T.Sub(playerT.T).Length() <= 1.1 {
-				freeSlot := slices.Index(character.Slots[:], 0)
-				if freeSlot != -1 {
-					// TODO: properly factor this out
-					character.Slots[freeSlot] = dropped.Weapon
-					w.Entity.Set(playerID, character)
-					w.SetParent(dropped.Weapon, playerID)
-					w.Delete.Set(ourID, struct{}{})
-					log.Printf("gave weapon %v to the player %v", dropped.Weapon, playerID)
-					return
-				}
+				w.GiveWeapon(playerID, dropped.Weapon)
+				w.Delete.Set(ourID, struct{}{})
 			}
 		}
 	}

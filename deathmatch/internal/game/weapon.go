@@ -5,7 +5,7 @@ import (
 	"worldspawn/internal/gmath"
 )
 
-// TODO: rename the Weapon interface to just something that can be held
+// TODO: rename the Weapon interface to just something that can be held?
 
 type WeaponButtons uint64
 
@@ -14,17 +14,27 @@ const (
 	WeaponTrigger
 )
 
+type WeaponStepResult struct {
+	Recoil [2]float32
+}
+
 type Weapon interface {
 	Entity
 
-	// TODO: delegate creating the entity to the caller? That way some callers
-	// could attach additional stuff if they so desire. But idk.
-	WeaponCreateGeometry(scene *Scene, parent ecs.ID, info *UpdateParams) ecs.ID
+	CreateProp(scene *Scene, info *UpdateParams) ecs.ID
 
-	// Returns a function that updates the rendering geometry. TODO: we also
-	// need to return stuff like recoil and such.
-	// TODO: we need to somehow tell the thing to filter the player and possibly
-	// other entities
-	// TODO: shootpos really should be DVec3 + Rot3 tbh
-	WeaponSubstep(scene *Scene, weaponId ecs.ID, shooterID ecs.ID, shootT gmath.Affine3f64, buttons WeaponButtons, info *UpdateParams) func(*Scene, ecs.ID)
+	// Returns a function that updates the rendering geometry.
+	// TODO: we also need to return stuff like recoil and such.
+	// TODO: we need to somehow tell the thing to filter the shooter and
+	// possibly other entities
+	WeaponSubstep(
+		scene *Scene,
+		weaponID ecs.ID,
+		propIDs []ecs.ID,
+		shooterID ecs.ID,
+		T gmath.Affine3f64,
+		v Velocity,
+		buttons WeaponButtons,
+		info *UpdateParams,
+	) WeaponStepResult
 }

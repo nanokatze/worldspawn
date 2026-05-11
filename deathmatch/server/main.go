@@ -5,12 +5,10 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/binary"
-	"encoding/hex"
 	"flag"
 	"io"
 	"log"
 	"log/slog"
-	rand "math/rand/v2"
 	"os"
 	"reflect"
 	"sync"
@@ -32,18 +30,18 @@ var dataDir = flag.String("data", "cooked", "a")
 
 // TODO: rewrite all of this garbage so that it's cleaner
 
-var _ = hex.Dump
-
 // TODO: make all of the fields here private, probably...
 type Server struct {
 	mu sync.Mutex
 
-	Δt time.Duration
-
-	maxEntities int
+	tickPeriod time.Duration
 
 	scene *game.Scene
 
+	// TODO: history should be a responsibility of game.Scene itself. Or maybe
+	// not. Perhaps we should pass the history and shadow columns through
+	// UpdateParams, but be responsible for managing those.
+	//
 	// TODO: we only need a subset of the entire world: only networked
 	// components, no physics, etc.
 	//
@@ -51,15 +49,25 @@ type Server struct {
 	// clear how that should be done exactly.
 	prevWorld *game.Scene
 
-	mtimes mtimes
+	mtimes modTimes
 
 	users sync.Map // TODO: demo recorder and relay clients would live here as well.
 }
 
 // TODO: could we make it ignorant of game.Scene and game.Columns?
-type mtimes struct {
-	Entities []game.Time
+// TODO: rename
+type modTimes struct {
+	Entities []game.Time // TODO: rename to "Existence" or something
 	Columns  [][]game.Time
+}
+
+// TODO: should we swap rows and columns?
+func (mtimes *modTimes) Init(rows, columns int) {
+	mtimes.Entities = make([]game.Time, rows)
+	mtimes.Columns = make([][]game.Time, columns)
+	for i := range mtimes.Columns {
+		mtimes.Columns[i] = make([]game.Time, rows)
+	}
 }
 
 // TODO: rename to conn?
@@ -143,22 +151,22 @@ func (s *Server) serveConn(conn *quic.Conn, logger *slog.Logger) error {
 	// TODO: we shouldn't need to spawn the player immediately. The game should
 	// decide when to do so
 	s.mu.Lock()
-	u.player = spawnplayer(s.scene, &game.UpdateParams{Logger: slog.Default()})
+	u.player = game.SpawnPlayer(s.scene, &game.UpdateParams{Logger: slog.Default()})
 	s.mu.Unlock()
 
 	framer := framing.NewFramer(stream2)
 
 	{
-		binary.Write(framer, binary.LittleEndian, int64(replication.SetDeltaTime))
-		binary.Write(framer, binary.LittleEndian, s.Δt)
+		binary.Write(framer, binary.LittleEndian, int64(replication.ResetTicker))
+		binary.Write(framer, binary.LittleEndian, s.tickPeriod)
 		framer.Next()
 	}
 
 	// TODO: remove this and let world delta updates take care of this? That
 	// might introduce some delay so perhaps not.
 	{
-		binary.Write(framer, binary.LittleEndian, int64(replication.ResetWorld))
-		binary.Write(framer, binary.LittleEndian, int64(s.maxEntities))
+		binary.Write(framer, binary.LittleEndian, int64(replication.ResetScene))
+		binary.Write(framer, binary.LittleEndian, int64(s.scene.Cap()))
 		framer.Next()
 
 		defer func() {
@@ -167,7 +175,7 @@ func (s *Server) serveConn(conn *quic.Conn, logger *slog.Logger) error {
 
 			// TODO: don't kill Character here
 			player, _ := game.SceneGetEntity[game.Player](s.scene, u.player)
-			s.scene.Delete.Set(player.Character, struct{}{})
+			s.scene.Delete.Set(player.ControlledCharacter, struct{}{})
 			s.scene.Delete.Set(u.player, struct{}{})
 		}()
 	}
@@ -200,7 +208,7 @@ func (s *Server) serveConn(conn *quic.Conn, logger *slog.Logger) error {
 
 				select {
 				case buf := <-u.marshaledUpdates:
-					binary.Write(framer, binary.LittleEndian, uint64(replication.UpdateWorld))
+					binary.Write(framer, binary.LittleEndian, uint64(replication.UpdateScene))
 					framer.Write(buf)
 					framer.Next()
 				case <-done:
@@ -256,7 +264,7 @@ func (s *Server) handleInputPackets(u *user, stream io.Reader) error {
 			// u.time = max(u.time, tmpTime)
 
 			for _, cmd := range cmds {
-				s.scene.HandleInput(u.player, cmd, &game.UpdateParams{Δt: s.Δt, Logger: slog.Default()})
+				s.scene.HandleInput(u.player, cmd, &game.UpdateParams{Δt: s.tickPeriod, Logger: slog.Default()})
 			}
 		}()
 
@@ -266,7 +274,7 @@ func (s *Server) handleInputPackets(u *user, stream io.Reader) error {
 	}
 }
 
-func (mtimes *mtimes) update(prevWorld, scene *game.Scene) {
+func (mtimes *modTimes) update(prevWorld, scene *game.Scene) {
 	{
 		a := prevWorld.Table.IDs()
 		b := scene.Table.IDs()
@@ -466,53 +474,6 @@ func readInputCmds(r io.Reader, cmds *[]game.TimestampedInputCmd) error {
 	return nice.UnmarshalDecode(dec, cmds)
 }
 
-func spawnplayer(w *game.Scene, info *game.UpdateParams) ecs.ID {
-	character := w.CreateEntity(info)
-
-	var playerSpawns []ecs.ID
-	for id, entity := range ecs.All(&w.Entity) {
-		if _, ok := entity.(game.PlayerSpawn); ok {
-			playerSpawns = append(playerSpawns, id)
-		}
-	}
-	T := w.GetGlobalTransform(playerSpawns[rand.IntN(len(playerSpawns))])
-
-	camera := w.CreateEntity(info)
-
-	// meh
-	w.SetTransform(character, T.TRS())
-	w.CollisionGeometry.Set(character, "FPSCharacter")
-	w.CollisionLayer.Set(character, game.PhysicsLayerMovingKinematic)
-	w.PhysicsMassOverride.Set(character, 100)
-	w.VisibilityMask.Set(character, game.VisibilityMask{Mask: 0b10, Camera: camera})
-	w.RenderingGeometry.Set(character, "testcharacter4/geometries/TestCharacter4")
-
-	w.SetParent(camera, character)
-	// TODO: poke a method on Player to perform this
-	w.SetTransform(camera,
-		gmath.TRS3f64{
-			T: gmath.Vec3f64{0, 0, 1.9 - 0.1}, // standing height
-			R: gmath.Rot3One(),
-			S: gmath.Mat3x3UOne[float32](),
-		})
-
-	hands := w.CreateEntity(info)
-	w.SetParent(hands, camera)
-	w.SetTransform(hands, gmath.TRS3One[float64]())
-
-	w.Entity.Set(character, game.Character{
-		FirstPersonCamera: camera,
-		Hands:             hands,
-	})
-
-	player := w.CreateEntity(info)
-	w.Entity.Set(player, game.Player{
-		Character: character,
-	})
-
-	return player
-}
-
 func main() {
 	flag.Parse()
 
@@ -556,29 +517,22 @@ func main() {
 
 	s := new(Server)
 
-	s.Δt = time.Second / 64
-	s.maxEntities = 1000
-	s.scene = game.NewScene(s.maxEntities)
-	s.prevWorld = game.NewScene(s.maxEntities)
-	s.mtimes.Entities = make([]game.Time, s.maxEntities)
-	s.mtimes.Columns = make([][]game.Time, replication.Columns.NumField())
-	for i := range s.mtimes.Columns {
-		s.mtimes.Columns[i] = make([]game.Time, s.maxEntities)
-	}
+	maxEntities := 1000
 
-	// TODO: move loading into the game
+	s.tickPeriod = time.Second / 64
+	s.scene = game.NewScene(maxEntities)
+	s.prevWorld = game.NewScene(maxEntities)
+	s.mtimes.Init(maxEntities, replication.Columns.NumField())
+
 	sceneFile, err := game.Data.Open(conf.MapRotation[0])
-	if err != nil {
-		log.Fatal("load: ", err)
-	}
-	if err := json.UnmarshalRead(sceneFile, s.scene, game.JSONOptions); err != nil {
-		log.Fatalf("load %v: %v", sceneFile, err)
+	if err := s.scene.Restore(sceneFile); err != nil {
+		log.Fatalf("restore %v: %v", sceneFile, err)
 	}
 	sceneFile.Close()
 
 	info := &game.UpdateParams{Logger: slog.Default()}
 
-	{
+	if true {
 		test := s.scene.CreateEntity(info)
 		s.scene.SetTransform(test, gmath.TRS3f64{
 			T: gmath.Vec3f64{0, -1, 0},
@@ -587,7 +541,7 @@ func main() {
 		})
 		s.scene.Skeleton.Set(test, "testcharacter4/skeletons/metarig")
 		s.scene.RenderingGeometry.Set(test, "testcharacter4/geometries/TestCharacter4")
-		s.scene.Entity.Set(test, game.Animtest{})
+		s.scene.Entity.Set(test, game.Animtest{"testcharacter4/animations/metarigAction"})
 
 		test2 := s.scene.CreateEntity(info)
 		s.scene.SetParent(test2, test)
@@ -639,13 +593,13 @@ func main() {
 	}
 
 	go func() {
-		ticker := time.NewTicker(s.Δt)
-		defer ticker.Stop()
+		// TODO: make the ticker a member of Server
+		ticker := time.NewTicker(s.tickPeriod)
 
 		for {
 			<-ticker.C
 
-			s.tick(s.Δt)
+			s.tick(s.tickPeriod)
 		}
 	}()
 

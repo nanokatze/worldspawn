@@ -4,7 +4,8 @@ import "math"
 
 type Track []float32
 
-// TODO: should t stay float64, or be changed to float32 or fixed point?
+// TODO: should t stay float64, or be changed to float32 or fixed point? I guess
+// we could just use time.Duration as well.
 func (track Track) Sample(t float64) float32 {
 	s0 := int(math.Floor(t))
 	s1 := int(math.Ceil(t))
@@ -17,7 +18,6 @@ func (track Track) Sample(t float64) float32 {
 
 // TODO: make the internals private
 type Animation struct {
-	// TODO: rename to tracks?
 	Frames   int
 	Channels map[string]Track
 }

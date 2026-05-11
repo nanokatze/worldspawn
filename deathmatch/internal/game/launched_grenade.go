@@ -11,7 +11,7 @@ var grenadeStats = struct {
 
 	FuseDuration time.Duration `json:",format:iso8601"`
 }{
-	ExplosionSound: "later.wav",
+	ExplosionSound: "explosion.wav",
 
 	FuseDuration: 1400 * time.Millisecond,
 }

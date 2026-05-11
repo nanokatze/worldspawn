@@ -12,7 +12,7 @@ import (
 	"github.com/go-json-experiment/json"
 
 	"worldspawn/internal/gmath"
-	"worldspawn/internal/wmesh"
+	"worldspawn/internal/loaders/wmesh"
 )
 
 // TODO: pass materials

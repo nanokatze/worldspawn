@@ -13,21 +13,6 @@ import (
 
 // TODO: move this stuff into its own package probably
 
-/*
-func cached[T, U any](f func(x T) U) func(x T) U {
-	var cache sync.Map
-
-	return func(x T) U {
-		if m, ok := cache.Load(x); ok {
-			return m.(U)
-		}
-
-		m, _ := animationCache.LoadOrStore(x, f(x))
-		return m.(U)
-	}
-}
-*/
-
 var animationCache sync.Map
 
 func animation(filename string) *animgraph.Animation {
@@ -87,7 +72,7 @@ func loadSkeleton(filename string) (*animgraph.Skeleton, error) {
 		return nil, err
 	}
 
-	bones := slices.Sorted(maps.Keys(tmp.Parent))
+	bones := slices.Sorted(maps.Keys(tmp.BindPose))
 	bonesInv := maps.Collect(func(yield func(string, int) bool) {
 		for k, v := range bones {
 			yield(v, k)
@@ -108,6 +93,13 @@ func loadSkeleton(filename string) (*animgraph.Skeleton, error) {
 			yield(parent)
 		}
 	})
+
+	skeleton.Children = make([][]int, len(skeleton.Parent))
+	for bone, parent := range skeleton.Parent {
+		if parent != -1 {
+			skeleton.Children[parent] = append(skeleton.Children[parent], bone)
+		}
+	}
 
 	skeleton.BindPose = slices.Collect(func(yield func(gmath.Affine3f32) bool) {
 		for _, bone := range bones {

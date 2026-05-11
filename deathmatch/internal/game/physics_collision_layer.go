@@ -1,0 +1,69 @@
+package game
+
+import "worldspawn/internal/physics"
+
+type CollisionLayer uint8
+
+const (
+	CollisionLayerNonMoving CollisionLayer = iota
+	CollisionLayerMoving
+	CollisionLayerProjectiles
+	CollisionLayerMovingKinematic // used by character controllers; TODO: rename
+	numCollisionLayers
+)
+
+var collisionLayerRules = func() physics.LayerCollisionRules {
+	const F = false
+	const T = true
+
+	return physics.LayerCollisionRules{
+		/*                   No Mo Pr    */
+		/*                   nM vi oj    */
+		/*                   ov ng ec    */
+		/*                   in    ti    */
+		/*                   g     le    */
+		/*                         s     */
+		/* NonMoving       */ F, T, T, F,
+		/* Moving             */ T, T, F,
+		/* Projectiles           */ F, F,
+		/* MovingKinematic          */ F,
+	}
+}()
+
+var collisionLayerMotionType = map[CollisionLayer]int{
+	CollisionLayerNonMoving:       0,
+	CollisionLayerMoving:          2,
+	CollisionLayerProjectiles:     2,
+	CollisionLayerMovingKinematic: 1,
+}
+
+// TODO: generate this plx
+var collisionLayerFromString = map[string]CollisionLayer{
+	"NonMoving":       CollisionLayerNonMoving,
+	"Moving":          CollisionLayerMoving,
+	"Projectiles":     CollisionLayerProjectiles,
+	"MovingKinematic": CollisionLayerMovingKinematic,
+}
+
+/*
+	func (physicsLayer *PhysicsLayer) UnmarshalText(text []byte) error {
+		tmp, ok := physicsLayerFromString[string(text)]
+		if !ok {
+			return errors.New("unknown shape type")
+		}
+		*physicsLayer = tmp
+		return nil
+	}
+*/
+
+const (
+	broadPhaseLayerNonMoving = iota
+	broadPhaseLayerMoving
+)
+
+var collisionLayerToBroadPhaseLayer = [numCollisionLayers]uint8{
+	CollisionLayerNonMoving:       broadPhaseLayerNonMoving,
+	CollisionLayerMoving:          broadPhaseLayerMoving,
+	CollisionLayerProjectiles:     broadPhaseLayerMoving,
+	CollisionLayerMovingKinematic: broadPhaseLayerMoving,
+}

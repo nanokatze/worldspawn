@@ -41,7 +41,10 @@ var au = sync.OnceValue(func() *sdl.AudioStream {
 	return au
 })
 
-// TODO: rethink wtf is going on here pls
+// TODO: some kind of mechanism to enqueue uisounds and do bgm/soundtrack? I
+// guess we should just use our 3d sound renderer for this purpose.
+
+// TODO: factor shrinker/stretcher out into apostprocess or something
 func renderAudio(scene *arenderer.Scene, cameraTransform gmath.Affine3f32, Δt int64) {
 	// TODO: make this tunable at runtime
 	queueingTargetSamples := 48000 / 50
@@ -60,6 +63,8 @@ func renderAudio(scene *arenderer.Scene, cameraTransform gmath.Affine3f32, Δt i
 			Channels: 2,
 		},
 		cameraTransform)
+
+	// TODO: this is the place where we could mix other sounds
 
 	nudge := queueingTargetSamples - au().Queued()/(2*4)
 

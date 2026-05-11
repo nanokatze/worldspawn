@@ -9,7 +9,7 @@ import (
 	"github.com/go-json-experiment/json/jsontext"
 )
 
-// TODO: move interface arshalers to a different package entirely
+// TODO: move these into json.go
 
 /*
 func InterfaceJSONMarshaler[T any](types ...reflect.Type) func(*jsontext.Encoder, *T) error {

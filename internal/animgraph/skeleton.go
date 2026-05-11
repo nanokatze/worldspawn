@@ -8,6 +8,7 @@ type Skeleton struct {
 	JointByName_ map[string]int
 
 	Parent          []int
+	Children        [][]int
 	BindPose        []gmath.Affine3f32
 	BindPoseInverse []gmath.Affine3f32
 	ParentRelative  []gmath.Affine3f32

@@ -1,3 +1,4 @@
+// TODO: rename to wgeometry and eventually allow expressing geometry nodes
 package wmesh
 
 import (
@@ -26,7 +27,7 @@ const (
 )
 
 type Preamble struct {
-	Magic  [32]byte // "Worldspawn"
+	Magic  [32]byte // "WorldspawnGeometry"
 	Header Section
 	Blob   Section
 }

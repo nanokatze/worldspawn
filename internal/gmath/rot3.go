@@ -10,6 +10,10 @@ type Plane3[T constraints.Float] [3]T
 
 type Plane3f32 = Plane3[float32]
 
+func Plane3OnVectors[T constraints.Float](a, b Vec3[T]) Plane3[T] {
+	return Plane3[T](a.Cross(b))
+}
+
 // TODO: kill quat and generate RotN types
 
 type Rot3 [4]float32
@@ -89,6 +93,7 @@ func (a Rot3) Renormalize() Rot3 {
 	return Rot3(tmp.Normalize())
 }
 
+// TODO: rename to Inv()
 func (a Rot3) Inverse() Rot3 {
 	return Rot3(quat[float32](a).Conj())
 }

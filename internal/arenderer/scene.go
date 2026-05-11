@@ -4,14 +4,24 @@ import (
 	"worldspawn/internal/gmath"
 )
 
-// TODO: duplicate Geometry from grenderer
+// TODO: duplicate Geometry from grenderer, or make a renderer directory with a
+// and g subdirectories for audio and graphics. Common structures would stay in
+// the top level.
 
 type Scene struct {
-	Transform []gmath.TRS3f32
+	Transform []gmath.TRS3f32 // TODO: we need transforms at both T0 and T1 and then interpolate between the two
 
 	// geometry []grenderer.Geometry
 
-	Emitters [][]float32 // []func(buf []float32)
+	// TODO: ideally we want something to support soundtrack and stuff I guess.
+
+	// TODO: these should be at a rate different than instances. The *materials*
+	// should index into the emitters I guess.
+	// TODO: switch to
+	//	Emitters []func(scratch buffers) []float32
+	// interface. This will allow use of scratch if necessary. Or alternatively
+	// outsource managing the scratch and effects storage to the user somehow.
+	Emitters [][]float32
 }
 
 func NewScene(n int) *Scene {
@@ -22,6 +32,7 @@ func NewScene(n int) *Scene {
 	}
 }
 
+// TODO: replace with HRTF magic.
 var earDirs = [2]gmath.Vec3f32{
 	{-1, 0, 0},
 	{1, 0, 0},
