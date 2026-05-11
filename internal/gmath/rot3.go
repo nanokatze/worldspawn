@@ -2,32 +2,43 @@ package gmath
 
 import (
 	"math"
-
-	"golang.org/x/exp/constraints"
 )
 
-type Plane3[T constraints.Float] [3]T
+// Deprecated; TODO: kill this
+type Plane3f32 [3]float32
 
-type Plane3f32 = Plane3[float32]
-
-func Plane3OnVectors[T constraints.Float](a, b Vec3[T]) Plane3[T] {
-	return Plane3[T](a.Cross(b))
+func Plane3OnVectors(a, b Vec3f32) Plane3f32 {
+	return Plane3f32(a.Cross(b))
 }
 
 // TODO: kill quat and generate RotN types
 
+// TODO: move scalar to be at [0]
 type Rot3 [4]float32
 
 func Rot3One() Rot3 {
 	return Rot3{0, 0, 0, 1}
 }
 
+// Rot3AToB constructs a rotation R such that R.Rotate(a) == b. a and b must be
+// unit and (for now) a.Dot(b) must be non-negative.
+func Rot3AToB(a, b Vec3f32) Rot3 {
+	// TODO: handle the case when a.Dot(b) < 0
+
+	// TODO: better naming for different grade elements
+
+	B := a.Cross(b)
+	scalar := float32(math.Sqrt(float64(1 - B.Dot(B))))
+	return Rot3{B[0], B[1], B[2], scalar}.Sqrt()
+}
+
+// Deprecated; TODO: kill this
 func Rot3InPlane(plane Plane3f32, θ float32) Rot3 {
-	s, c := math.Sincos(float64(θ / 2))
-	yz := plane[0] * float32(s)
-	zx := plane[1] * float32(s)
-	xy := plane[2] * float32(s)
-	return Rot3{yz, zx, xy, float32(c)}
+	sinTheta, cosTheta := math.Sincos(float64(θ / 2))
+	yz := plane[0] * float32(sinTheta)
+	zx := plane[1] * float32(sinTheta)
+	xy := plane[2] * float32(sinTheta)
+	return Rot3{yz, zx, xy, float32(cosTheta)}
 }
 
 func Rot3FromMat(m Mat3x3f32) Rot3 {
@@ -85,8 +96,9 @@ func Rot3FromMat(m Mat3x3f32) Rot3 {
 	return r
 }
 
-func (a Rot3) Renormalize() Rot3 {
-	tmp := Vec4f32(a)
+func (R Rot3) Renormalize() Rot3 {
+	// TODO: quit relying on VecN
+	tmp := Vec4f32(R)
 	if !(tmp.Dot(tmp) > 0) {
 		return Rot3One()
 	}
@@ -94,12 +106,46 @@ func (a Rot3) Renormalize() Rot3 {
 }
 
 // TODO: rename to Inv()
-func (a Rot3) Inverse() Rot3 {
-	return Rot3(quat[float32](a).Conj())
+func (R Rot3) Inverse() Rot3 {
+	return Rot3(quat[float32](R).Conj())
 }
 
-func (a Rot3) Mul(b Rot3) (ab Rot3) {
-	return Rot3(quat[float32](a).Mul(quat[float32](b))).Renormalize()
+func (R Rot3) Mul(R2 Rot3) Rot3 {
+	return Rot3(quat[float32](R).Mul(quat[float32](R2))).Renormalize()
+}
+
+func (R Rot3) Pow(p float32) Rot3 {
+	if p < 0 {
+		R = R.Inverse()
+		p = -p
+	}
+
+	φ := float32(math.Acos(float64(R[3])))
+	B := Vec3f32(R[0:3]).Scale(1.0 / float32(math.Sin(float64(φ))))
+
+	φ2 := p * φ
+
+	sinPhi2, cosPhi2 := math.Sincos(float64(φ2))
+
+	B2 := B.Scale(float32(sinPhi2))
+
+	return Rot3{B2[0], B2[1], B2[2], float32(cosPhi2)}
+}
+
+func (R Rot3) Sqrt() Rot3 {
+	// Gross; TODO: can we please just make composition and constructors maintain this?
+	if R[3] < 0 {
+		for i := range 4 {
+			R[i] *= -1
+		}
+	}
+
+	return Rot3{
+		0.5 * R[0],
+		0.5 * R[1],
+		0.5 * R[2],
+		0.5 + 0.5*R[3],
+	}.Renormalize()
 }
 
 func (r Rot3) ToMat() Mat3x3f32 {
@@ -119,26 +165,27 @@ func (r Rot3) ToMat() Mat3x3f32 {
 
 // TODO: introduce SLerp which will transparently use NLerp when estimated error
 // is below some threshold?
-func (a Rot3) NLerp(b Rot3, t float32) Rot3 {
+// TODO: kill this tbh, the user has Pow they can use to implement interpolation
+func (R Rot3) NLerp(R2 Rot3, t float32) Rot3 {
 	u, v := 1-t, t
-	if Vec4f32(a).Dot(Vec4f32(b)) < 0 {
+	if Vec4f32(R).Dot(Vec4f32(R2)) < 0 {
 		v = -t
 	}
 
 	var c Rot3
 	for i := range 4 {
-		c[i] = a[i]*u + b[i]*v
+		c[i] = R[i]*u + R2[i]*v
 	}
 	return c.Renormalize()
 }
 
-// TODO: rename to Rotate32 probably
-func (a Rot3) Rotate(v Vec3f32) Vec3f32 {
-	q := quat[float32](a)
+// TODO: rename to Rotate32 probably, or actually make it generic!
+func (R Rot3) Rotate(v Vec3f32) Vec3f32 {
+	q := quat[float32](R)
 	return q.Mul(quatFromVec3(v)).Mul(q.Conj()).Imag()
 }
 
-func (a Rot3) Rotate64(v Vec3f64) Vec3f64 {
-	q := quat[float64](Vec4Convert[float64](Vec4f32(a)))
+func (R Rot3) Rotate64(v Vec3f64) Vec3f64 {
+	q := quat[float64](Vec4Convert[float64](Vec4f32(R)))
 	return q.Mul(quatFromVec3(v)).Mul(q.Conj()).Imag()
 }

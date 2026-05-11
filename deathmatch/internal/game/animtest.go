@@ -23,7 +23,8 @@ func (animtest Animtest) PrePhysicsStep(w *Scene, ourID ecs.ID, info *UpdatePara
 
 	localTransforms[skelly.JointByName("spine")] =
 		gmath.TRS3f32{
-			R: gmath.Rot3InPlane(gmath.Plane3f32{0, 1, 0}, float32(math.Sin(float64(w.Now.Sub(0))/1e9))),
+			R: gmath.Rot3AToB(gmath.Vec3f32{0, 0, 1}, gmath.Vec3f32{1, 0, 0}).
+				Pow(float32(math.Sin(float64(w.Now.Sub(0)) / 1e9))),
 			S: gmath.Mat3x3UOne[float32](),
 		}.Compose()
 
