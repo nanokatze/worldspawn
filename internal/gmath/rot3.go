@@ -112,18 +112,11 @@ func (R Rot3) Pow(p float32) Rot3 {
 }
 
 func (R Rot3) Sqrt() Rot3 {
-	// TODO: handle R[3] < 0 properly pls
-	if R[3] < 0 {
-		for i := range 4 {
-			R[i] *= -1
-		}
-	}
-
 	return Rot3{
 		0.5 * R[0],
 		0.5 * R[1],
 		0.5 * R[2],
-		0.5 + 0.5*R[3],
+		0.5*R[3] + float32(math.Copysign(0.5, float64(R[3]))),
 	}.Renormalize()
 }
 
