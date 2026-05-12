@@ -21,7 +21,9 @@ import (
 type Rot3 [4]float32
 
 func Rot3One() Rot3 {
-	return Rot3{0, 0, 0, 1}
+	var R Rot3
+	R[3] = 1
+	return R
 }
 
 // Rot3AToB constructs a rotation R such that R.Rotate(a) == b. a and b must be
