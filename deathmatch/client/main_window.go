@@ -15,7 +15,7 @@ import (
 	"worldspawn/gpu/wsi"
 	"worldspawn/internal/arenderer"
 	"worldspawn/internal/gmath"
-	"worldspawn/internal/grenderer"
+	"worldspawn/internal/renderer"
 	"worldspawn/internal/sdl"
 	"worldspawn/internal/sdlrouter"
 )
@@ -36,7 +36,7 @@ type mainWindow struct {
 	redrawJQ       gpu.JobQueue
 	swapchain      *wsi.Swapchain
 	swapchainImage *gpu.Image
-	renderer       *renderer // TODO: this could be an interface probably
+	renderer       *rendererGlue // TODO: this could be an interface probably
 }
 
 func (w *mainWindow) Run() {
@@ -62,7 +62,7 @@ func (w *mainWindow) Run() {
 	w.resized = make(chan struct{}, 1)
 
 	// TODO: implement Reset
-	w.renderer = &renderer{
+	w.renderer = &rendererGlue{
 		n: 10000,
 
 		idGen:     make([]uint32, 10000),
@@ -70,7 +70,7 @@ func (w *mainWindow) Run() {
 
 		updates: make(chan *sceneUpdate, 1),
 
-		gscene: grenderer.NewScene(10000, 6),
+		gscene: renderer.NewScene(10000, 6),
 
 		gsdata: make([]gsdata, 10000),
 

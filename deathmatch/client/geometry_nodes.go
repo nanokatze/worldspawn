@@ -7,7 +7,7 @@ import (
 	"worldspawn/internal/animgraph"
 	"worldspawn/internal/geometry"
 	"worldspawn/internal/gmath"
-	"worldspawn/internal/grenderer"
+	"worldspawn/internal/renderer"
 )
 
 type gsdata struct {
@@ -22,7 +22,7 @@ type gsdata struct {
 
 	// output
 
-	geometry *grenderer.Geometry
+	geometry *renderer.Geometry
 	accel    gpu.BLAS
 }
 
@@ -39,7 +39,7 @@ type geoNodes struct {
 
 // TODO: rename?
 
-func (gs *geoNodes) Outputs(data *gsdata) (*grenderer.Geometry, gpu.BLAS) {
+func (gs *geoNodes) Outputs(data *gsdata) (*renderer.Geometry, gpu.BLAS) {
 	if len(gs.pose.Bones) == 0 {
 		if gs.src == nil {
 			return nil, gpu.BLAS{}
@@ -56,7 +56,7 @@ func (gs *geoNodes) EnqueueEvaluate(jq *gpu.JobQueue, data *gsdata) {
 
 	rest := gs.src.ggeometry
 
-	restPositions := gs.src.attrs[grenderer.AttributePosition].(gpu.Slice[[3]float32])
+	restPositions := gs.src.attrs[renderer.AttributePosition].(gpu.Slice[[3]float32])
 
 	skinnedPositions := data.skinnedPositions
 	if gpu.SliceCap(skinnedPositions) < gpu.SliceLen(restPositions) {
@@ -69,9 +69,9 @@ func (gs *geoNodes) EnqueueEvaluate(jq *gpu.JobQueue, data *gsdata) {
 	// TODO: we should probably have our own geometry structure with a method to
 	// copy it over into pathtracer.Geometry so that we don't need to do this
 	// weird patching.
-	skinned := new(grenderer.Geometry)
+	skinned := new(renderer.Geometry)
 	skinned.AttributeBuffers = slices.Clone(rest.AttributeBuffers)
-	skinned.AttributeBuffers[grenderer.AttributePosition] = skinnedPositions
+	skinned.AttributeBuffers[renderer.AttributePosition] = skinnedPositions
 	skinned.Parts = slices.Clone(gs.src.ggeometry.Parts)
 	data.geometry = skinned
 

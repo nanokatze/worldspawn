@@ -1,9 +1,9 @@
-package grenderer
+package renderer
 
 import (
 	"worldspawn/gpu"
-	"worldspawn/internal/grenderer/internal/material"
-	"worldspawn/internal/grenderer/matc"
+	"worldspawn/internal/renderer/internal/material"
+	"worldspawn/internal/renderer/matc"
 )
 
 /*

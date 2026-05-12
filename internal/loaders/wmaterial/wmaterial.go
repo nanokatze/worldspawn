@@ -9,7 +9,7 @@ import (
 
 	"worldspawn/internal/compiler"
 	"worldspawn/internal/compiler/core"
-	"worldspawn/internal/grenderer/matc"
+	"worldspawn/internal/renderer/matc"
 )
 
 type Header struct {

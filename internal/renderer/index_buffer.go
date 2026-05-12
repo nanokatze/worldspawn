@@ -1,4 +1,4 @@
-package grenderer
+package renderer
 
 import (
 	"worldspawn/gpu"

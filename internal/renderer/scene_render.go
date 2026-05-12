@@ -1,4 +1,4 @@
-package grenderer
+package renderer
 
 import (
 	"fmt"
@@ -113,7 +113,7 @@ var blueNoise = sync.OnceValue(func() *gpu.Image {
 })
 
 var raygen = sync.OnceValue(func() *gpu.RayTracingShaderGroup {
-	return gpu.NewGeneralRayTracingShaderGroup(gpu.NewRayTracingFunc(mustReadFile("shaders/grenderer_scene_render.spv"), vk.SHADER_STAGE_RAYGEN_BIT_KHR, "raygen"))
+	return gpu.NewGeneralRayTracingShaderGroup(gpu.NewRayTracingFunc(mustReadFile("shaders/renderer_scene_render.spv"), vk.SHADER_STAGE_RAYGEN_BIT_KHR, "raygen"))
 })
 
 func mustReadFile(filename string) []byte {

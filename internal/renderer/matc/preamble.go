@@ -5,7 +5,7 @@ import (
 	"slices"
 	"unsafe"
 
-	"worldspawn/internal/grenderer/internal/material"
+	"worldspawn/internal/renderer/internal/material"
 )
 
 type Attributes interface {

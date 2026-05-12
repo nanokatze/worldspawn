@@ -21,21 +21,21 @@ import (
 	"worldspawn/internal/compiler/core"
 	"worldspawn/internal/fuckwwise/wav"
 	"worldspawn/internal/geometry"
-	"worldspawn/internal/grenderer"
-	"worldspawn/internal/grenderer/matc"
 	"worldspawn/internal/loaders/wmaterial"
 	"worldspawn/internal/loaders/wmesh"
+	"worldspawn/internal/renderer"
+	"worldspawn/internal/renderer/matc"
 )
 
 // TODO: rename this file to something else
 // TODO: outline this into its own package. pathtracerio?
 
-var texturecache = make(map[string]*grenderer.Texture)
+var texturecache = make(map[string]*renderer.Texture)
 var materialcache = make(map[string]material)
 var modelcache = make(map[string]*fileBackedMesh)
 
 // TODO: should support streaming etc.
-func texture(filename string) *grenderer.Texture {
+func texture(filename string) *renderer.Texture {
 	t, ok := texturecache[filename]
 	if !ok {
 		// TODO: move this code into its own func + handle errors and everything.
@@ -53,7 +53,7 @@ func texture(filename string) *grenderer.Texture {
 
 		conf := d.Config()
 
-		t = new(grenderer.Texture)
+		t = new(renderer.Texture)
 		t.Image = gpu.NewImage(
 			vk.Format(conf.Format),
 			conf.Extent[:conf.Dim],
@@ -91,7 +91,7 @@ func texture(filename string) *grenderer.Texture {
 
 type material struct {
 	preamble matc.Preamble
-	material *grenderer.InterpretedMaterial
+	material *renderer.InterpretedMaterial
 }
 
 func getmaterial(identifier string) material {
@@ -138,7 +138,7 @@ func getmaterial(identifier string) material {
 		}
 
 		m.preamble = matc.CompilePreamble(paramsTuple, header.Preamble)
-		m.material = grenderer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(paramsTuple, sea, ir, debuglog))
+		m.material = renderer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(paramsTuple, sea, ir, debuglog))
 	}
 	materialcache[identifier] = m
 	return m
@@ -150,7 +150,7 @@ bail:
 	return m
 }
 
-var errorMaterial = sync.OnceValue(func() *grenderer.InterpretedMaterial {
+var errorMaterial = sync.OnceValue(func() *renderer.InterpretedMaterial {
 	sea := compiler.NewSea()
 	b := &compiler.Builder{
 		Sea:   sea,
@@ -174,7 +174,7 @@ var errorMaterial = sync.OnceValue(func() *grenderer.InterpretedMaterial {
 		b.Value2(matc.OpDFWeightedSum, matc.EDFType{}, nil),
 	)
 
-	return grenderer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(matc.ParamsTuple{}, sea, program, nil))
+	return renderer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(matc.ParamsTuple{}, sea, program, nil))
 })
 
 type fileBackedMesh struct {
@@ -196,7 +196,7 @@ type fileBackedMesh struct {
 
 	materials []string
 
-	ggeometry grenderer.Geometry
+	ggeometry renderer.Geometry
 	gaccel    gpu.BLAS
 }
 
@@ -255,12 +255,12 @@ func loadmesh(filename string) *fileBackedMesh {
 	if _, err := blob2.ReadAt(byteslice(indexBufferData.Value()), header2.IndexBuffer.Data); err != nil {
 		panic(err)
 	}
-	indexBuffer := grenderer.IndexBufferFromUint32Slice(indexBufferData)
+	indexBuffer := renderer.IndexBufferFromUint32Slice(indexBufferData)
 
 	attrs := make([]any, 2)
 
-	attrs[grenderer.AttributePosition] = loadattrbuf(blob2, int(header2.VertexCount), header2.Positions)
-	attrs[grenderer.AttributeNormal] = loadattrbuf(blob2, int(header2.VertexCount), header2.Normals)
+	attrs[renderer.AttributePosition] = loadattrbuf(blob2, int(header2.VertexCount), header2.Positions)
+	attrs[renderer.AttributeNormal] = loadattrbuf(blob2, int(header2.VertexCount), header2.Normals)
 
 	// for i, desc := range header2.AttributeBuffers {
 	// 	if desc.Domain != 0 {
@@ -296,9 +296,9 @@ func loadmesh(filename string) *fileBackedMesh {
 		}
 	}
 
-	ggeometry := grenderer.Geometry{}
+	ggeometry := renderer.Geometry{}
 	ggeometry.AttributeBuffers = attrs
-	ggeometry.Parts = make([]grenderer.GeometryPart, len(header2.MaterialIndexRanges))
+	ggeometry.Parts = make([]renderer.GeometryPart, len(header2.MaterialIndexRanges))
 
 	materials := make([]string, len(header2.MaterialIndexRanges)) // TODO: eventually it would be nice if we could just directly use header2.Materials
 	for materialIndex, range_ := range header2.MaterialIndexRanges {

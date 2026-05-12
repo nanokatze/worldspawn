@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"worldspawn/internal/compiler"
-	"worldspawn/internal/grenderer/internal/material"
+	"worldspawn/internal/renderer/internal/material"
 )
 
 type ParamsTuple struct {

@@ -1,4 +1,4 @@
-package grenderer
+package renderer
 
 import (
 	"structs"
@@ -6,7 +6,7 @@ import (
 	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
 	"worldspawn/internal/gmath"
-	"worldspawn/internal/grenderer/internal/material"
+	"worldspawn/internal/renderer/internal/material"
 )
 
 // TODO: DVec3 baseOffset

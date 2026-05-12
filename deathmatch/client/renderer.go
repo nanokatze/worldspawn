@@ -10,14 +10,14 @@ import (
 	"worldspawn/internal/arenderer"
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/gmath"
-	"worldspawn/internal/grenderer"
+	"worldspawn/internal/renderer"
 	"worldspawn/internal/sdl"
 )
 
 type sceneUpdate struct {
 	tm timeMapping
 
-	camera          grenderer.Camera
+	camera          renderer.Camera
 	cameraTransform int
 
 	sky *gpu.Image
@@ -32,7 +32,7 @@ type sceneUpdate struct {
 
 	geoNodes []geoNodes // TODO: rename this
 
-	materials    [][]*grenderer.InterpretedMaterial
+	materials    [][]*renderer.InterpretedMaterial
 	materialArgs [][][256]byte
 }
 
@@ -46,7 +46,7 @@ func newSceneDirty(n int) *sceneUpdate {
 
 		geoNodes: make([]geoNodes, n),
 
-		materials:    make([][]*grenderer.InterpretedMaterial, n),
+		materials:    make([][]*renderer.InterpretedMaterial, n),
 		materialArgs: make([][][256]byte, n),
 	}
 }
@@ -66,7 +66,7 @@ type timeMapping struct {
 	t0game, t1game game.Time
 }
 
-type renderer struct {
+type rendererGlue struct {
 	n int
 
 	idGen []uint32
@@ -86,11 +86,11 @@ type renderer struct {
 	// TODO: what if we want to pass multiple cameras to the composition
 	// pipeline?
 	// TODO: camera states need to be t0 and t1 too
-	ourCamera          grenderer.Camera
+	ourCamera          renderer.Camera
 	ourCameraTransform int
 	scene2             *sceneUpdate
 	gsdata             []gsdata
-	gscene             *grenderer.Scene
+	gscene             *renderer.Scene
 
 	// NOTE: sound renderer works very differently from graphics renderer: we'll
 	// probably tie it to simulation ticks. Or I guess we could also piggyback
@@ -106,14 +106,14 @@ type renderer struct {
 	ascene *arenderer.Scene
 }
 
-func (re *renderer) Reset(n int) {
+func (re *rendererGlue) Reset(n int) {
 	// NOTE: this is called concurrently with Redraw. Keep that in mind when
 	// implementing this function.
 }
 
 // TODO: remove this in favor of merging updates at commitUpdate time. I.e.
 // we'll start off with a clean update every time.
-func (re *renderer) beginUpdate() *sceneUpdate {
+func (re *rendererGlue) beginUpdate() *sceneUpdate {
 	if re.stagingUpdate == nil {
 		// TODO: pool this stuff
 		return newSceneDirty(re.n)
@@ -124,14 +124,14 @@ func (re *renderer) beginUpdate() *sceneUpdate {
 }
 
 // TODO: rename to enqueueUpdate?
-func (re *renderer) commitUpdate(update *sceneUpdate) {
+func (re *rendererGlue) commitUpdate(update *sceneUpdate) {
 	select {
 	case re.updates <- update:
 	default:
 	}
 }
 
-func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration) {
+func (re *rendererGlue) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration) {
 	conf := config.Load()
 
 	update := re.beginUpdate()
@@ -232,7 +232,7 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 			}
 
 			// TODO: stop allocating a new slice every time
-			update.materials[i] = make([]*grenderer.InterpretedMaterial, len(geometry.materials))
+			update.materials[i] = make([]*renderer.InterpretedMaterial, len(geometry.materials))
 			update.materialArgs[i] = make([][256]byte, len(geometry.materials))
 
 			for j := range update.materials[i] {
@@ -252,7 +252,7 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 
 		// TODO: also the camera itself might not be valid or w/e
 		update.cameraTransform = camera.Index()
-		update.camera = grenderer.Camera{
+		update.camera = renderer.Camera{
 			FieldOfView:   float32(gmath.Radians(67.5)),
 			NearClipPlane: 0.01,
 		}
@@ -282,7 +282,7 @@ func (re *renderer) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frame
 	}
 }
 
-func (re *renderer) Subtick(w *game.Scene, playerID ecs.ID) {
+func (re *rendererGlue) Subtick(w *game.Scene, playerID ecs.ID) {
 	// TODO: this will need to enqueue an update and not modify any fields directly!
 
 	// re.stuffMu.Lock()
@@ -316,7 +316,7 @@ var worldspawnToRenderer = gmath.Mat4x4f32{
 	0, 0, 0, 1,
 }
 
-func (re *renderer) Redraw(jq *gpu.JobQueue, dst *gpu.Image, sdlNow uint64) {
+func (re *rendererGlue) Redraw(jq *gpu.JobQueue, dst *gpu.Image, sdlNow uint64) {
 	conf := config.Load()
 
 	select {
@@ -373,12 +373,12 @@ func (re *renderer) Redraw(jq *gpu.JobQueue, dst *gpu.Image, sdlNow uint64) {
 
 	re.gscene.EnqueueUpdateAccel(jq)
 
-	film := grenderer.Film{
+	film := renderer.Film{
 		Extent: [2]int(dst.Extent()),
 		Color:  dst,
 	}
 
-	quality := grenderer.Quality{
+	quality := renderer.Quality{
 		MaxBounces:               conf.Quality.MaxBounces,
 		RussianRouletteThreshold: conf.Quality.RussianRouletteThreshold,
 	}

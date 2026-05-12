@@ -2,7 +2,7 @@ package matc
 
 import (
 	"worldspawn/internal/compiler"
-	"worldspawn/internal/grenderer/internal/material"
+	"worldspawn/internal/renderer/internal/material"
 )
 
 // type regType struct{ N int }
