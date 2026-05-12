@@ -2,7 +2,6 @@ package gmath
 
 import (
 	"fmt"
-	"math"
 	"slices"
 	"testing"
 )
@@ -13,9 +12,9 @@ func TestRot3AToB(t *testing.T) {
 	vectors := slices.Collect(
 		func(yield func(Vec3f32) bool) {
 			for i := range 3 {
-				for s := range 1 {
+				for s := range 2 {
 					var v Vec3f32
-					v[i] = float32(math.Pow(-1, float64(s)))
+					v[i] = 2*float32(s) - 1
 					yield(v)
 				}
 			}
@@ -23,6 +22,10 @@ func TestRot3AToB(t *testing.T) {
 
 	for i, a := range vectors {
 		for j, b := range vectors {
+			if a.Dot(b) == -1 {
+				continue
+			}
+
 			t.Run(fmt.Sprintf("%d %d", i, j), func(t *testing.T) {
 				t.Logf("a=%v", a)
 				t.Logf("b=%v", b)
@@ -40,4 +43,20 @@ func TestRot3AToB(t *testing.T) {
 }
 
 func TestRot3Pow(t *testing.T) {
+	a := Vec3f32{1, 0, 0}
+	b := Vec3f32{0, 1, 0}
+	R_base := Rot3AToB(a, b)
+
+	R := Rot3One()
+	for p := range 10 {
+		S := R_base.Pow(float32(p))
+
+		t.Logf("R_%d = %v", p, R)
+		t.Logf("S_%d = %v", p, S)
+		if cosPhaseDiff := R.Mul(S.Inverse())[3]; cosPhaseDiff != 1 {
+			t.Error("significant difference")
+		}
+
+		R = R.Mul(R_base)
+	}
 }

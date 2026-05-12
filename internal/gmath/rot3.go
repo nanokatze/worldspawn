@@ -6,6 +6,17 @@ import (
 
 // TODO: kill quat and generate RotN types
 
+// TODO: currently our rotations always double cover the SO(d). We should
+// require that the scalar part is non-negative so that each set of coefficients
+// corresponds to a unique rotation object and we can use == to compare
+// rotations for equality. As an extension of this, we could also avoid storing
+// the scalar part explicitly.
+
+// TODO: offer constructors for Rot2 and Rot3 which convert from complex and
+// quaternion respectively
+
+// TODO: introduce methods to get pointers to the parts of Rot3
+
 // TODO: move scalar to be at [0]
 type Rot3 [4]float32
 
@@ -14,15 +25,14 @@ func Rot3One() Rot3 {
 }
 
 // Rot3AToB constructs a rotation R such that R.Rotate(a) == b. a and b must be
-// unit and (for now) a.Dot(b) must be non-negative.
+// unit.
 func Rot3AToB(a, b Vec3f32) Rot3 {
-	// TODO: handle the case when a.Dot(b) < 0
+	// TODO: handle the case when a.Dot(b) == -1?
 
-	// TODO: better naming for different grade elements
-
-	B := a.Cross(b)
-	scalar := float32(math.Sqrt(float64(1 - B.Dot(B))))
-	return Rot3{B[0], B[1], B[2], scalar}.Sqrt()
+	var RR Rot3
+	RR[3] = a.Dot(b)
+	*(*[3]float32)(RR[0:3]) = a.Cross(b)
+	return RR.Sqrt()
 }
 
 func Rot3FromMat(m Mat3x3f32) Rot3 {
@@ -78,6 +88,10 @@ func Rot3FromMat(m Mat3x3f32) Rot3 {
 	return Rot3{x, y, z, w}.Renormalize()
 }
 
+func Rot3FromQuaternion(w, x, y, z float32) Rot3 {
+	return Rot3{x, y, z, w}
+}
+
 func (R Rot3) Renormalize() Rot3 {
 	// TODO: quit relying on VecN
 	tmp := Vec4f32(R)
@@ -92,8 +106,8 @@ func (R Rot3) Inverse() Rot3 {
 	return Rot3(quat[float32](R).Conj())
 }
 
-func (R Rot3) Mul(R2 Rot3) Rot3 {
-	return Rot3(quat[float32](R).Mul(quat[float32](R2))).Renormalize()
+func (R Rot3) Mul(S Rot3) Rot3 {
+	return Rot3(quat[float32](R).Mul(quat[float32](S))).Renormalize()
 }
 
 func (R Rot3) Pow(p float32) Rot3 {
@@ -135,16 +149,16 @@ func (r Rot3) ToMat() Mat3x3f32 {
 	return R
 }
 
-// TODO: kill this tbh, the user has Pow they can use to implement interpolation
-func (R Rot3) NLerp(R2 Rot3, t float32) Rot3 {
+// TODO: kill this and delegate it to the user entirely.
+func (R Rot3) NLerp(S Rot3, t float32) Rot3 {
 	u, v := 1-t, t
-	if Vec4f32(R).Dot(Vec4f32(R2)) < 0 {
+	if Vec4f32(R).Dot(Vec4f32(S)) < 0 {
 		v = -t
 	}
 
 	var c Rot3
 	for i := range 4 {
-		c[i] = R[i]*u + R2[i]*v
+		c[i] = R[i]*u + S[i]*v
 	}
 	return c.Renormalize()
 }
