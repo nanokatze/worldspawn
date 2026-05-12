@@ -75,9 +75,7 @@ func Rot3FromMat(m Mat3x3f32) Rot3 {
 		y = (r12 + r21) * s
 	}
 
-	r := Rot3{x, y, z, w}
-	r.Renormalize()
-	return r
+	return Rot3{x, y, z, w}.Renormalize()
 }
 
 func (R Rot3) Renormalize() Rot3 {
@@ -99,25 +97,22 @@ func (R Rot3) Mul(R2 Rot3) Rot3 {
 }
 
 func (R Rot3) Pow(p float32) Rot3 {
-	if p < 0 {
-		R = R.Inverse()
-		p = -p
-	}
+	// TODO: naming
 
 	φ := float32(math.Acos(float64(R[3])))
-	B := Vec3f32(R[0:3]).Scale(1.0 / float32(math.Sin(float64(φ))))
+	B := Vec3f32(R[0:3]).Normalize()
 
-	φ2 := p * φ
+	pφ := p * φ
 
-	sinPhi2, cosPhi2 := math.Sincos(float64(φ2))
+	sinpφ, cospφ := math.Sincos(float64(pφ))
 
-	B2 := B.Scale(float32(sinPhi2))
+	B2 := B.Scale(float32(sinpφ))
 
-	return Rot3{B2[0], B2[1], B2[2], float32(cosPhi2)}
+	return Rot3{B2[0], B2[1], B2[2], float32(cospφ)}
 }
 
 func (R Rot3) Sqrt() Rot3 {
-	// Gross; TODO: can we please just make composition and constructors maintain this?
+	// TODO: handle R[3] < 0 properly pls
 	if R[3] < 0 {
 		for i := range 4 {
 			R[i] *= -1
@@ -147,8 +142,6 @@ func (r Rot3) ToMat() Mat3x3f32 {
 	return R
 }
 
-// TODO: introduce SLerp which will transparently use NLerp when estimated error
-// is below some threshold?
 // TODO: kill this tbh, the user has Pow they can use to implement interpolation
 func (R Rot3) NLerp(R2 Rot3, t float32) Rot3 {
 	u, v := 1-t, t
