@@ -3,7 +3,6 @@ package game
 import (
 	"io"
 	"log"
-	"math"
 
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/fuckwwise/wav"
@@ -17,7 +16,7 @@ type CosmeticOffset struct {
 }
 
 func (cosmeticOffset CosmeticOffset) Eval(now Time) gmath.Vec3f32 {
-	extinction := math.Exp(-float64(cosmeticOffset.Alpha) * durationToFloatSeconds(max(now.Sub(cosmeticOffset.T0), 0)))
+	extinction := 1.0 / (1 + float64(cosmeticOffset.Alpha)*durationToFloatSeconds(max(now.Sub(cosmeticOffset.T0), 0)))
 	return cosmeticOffset.Offset.Scale(float32(extinction))
 }
 
