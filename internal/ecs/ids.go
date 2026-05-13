@@ -11,13 +11,24 @@ func (ids *IDs) Cap() int {
 	return len(ids.gens)
 }
 
+func (ids *IDs) NextFreeIndex(i int) int {
+	n := ids.Cap()
+	// TODO: we should cook a FindFirstUnset on the bitset
+	for ; i < n; i++ {
+		if !ids.used.Test(i) {
+			return i
+		}
+	}
+	return -1
+}
+
 // TODO: add a constraint that the generation should advance? It seems like in
 // the game we could run into a situation where an entity is revived (e.g.
 // something unsets the deletion timer but that timer already fired on client.)
 // We'll need to think that through I guess.
 // TODO: what do we return if we try to create an ID that's already there?
 func (ids *IDs) create(id ID) bool {
-	if id == 0 {
+	if id == NullID {
 		panic("null id")
 	}
 	index, gen := id.Index(), id.Generation()

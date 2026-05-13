@@ -102,7 +102,7 @@ func (c *Column[T]) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	}
 	for id, v := range tmp {
 		// if m.idAlloc
-		if !c.ids.Exists(id) && !c.table.Create(id) {
+		if !c.ids.Exists(id) && !c.table.CreateRow(id) {
 			return errors.New("bad")
 		}
 		c.Set(id, v)

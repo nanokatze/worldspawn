@@ -8,7 +8,6 @@ import (
 type Table struct {
 	ids     IDs
 	columns []ReflectedColumn
-	next    int // wack; outsource hint management to the user
 }
 
 func NewTable(n int) *Table {
@@ -17,40 +16,50 @@ func NewTable(n int) *Table {
 			used: bitset.Make(n),
 			gens: make([]uint32, n),
 		},
-		next: 1,
 	}
 }
 
-func (t *Table) IDs() *IDs {
-	return &t.ids
+func (t *Table) IDs() *IDs { return &t.ids }
+
+/*
+type IDConstraints struct {
+	MinIndex int
+	MaxIndex int
+}
+*/
+
+func (table *Table) CreateRowAuto(minIndex, maxIndex int, nextID *ID) ID {
+	index := nextID.Index()
+	gen := nextID.Generation()
+
+	for range 2 {
+		index = max(index, minIndex)
+		if index == 0 && gen == 0 {
+			index++
+		}
+
+		index = table.IDs().NextFreeIndex(index)
+		if minIndex <= index && index <= maxIndex {
+			id := MakeID(index, gen)
+			if !table.CreateRow(id) {
+				return NullID
+			}
+			*nextID = id.Succ()
+			return id
+		}
+
+		index = 0
+		gen++
+	}
+
+	return NullID
 }
 
-// TODO: kill off all alloc strategies and allocation onto the user
-
-// TODO: bulk allocation?
-// TODO: let the user control the ranges? the client needs to reserve IDs with
-// high indices for client-only entities
-// TODO: have this return error so it's up to the user to panic
-func (a *Table) Alloc() ID {
-	index := a.next
-	for a.ids.used.Set(index) {
-		// BUG: this doesn't wrap around
-		index++
-	}
-	a.next = index + 1
-	gen := a.ids.gens[index]
-	id := MakeID(index, gen)
-	if id == 0 {
-		panic("unreachable")
-	}
-	return id
-}
-
-func (t *Table) Create(id ID) bool {
+func (t *Table) CreateRow(id ID) bool {
 	return t.IDs().create(id)
 }
 
-func (t *Table) Delete(id ID) {
+func (t *Table) DeleteRow(id ID) {
 	for _, column := range t.columns {
 		column.Delete(id)
 	}

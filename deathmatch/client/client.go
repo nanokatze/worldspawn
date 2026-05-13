@@ -211,7 +211,7 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 						// TODO: log that we're deleting this
 						s.world.DeleteEntityImmediately(idAtIndex)
 					}
-					if !s.world.Table.Create(id) {
+					if !s.world.Table.CreateRow(id) {
 						panic("bad") // TODO: handle properly
 					}
 					// TODO: not sure if slog.Info or slog.Debug?

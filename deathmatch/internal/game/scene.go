@@ -144,6 +144,8 @@ type Scene struct {
 	// things would consult UpdateParams.Now rather than Scene.Params
 	Now Time
 
+	NextID ecs.ID
+
 	Table *ecs.Table
 	Columns
 
@@ -210,12 +212,16 @@ func (w *Scene) EntityExists(id ecs.ID) bool { return w.Table.IDs().Exists(id) }
 // creating entities so we can run a processing pass in parallel that then
 // spawns entities. Except this column would have to be of funcs.
 func (w *Scene) CreateEntity(info *UpdateParams) ecs.ID {
+	// TODO: don't hardcode index ranges
+
 	if info.Speculating {
 		// Create an entity at high index and mark it speculative so that it
 		// gets removed when we receive the update for this tick.
 		panic("not implemented")
 	}
-	return w.Table.Alloc()
+
+	id := w.Table.CreateRowAuto(0, 899, &w.NextID)
+	return id
 }
 
 // This is used by client networking to remove entities.
@@ -228,7 +234,7 @@ func (w *Scene) DeleteEntityImmediately(id ecs.ID) {
 	if _, ok := w.physicsBodyExists.Get(id); ok {
 		w.physicsSystem.RemoveBody(physics.BodyID(id))
 	}
-	w.Table.Delete(id)
+	w.Table.DeleteRow(id)
 }
 
 func (w *Scene) Globals() SceneGlobals {

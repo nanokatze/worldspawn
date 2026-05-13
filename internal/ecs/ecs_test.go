@@ -7,11 +7,11 @@ func TestRowCreation(t *testing.T) {
 
 	// TODO: more row creation tests
 
-	rows.Create(MakeID(69, 1))
-	rows.Delete(MakeID(69, 1))
+	rows.CreateRow(MakeID(69, 1))
+	rows.DeleteRow(MakeID(69, 1))
 
-	rows.Create(MakeID(69, 0))
-	rows.Delete(MakeID(69, 0))
+	rows.CreateRow(MakeID(69, 0))
+	rows.DeleteRow(MakeID(69, 0))
 }
 
 func TestRowDeletion(t *testing.T) {
@@ -33,13 +33,13 @@ func TestRowDeletion(t *testing.T) {
 
 	id := MakeID(69, 0)
 
-	rows.Create(id)
+	rows.CreateRow(id)
 	column.Set(id, 420)
-	rows.Delete(id)
+	rows.DeleteRow(id)
 
 	checkEmpty()
 
-	rows.Create(id)
+	rows.CreateRow(id)
 	checkEmpty()
-	rows.Delete(id)
+	rows.DeleteRow(id)
 }
