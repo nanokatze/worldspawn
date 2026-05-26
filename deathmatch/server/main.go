@@ -286,7 +286,7 @@ func (mtimes *modTimes) update(prevWorld, scene *game.Scene) {
 		}
 	}
 
-	for columnIndex := range replication.Columns.NumField() {
+	for _, columnIndex := range replication.ReplicatedColumns {
 		old := reflect.ValueOf(&prevWorld.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
 		cur := reflect.ValueOf(&scene.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
 
@@ -330,7 +330,7 @@ func (s *Server) tick(Δt time.Duration) {
 	// TODO: move this into a method on the World
 	s.prevWorld.Now = s.scene.Now
 	s.prevWorld.Table.Copy(s.scene.Table)
-	for columnIndex := range replication.Columns.NumField() {
+	for _, columnIndex := range replication.ReplicatedColumns {
 		dst := reflect.ValueOf(&s.prevWorld.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
 		src := reflect.ValueOf(&s.scene.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
 		dst.Copy(src)
@@ -397,7 +397,7 @@ func (s *Server) sendUpdates(u *user) {
 
 	// TODO: insert various canaries to make debugging easier
 
-	for columnIndex := range replication.Columns.NumField() {
+	for _, columnIndex := range replication.ReplicatedColumns {
 		column := reflect.ValueOf(&s.scene.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
 
 		buf2 := new(bytes.Buffer)
@@ -522,7 +522,7 @@ func main() {
 	s.tickPeriod = time.Second / 64
 	s.scene = game.NewScene(maxEntities)
 	s.prevWorld = game.NewScene(maxEntities)
-	s.mtimes.Init(maxEntities, replication.Columns.NumField())
+	s.mtimes.Init(maxEntities, reflect.TypeFor[game.Columns]().NumField())
 
 	sceneFile, err := game.Data.Open(conf.MapRotation[0])
 	if err := s.scene.Restore(sceneFile); err != nil {

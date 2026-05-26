@@ -102,7 +102,7 @@ type Columns struct {
 
 	// TODO: generalize to all events, including damage etc?
 	// TODO: these don't need to be networked
-	ContactEvents ecs.Column[[]ContactEvent]
+	ContactEvents ecs.Column[[]ContactEvent] `worldspawn:"transient"`
 
 	// TODO: kill this column and handle it at prefab instantination
 	CollectionInstance ecs.Column[CollectionInstance]
@@ -433,11 +433,21 @@ func (w *Scene) Step(updateParams *UpdateParams) {
 		w.SoundEffect.Set(id, soundEffect)
 	}
 
-	// TODO: move this to happen earlier
+	// Must happen last
 	w.DeleteEntities()
 
-	// TODO: move this to happen earlier
-	w.ContactEvents.Clear()
+	// Clear transient columns
+	{
+		// TODO: we should create a helper for these
+		rcolumns := reflect.ValueOf(&w.Columns).Elem()
+		ty := rcolumns.Type()
+		for i := range rcolumns.NumField() {
+			if ty.Field(i).Tag.Get("worldspawn") != "transient" {
+				continue
+			}
+			rcolumns.Field(i).Addr().Interface().(interface{ Clear() }).Clear()
+		}
+	}
 }
 
 func mustOk[T any](v T, ok bool) T {
@@ -484,14 +494,8 @@ func (w *Scene) DeleteEntities() {
 	}
 
 	// Remove entities that were scheduled for removal
-	{
-		// TODO: delete entities in bulk?
-		for id := range ecs.All(&w.Delete) {
-			w.DeleteEntityImmediately(id)
-		}
-
-		for range ecs.All(&w.Delete) {
-			panic("all columns must be empty")
-		}
+	for id := range ecs.All(&w.Delete) {
+		w.Table.DeleteRow(id)
+		w.physicsSystem.RemoveBody(physics.BodyID(id.Index()))
 	}
 }

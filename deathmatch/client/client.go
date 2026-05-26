@@ -233,7 +233,7 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 
 	// TODO: clean this horrible mess up
 
-	for columnIndex := range replication.Columns.NumField() {
+	for _, columnIndex := range replication.ReplicatedColumns {
 		column := reflect.ValueOf(&s.world.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
 
 		v := reflect.New(column.ElemType())
@@ -258,7 +258,7 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 
 			id := s.world.Table.IDs().Index(int(index))
 			if id == 0 {
-				logger.Warn("snapshot refers to a non-existent object", "t", s.world.Now, "index", index, "column", replication.Columns.Field(columnIndex).Name)
+				logger.Warn("snapshot refers to a non-existent object", "t", s.world.Now, "index", index, "column", reflect.TypeFor[game.Columns]().Field(columnIndex).Name)
 				continue
 			}
 
