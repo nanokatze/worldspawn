@@ -14,7 +14,7 @@ const (
 	WeaponTrigger
 )
 
-type WeaponStepResult struct {
+type Recoil struct {
 	Recoil [2]float32
 }
 
@@ -36,5 +36,5 @@ type Weapon interface {
 		v Velocity,
 		buttons WeaponButtons,
 		info *UpdateParams,
-	) WeaponStepResult
+	) Recoil
 }

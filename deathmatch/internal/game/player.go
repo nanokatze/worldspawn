@@ -27,13 +27,7 @@ func (player Player) Camera(w *Scene) ecs.ID {
 func (w *Scene) HandleInput(playerID ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
 	player := mustOk(SceneGetEntity[Player](w, playerID))
 	char := mustOk(SceneGetEntity[PlayableCharacter](w, player.ControlledCharacter))
-	char.CharacterSubstep(w, player.ControlledCharacter, cmd, info)
-}
-
-// TODO: make this into a proper pass
-func (player Player) PlayerUpdate(w *Scene, id ecs.ID, info *UpdateParams) {
-	char := mustOk(SceneGetEntity[PlayableCharacter](w, player.ControlledCharacter))
-	char.CharacterStep(w, player.ControlledCharacter, info)
+	char.HandleInput(w, player.ControlledCharacter, cmd, info)
 }
 
 // TODO: this should be a method on the scene

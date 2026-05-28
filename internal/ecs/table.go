@@ -21,38 +21,12 @@ func NewTable(n int) *Table {
 
 func (t *Table) IDs() *IDs { return &t.ids }
 
-/*
-type IDConstraints struct {
-	MinIndex int
-	MaxIndex int
-}
-*/
-
 func (table *Table) CreateRowAuto(minIndex, maxIndex int, nextID *ID) ID {
-	index := nextID.Index()
-	gen := nextID.Generation()
-
-	for range 2 {
-		index = max(index, minIndex)
-		if index == 0 && gen == 0 {
-			index++
-		}
-
-		index = table.IDs().NextFreeIndex(index)
-		if minIndex <= index && index <= maxIndex {
-			id := MakeID(index, gen)
-			if !table.CreateRow(id) {
-				return NullID
-			}
-			*nextID = id.Succ()
-			return id
-		}
-
-		index = 0
-		gen++
+	id := table.IDs().nextFreeID(minIndex, maxIndex, *nextID)
+	if id != NullID && table.CreateRow(id) {
+		*nextID = id
 	}
-
-	return NullID
+	return id
 }
 
 func (t *Table) CreateRow(id ID) bool {
@@ -60,10 +34,14 @@ func (t *Table) CreateRow(id ID) bool {
 }
 
 func (t *Table) DeleteRow(id ID) {
+	t.ClearRow(id)
+	t.IDs().delete(id)
+}
+
+func (t *Table) ClearRow(id ID) {
 	for _, column := range t.columns {
 		column.Delete(id)
 	}
-	t.IDs().delete(id)
 }
 
 // NOTE: this only copies IDs for now, but not columns.

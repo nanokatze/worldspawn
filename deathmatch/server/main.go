@@ -555,33 +555,35 @@ func main() {
 		s.scene.Entity.Set(test2, game.Testburger{BaseColor: [4]float32{0.8, 0.8, 0.8, 1}})
 	}
 
-	if false {
-		{
-			weapon := s.scene.CreateEntity(info)
-			s.scene.Entity.Set(weapon, game.WeaponGrenadeLauncher{})
+	/*
+		if false {
+			{
+				weapon := s.scene.CreateEntity(info)
+				s.scene.Entity.Set(weapon, game.WeaponGrenadeLauncher{})
 
-			// Aaand "drop" the weapon
+				// Aaand "drop" the weapon
 
-			dropped := s.scene.CreateDroppedWeapon(weapon, info)
-			s.scene.SetTransform(dropped, gmath.TRS3f64{
-				T: gmath.Vec3f64{0, 0, 1},
-				R: gmath.Rot3One(),
-				S: gmath.Mat3x3UOne[float32](),
-			})
+				dropped := s.scene.CreateDroppedWeapon(weapon, info)
+				s.scene.SetTransform(dropped, gmath.TRS3f64{
+					T: gmath.Vec3f64{0, 0, 1},
+					R: gmath.Rot3One(),
+					S: gmath.Mat3x3UOne[float32](),
+				})
+			}
+
+			{
+				weapon := s.scene.CreateEntity(info)
+				s.scene.Entity.Set(weapon, game.WeaponSniperRifle{})
+
+				dropped := s.scene.CreateDroppedWeapon(weapon, info)
+				s.scene.SetTransform(dropped, gmath.TRS3f64{
+					T: gmath.Vec3f64{0, -10, 1},
+					R: gmath.Rot3One(),
+					S: gmath.Mat3x3UOne[float32](),
+				})
+			}
 		}
-
-		{
-			weapon := s.scene.CreateEntity(info)
-			s.scene.Entity.Set(weapon, game.WeaponSniperRifle{})
-
-			dropped := s.scene.CreateDroppedWeapon(weapon, info)
-			s.scene.SetTransform(dropped, gmath.TRS3f64{
-				T: gmath.Vec3f64{0, -10, 1},
-				R: gmath.Rot3One(),
-				S: gmath.Mat3x3UOne[float32](),
-			})
-		}
-	}
+	*/
 
 	s.scene.InstantinateCollections()
 

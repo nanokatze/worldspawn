@@ -315,7 +315,7 @@ func (w *mainWindow) sdlTimeToGameTime(ticks uint64) game.Time {
 	// If we have DontInterpolate set, we'll want t = 1
 	t := min(max(float64(ticks-w.renderer.tm.t0sdl)/float64(w.renderer.tm.t1sdl-w.renderer.tm.t0sdl), 0), 1)
 
-	return w.renderer.tm.t0game.Add(time.Duration(float64(w.renderer.tm.t1game-w.renderer.tm.t0game) * t))
+	return w.renderer.tm.t0game.Add(time.Duration(float64(w.renderer.tm.t1game.Sub(w.renderer.tm.t0game)) * t))
 }
 
 // GAMEPAD_BUTTON_START and K_ESC act as ways to switch between the menu and the

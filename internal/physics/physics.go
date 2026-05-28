@@ -62,6 +62,7 @@ type QueryHit struct {
 	Depth  float32
 }
 
+// TODO: fold this and other simulation-related stuff into Update
 func (system *System) SetGravity(gravity gmath.Vec3f32) {
 	C.physicsSetGravity((*C.Physics)(system), *(*C.vec3)(unsafe.Pointer(&gravity)))
 }

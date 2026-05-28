@@ -4,7 +4,6 @@ import (
 	"math"
 	"time"
 
-	"worldspawn/internal/animgraph"
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/gmath"
 )
@@ -75,12 +74,12 @@ func (weapon WeaponGrenadeLauncher) WeaponSubstep(
 	T gmath.Affine3f64,
 	v Velocity,
 	buttons WeaponButtons,
-	info *UpdateParams) WeaponStepResult {
+	info *UpdateParams) Recoil {
 	defer func() { scene.Entity.Set(weaponID, weapon) }()
 
 	if buttons&WeaponTrigger != 0 {
 		if weapon.CycleEnds.After(scene.Now) {
-			return WeaponStepResult{}
+			return Recoil{}
 		}
 
 		if !info.Speculating {
@@ -99,12 +98,12 @@ func (weapon WeaponGrenadeLauncher) WeaponSubstep(
 				})
 			scene.CollisionLayer.Set(projectile, CollisionLayerProjectiles)
 			scene.PhysicsFilter.Set(projectile, []ecs.ID{shooterID})
-			scene.Timer.Set(projectile, scene.Now.Add(grenadeStats.FuseDuration))
+			scene.NextThink.Set(projectile, scene.Now.Add(grenadeStats.FuseDuration))
 			scene.CosmeticOffset.Set(projectile,
 				CosmeticOffset{
 					Alpha: 2,
 					T0:    scene.Now,
-					// Ugh. TODO: think how we could make this not as gross
+					// Ugh. TODO: think how we could make this not as gross.
 					Offset: T.M.Mulv(gmath.Vec3f32{0.18, 0, -0.2}),
 				})
 			scene.DeleteCosmeticOffsetOnContact.Set(projectile, struct{}{})
@@ -112,18 +111,19 @@ func (weapon WeaponGrenadeLauncher) WeaponSubstep(
 
 		weapon.CycleEnds = scene.Now.Add(grenadeLauncherStats.CycleDuration)
 
-		// Apply effects to the props
+		// Apply effects to the props; TODO: let's have scripts on the props
+		// instead and let props consult the state.
 		for _, id := range propIDs {
-			skelly := scene.GetSkeleton(id)
-			scene.Pose.Set(id, animgraph.Pose{
-				Bones: map[int]gmath.Affine3f32{
-					skelly.JointByName("Bolt"): gmath.TRS3f32{
-						T: gmath.Vec3f32{0, -0.1 * Rand(scene.Now, weaponID, "grenade launcher bolt position").Float32(), 0},
-						R: gmath.Rot3One(),
-						S: gmath.Mat3x3UOne[float32](),
-					}.Compose(),
-				},
-			})
+			// skelly := scene.GetSkeleton(id)
+			// scene.Pose.Set(id, animgraph.Pose{
+			// 	Bones: map[int]gmath.Affine3f32{
+			// 		skelly.JointByName("Bolt"): gmath.TRS3f32{
+			// 			T: gmath.Vec3f32{0, -0.1 * Rand(scene.Now, weaponID, "grenade launcher bolt position").Float32(), 0},
+			// 			R: gmath.Rot3One(),
+			// 			S: gmath.Mat3x3UOne[float32](),
+			// 		}.Compose(),
+			// 	},
+			// })
 
 			scene.SoundEffect.Set(id, SoundEmitter{
 				Effect:      "weapons/grenade_launcher/fire.wav",
@@ -132,12 +132,13 @@ func (weapon WeaponGrenadeLauncher) WeaponSubstep(
 			})
 		}
 
+		// TODO: eschew rng?
 		rng := Rand(scene.Now, weaponID, T)
 
 		θ := 0.1 * 2 * math.Pi * (rng.Float64() - 0.5)
 		r := 0.02
 
-		return WeaponStepResult{
+		return Recoil{
 			Recoil: [2]float32{
 				float32(math.Sin(θ) * r),
 				float32(math.Cos(θ) * r),
@@ -145,5 +146,5 @@ func (weapon WeaponGrenadeLauncher) WeaponSubstep(
 		}
 	}
 
-	return WeaponStepResult{}
+	return Recoil{}
 }

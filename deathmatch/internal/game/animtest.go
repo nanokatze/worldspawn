@@ -1,32 +1,25 @@
 package game
 
-import (
-	"math"
-
-	"worldspawn/internal/animgraph"
-	"worldspawn/internal/ecs"
-	"worldspawn/internal/gmath"
-)
-
 type Animtest struct {
 	Animation string
 }
 
 func (Animtest) entity() {}
 
-func (animtest Animtest) PrePhysicsStep(w *Scene, ourID ecs.ID, info *UpdateParams) {
+/*
+func (animtest Animtest) Think(w *Scene, ourID ecs.ID, info *UpdateParams) {
 	animation := animation(animtest.Animation)
 
 	skelly := w.GetSkeleton(ourID)
 
 	localTransforms := map[int]gmath.Affine3f32{}
 
-	localTransforms[skelly.JointByName("spine")] =
-		gmath.TRS3f32{
-			R: gmath.Rot3AToB(gmath.Vec3f32{0, 0, 1}, gmath.Vec3f32{1, 0, 0}).
-				Pow(float32(math.Sin(float64(w.Now.Sub(0)) / 1e9))),
-			S: gmath.Mat3x3UOne[float32](),
-		}.Compose()
+	// localTransforms[skelly.JointByName("spine")] =
+	// 	gmath.TRS3f32{
+	// 		R: gmath.Rot3AToB(gmath.Vec3f32{0, 0, 1}, gmath.Vec3f32{1, 0, 0}).
+	// 			Pow(float32(math.Sin(float64(w.Now.Sub(0)) / 1e9))),
+	// 		S: gmath.Mat3x3UOne[float32](),
+	// 	}.Compose()
 
 	for _, bone := range []string{
 		"upper_arm.L",
@@ -76,3 +69,4 @@ func (animtest Animtest) PrePhysicsStep(w *Scene, ourID ecs.ID, info *UpdatePara
 
 	w.Pose.Set(ourID, pose)
 }
+*/

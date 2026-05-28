@@ -53,7 +53,5 @@ var InputCmdTypes = []reflect.Type{
 type PlayableCharacter interface {
 	Entity
 
-	// TODO: rename back to Tick or Update tbh
-	CharacterStep(w *Scene, id ecs.ID, info *UpdateParams)
-	CharacterSubstep(w *Scene, id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams)
+	HandleInput(w *Scene, id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams)
 }

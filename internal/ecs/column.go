@@ -52,7 +52,7 @@ func (c *Column[T]) Set(id ID, v T) {
 func (c *Column[T]) Delete(id ID) {
 	index := id.Index()
 	if !c.ids.Exists(id) {
-		return
+		panic("bad")
 	}
 	c.data[index] = *new(T) // don't retain pointers
 	c.valid.Unset(index)

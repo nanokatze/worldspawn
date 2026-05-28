@@ -26,7 +26,7 @@ func (id ID) Generation() uint32 {
 }
 
 func (id ID) Succ() ID {
-	return id + 1 // TODO: this is incorrect
+	return id + 1
 }
 
 // TODO: String method?

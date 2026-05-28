@@ -11,19 +11,29 @@ import (
 	"worldspawn/internal/gmath"
 )
 
-type SceneQueryHit[T any] struct {
+type SceneIntersection[T any] struct {
 	_        structs.HostLayout
 	BodyID   BodyID
 	Geometry T
 }
 
-// TODO: don't call this pipeline but rather something else
+// TODO: shorter name pls
+type QueryPipelineControl int
+
+// TODO: reorder these or renumber these. Make IgnoreHit be -1?
+const (
+	Terminate QueryPipelineControl = iota
+	AcceptHit
+	IgnoreHit
+)
+
+// TODO: rename this to SceneQueryHitCollector
 type SceneQueryPipeline[T any] interface {
 	// TODO: don't require query pipeline to implement filters, be opportunistic
 	// about it
 	// FilterLayer(int) bool // TODO:  this feels like it should be a bitmap tbh
 	// FilterBody(BodyID) bool
-	Hit(SceneQueryHit[T]) int // TODO: introduce a proper enum pls
+	Hit(SceneIntersection[T]) QueryPipelineControl // TODO: introduce a proper enum pls
 }
 
 //export physicsFilterLayerImpl
@@ -62,12 +72,14 @@ func (r Ray) F(t float32) gmath.Vec3f64 {
 	return r.Origin.Add(gmath.Vec3Convert[float64](r.Direction.Scale(t)))
 }
 
+type SceneRayHit = SceneIntersection[RayHit]
+
 type RayHit struct {
 	_ structs.HostLayout
 	T float32
 }
 
-// TODO: remove the filter field leaving just pipeline
+// TODO: rename to RayQuery?
 func (system *System) TraceRay(ray Ray, pipeline SceneQueryPipeline[RayHit]) {
 	cpipeline := cgo.NewHandle(pipeline)
 	defer cpipeline.Delete()
@@ -77,7 +89,7 @@ func (system *System) TraceRay(ray Ray, pipeline SceneQueryPipeline[RayHit]) {
 
 //export physicsRayHitImpl
 func physicsRayHitImpl(pipeline unsafe.Pointer, hit C.SceneRayHit) C.int {
-	return C.int(cgo.Handle(pipeline).Value().(SceneQueryPipeline[RayHit]).Hit(*(*SceneQueryHit[RayHit])(unsafe.Pointer(&hit))))
+	return C.int(cgo.Handle(pipeline).Value().(SceneQueryPipeline[RayHit]).Hit(*(*SceneRayHit)(unsafe.Pointer(&hit))))
 }
 
 type Overlap struct {
@@ -100,7 +112,7 @@ type OverlapHit struct {
 	// TODO: more stuff?
 }
 
-// TODO: rename
+// TODO: rename to GeometryIntersectionQuery or idk?
 func (system *System) Overlap(overlap Overlap, pipeline SceneQueryPipeline[OverlapHit]) {
 	cpipeline := cgo.NewHandle(pipeline)
 	defer cpipeline.Delete()
@@ -110,5 +122,5 @@ func (system *System) Overlap(overlap Overlap, pipeline SceneQueryPipeline[Overl
 
 //export physicsOverlapHitTramp
 func physicsOverlapHitTramp(pipeline unsafe.Pointer, hit C.SceneOverlapHit) C.int {
-	return C.int(cgo.Handle(pipeline).Value().(SceneQueryPipeline[OverlapHit]).Hit((*(*SceneQueryHit[OverlapHit])(unsafe.Pointer(&hit)))))
+	return C.int(cgo.Handle(pipeline).Value().(SceneQueryPipeline[OverlapHit]).Hit((*(*SceneIntersection[OverlapHit])(unsafe.Pointer(&hit)))))
 }

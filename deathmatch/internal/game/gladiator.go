@@ -38,13 +38,13 @@ var gladiatorStats = struct {
 }
 
 type Gladiator struct {
-	Health int32
-
 	LookDir     [2]float32 // spherical unit vec3; TODO: swap coordinates so that polar angle is [0] and flip its sign
 	MoveVec     gmath.Vec2f32
 	HeldButtons uint64
 
 	// TODO: viewshake and viewpunch
+
+	Health float32
 
 	Steps float64
 
@@ -62,6 +62,8 @@ type Gladiator struct {
 	ActiveWeaponThirdPersonProp ecs.ID
 
 	Slots [4]ecs.ID
+
+	// Ammo [numAmmoTypes]int64 ; or map[string]int64 but we'll probably really just go with
 }
 
 var _ PlayableCharacter = Gladiator{}
@@ -106,6 +108,8 @@ func createGladiator(scene *Scene, info *UpdateParams) ecs.ID {
 	scene.Entity.Set(gladiator, Gladiator{
 		FirstPersonCamera: camera,
 		FirstPersonHands:  hands,
+
+		Health: 100,
 	})
 
 	// Give the gladiator some guns
@@ -127,7 +131,7 @@ func createGladiator(scene *Scene, info *UpdateParams) ecs.ID {
 	return gladiator
 }
 
-func (gladiator Gladiator) CharacterSubstep(w *Scene, id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
+func (gladiator Gladiator) HandleInput(w *Scene, id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
 	defer func() { w.Entity.Set(id, gladiator) }()
 
 	var switchToWeapon ecs.ID
@@ -257,24 +261,41 @@ func (gladiator Gladiator) CharacterSubstep(w *Scene, id ecs.ID, cmd Timestamped
 		})
 }
 
-func (gladiator Gladiator) CharacterStep(w *Scene, id ecs.ID, info *UpdateParams) {
-	// TODO: do not call this here?
-	gladiator.CharacterSubstep(w, id, TimestampedInputCmd{}, info)
+// func (gladiator Gladiator) PrePhysicsStep(w *Scene, id ecs.ID, info *UpdateParams) {
+// }
+
+func (gladiator Gladiator) HandleMessage(w *Scene, self ecs.ID, msg any, info *UpdateParams) {
+	switch msg := msg.(type) {
+	case Impact:
+		gladiator.Health -= msg.Damage
+		if gladiator.Health <= 0 {
+			// TODO: kill ourselves. This is a good place to play spawn gibs or
+			// ragdoll or a death animation play thing, play death sound, etc.
+			info.Logger.Info("die!!!!!", "id", self)
+		}
+		w.Entity.Set(self, gladiator)
+	}
+}
+
+// TODO: player movement should happen in PrePhysicsStep, we should not be modifying any fields!!!
+func (gladiator Gladiator) Think(w *Scene, self ecs.ID, info *UpdateParams) {
+	// TODO: do not call this here
+	gladiator.HandleInput(w, self, TimestampedInputCmd{}, info)
 
 	// TODO: this is incredibly gross and ugly, FIXME
-	gladiator = mustOk(SceneGetEntity[Gladiator](w, id))
+	gladiator = mustOk(SceneGetEntity[Gladiator](w, self))
 
-	velocity, _ := w.Velocity.Get(id)
+	velocity, _ := w.Velocity.Get(self)
 
 	// TODO: more elaborate viewmodel sway
 	w.SetTransform(gladiator.FirstPersonHands,
 		gmath.TRS3f64{
-			T: gmath.Vec3f64{0, math.Sin(float64(w.Now)/1e9*6) * 0.03 * min(float64(velocity.Linear.Length()/6), 1), 0},
+			T: gmath.Vec3f64{0, math.Sin(float64(w.Now.Sub(Time{}))/1e9*6) * 0.03 * min(float64(velocity.Linear.Length()/6), 1), 0},
 			R: gmath.Rot3One(),
 			S: gmath.Mat3x3UOne[float32](),
 		})
 
-	trs := w.GetTransform(id)
+	trs := w.GetTransform(self)
 
 	rotation := trs.R.Mul(rotXY.Pow(4 * gladiator.LookDir[0]))
 
@@ -297,13 +318,13 @@ func (gladiator Gladiator) CharacterStep(w *Scene, id ecs.ID, info *UpdateParams
 		velocity.Linear = velocity.Linear.Add(w.Globals().Gravity.Scale(float32(durationToFloatSeconds(info.Δt))))
 	}
 
-	velocity.Linear = gladiator.asdasd(w, id, velocity.Linear, info.Δt)
+	velocity.Linear = gladiator.asdasd(w, self, velocity.Linear, info.Δt)
 
 	if gladiator.Supported {
 		gladiator.Steps += float64(velocity.Linear.Length()) * durationToFloatSeconds(info.Δt)
 	}
 	if gladiator.Steps > 3 {
-		w.SoundEffect.Set(id, SoundEmitter{
+		w.SoundEffect.Set(self, SoundEmitter{
 			Effect:      "step.wav",
 			Attenuation: 1,
 			PlayTime:    w.Now,
@@ -311,8 +332,8 @@ func (gladiator Gladiator) CharacterStep(w *Scene, id ecs.ID, info *UpdateParams
 		gladiator.Steps = 0
 	}
 
-	w.Entity.Set(id, gladiator)
-	w.Velocity.Set(id, velocity)
+	w.Entity.Set(self, gladiator)
+	w.Velocity.Set(self, velocity)
 }
 
 func planeNormal(plane gmath.Vec4f32) gmath.Vec3f32 {
@@ -327,7 +348,7 @@ func planeSignedDistance(plane gmath.Vec4f32, point gmath.Vec3f32) float32 {
 
 type gladiatorMovementQueryPipeline struct {
 	player physics.BodyID
-	hits   []physics.SceneQueryHit[physics.OverlapHit]
+	hits   []physics.SceneIntersection[physics.OverlapHit]
 }
 
 func (*gladiatorMovementQueryPipeline) FilterLayer(layer int) bool {
@@ -339,9 +360,9 @@ func (a *gladiatorMovementQueryPipeline) FilterBody(body physics.BodyID) bool {
 	return body != a.player
 }
 
-func (a *gladiatorMovementQueryPipeline) Hit(x physics.SceneQueryHit[physics.OverlapHit]) int {
+func (a *gladiatorMovementQueryPipeline) Hit(x physics.SceneIntersection[physics.OverlapHit]) physics.QueryPipelineControl {
 	a.hits = append(a.hits, x)
-	return 2
+	return physics.IgnoreHit
 }
 
 func (gladiator *Gladiator) asdasd(w *Scene, id ecs.ID, velocity gmath.Vec3f32, Δt time.Duration) gmath.Vec3f32 {

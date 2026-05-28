@@ -3,25 +3,26 @@ package game
 import (
 	"fmt"
 	"log"
-	"time"
 
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/gmath"
 	"worldspawn/internal/physics"
 )
 
-// TODO: kill this
-type PrePhysicsStep interface {
-	PrePhysicsStep(w *Scene, id ecs.ID, info *UpdateParams)
-}
-
-type PostPhysicsStep interface {
-	PostPhysicsStep(w *Scene, id ecs.ID, info *UpdateParams)
-}
-
 type Velocity struct {
 	Linear  gmath.Vec3f32
-	Angular gmath.Vec3f32 // TODO: this should probably be something else
+	Angular gmath.Vec3f32 // TODO: this should be a scalar per basis plane rather than vec3
+}
+
+func (a Velocity) Add(b Velocity) Velocity {
+	return Velocity{
+		Linear:  a.Linear.Add(b.Linear),
+		Angular: a.Angular.Add(b.Angular),
+	}
+}
+
+type UpdatePhysicsShadow interface {
+	UpdatePhysicsShadow(w *Scene, id ecs.ID, info *UpdateParams)
 }
 
 /*
@@ -47,7 +48,14 @@ func (scene *Scene) RayQuery(ray physics.Ray) iter.Seq[] {
 // uncrouch the player I think
 
 // Always run this before performing physics queries!!!
-func (w *Scene) updatePhysicsShadow() {
+func (w *Scene) updatePhysicsShadow(updateParams *UpdateParams) {
+	for id, entity := range ecs.All(&w.Entity) {
+		if entity, ok := entity.(UpdatePhysicsShadow); ok {
+			// TODO: we should have a pile of things for custom physics
+			entity.UpdatePhysicsShadow(w, id, updateParams)
+		}
+	}
+
 	// TODO: remove bodies when we delete entities!!!!!!!!
 	for id := range ecs.All(&w.physicsBodyExists) {
 		if _, ok := w.CollisionLayer.Get(id); !ok {
@@ -176,14 +184,20 @@ func getShape(w *Scene, id ecs.ID) *physics.Shape {
 }
 
 // TODO: we could split this back so that we can run stuff in parallel
-func (w *Scene) physicsStep(Δt time.Duration) {
+func (w *Scene) physicsStep(updateParams *UpdateParams) {
+	w.updatePhysicsShadow(updateParams)
+
 	w.physicsSystem.SetGravity(w.Globals().Gravity)
-	w.physicsSystem.Update(float32(durationToFloatSeconds(Δt)))
+	w.physicsSystem.Update(float32(durationToFloatSeconds(updateParams.Δt)))
 
 	for _, bodyID := range w.physicsSystem.ActiveBodies() {
 		entityID := ecs.ID(bodyID) // BUG: this is not correct anymore because the generations do not match!!!
 
 		pos, rot, linVel, angVel := w.physicsSystem.WritebackBody(bodyID)
+
+		if !w.EntityExists(entityID) {
+			log.Println(entityID, "does not exist for some reason")
+		}
 
 		w.TransformTR.Set(entityID, TR3f64{T: pos, R: rot})
 
@@ -192,6 +206,7 @@ func (w *Scene) physicsStep(Δt time.Duration) {
 	}
 
 	for _, ce := range w.physicsSystem.ContactEvents() {
+		// TODO: properly translate bodyID to entityID
 		entityID1 := ecs.ID(ce.Body1.BodyID)
 		entityID2 := ecs.ID(ce.Body2.BodyID)
 
@@ -200,22 +215,18 @@ func (w *Scene) physicsStep(Δt time.Duration) {
 		// One or both entities in the contact event might've been removed
 		// before the last Update
 
-		if w.EntityExists(entityID1) {
-			contactEvents, _ := w.ContactEvents.Get(entityID1)
-			contactEvents = append(contactEvents, ContactEvent{
-				Type:      ce.Type,
-				EntityID2: entityID2,
-			})
-			w.ContactEvents.Set(entityID1, contactEvents)
-		}
+		if w.EntityExists(entityID1) && w.EntityExists(entityID2) {
+			w.SendMessage(entityID1,
+				ContactEvent{
+					Type:      ce.Type,
+					EntityID2: entityID2,
+				})
 
-		if w.EntityExists(entityID2) {
-			contactEvents, _ := w.ContactEvents.Get(entityID2)
-			contactEvents = append(contactEvents, ContactEvent{
-				Type:      ce.Type,
-				EntityID2: entityID1,
-			})
-			w.ContactEvents.Set(entityID2, contactEvents)
+			w.SendMessage(entityID2,
+				ContactEvent{
+					Type:      ce.Type,
+					EntityID2: entityID1,
+				})
 		}
 	}
 }

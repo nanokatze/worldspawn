@@ -2,16 +2,17 @@ package game
 
 import "reflect"
 
-// TODO: this is actually "object logic" or "object script" even idk
+// In preparation for scripts, replace Entity interface with a map of map of
+// functions for now I suppose.
 
 type Entity interface{ entity() }
 
 var EntityTypes = []reflect.Type{
 	reflect.TypeFor[Animtest](),
 	reflect.TypeFor[DeleteAfter](),
-	reflect.TypeFor[DroppedWeapon](),
+	// reflect.TypeFor[DroppedWeapon](),
 	reflect.TypeFor[Gladiator](),
-	reflect.TypeFor[LaunchedGrenade](),
+	reflect.TypeFor[InFlightGrenade](),
 	reflect.TypeFor[PlayerSpawn](),
 	reflect.TypeFor[Player](),
 	reflect.TypeFor[SceneGlobals](),

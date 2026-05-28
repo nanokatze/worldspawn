@@ -56,6 +56,6 @@ func (weapon WeaponSniperRifle) WeaponSubstep(
 	T gmath.Affine3f64,
 	v Velocity,
 	buttons WeaponButtons,
-	info *UpdateParams) WeaponStepResult {
-	return WeaponStepResult{}
+	info *UpdateParams) Recoil {
+	return Recoil{}
 }

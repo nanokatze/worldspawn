@@ -2,7 +2,6 @@ package game
 
 import (
 	"fmt"
-	"io"
 	"io/fs"
 	"log/slog"
 	"reflect"
@@ -12,9 +11,11 @@ import (
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/gmath"
 	"worldspawn/internal/physics"
-
-	"github.com/go-json-experiment/json"
 )
+
+// TODO: ok I guess what I'd be actually *very* comfortable with doing is making
+// Entity/Script be super restricted to the point of not letting it modify
+// anything but only return something new. Or idk.
 
 // TODO: actually indeed stick it onto Scene or pass it through UpdateInfo
 var Data fs.FS
@@ -39,7 +40,8 @@ type TR3f64 struct {
 	R gmath.Rot3
 }
 
-// TODO: introduce Camera component which will specify fov etc
+// TODO: introduce Camera component which will specify fov etc. I guess we could
+// also just use Entity.
 type Camera struct {
 	FieldOfView float32
 }
@@ -52,6 +54,10 @@ type Camera struct {
 // TODO: add a type for representing non-mutable lists and stuff?
 
 type Columns struct {
+	// Speculative object deadline
+	// TODO: rename
+	Speculation ecs.Column[Time] // TODO: do not network this
+
 	// Name ecs.ComponentStore[string]
 
 	// TODO: explore if we can make CreateEntity set this component
@@ -78,10 +84,31 @@ type Columns struct {
 	// object.
 	TransformS ecs.Column[gmath.Mat3x3Uf32]
 
+	// TODO: make skeletons part of geometry?
 	Skeleton ecs.Column[string]
 
 	// TODO: this should just point to an animgraph script
 	Pose ecs.Column[animgraph.Pose]
+
+	// Logic
+
+	NextThink ecs.Column[Time]
+
+	// TODO: replace with a plain string that identifies the behavior (which
+	// will become filename to the script in the future) and rename to Script.
+	// We'll need a separate ScriptState column
+	Entity ecs.Column[Entity]
+
+	Messages ecs.Column[[]any] `worldspawn:"transient"`
+
+	// Objects marked for deletion
+	//
+	// TODO: can we and should we do something else? Implementing deletion with
+	// messages is complicated because we might want to mark things for deletion
+	// while we're processing messages. We could introduce a method to perform
+	// deletion immediately, but that would only be allowed to be called during
+	// processing of the messages.
+	Delete ecs.Column[struct{}] `worldspawn:"transient"`
 
 	// Physics should only run for bodies that have no parent. We could
 	// generalize a little by having an entity be "physics scene" and run sim
@@ -91,6 +118,7 @@ type Columns struct {
 
 	// TODO: generalize PhysicsFilter to PhysicsConstraint (singular) or
 	// whatever
+	// TODO: remove Physics{Mass,Inertia}Override
 
 	Velocity               ecs.Column[Velocity]
 	CollisionGeometry      ecs.Column[string]
@@ -100,18 +128,8 @@ type Columns struct {
 	PhysicsMassOverride    ecs.Column[float32] // TODO: remove "Physics" prefix from these
 	PhysicsInertiaOverride ecs.Column[gmath.Mat4x4f32]
 
-	// TODO: generalize to all events, including damage etc?
-	// TODO: these don't need to be networked
-	ContactEvents ecs.Column[[]ContactEvent] `worldspawn:"transient"`
-
 	// TODO: kill this column and handle it at prefab instantination
 	CollectionInstance ecs.Column[CollectionInstance]
-
-	// Logic
-
-	Timer ecs.Column[Time]
-
-	Entity ecs.Column[Entity] // TODO: rename to Logic or Script
 
 	// Renderer
 
@@ -132,11 +150,6 @@ type Columns struct {
 	// TODO: rethink sounds
 	SoundEffect      ecs.Column[SoundEmitter]
 	SoundEffectState ecs.Column[LoopedSound] // TODO: kill this column
-
-	// Deletion
-
-	// TODO: this doesn't need to be networked
-	Delete ecs.Column[struct{}]
 }
 
 type Scene struct {
@@ -144,7 +157,8 @@ type Scene struct {
 	// things would consult UpdateParams.Now rather than Scene.Params
 	Now Time
 
-	NextID ecs.ID
+	NextID            ecs.ID
+	NextIDSpeculative ecs.ID
 
 	Table *ecs.Table
 	Columns
@@ -181,32 +195,12 @@ func NewScene(n int) *Scene {
 
 func (scene *Scene) Cap() int { return scene.Table.IDs().Cap() }
 
-// TODO: we'd benefit from an additional step before Restore so we can know the
-// min capacity necessary for this save.
-func (scene *Scene) Restore(r io.Reader) error {
-	// TODO: we should deserialize into an intermediate structure and do various
-	// checks first. I think ideally we'd not return an error if we ended up
-	// modifying the Scene?
-	//
-	// TODO: we should zero out Scene before restoring I guess.
-
-	if err := json.UnmarshalRead(r, scene, JSONOptions); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (scene *Scene) Save(w io.Writer) error {
-	panic("not implemented")
-}
-
 func (w *Scene) Destroy() {
 	// TODO: stop and destroy physicsSystem here
 }
 
 func (w *Scene) EntityExists(id ecs.ID) bool { return w.Table.IDs().Exists(id) }
 
-// TODO: do we need client-only entities? I don't think we do with this tbh
 // TODO: make this private?
 // TODO: same as DeleteEntityImmediately, we probably should make a column for
 // creating entities so we can run a processing pass in parallel that then
@@ -215,24 +209,28 @@ func (w *Scene) CreateEntity(info *UpdateParams) ecs.ID {
 	// TODO: don't hardcode index ranges
 
 	if info.Speculating {
-		// Create an entity at high index and mark it speculative so that it
-		// gets removed when we receive the update for this tick.
-		panic("not implemented")
+		id := w.Table.CreateRowAuto(900, 999, &w.NextIDSpeculative)
+		w.Speculation.Set(id, w.Now)
+		return id
 	}
 
-	id := w.Table.CreateRowAuto(0, 899, &w.NextID)
+	id := w.Table.CreateRowAuto(1, 899, &w.NextID)
 	return id
 }
 
+// TODO: rename to ResetEntity?
+func (scene *Scene) ClearEntity(id ecs.ID) {
+	if _, ok := scene.physicsBodyExists.Get(id); ok {
+		scene.physicsSystem.RemoveBody(physics.BodyID(id.Index()))
+	}
+	scene.Table.ClearRow(id)
+}
+
 // This is used by client networking to remove entities.
-//
-// TODO: is the way we use it correct (deleting entities in-between ticks?)
-// TODO: could we bulk delete things?
-// TODO: kill in favor of w.Table.Delete(id) doing the expected thing.
+// TODO: kill
 func (w *Scene) DeleteEntityImmediately(id ecs.ID) {
-	// TODO: we should just make a physicsBodyColumn or something
 	if _, ok := w.physicsBodyExists.Get(id); ok {
-		w.physicsSystem.RemoveBody(physics.BodyID(id))
+		w.physicsSystem.RemoveBody(physics.BodyID(id.Index()))
 	}
 	w.Table.DeleteRow(id)
 }
@@ -266,7 +264,7 @@ func (scene *Scene) GetTransform(id ecs.ID) gmath.TRS3f64 {
 		// TODO: replace this panic with an oops-esque thing which can be just a
 		// warning or whatever if need be, or return error from GetTransform and
 		// have a helper on UpdateParams.
-		panic(fmt.Sprintf("transform queried on an object that has none id=%d", id))
+		panic(fmt.Sprintf("transform queried but does not exist on an object id=%d", id))
 		return gmath.TRS3One[float64]()
 	}
 	s, ok := scene.TransformS.Get(id)
@@ -296,7 +294,7 @@ func (scene *Scene) SetTransform(id ecs.ID, T gmath.TRS3f64) {
 //
 // TODO: clean up
 func (scene *Scene) GetGlobalTransform(id ecs.ID) gmath.Affine3f64 {
-	getTransform := func(id ecs.ID) gmath.Affine3f64 {
+	getObjectTransform := func(id ecs.ID) gmath.Affine3f64 {
 		tr, ok := scene.TransformTR.Get(id)
 		if !ok {
 			return gmath.Affine3One[float64]()
@@ -308,6 +306,7 @@ func (scene *Scene) GetGlobalTransform(id ecs.ID) gmath.Affine3f64 {
 		return gmath.TRS3f64{tr.T, tr.R, s}.Compose()
 	}
 
+	// TODO: make this a method on the scene?
 	getBoneTransform := func(id ecs.ID, bone string) gmath.Affine3f32 {
 		skelly := scene.GetSkeleton(id)
 		if skelly == nil {
@@ -335,7 +334,7 @@ func (scene *Scene) GetGlobalTransform(id ecs.ID) gmath.Affine3f64 {
 
 	A := gmath.Affine3One[float64]()
 	for range 5000 {
-		A = getTransform(id).Mul(A)
+		A = getObjectTransform(id).Mul(A)
 
 		parent := scene.GetParent(id)
 		if parent == 0 {
@@ -379,47 +378,104 @@ type UpdateParams struct {
 	Logger      *slog.Logger
 }
 
-// TODO: parallel for in blender for example specifies bulk number for tasks so
-// we might want to do the same.
+type Thinker interface {
+	Entity
+
+	// Implementations of Think are allowed to:
+	//
+	//  * read other entities' state (except the Messages and Delete columns), perform physics queries, etc
+	//  * send messages
+	//  * set deletion flag on themselves
+	//
+	// The implementations are not allowed to do anything else, including but
+	// not limited to:
+	//
+	//  * modify their own state (except the Delete column)
+	//  * modify any state of other entities
+	//  * create new entities
+	//
+	// TODO: we could allow Think to return a func() which would run in order in
+	// the next pass.
+	Think(scene *Scene, id ecs.ID, updateParams *UpdateParams)
+}
+
+type Thinker2 interface {
+	Entity
+
+	// While handling a message, reading states of other entities is not
+	// permitted, nor sending messages.
+	HandleMessage(scene *Scene, id ecs.ID, msg any, updateParams *UpdateParams)
+}
+
+// TODO: this should be a method on some kind of context object that we pass to
+// Think and other things that are allowed to send messages.
+func (w *Scene) SendMessage(to ecs.ID, msg any) {
+	messages, _ := w.Messages.Get(to)
+	w.Messages.Set(to, append(messages, msg))
+}
+
+func (w *Scene) processMessages(updateParams *UpdateParams) {
+	for id, msgs := range ecs.All(&w.Messages) {
+		entityT, ok := SceneGetEntity[Thinker2](w, id)
+
+		for _, msg := range msgs {
+			switch msg := msg.(type) {
+			case ContactEvent:
+				if msg.Type == 1 {
+					if _, ok := w.DeleteCosmeticOffsetOnContact.Get(id); ok {
+						w.CosmeticOffset.Delete(id)
+						w.DeleteCosmeticOffsetOnContact.Delete(id)
+					}
+				}
+			}
+
+			if ok {
+				entityT.HandleMessage(w, id, msg, updateParams)
+			}
+
+			// TODO: allow HandleMessage to prevent running default handler?
+			// E.g. for Damage.
+
+			switch msg := msg.(type) {
+			case Impact:
+				if vel, ok := w.Velocity.Get(id); ok {
+					w.Velocity.Set(id, vel.Add(msg.Δv))
+				}
+			}
+		}
+	}
+
+	w.Messages.Clear()
+}
+
+func (w *Scene) think(updateParams *UpdateParams) {
+	for id, entity := range ecs.All(&w.Entity) {
+		thinker, ok := entity.(Thinker)
+		if !ok {
+			continue
+		}
+
+		// TODO: we'll want a timer wheel of sorts to make this fast
+		nextThink, ok := w.NextThink.Get(id)
+		if w.Now.Before(nextThink) {
+			continue
+		}
+
+		thinker.Think(w, id, updateParams)
+	}
+}
 
 func (w *Scene) Step(updateParams *UpdateParams) {
 	w.Now = w.Now.Add(updateParams.Δt)
 
-	w.processTimers(updateParams)
-
 	// TODO: optimize loops over entities implementing particular interface by
 	// having shadow columns.
 
-	for id, entity := range ecs.All(&w.Entity) {
-		if player, ok := entity.(Player); ok {
-			player.PlayerUpdate(w, id, updateParams)
-		}
-	}
+	w.think(updateParams)
+	w.processMessages(updateParams)
 
-	// TODO: move into updatePhysicsShadow?
-	for id, entity := range ecs.All(&w.Entity) {
-		if entity, ok := entity.(PrePhysicsStep); ok {
-			entity.PrePhysicsStep(w, id, updateParams)
-		}
-	}
-
-	w.updatePhysicsShadow()
-	w.physicsStep(updateParams.Δt)
-
-	for id, entity := range ecs.All(&w.Entity) {
-		if entity, ok := entity.(PostPhysicsStep); ok {
-			entity.PostPhysicsStep(w, id, updateParams)
-		}
-	}
-
-	for id, v := range ecs.Join(&w.ContactEvents, &w.DeleteCosmeticOffsetOnContact) {
-		for _, ce := range v.V1 {
-			if ce.Type == 1 {
-				w.CosmeticOffset.Delete(id)
-				break
-			}
-		}
-	}
+	w.physicsStep(updateParams)
+	w.processMessages(updateParams)
 
 	for id, a := range ecs.All(&w.SoundEffectState) {
 		soundEffect, _ := w.SoundEffect.Get(id)
@@ -435,6 +491,9 @@ func (w *Scene) Step(updateParams *UpdateParams) {
 
 	// Must happen last
 	w.DeleteEntities()
+
+	// TODO: update physics shadow here so that the physics world doesn't
+	// include deleted entities.
 
 	// Clear transient columns
 	{
@@ -495,7 +554,9 @@ func (w *Scene) DeleteEntities() {
 
 	// Remove entities that were scheduled for removal
 	for id := range ecs.All(&w.Delete) {
+		if _, ok := w.physicsBodyExists.Get(id); ok {
+			w.physicsSystem.RemoveBody(physics.BodyID(id.Index()))
+		}
 		w.Table.DeleteRow(id)
-		w.physicsSystem.RemoveBody(physics.BodyID(id.Index()))
 	}
 }

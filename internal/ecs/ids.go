@@ -11,7 +11,50 @@ func (ids *IDs) Cap() int {
 	return len(ids.gens)
 }
 
-func (ids *IDs) NextFreeIndex(i int) int {
+func (ids *IDs) Exists(id ID) bool {
+	return ids.used.Test(id.Index()) && ids.gens[id.Index()] == id.Generation()
+}
+
+func (ids *IDs) Index(index int) ID {
+	if !ids.used.Test(index) {
+		return NullID
+	}
+	return MakeID(index, ids.gens[index])
+}
+
+/*
+type IDConstraints struct {
+	MinID ID
+
+	MinIndex int
+	MaxIndex int
+}
+*/
+
+func (ids *IDs) nextFreeID(minIndex, maxIndex int, minID ID) ID {
+	index := minID.Index()
+	gen := minID.Generation()
+
+	for range 2 {
+		index = max(index, minIndex)
+		if index == 0 && gen == 0 {
+			index++
+		}
+
+		index = ids.nextFreeIndex(index)
+		if index != -1 && index <= maxIndex {
+			// TODO: assert minIndex <= index
+			return MakeID(index, gen)
+		}
+
+		index = 0
+		gen++
+	}
+
+	return NullID
+}
+
+func (ids *IDs) nextFreeIndex(i int) int {
 	n := ids.Cap()
 	// TODO: we should cook a FindFirstUnset on the bitset
 	for ; i < n; i++ {
@@ -51,15 +94,4 @@ func (dst *IDs) Copy(src *IDs) {
 
 	bitset.Copy(dst.used, src.used)
 	copy(dst.gens, src.gens)
-}
-
-func (ids *IDs) Exists(id ID) bool {
-	return ids.used.Test(id.Index()) && ids.gens[id.Index()] == id.Generation()
-}
-
-func (ids *IDs) Index(index int) ID {
-	if !ids.used.Test(index) {
-		return 0
-	}
-	return MakeID(index, ids.gens[index])
 }

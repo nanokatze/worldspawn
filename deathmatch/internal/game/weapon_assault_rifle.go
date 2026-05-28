@@ -63,8 +63,8 @@ func (weapon WeaponAssaultRifle) WeaponSubstep(
 	T gmath.Affine3f64,
 	v Velocity,
 	buttons WeaponButtons,
-	info *UpdateParams) WeaponStepResult {
+	info *UpdateParams) Recoil {
 	defer func() { scene.Entity.Set(weaponID, weapon) }()
 
-	return WeaponStepResult{}
+	return Recoil{}
 }

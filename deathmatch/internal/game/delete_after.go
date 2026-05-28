@@ -2,11 +2,11 @@ package game
 
 import "worldspawn/internal/ecs"
 
-// TODO: rename
+// TODO: rename?
 type DeleteAfter struct{}
 
 func (DeleteAfter) entity() {}
 
-func (deleteAfter DeleteAfter) TimerExpired(w *Scene, id ecs.ID, info *UpdateParams) {
+func (deleteAfter DeleteAfter) Think(w *Scene, id ecs.ID, info *UpdateParams) {
 	w.Delete.Set(id, struct{}{})
 }

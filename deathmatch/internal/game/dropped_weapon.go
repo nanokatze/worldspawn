@@ -1,10 +1,6 @@
 package game
 
-import (
-	"worldspawn/internal/ecs"
-	"worldspawn/internal/gmath"
-)
-
+/*
 type DroppedWeapon struct {
 	Weapon ecs.ID
 }
@@ -24,9 +20,11 @@ func (w *Scene) CreateDroppedWeapon(weaponID ecs.ID, info *UpdateParams) ecs.ID 
 
 	return dropped
 }
+*/
 
-// TODO: move handling of this into Gladiator entirely
-func (dropped DroppedWeapon) PrePhysicsStep(w *Scene, ourID ecs.ID, info *UpdateParams) {
+// TODO: move handling of this into Gladiator entirely. Also use a sensor.
+/*
+func (dropped DroppedWeapon) Think(w *Scene, ourID ecs.ID, info *UpdateParams) {
 	T := w.GetGlobalTransform(ourID)
 
 	for playerID, entity := range ecs.All(&w.Entity) {
@@ -40,3 +38,4 @@ func (dropped DroppedWeapon) PrePhysicsStep(w *Scene, ourID ecs.ID, info *Update
 		}
 	}
 }
+*/
