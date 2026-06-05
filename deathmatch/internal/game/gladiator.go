@@ -2,7 +2,6 @@ package game
 
 import (
 	"math"
-	"math/rand/v2"
 	"slices"
 	"time"
 
@@ -10,11 +9,6 @@ import (
 	"worldspawn/internal/gmath"
 	"worldspawn/internal/physics"
 )
-
-// TODO: the users of this should be factored out into a function
-
-var rotXY = gmath.Rot3AToB(gmath.Vec3f32{1, 0, 0}, gmath.Vec3f32{0, 1, 0})
-var rotYZ = gmath.Rot3AToB(gmath.Vec3f32{0, 1, 0}, gmath.Vec3f32{0, 0, 1})
 
 var gladiatorStats = struct {
 	StandingHeight     float32
@@ -38,8 +32,14 @@ var gladiatorStats = struct {
 }
 
 type Gladiator struct {
-	LookDir     [2]float32 // spherical unit vec3; TODO: swap coordinates so that polar angle is [0] and flip its sign
-	MoveVec     gmath.Vec2f32
+	// Direction we're looking at. In spherical coordinates using (e01, e12)
+	// convention, in turns.
+	//
+	// TODO: change this to be fixed point in [0, 1)?
+	LookDir [2]float32
+
+	MoveVec gmath.Vec2f32
+
 	HeldButtons uint64
 
 	// TODO: viewshake and viewpunch
@@ -66,6 +66,8 @@ type Gladiator struct {
 	// Ammo [numAmmoTypes]int64 ; or map[string]int64 but we'll probably really just go with
 }
 
+var _ Thinker = Gladiator{}
+
 var _ PlayableCharacter = Gladiator{}
 
 func (Gladiator) entity() {}
@@ -82,9 +84,11 @@ func createGladiator(scene *Scene, info *UpdateParams) ecs.ID {
 			playerSpawns = append(playerSpawns, id)
 		}
 	}
-	// TODO: we need a special rand utility so that random sequences are
-	// reproducible
-	T := scene.GetGlobalTransform(playerSpawns[rand.IntN(len(playerSpawns))])
+
+	// TODO: we need to pass something to avoid coinciding with other players.
+	// We'll also need to do several attempts at spawning the player. We should
+	// probably factor looking for a spawn point into its own function.
+	T := scene.GetGlobalTransform(playerSpawns[Rand(scene.Now).IntN(len(playerSpawns))])
 
 	gladiator := scene.CreateEntity(info)
 
@@ -105,6 +109,7 @@ func createGladiator(scene *Scene, info *UpdateParams) ecs.ID {
 	scene.PhysicsMassOverride.Set(gladiator, 100)
 	scene.VisibilityMask.Set(gladiator, VisibilityMask{Mask: 0b10, Camera: camera})
 	scene.RenderingGeometry.Set(gladiator, "testcharacter4/geometries/TestCharacter4")
+	scene.SetScript(gladiator, "gladiator")
 	scene.Entity.Set(gladiator, Gladiator{
 		FirstPersonCamera: camera,
 		FirstPersonHands:  hands,
@@ -123,7 +128,7 @@ func createGladiator(scene *Scene, info *UpdateParams) ecs.ID {
 
 	{
 		weapon := scene.CreateEntity(info)
-		scene.Entity.Set(weapon, WeaponSniperRifle{})
+		scene.Entity.Set(weapon, WeaponPhysgun{})
 
 		scene.GiveWeapon(gladiator, weapon)
 	}
@@ -137,9 +142,9 @@ func (gladiator Gladiator) HandleInput(w *Scene, id ecs.ID, cmd TimestampedInput
 	var switchToWeapon ecs.ID
 
 	switch cmd := cmd.Cmd.(type) {
-	case InputCmdDLookX:
+	case InputCmdDLookXY:
 		gladiator.LookDir[0] = float32(math.Mod(float64(gladiator.LookDir[0]-float32(cmd)), 1))
-	case InputCmdDLookY:
+	case InputCmdDLookYZ:
 		gladiator.LookDir[1] = min(max(gladiator.LookDir[1]-float32(cmd), -0.25), 0.25)
 	case InputCmdMoveX:
 		gladiator.MoveVec[0] = float32(cmd)
@@ -210,35 +215,9 @@ func (gladiator Gladiator) HandleInput(w *Scene, id ecs.ID, cmd TimestampedInput
 		shootT := w.GetGlobalTransform(id).
 			Mul(gmath.TRS3f64{
 				T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
-				R: rotXY.Pow(4 * gladiator.LookDir[0]).Mul(rotYZ.Pow(4 * gladiator.LookDir[1])),
+				R: e01.Pow(4 * gladiator.LookDir[0]).Mul(e12.Pow(4 * gladiator.LookDir[1])),
 				S: gmath.Mat3x3UOne[float32](),
 			}.Compose())
-
-			/*
-				ray := physics.Ray{
-					Origin:    shootT.T,
-					Direction: shootT.M.Mulv(gmath.Vec3f32{0, 1, 0}).Normalize(),
-					TMax:      100,
-				}
-				var contactBuffer struct {
-					MyHitBuffer[physics.RayHit]
-				}
-				w.physicsSystem.TraceRay(
-					ray,
-					func(body physics.BodyID) bool {
-						if body == physics.BodyID(id.Index()) {
-							return false
-						}
-						return true
-					},
-					&contactBuffer)
-				for i, hit := range contactBuffer.MyHitBuffer {
-					hitPos := ray.F(hit.Geometry.T)
-
-					// _ = hitPos
-					log.Println(i, hit.Geometry.T, hitPos)
-				}
-			*/
 
 		shootv, _ := w.Velocity.Get(id)
 
@@ -256,7 +235,7 @@ func (gladiator Gladiator) HandleInput(w *Scene, id ecs.ID, cmd TimestampedInput
 	w.SetTransform(gladiator.FirstPersonCamera,
 		gmath.TRS3f64{
 			T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
-			R: rotXY.Pow(4 * gladiator.LookDir[0]).Mul(rotYZ.Pow(4 * gladiator.LookDir[1])),
+			R: e01.Pow(4 * gladiator.LookDir[0]).Mul(e12.Pow(4 * gladiator.LookDir[1])),
 			S: gmath.Mat3x3UOne[float32](),
 		})
 }
@@ -264,20 +243,24 @@ func (gladiator Gladiator) HandleInput(w *Scene, id ecs.ID, cmd TimestampedInput
 // func (gladiator Gladiator) PrePhysicsStep(w *Scene, id ecs.ID, info *UpdateParams) {
 // }
 
-func (gladiator Gladiator) HandleMessage(w *Scene, self ecs.ID, msg any, info *UpdateParams) {
-	switch msg := msg.(type) {
-	case Impact:
-		gladiator.Health -= msg.Damage
-		if gladiator.Health <= 0 {
-			// TODO: kill ourselves. This is a good place to play spawn gibs or
-			// ragdoll or a death animation play thing, play death sound, etc.
-			info.Logger.Info("die!!!!!", "id", self)
-		}
-		w.Entity.Set(self, gladiator)
+func init() {
+	scripts["gladiator"] = scriptFuncs{
+		Impact: func(scene *Scene, id ecs.ID, impact Impact, info *UpdateParams) {
+			info.Logger.Info("impact", "damage", impact.Damage)
+
+			gladiator, _ := SceneGetEntity[Gladiator](scene, id)
+			gladiator.Health -= impact.Damage
+			if gladiator.Health <= 0 {
+				// TODO: kill ourselves. This is a good place to play spawn gibs or
+				// ragdoll or a death animation play thing, play death sound, etc.
+				info.Logger.Info("die!!!!!", "id", id)
+			}
+			scene.Entity.Set(id, gladiator)
+		},
 	}
 }
 
-// TODO: player movement should happen in PrePhysicsStep, we should not be modifying any fields!!!
+// TODO: player movement should happen in PrePhysicsStep.
 func (gladiator Gladiator) Think(w *Scene, self ecs.ID, info *UpdateParams) {
 	// TODO: do not call this here
 	gladiator.HandleInput(w, self, TimestampedInputCmd{}, info)
@@ -297,7 +280,7 @@ func (gladiator Gladiator) Think(w *Scene, self ecs.ID, info *UpdateParams) {
 
 	trs := w.GetTransform(self)
 
-	rotation := trs.R.Mul(rotXY.Pow(4 * gladiator.LookDir[0]))
+	rotation := trs.R.Mul(e01.Pow(4 * gladiator.LookDir[0]))
 
 	move := gladiator.MoveVec
 	if lengthSqr := move.Dot(move); lengthSqr > 1 {

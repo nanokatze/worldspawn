@@ -29,8 +29,8 @@ const (
 // TODO: use SNORM for movement velocity and look direction?
 
 type (
-	InputCmdDLookX        float32
-	InputCmdDLookY        float32
+	InputCmdDLookXY       float32
+	InputCmdDLookYZ       float32
 	InputCmdMoveX         float32
 	InputCmdMoveY         float32
 	InputCmdPressButton   Button
@@ -41,8 +41,8 @@ type (
 type Slot int8
 
 var InputCmdTypes = []reflect.Type{
-	reflect.TypeFor[InputCmdDLookX](),
-	reflect.TypeFor[InputCmdDLookY](),
+	reflect.TypeFor[InputCmdDLookXY](),
+	reflect.TypeFor[InputCmdDLookYZ](),
 	reflect.TypeFor[InputCmdMoveX](),
 	reflect.TypeFor[InputCmdMoveY](),
 	reflect.TypeFor[InputCmdPressButton](),

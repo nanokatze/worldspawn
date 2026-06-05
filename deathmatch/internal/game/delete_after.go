@@ -2,11 +2,14 @@ package game
 
 import "worldspawn/internal/ecs"
 
-// TODO: rename?
-type DeleteAfter struct{}
-
-func (DeleteAfter) entity() {}
-
-func (deleteAfter DeleteAfter) Think(w *Scene, id ecs.ID, info *UpdateParams) {
-	w.Delete.Set(id, struct{}{})
+func init() {
+	// TODO: rename to delete_on_think?
+	scripts["delete_after"] = scriptFuncs{
+		Think: func(scene *Scene, id ecs.ID, info *UpdateParams) {
+			scene.SendMessage(id,
+				func(scene *Scene, id ecs.ID, info *UpdateParams) {
+					scene.Delete.Set(id, struct{}{})
+				})
+		},
+	}
 }

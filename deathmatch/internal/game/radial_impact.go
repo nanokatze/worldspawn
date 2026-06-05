@@ -8,33 +8,13 @@ import (
 	"worldspawn/internal/physics"
 )
 
-/*
-type rayQueryPipeline interface {
-	Hit(physics.RayHit)
-}
-
-func (scene *Scene) RayQuery(ray physics.Ray, pipeline ) {
-
-}
-*/
-
 // TODO: this should be an interface
 // TODO: prefix with something? (e.g. explosion)
 type distributionFunction func(gmath.Vec2f32) (gmath.Vec3f32, float32)
 
-// TODO: naming
-/*
-type Intersection[T any] struct {
-	Object   ecs.ID
-	Geometry T
-	Scaling  float32 // idk about naming in case of this one
-}
-*/
-
-// TODO: rename to radialImpact
 // TODO: allow the user to specify filters
-func (scene *Scene) doExplosion(
-	impact Impact,
+func (scene *Scene) radialImpact(
+	impact Impact, // TODO: don't use Impact but plop the fields we use as is?
 	T gmath.Affine3f64,
 	df distributionFunction,
 	radius float32,
@@ -93,13 +73,14 @@ func (scene *Scene) doExplosion(
 	for bodyID, result := range results {
 		entityID := scene.Table.IDs().Index(int(bodyID))
 
-		scene.SendMessage(entityID,
-			Impact{
-				Type:      impact.Type,
-				Δv:        result.dvel,
-				Damage:    result.dmg,
-				Inflictor: impact.Inflictor,
-			})
+		impact := Impact{
+			Type:      impact.Type,
+			Δv:        result.dvel,
+			Damage:    result.dmg,
+			Inflictor: impact.Inflictor,
+		}
+
+		scene.SendMessage(entityID, impact.Apply)
 	}
 }
 

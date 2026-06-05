@@ -24,7 +24,9 @@ func (w *Scene) CreateDroppedWeapon(weaponID ecs.ID, info *UpdateParams) ecs.ID 
 
 // TODO: move handling of this into Gladiator entirely. Also use a sensor.
 /*
-func (dropped DroppedWeapon) Think(w *Scene, ourID ecs.ID, info *UpdateParams) {
+func (dropped DroppedWeapon) Think(w *Scene, ourID ecs.ID, info *UpdateParams) func() {
+	panic("not implemented")
+
 	T := w.GetGlobalTransform(ourID)
 
 	for playerID, entity := range ecs.All(&w.Entity) {

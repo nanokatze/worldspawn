@@ -84,6 +84,7 @@ func (weapon WeaponGrenadeLauncher) WeaponSubstep(
 
 		if !info.Speculating {
 			projectile := scene.SpawnPrefab(grenadeLauncherStats.Projectile, info)
+
 			scene.SetTransform(projectile,
 				T.
 					Mul(gmath.TRS3f64{

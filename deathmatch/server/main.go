@@ -534,6 +534,7 @@ func main() {
 
 	if true {
 		test := s.scene.CreateEntity(info)
+		s.scene.Entity.Set(test, game.Animtest{"testcharacter4/animations/metarigAction"})
 		s.scene.SetTransform(test, gmath.TRS3f64{
 			T: gmath.Vec3f64{0, -1, 0},
 			R: gmath.Rot3One(),
@@ -541,9 +542,9 @@ func main() {
 		})
 		s.scene.Skeleton.Set(test, "testcharacter4/skeletons/metarig")
 		s.scene.RenderingGeometry.Set(test, "testcharacter4/geometries/TestCharacter4")
-		s.scene.Entity.Set(test, game.Animtest{"testcharacter4/animations/metarigAction"})
 
 		test2 := s.scene.CreateEntity(info)
+		s.scene.Entity.Set(test2, game.Testburger{BaseColor: [4]float32{0.8, 0.8, 0.8, 1}})
 		s.scene.SetParent(test2, test)
 		s.scene.ParentBone.Set(test2, "hand.L")
 		s.scene.SetTransform(test2, gmath.TRS3f64{
@@ -552,38 +553,7 @@ func main() {
 			S: gmath.Mat3x3UOne[float32](),
 		})
 		s.scene.RenderingGeometry.Set(test2, "weapons/grenade_launcher/geometries/Grenade_Launcher")
-		s.scene.Entity.Set(test2, game.Testburger{BaseColor: [4]float32{0.8, 0.8, 0.8, 1}})
 	}
-
-	/*
-		if false {
-			{
-				weapon := s.scene.CreateEntity(info)
-				s.scene.Entity.Set(weapon, game.WeaponGrenadeLauncher{})
-
-				// Aaand "drop" the weapon
-
-				dropped := s.scene.CreateDroppedWeapon(weapon, info)
-				s.scene.SetTransform(dropped, gmath.TRS3f64{
-					T: gmath.Vec3f64{0, 0, 1},
-					R: gmath.Rot3One(),
-					S: gmath.Mat3x3UOne[float32](),
-				})
-			}
-
-			{
-				weapon := s.scene.CreateEntity(info)
-				s.scene.Entity.Set(weapon, game.WeaponSniperRifle{})
-
-				dropped := s.scene.CreateDroppedWeapon(weapon, info)
-				s.scene.SetTransform(dropped, gmath.TRS3f64{
-					T: gmath.Vec3f64{0, -10, 1},
-					R: gmath.Rot3One(),
-					S: gmath.Mat3x3UOne[float32](),
-				})
-			}
-		}
-	*/
 
 	s.scene.InstantinateCollections()
 

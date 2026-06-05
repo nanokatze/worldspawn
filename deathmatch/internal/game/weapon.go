@@ -14,6 +14,7 @@ const (
 	WeaponTrigger
 )
 
+// TODO: rename this to literally anything but
 type Recoil struct {
 	Recoil [2]float32
 }

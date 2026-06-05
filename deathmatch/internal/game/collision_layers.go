@@ -16,6 +16,7 @@ var collisionLayerRules = func() physics.LayerCollisionRules {
 	const F = false
 	const T = true
 
+	// TODO: I still hate this, I think I'd prefer a setter api :/
 	return physics.LayerCollisionRules{
 		/*                   No Mo Pr    */
 		/*                   nM vi oj    */

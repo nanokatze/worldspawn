@@ -1,12 +1,6 @@
 package game
 
-import (
-	"time"
-
-	"worldspawn/internal/ecs"
-	"worldspawn/internal/gmath"
-)
-
+/*
 var assaultRifleStats = struct {
 	ViewGeometryTRS   gmath.TRS3f64 // TODO: this should be killed
 	RenderingGeometry string
@@ -68,3 +62,4 @@ func (weapon WeaponAssaultRifle) WeaponSubstep(
 
 	return Recoil{}
 }
+*/

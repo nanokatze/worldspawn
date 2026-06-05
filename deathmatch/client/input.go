@@ -65,10 +65,10 @@ func actionToInputCmd(action int, value float32) game.InputCmd {
 		return game.InputCmdMoveY(value)
 
 	case ActionDLookX:
-		return game.InputCmdDLookX(value)
+		return game.InputCmdDLookXY(value)
 
 	case ActionDLookY:
-		return game.InputCmdDLookY(value)
+		return game.InputCmdDLookYZ(value)
 
 	default:
 		panic("unknown action")

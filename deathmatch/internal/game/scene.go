@@ -13,14 +13,8 @@ import (
 	"worldspawn/internal/physics"
 )
 
-// TODO: ok I guess what I'd be actually *very* comfortable with doing is making
-// Entity/Script be super restricted to the point of not letting it modify
-// anything but only return something new. Or idk.
-
 // TODO: actually indeed stick it onto Scene or pass it through UpdateInfo
 var Data fs.FS
-
-// TODO: use "object" instead of "entity" throughout the code?
 
 // TODO: split this file up
 
@@ -53,35 +47,50 @@ type Camera struct {
 
 // TODO: add a type for representing non-mutable lists and stuff?
 
+// TODO: certain columns could've perfectly feasibly been unique.Handle[string].
+// E.g. Script, CollisionGeometry and RenderingGeometry.
 type Columns struct {
-	// Speculative object deadline
-	// TODO: rename
-	Speculation ecs.Column[Time] // TODO: do not network this
-
 	// Name ecs.ComponentStore[string]
 
-	// TODO: explore if we can make CreateEntity set this component
-	//CreationTime ecs.Column[Time]
+	// Logic
+
+	Script      ecs.Column[string]
+	ScriptState ecs.Column[string]
+
+	// TODO: kill this in favor of Script
+	Entity ecs.Column[Entity]
+
+	NextThink ecs.Column[Time]
+
+	// TODO: this doesn't really need to be a column, this could perfectly
+	// feasibly be a plain array with a bitmap.
+	Updates ecs.Column[[]func(scene *Scene, id ecs.ID, updateParams *UpdateParams)] `worldspawn:"transient"`
+
+	// Entities marked for deletion
+	//
+	// TODO: we could try doing immediate deletion or at least fold processing
+	// of deletion into process updates?
+	Delete ecs.Column[struct{}] `worldspawn:"transient"`
 
 	// Do not access this column directly; use {Get,Set}Parent. Specifies the
-	// parent object.
+	// parent entity.
 	Parent ecs.Column[ecs.ID]
-	// The bone in the parent's skeleton that transforms this object.
+	// The bone in the parent's skeleton that transforms this entity.
 	ParentBone ecs.Column[string]
 	// Do not access this column directly; use {Get,Set}Transform and
 	// GetGlobalTransform instead.
 	//
-	// The translation and rotation parts of the object's parent-relative
+	// The translation and rotation parts of the entity's parent-relative
 	// transform.
 	TransformTR ecs.Column[TR3f64]
 	// Do not access this column directly; use {Get,Set}Transform and
 	// GetGlobalTransform instead.
 	//
-	// The scale and shearing part of the object's parent-relative transform.
+	// The scale and shearing part of the entity's parent-relative transform.
 	//
 	// It is possible for there to be an entry in TransformTR but not in
 	// TransformS, in which case no scaling or shearing is applied to the
-	// object.
+	// entity.
 	TransformS ecs.Column[gmath.Mat3x3Uf32]
 
 	// TODO: make skeletons part of geometry?
@@ -89,26 +98,6 @@ type Columns struct {
 
 	// TODO: this should just point to an animgraph script
 	Pose ecs.Column[animgraph.Pose]
-
-	// Logic
-
-	NextThink ecs.Column[Time]
-
-	// TODO: replace with a plain string that identifies the behavior (which
-	// will become filename to the script in the future) and rename to Script.
-	// We'll need a separate ScriptState column
-	Entity ecs.Column[Entity]
-
-	Messages ecs.Column[[]any] `worldspawn:"transient"`
-
-	// Objects marked for deletion
-	//
-	// TODO: can we and should we do something else? Implementing deletion with
-	// messages is complicated because we might want to mark things for deletion
-	// while we're processing messages. We could introduce a method to perform
-	// deletion immediately, but that would only be allowed to be called during
-	// processing of the messages.
-	Delete ecs.Column[struct{}] `worldspawn:"transient"`
 
 	// Physics should only run for bodies that have no parent. We could
 	// generalize a little by having an entity be "physics scene" and run sim
@@ -150,6 +139,10 @@ type Columns struct {
 	// TODO: rethink sounds
 	SoundEffect      ecs.Column[SoundEmitter]
 	SoundEffectState ecs.Column[LoopedSound] // TODO: kill this column
+
+	// Speculative object deadline
+	// TODO: rename
+	Speculation ecs.Column[Time] // TODO: do not network this
 }
 
 type Scene struct {
@@ -294,7 +287,7 @@ func (scene *Scene) SetTransform(id ecs.ID, T gmath.TRS3f64) {
 //
 // TODO: clean up
 func (scene *Scene) GetGlobalTransform(id ecs.ID) gmath.Affine3f64 {
-	getObjectTransform := func(id ecs.ID) gmath.Affine3f64 {
+	getEntityTransform := func(id ecs.ID) gmath.Affine3f64 {
 		tr, ok := scene.TransformTR.Get(id)
 		if !ok {
 			return gmath.Affine3One[float64]()
@@ -334,7 +327,7 @@ func (scene *Scene) GetGlobalTransform(id ecs.ID) gmath.Affine3f64 {
 
 	A := gmath.Affine3One[float64]()
 	for range 5000 {
-		A = getObjectTransform(id).Mul(A)
+		A = getEntityTransform(id).Mul(A)
 
 		parent := scene.GetParent(id)
 		if parent == 0 {
@@ -360,7 +353,7 @@ func (scene *Scene) GetSkeleton(id ecs.ID) *animgraph.Skeleton {
 	return skeleton(skellyName)
 }
 
-// TODO: convert this to generic method once generic methods land
+// TODO: kill this
 func SceneGetEntity[T Entity](w *Scene, id ecs.ID) (T, bool) {
 	entity, _ := w.Entity.Get(id)
 	entityT, ok := entity.(T)
@@ -378,77 +371,49 @@ type UpdateParams struct {
 	Logger      *slog.Logger
 }
 
+// TODO: kill
 type Thinker interface {
 	Entity
 
-	// Implementations of Think are allowed to:
-	//
-	//  * read other entities' state (except the Messages and Delete columns), perform physics queries, etc
-	//  * send messages
-	//  * set deletion flag on themselves
-	//
-	// The implementations are not allowed to do anything else, including but
-	// not limited to:
-	//
-	//  * modify their own state (except the Delete column)
-	//  * modify any state of other entities
-	//  * create new entities
-	//
-	// TODO: we could allow Think to return a func() which would run in order in
-	// the next pass.
 	Think(scene *Scene, id ecs.ID, updateParams *UpdateParams)
 }
 
-type Thinker2 interface {
-	Entity
-
-	// While handling a message, reading states of other entities is not
-	// permitted, nor sending messages.
-	HandleMessage(scene *Scene, id ecs.ID, msg any, updateParams *UpdateParams)
+// TODO: we could rename this to enqueueUpdate or something
+func (w *Scene) SendMessage(to ecs.ID, f func(scene *Scene, id ecs.ID, updateParams *UpdateParams)) {
+	updates, _ := w.Updates.Get(to)
+	w.Updates.Set(to, append(updates, f))
 }
 
-// TODO: this should be a method on some kind of context object that we pass to
-// Think and other things that are allowed to send messages.
-func (w *Scene) SendMessage(to ecs.ID, msg any) {
-	messages, _ := w.Messages.Get(to)
-	w.Messages.Set(to, append(messages, msg))
-}
+func (w *Scene) processUpdates(updateParams *UpdateParams) {
+	// TODO: double buffer messages so that messages can be sent during
+	// processing and process them until there's no more messages.
 
-func (w *Scene) processMessages(updateParams *UpdateParams) {
-	for id, msgs := range ecs.All(&w.Messages) {
-		entityT, ok := SceneGetEntity[Thinker2](w, id)
-
-		for _, msg := range msgs {
-			switch msg := msg.(type) {
-			case ContactEvent:
-				if msg.Type == 1 {
-					if _, ok := w.DeleteCosmeticOffsetOnContact.Get(id); ok {
-						w.CosmeticOffset.Delete(id)
-						w.DeleteCosmeticOffsetOnContact.Delete(id)
-					}
-				}
-			}
-
-			if ok {
-				entityT.HandleMessage(w, id, msg, updateParams)
-			}
-
-			// TODO: allow HandleMessage to prevent running default handler?
-			// E.g. for Damage.
-
-			switch msg := msg.(type) {
-			case Impact:
-				if vel, ok := w.Velocity.Get(id); ok {
-					w.Velocity.Set(id, vel.Add(msg.Δv))
-				}
-			}
+	for id, updates := range ecs.All(&w.Updates) {
+		for _, f := range updates {
+			f(w, id, updateParams)
 		}
 	}
 
-	w.Messages.Clear()
+	w.Updates.Clear()
 }
 
 func (w *Scene) think(updateParams *UpdateParams) {
+	for id, scriptName := range ecs.All(&w.Script) {
+		script := scripts[scriptName]
+		if script.Think == nil {
+			continue
+		}
+
+		// TODO: we'll want a timer wheel of sorts to make this fast
+		nextThink, _ := w.NextThink.Get(id)
+		if w.Now.Before(nextThink) {
+			continue
+		}
+
+		script.Think(w, id, updateParams)
+	}
+
+	// TODO: kill this
 	for id, entity := range ecs.All(&w.Entity) {
 		thinker, ok := entity.(Thinker)
 		if !ok {
@@ -456,13 +421,15 @@ func (w *Scene) think(updateParams *UpdateParams) {
 		}
 
 		// TODO: we'll want a timer wheel of sorts to make this fast
-		nextThink, ok := w.NextThink.Get(id)
+		nextThink, _ := w.NextThink.Get(id)
 		if w.Now.Before(nextThink) {
 			continue
 		}
 
 		thinker.Think(w, id, updateParams)
 	}
+
+	w.processUpdates(updateParams)
 }
 
 func (w *Scene) Step(updateParams *UpdateParams) {
@@ -472,10 +439,9 @@ func (w *Scene) Step(updateParams *UpdateParams) {
 	// having shadow columns.
 
 	w.think(updateParams)
-	w.processMessages(updateParams)
 
 	w.physicsStep(updateParams)
-	w.processMessages(updateParams)
+	w.processUpdates(updateParams)
 
 	for id, a := range ecs.All(&w.SoundEffectState) {
 		soundEffect, _ := w.SoundEffect.Get(id)

@@ -33,16 +33,22 @@ type ContactKey struct {
 }
 */
 
+// TODO: have different types depending on contact added/removed/etc
 type ContactEvent struct {
 	Type      int32
 	EntityID2 ecs.ID
 }
 
-/*
-func (scene *Scene) RayQuery(ray physics.Ray) iter.Seq[] {
+func (contact ContactEvent) Apply(scene *Scene, id ecs.ID, updateParams *UpdateParams) {
+	if contact.Type == 1 {
+		if _, ok := scene.DeleteCosmeticOffsetOnContact.Get(id); ok {
+			scene.CosmeticOffset.Delete(id)
+			scene.DeleteCosmeticOffsetOnContact.Delete(id)
+		}
+	}
 
+	// TODO: pass it to the script
 }
-*/
 
 // TODO: add ability to sync per-entity, e.g. we need this to crouch and
 // uncrouch the player I think
@@ -103,7 +109,7 @@ func (w *Scene) updatePhysicsShadow(updateParams *UpdateParams) {
 			inertia = shape2.Inertia()
 		}
 
-		bodyID := physics.BodyID(id)
+		bodyID := physics.BodyID(id.Index())
 
 		_, bodyExists := w.physicsBodyExists.Get(id)
 		if !bodyExists {
@@ -185,6 +191,7 @@ func getShape(w *Scene, id ecs.ID) *physics.Shape {
 
 // TODO: we could split this back so that we can run stuff in parallel
 func (w *Scene) physicsStep(updateParams *UpdateParams) {
+	// TODO: push it back onto the user again?
 	w.updatePhysicsShadow(updateParams)
 
 	w.physicsSystem.SetGravity(w.Globals().Gravity)
@@ -216,17 +223,8 @@ func (w *Scene) physicsStep(updateParams *UpdateParams) {
 		// before the last Update
 
 		if w.EntityExists(entityID1) && w.EntityExists(entityID2) {
-			w.SendMessage(entityID1,
-				ContactEvent{
-					Type:      ce.Type,
-					EntityID2: entityID2,
-				})
-
-			w.SendMessage(entityID2,
-				ContactEvent{
-					Type:      ce.Type,
-					EntityID2: entityID1,
-				})
+			w.SendMessage(entityID1, ContactEvent{Type: ce.Type, EntityID2: entityID2}.Apply)
+			w.SendMessage(entityID2, ContactEvent{Type: ce.Type, EntityID2: entityID1}.Apply)
 		}
 	}
 }
