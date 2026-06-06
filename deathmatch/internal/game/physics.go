@@ -2,7 +2,6 @@ package game
 
 import (
 	"fmt"
-	"log"
 
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/gmath"
@@ -19,10 +18,6 @@ func (a Velocity) Add(b Velocity) Velocity {
 		Linear:  a.Linear.Add(b.Linear),
 		Angular: a.Angular.Add(b.Angular),
 	}
-}
-
-type UpdatePhysicsShadow interface {
-	UpdatePhysicsShadow(w *Scene, id ecs.ID, info *UpdateParams)
 }
 
 /*
@@ -55,13 +50,6 @@ func (contact ContactEvent) Apply(scene *Scene, id ecs.ID, updateParams *UpdateP
 
 // Always run this before performing physics queries!!!
 func (w *Scene) updatePhysicsShadow(updateParams *UpdateParams) {
-	for id, entity := range ecs.All(&w.Entity) {
-		if entity, ok := entity.(UpdatePhysicsShadow); ok {
-			// TODO: we should have a pile of things for custom physics
-			entity.UpdatePhysicsShadow(w, id, updateParams)
-		}
-	}
-
 	// TODO: remove bodies when we delete entities!!!!!!!!
 	for id := range ecs.All(&w.physicsBodyExists) {
 		if _, ok := w.CollisionLayer.Get(id); !ok {
@@ -203,7 +191,7 @@ func (w *Scene) physicsStep(updateParams *UpdateParams) {
 		pos, rot, linVel, angVel := w.physicsSystem.WritebackBody(bodyID)
 
 		if !w.EntityExists(entityID) {
-			log.Println(entityID, "does not exist for some reason")
+			updateParams.Logger.Info("entity does not exist for some reason", "id", entityID)
 		}
 
 		w.TransformTR.Set(entityID, TR3f64{T: pos, R: rot})
@@ -227,6 +215,8 @@ func (w *Scene) physicsStep(updateParams *UpdateParams) {
 			w.SendMessage(entityID2, ContactEvent{Type: ce.Type, EntityID2: entityID1}.Apply)
 		}
 	}
+
+	w.processUpdates(updateParams)
 }
 
 // TODO: don't duplicate things we don't need to.
@@ -261,12 +251,12 @@ func getConvexShape(key2 geometryPacked) *physics.Shape {
 	}
 	if err != nil {
 		// TODO: actually print a warning and return a box?
-		log.Fatal(err)
+		panic(err)
 	}
 	shape, err = physics.NewTransformedShape(key.Translation, key.Rotation, key.Scale, shape)
 	if err != nil {
 		// TODO: actually print a warning and return a box
-		log.Fatal(err)
+		panic(err)
 	}
 	convexCache[key2] = shape
 	return shape
@@ -299,12 +289,12 @@ func getConcaveShape(key2 geometryPacked) *physics.Shape {
 	}
 	if err != nil {
 		// TODO: actually print a warning and return a box?
-		log.Fatal(err)
+		panic(err)
 	}
 	shape, err = physics.NewTransformedShape(key.Translation, key.Rotation, key.Scale, shape)
 	if err != nil {
 		// TODO: actually print a warning and return a box
-		log.Fatal(err)
+		panic(err)
 	}
 	concaveCache[key2] = shape
 	return shape

@@ -2,6 +2,7 @@ package game
 
 import (
 	"math"
+	"reflect"
 	"slices"
 	"time"
 
@@ -245,6 +246,8 @@ func (gladiator Gladiator) HandleInput(w *Scene, id ecs.ID, cmd TimestampedInput
 
 func init() {
 	scripts["gladiator"] = scriptFuncs{
+		State: reflect.TypeFor[Gladiator](),
+
 		Impact: func(scene *Scene, id ecs.ID, impact Impact, info *UpdateParams) {
 			info.Logger.Info("impact", "damage", impact.Damage)
 

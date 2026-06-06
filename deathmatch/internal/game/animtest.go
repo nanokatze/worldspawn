@@ -1,72 +1,86 @@
 package game
 
+import (
+	"reflect"
+
+	"worldspawn/internal/animgraph"
+	"worldspawn/internal/ecs"
+	"worldspawn/internal/gmath"
+)
+
 type Animtest struct {
 	Animation string
 }
 
 func (Animtest) entity() {}
 
-/*
-func (animtest Animtest) Think(w *Scene, ourID ecs.ID, info *UpdateParams) {
-	animation := animation(animtest.Animation)
+func init() {
+	scripts["animtest"] = scriptFuncs{
+		State: reflect.TypeFor[Animtest](),
 
-	skelly := w.GetSkeleton(ourID)
+		Think: func(scene *Scene, id ecs.ID, info *UpdateParams) {
+			animtest, _ := SceneGetEntity[Animtest](scene, id)
 
-	localTransforms := map[int]gmath.Affine3f32{}
+			animation := animation(animtest.Animation)
 
-	// localTransforms[skelly.JointByName("spine")] =
-	// 	gmath.TRS3f32{
-	// 		R: gmath.Rot3AToB(gmath.Vec3f32{0, 0, 1}, gmath.Vec3f32{1, 0, 0}).
-	// 			Pow(float32(math.Sin(float64(w.Now.Sub(0)) / 1e9))),
-	// 		S: gmath.Mat3x3UOne[float32](),
-	// 	}.Compose()
+			skelly := scene.GetSkeleton(id)
 
-	for _, bone := range []string{
-		"upper_arm.L",
-		"forearm.L",
-		"hand.L",
-	} {
-		t := float64(w.Now.Sub(0)%1e9) / 1e9 * 30
+			localTransforms := map[int]gmath.Affine3f32{}
 
-		localTransforms[skelly.JointByName(bone)] =
-			gmath.TRS3f32{
-				R: gmath.Rot3{
-					animation.Channels["pose.bones[\""+bone+"\"].rotation_quaternion[1]"].Sample(t),
-					animation.Channels["pose.bones[\""+bone+"\"].rotation_quaternion[2]"].Sample(t),
-					animation.Channels["pose.bones[\""+bone+"\"].rotation_quaternion[3]"].Sample(t),
-					animation.Channels["pose.bones[\""+bone+"\"].rotation_quaternion[0]"].Sample(t),
-				}.Renormalize(),
-				S: gmath.Mat3x3UOne[float32](),
-			}.Compose()
-	}
+			// localTransforms[skelly.JointByName("spine")] =
+			// 	gmath.TRS3f32{
+			// 		R: gmath.Rot3AToB(gmath.Vec3f32{0, 0, 1}, gmath.Vec3f32{1, 0, 0}).
+			// 			Pow(float32(math.Sin(float64(w.Now.Sub(0)) / 1e9))),
+			// 		S: gmath.Mat3x3UOne[float32](),
+			// 	}.Compose()
 
-	pose := animgraph.Pose{
-		Bones: map[int]gmath.Affine3f32{},
-	}
+			for _, bone := range []string{
+				"upper_arm.L",
+				"forearm.L",
+				"hand.L",
+			} {
+				t := float64(scene.Now.Sub(Time{})%1e9) / 1e9 * 30
 
-	// TODO: flooding would be more efficient
-	for bone := range skelly.JointNames {
-		A := gmath.Affine3One[float32]()
-
-		tmp := bone
-		for {
-			B, ok := localTransforms[tmp]
-			if !ok {
-				B = gmath.Affine3One[float32]()
+				localTransforms[skelly.JointByName(bone)] =
+					gmath.TRS3f32{
+						R: gmath.Rot3{
+							animation.Channels["pose.bones[\""+bone+"\"].rotation_quaternion[1]"].Sample(t),
+							animation.Channels["pose.bones[\""+bone+"\"].rotation_quaternion[2]"].Sample(t),
+							animation.Channels["pose.bones[\""+bone+"\"].rotation_quaternion[3]"].Sample(t),
+							animation.Channels["pose.bones[\""+bone+"\"].rotation_quaternion[0]"].Sample(t),
+						}.Renormalize(),
+						S: gmath.Mat3x3UOne[float32](),
+					}.Compose()
 			}
 
-			A = skelly.ParentRelative[tmp].Mul(B).Mul(A)
-
-			parent := skelly.Parent[tmp]
-			if parent == -1 {
-				break
+			pose := animgraph.Pose{
+				Bones: map[int]gmath.Affine3f32{},
 			}
-			tmp = parent
-		}
 
-		pose.Bones[bone] = A.Mul(skelly.BindPoseInverse[bone])
+			// TODO: flooding would be more efficient
+			for bone := range skelly.JointNames {
+				A := gmath.Affine3One[float32]()
+
+				tmp := bone
+				for {
+					B, ok := localTransforms[tmp]
+					if !ok {
+						B = gmath.Affine3One[float32]()
+					}
+
+					A = skelly.ParentRelative[tmp].Mul(B).Mul(A)
+
+					parent := skelly.Parent[tmp]
+					if parent == -1 {
+						break
+					}
+					tmp = parent
+				}
+
+				pose.Bones[bone] = A.Mul(skelly.BindPoseInverse[bone])
+			}
+
+			scene.Pose.Set(id, pose)
+		},
 	}
-
-	w.Pose.Set(ourID, pose)
 }
-*/

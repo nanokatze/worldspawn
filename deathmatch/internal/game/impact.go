@@ -4,6 +4,11 @@ import "worldspawn/internal/ecs"
 
 type ImpactType int
 
+// TODO: make this more structured and possibly pull this from json
+var impactTypes = []float32{
+	0.2,
+}
+
 // TODO: reorder the fields in here
 type Impact struct {
 	// character this should be attributed to

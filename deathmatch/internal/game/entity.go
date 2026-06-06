@@ -2,8 +2,7 @@ package game
 
 import "reflect"
 
-// In preparation for scripts, replace Entity interface with a map of map of
-// functions for now I suppose.
+// TODO: kill Entity interface
 
 type Entity interface{ entity() }
 

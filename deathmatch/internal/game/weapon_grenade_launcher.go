@@ -99,7 +99,7 @@ func (weapon WeaponGrenadeLauncher) WeaponSubstep(
 				})
 			scene.CollisionLayer.Set(projectile, CollisionLayerProjectiles)
 			scene.PhysicsFilter.Set(projectile, []ecs.ID{shooterID})
-			scene.NextThink.Set(projectile, scene.Now.Add(grenadeStats.FuseDuration))
+			scene.NextThink.Set(projectile, scene.Now.Add(1400*time.Millisecond)) // TODO: this should be put into grenade somehow
 			scene.CosmeticOffset.Set(projectile,
 				CosmeticOffset{
 					Alpha: 2,

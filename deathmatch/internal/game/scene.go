@@ -54,10 +54,8 @@ type Columns struct {
 
 	// Logic
 
-	Script      ecs.Column[string]
-	ScriptState ecs.Column[string]
-
-	// TODO: kill this in favor of Script
+	Script ecs.Column[string]
+	// TODO: rename to ScriptState
 	Entity ecs.Column[Entity]
 
 	NextThink ecs.Column[Time]
@@ -145,6 +143,7 @@ type Columns struct {
 	Speculation ecs.Column[Time] // TODO: do not network this
 }
 
+// TODO: let's rename it back to World actually waow
 type Scene struct {
 	// TODO: could we move this to somewhere? Either way I would prefer if
 	// things would consult UpdateParams.Now rather than Scene.Params
@@ -156,8 +155,8 @@ type Scene struct {
 	Table *ecs.Table
 	Columns
 
-	// TODO: factor these into "Shadow column" or whatever
-	physicsSystem     *physics.System
+	physicsSystem *physics.System
+	// TODO: this should be folded into physicsSystem
 	physicsBodyExists ecs.Column[struct{}]
 }
 
@@ -398,6 +397,9 @@ func (w *Scene) processUpdates(updateParams *UpdateParams) {
 }
 
 func (w *Scene) think(updateParams *UpdateParams) {
+	// TODO: update systems which are allowed to be queried from Think
+	// w.updatePhysicsShadow(updateParams)
+
 	for id, scriptName := range ecs.All(&w.Script) {
 		script := scripts[scriptName]
 		if script.Think == nil {
@@ -441,7 +443,6 @@ func (w *Scene) Step(updateParams *UpdateParams) {
 	w.think(updateParams)
 
 	w.physicsStep(updateParams)
-	w.processUpdates(updateParams)
 
 	for id, a := range ecs.All(&w.SoundEffectState) {
 		soundEffect, _ := w.SoundEffect.Get(id)

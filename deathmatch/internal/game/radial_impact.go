@@ -13,9 +13,10 @@ import (
 type distributionFunction func(gmath.Vec2f32) (gmath.Vec3f32, float32)
 
 // TODO: allow the user to specify filters
+// TODO: allow for a little bit of extra linear distance falloff to model dissipation?
 func (scene *Scene) radialImpact(
-	impact Impact, // TODO: don't use Impact but plop the fields we use as is?
-	T gmath.Affine3f64,
+	impact Impact,
+	T gmath.Affine3f64, // TODO: move this to be the first parameter?
 	df distributionFunction,
 	radius float32,
 	resolution float32, // TODO: reformulate it in terms of something that doesn't require adjustment along with the radius
@@ -61,12 +62,11 @@ func (scene *Scene) radialImpact(
 			continue
 		}
 
+		dmg := impact.Damage * pdf * float32(spat)
+
 		tmp := results[collector.closestHit.BodyID]
-		// TODO: convert damage to joules by consulting a table indexed by
-		// impactType and compute the impulse correctly, taking inertia tensor
-		// into account
-		tmp.dvel = tmp.dvel.Add(Velocity{Linear: d.Scale(impact.Damage * pdf * float32(spat))})
-		tmp.dmg += impact.Damage * pdf * float32(spat)
+		tmp.dvel = tmp.dvel.Add(Velocity{Linear: d.Scale(dmg * impactTypes[impact.Type])})
+		tmp.dmg += dmg
 		results[collector.closestHit.BodyID] = tmp
 	}
 
