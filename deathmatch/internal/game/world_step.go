@@ -17,6 +17,8 @@ func (world *World) Step(updateParams *UpdateParams) {
 
 	world.physicsStep(updateParams)
 
+	world.handleOutOfBoundsEntities(updateParams)
+
 	for id, a := range ecs.All(&world.SoundEffectState) {
 		soundEffect, _ := world.SoundEffect.Get(id)
 		if soundEffect.PlayTime.Add(time.Duration(a.LengthInSamples * 1e9 / 48000)).After(world.Now) {
@@ -28,9 +30,6 @@ func (world *World) Step(updateParams *UpdateParams) {
 		soundEffect.PlayTime = world.Now
 		world.SoundEffect.Set(id, soundEffect)
 	}
-
-	// TODO: move this to happen during processEntityUpdates
-	world.DeleteEntities()
 
 	// TODO: update physics shadow here so that the physics world doesn't
 	// include deleted entities.
