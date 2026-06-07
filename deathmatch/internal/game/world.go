@@ -393,6 +393,8 @@ func (world *World) processEntityUpdates(updateParams *UpdateParams) {
 	}
 
 	world.Updates.Clear()
+
+	world.deleteMarkedEntities()
 }
 
 func (world *World) think(updateParams *UpdateParams) {
@@ -435,7 +437,7 @@ func (world *World) think(updateParams *UpdateParams) {
 
 // TODO: rename to make it clear that we're deleting things already marked for
 // deletion.
-func (world *World) DeleteEntities() {
+func (world *World) deleteMarkedEntities() {
 	// TODO: would we benefit from (optionally) checking whether any entities
 	// have dangling references to other entities?
 
