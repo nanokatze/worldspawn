@@ -36,9 +36,9 @@ type Server struct {
 
 	tickPeriod time.Duration
 
-	scene *game.Scene
+	world *game.World
 
-	// TODO: history should be a responsibility of game.Scene itself. Or maybe
+	// TODO: history should be a responsibility of game.World itself. Or maybe
 	// not. Perhaps we should pass the history and shadow columns through
 	// UpdateParams, but be responsible for managing those.
 	//
@@ -47,7 +47,7 @@ type Server struct {
 	//
 	// For lag compensation, we might need physics for queries, but it's not yet
 	// clear how that should be done exactly.
-	prevWorld *game.Scene
+	prevWorld *game.World
 
 	mtimes modTimes
 
@@ -151,7 +151,7 @@ func (s *Server) serveConn(conn *quic.Conn, logger *slog.Logger) error {
 	// TODO: we shouldn't need to spawn the player immediately. The game should
 	// decide when to do so
 	s.mu.Lock()
-	u.player = game.SpawnPlayer(s.scene, &game.UpdateParams{Logger: slog.Default()})
+	u.player = s.world.SpawnPlayer(&game.UpdateParams{Logger: slog.Default()})
 	s.mu.Unlock()
 
 	framer := framing.NewFramer(stream2)
@@ -165,8 +165,8 @@ func (s *Server) serveConn(conn *quic.Conn, logger *slog.Logger) error {
 	// TODO: remove this and let world delta updates take care of this? That
 	// might introduce some delay so perhaps not.
 	{
-		binary.Write(framer, binary.LittleEndian, int64(replication.ResetScene))
-		binary.Write(framer, binary.LittleEndian, int64(s.scene.Cap()))
+		binary.Write(framer, binary.LittleEndian, int64(replication.ResetWorld))
+		binary.Write(framer, binary.LittleEndian, int64(s.world.Cap()))
 		framer.Next()
 
 		defer func() {
@@ -174,9 +174,9 @@ func (s *Server) serveConn(conn *quic.Conn, logger *slog.Logger) error {
 			defer s.mu.Unlock()
 
 			// TODO: don't kill Character here
-			player, _ := game.SceneGetEntity[game.Player](s.scene, u.player)
-			s.scene.Delete.Set(player.ControlledCharacter, struct{}{})
-			s.scene.Delete.Set(u.player, struct{}{})
+			player, _ := game.SceneGetEntity[game.Player](s.world, u.player)
+			s.world.Delete.Set(player.ControlledCharacter, struct{}{})
+			s.world.Delete.Set(u.player, struct{}{})
 		}()
 	}
 
@@ -208,7 +208,7 @@ func (s *Server) serveConn(conn *quic.Conn, logger *slog.Logger) error {
 
 				select {
 				case buf := <-u.marshaledUpdates:
-					binary.Write(framer, binary.LittleEndian, uint64(replication.UpdateScene))
+					binary.Write(framer, binary.LittleEndian, uint64(replication.UpdateWorld))
 					framer.Write(buf)
 					framer.Next()
 				case <-done:
@@ -264,7 +264,7 @@ func (s *Server) handleInputPackets(u *user, stream io.Reader) error {
 			// u.time = max(u.time, tmpTime)
 
 			for _, cmd := range cmds {
-				s.scene.HandleInput(u.player, cmd, &game.UpdateParams{Δt: s.tickPeriod, Logger: slog.Default()})
+				s.world.HandleInput(u.player, cmd, &game.UpdateParams{Δt: s.tickPeriod, Logger: slog.Default()})
 			}
 		}()
 
@@ -274,21 +274,21 @@ func (s *Server) handleInputPackets(u *user, stream io.Reader) error {
 	}
 }
 
-func (mtimes *modTimes) update(prevWorld, scene *game.Scene) {
+func (mtimes *modTimes) update(prevWorld, world *game.World) {
 	{
 		a := prevWorld.Table.IDs()
-		b := scene.Table.IDs()
+		b := world.Table.IDs()
 
 		for i := range b.Cap() {
 			if a.Index(i) != b.Index(i) {
-				mtimes.Entities[i] = scene.Now
+				mtimes.Entities[i] = world.Now
 			}
 		}
 	}
 
 	for _, columnIndex := range replication.ReplicatedColumns {
 		old := reflect.ValueOf(&prevWorld.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
-		cur := reflect.ValueOf(&scene.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
+		cur := reflect.ValueOf(&world.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
 
 		t := cur.ElemType()
 
@@ -304,7 +304,7 @@ func (mtimes *modTimes) update(prevWorld, scene *game.Scene) {
 				equal = reflect.DeepEqual(oldc.Interface(), curc.Interface())
 			}
 			if !equal {
-				mtimes.Columns[columnIndex][id.Index()] = scene.Now
+				mtimes.Columns[columnIndex][id.Index()] = world.Now
 			}
 		}
 	}
@@ -314,9 +314,9 @@ func (s *Server) tick(Δt time.Duration) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.scene.Step(&game.UpdateParams{Δt: Δt, Logger: slog.Default()})
+	s.world.Step(&game.UpdateParams{Δt: Δt, Logger: slog.Default()})
 
-	s.mtimes.update(s.prevWorld, s.scene)
+	s.mtimes.update(s.prevWorld, s.world)
 
 	// TODO: run SendUpdates in parallel
 	s.users.Range(func(u, _ any) bool {
@@ -328,11 +328,11 @@ func (s *Server) tick(Δt time.Duration) {
 	// Copy the current s.World to s.PrevWorld
 
 	// TODO: move this into a method on the World
-	s.prevWorld.Now = s.scene.Now
-	s.prevWorld.Table.Copy(s.scene.Table)
+	s.prevWorld.Now = s.world.Now
+	s.prevWorld.Table.Copy(s.world.Table)
 	for _, columnIndex := range replication.ReplicatedColumns {
 		dst := reflect.ValueOf(&s.prevWorld.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
-		src := reflect.ValueOf(&s.scene.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
+		src := reflect.ValueOf(&s.world.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
 		dst.Copy(src)
 	}
 }
@@ -353,7 +353,7 @@ func (s *Server) sendUpdates(u *user) {
 	buf := new(bytes.Buffer)
 	enc := nice.NewEncoder(buf, replication.NiceOptions)
 
-	if err := nice.MarshalEncode(enc, &s.scene.Now); err != nil {
+	if err := nice.MarshalEncode(enc, &s.world.Now); err != nil {
 		panic(err)
 	}
 
@@ -371,7 +371,7 @@ func (s *Server) sendUpdates(u *user) {
 				continue
 			}
 
-			id := s.scene.Table.IDs().Index(i)
+			id := s.world.Table.IDs().Index(i)
 
 			gen := ^uint32(0)
 			if id != 0 {
@@ -398,7 +398,7 @@ func (s *Server) sendUpdates(u *user) {
 	// TODO: insert various canaries to make debugging easier
 
 	for _, columnIndex := range replication.ReplicatedColumns {
-		column := reflect.ValueOf(&s.scene.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
+		column := reflect.ValueOf(&s.world.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
 
 		buf2 := new(bytes.Buffer)
 		enc2 := nice.NewEncoder(buf2, replication.NiceOptions)
@@ -410,7 +410,7 @@ func (s *Server) sendUpdates(u *user) {
 				continue
 			}
 
-			id := s.scene.Table.IDs().Index(i)
+			id := s.world.Table.IDs().Index(i)
 			if id == 0 {
 				continue
 			}
@@ -443,7 +443,7 @@ func (s *Server) sendUpdates(u *user) {
 	// Because we're sending stuff reliably, we can do this.
 	//
 	// TODO: set this if we're actually sending stuff.
-	u.time = s.scene.Now
+	u.time = s.world.Now
 
 	// TODO: we could compress now or later. Compressing now means we increase
 	// the server's critical section, compressing later means our memory usage
@@ -520,12 +520,12 @@ func main() {
 	maxEntities := 1000
 
 	s.tickPeriod = time.Second / 64
-	s.scene = game.NewScene(maxEntities)
-	s.prevWorld = game.NewScene(maxEntities)
+	s.world = game.NewWorld(maxEntities)
+	s.prevWorld = game.NewWorld(maxEntities)
 	s.mtimes.Init(maxEntities, reflect.TypeFor[game.Columns]().NumField())
 
 	sceneFile, err := game.Data.Open(conf.MapRotation[0])
-	if err := s.scene.Restore(sceneFile); err != nil {
+	if err := s.world.Restore(sceneFile); err != nil {
 		log.Fatalf("restore %v: %v", sceneFile, err)
 	}
 	sceneFile.Close()
@@ -533,34 +533,35 @@ func main() {
 	info := &game.UpdateParams{Logger: slog.Default()}
 
 	if true {
-		test := s.scene.CreateEntity(info)
-		s.scene.Entity.Set(test, game.Animtest{"testcharacter4/animations/metarigAction"})
-		s.scene.SetTransform(test, gmath.TRS3f64{
+		test := s.world.CreateEntity(info)
+		s.world.SetScript(test, "animtest")
+		s.world.Entity.Set(test, game.Animtest{"testcharacter4/animations/metarigAction"})
+		s.world.SetTransform(test, gmath.TRS3f64{
 			T: gmath.Vec3f64{0, -1, 0},
 			R: gmath.Rot3One(),
 			S: gmath.Mat3x3UOne[float32](),
 		})
-		s.scene.Skeleton.Set(test, "testcharacter4/skeletons/metarig")
-		s.scene.RenderingGeometry.Set(test, "testcharacter4/geometries/TestCharacter4")
+		s.world.Skeleton.Set(test, "testcharacter4/skeletons/metarig")
+		s.world.RenderingGeometry.Set(test, "testcharacter4/geometries/TestCharacter4")
 
-		test2 := s.scene.CreateEntity(info)
-		s.scene.Entity.Set(test2, game.Testburger{BaseColor: [4]float32{0.8, 0.8, 0.8, 1}})
-		s.scene.SetParent(test2, test)
-		s.scene.ParentBone.Set(test2, "hand.L")
-		s.scene.SetTransform(test2, gmath.TRS3f64{
-			T: gmath.Vec3f64{0, 0.4, 0.1},
-			R: gmath.Rot3One(),
-			S: gmath.Mat3x3UOne[float32](),
-		})
-		s.scene.RenderingGeometry.Set(test2, "weapons/grenade_launcher/geometries/Grenade_Launcher")
+		// test2 := s.scene.CreateEntity(info)
+		// s.scene.Entity.Set(test2, game.Testburger{BaseColor: [4]float32{0.8, 0.8, 0.8, 1}})
+		// s.scene.SetParent(test2, test)
+		// s.scene.ParentBone.Set(test2, "hand.L")
+		// s.scene.SetTransform(test2, gmath.TRS3f64{
+		// 	T: gmath.Vec3f64{0, 0.4, 0.1},
+		// 	R: gmath.Rot3One(),
+		// 	S: gmath.Mat3x3UOne[float32](),
+		// })
+		// s.scene.RenderingGeometry.Set(test2, "weapons/grenade_launcher/geometries/Grenade_Launcher")
 	}
 
-	s.scene.InstantinateCollections()
+	s.world.InstantinateCollections()
 
 	// Reset mtimes
 	for _, comp := range s.mtimes.Columns {
 		for j := range comp {
-			comp[j] = s.scene.Now
+			comp[j] = s.world.Now
 		}
 	}
 

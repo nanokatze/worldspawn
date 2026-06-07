@@ -17,12 +17,12 @@ func (WeaponPhysgun) entity() {}
 var _ Entity = WeaponPhysgun{}
 var _ Weapon = WeaponPhysgun{}
 
-func (physgun WeaponPhysgun) CreateProp(scene *Scene, info *UpdateParams) ecs.ID {
-	return scene.CreateEntity(info)
+func (physgun WeaponPhysgun) CreateProp(world *World, info *UpdateParams) ecs.ID {
+	return world.CreateEntity(info)
 }
 
 func (physgun WeaponPhysgun) WeaponSubstep(
-	scene *Scene,
+	world *World,
 	weapon ecs.ID,
 	propIDs []ecs.ID,
 	shooter ecs.ID,
@@ -37,7 +37,7 @@ func (physgun WeaponPhysgun) WeaponSubstep(
 		collector.shooter = physics.BodyID(shooter.Index())
 		collector.hit.BodyID = 0xffffffff
 
-		scene.physicsSystem.TraceRay(
+		world.physics.TraceRay(
 			physics.Ray{
 				Origin:    T.T,
 				Direction: T.M.Mulv(forward).Normalize(),
@@ -47,16 +47,16 @@ func (physgun WeaponPhysgun) WeaponSubstep(
 
 		if collector.hit.BodyID != 0xffffffff {
 			physgun.Holding = true
-			physgun.Object = scene.Table.IDs().Index(int(collector.hit.BodyID))
-			physgun.Transform = T.Inv().Mul(scene.GetGlobalTransform(physgun.Object))
+			physgun.Object = world.Table.IDs().Index(int(collector.hit.BodyID))
+			physgun.Transform = T.Inv().Mul(world.GetGlobalTransform(physgun.Object))
 		}
 
-		scene.Entity.Set(weapon, physgun)
+		world.Entity.Set(weapon, physgun)
 
 	case physgun.Holding && buttons&WeaponTrigger == 0:
 		physgun.Holding = false
 
-		scene.Entity.Set(weapon, physgun)
+		world.Entity.Set(weapon, physgun)
 
 	case physgun.Holding:
 		// TODO: this doesn't work correctly when we're touching an object
@@ -65,10 +65,10 @@ func (physgun WeaponPhysgun) WeaponSubstep(
 		// something.
 		transform := T.Mul(physgun.Transform)
 
-		scene.SendMessage(physgun.Object,
-			func(scene *Scene, id ecs.ID, updateParams *UpdateParams) {
-				scene.SetTransform(id, transform.TRS())
-				scene.Velocity.Set(id, Velocity{})
+		world.EnqueueEntityUpdate(physgun.Object,
+			func(world *World, id ecs.ID, _ *UpdateParams) {
+				world.SetTransform(id, transform.TRS())
+				world.Velocity.Set(id, Velocity{})
 			})
 	}
 

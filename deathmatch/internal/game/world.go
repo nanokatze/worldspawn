@@ -62,7 +62,7 @@ type Columns struct {
 
 	// TODO: this doesn't really need to be a column, this could perfectly
 	// feasibly be a plain array with a bitmap.
-	Updates ecs.Column[[]func(scene *Scene, id ecs.ID, updateParams *UpdateParams)] `worldspawn:"transient"`
+	Updates ecs.Column[[]func(world *World, id ecs.ID, updateParams *UpdateParams)] `worldspawn:"transient"`
 
 	// Entities marked for deletion
 	//
@@ -143,8 +143,9 @@ type Columns struct {
 	Speculation ecs.Column[Time] // TODO: do not network this
 }
 
-// TODO: let's rename it back to World actually waow
-type Scene struct {
+// TODO: make all of the internals. We'll need to add infrastructure for
+// replication to World first.
+type World struct {
 	// TODO: could we move this to somewhere? Either way I would prefer if
 	// things would consult UpdateParams.Now rather than Scene.Params
 	Now Time
@@ -155,103 +156,102 @@ type Scene struct {
 	Table *ecs.Table
 	Columns
 
-	physicsSystem *physics.System
+	physics *physics.System
 	// TODO: this should be folded into physicsSystem
 	physicsBodyExists ecs.Column[struct{}]
 }
 
-func NewScene(n int) *Scene {
-	w := new(Scene)
+func NewWorld(n int) *World {
+	world := new(World)
 
-	w.Table = ecs.NewTable(n)
+	world.Table = ecs.NewTable(n)
 
 	// TODO: make it clear that these are reflect references
 
-	columns := reflect.ValueOf(&w.Columns).Elem()
+	columns := reflect.ValueOf(&world.Columns).Elem()
 	for i := range columns.Type().NumField() {
-		columns.Field(i).Addr().Interface().(interface{ Init(*ecs.Table) }).Init(w.Table)
+		columns.Field(i).Addr().Interface().(interface{ Init(*ecs.Table) }).Init(world.Table)
 	}
 
-	w.physicsSystem = physics.NewSystem(
+	world.physics = physics.NewSystem(
 		int(numCollisionLayers),
 		collisionLayerToBroadPhaseLayer[:],
 		collisionLayerRules)
-	w.physicsBodyExists.Init(w.Table)
+	world.physicsBodyExists.Init(world.Table)
 
 	// TODO: we should expose an OptimizeBroadPhase call on physicsSystem which
 	// we'll (optionally) call after loading the world and perhaps every so
 	// often
 
-	return w
+	return world
 }
 
-func (scene *Scene) Cap() int { return scene.Table.IDs().Cap() }
+func (world *World) Cap() int { return world.Table.IDs().Cap() }
 
-func (w *Scene) Destroy() {
-	// TODO: stop and destroy physicsSystem here
-}
+func (world *World) EntityExists(id ecs.ID) bool { return world.Table.IDs().Exists(id) }
 
-func (w *Scene) EntityExists(id ecs.ID) bool { return w.Table.IDs().Exists(id) }
+// TODO: replace CreateEntity and DeleteEntityImmediately with
+// EnqueueCreateEntity(f func(id)) and EnqueueDeleteEntity(id)?
 
 // TODO: make this private?
 // TODO: same as DeleteEntityImmediately, we probably should make a column for
 // creating entities so we can run a processing pass in parallel that then
 // spawns entities. Except this column would have to be of funcs.
-func (w *Scene) CreateEntity(info *UpdateParams) ecs.ID {
+func (world *World) CreateEntity(info *UpdateParams) ecs.ID {
 	// TODO: don't hardcode index ranges
 
 	if info.Speculating {
-		id := w.Table.CreateRowAuto(900, 999, &w.NextIDSpeculative)
-		w.Speculation.Set(id, w.Now)
+		id := world.Table.CreateRowAuto(900, 999, &world.NextIDSpeculative)
+		world.Speculation.Set(id, world.Now)
 		return id
 	}
 
-	id := w.Table.CreateRowAuto(1, 899, &w.NextID)
+	id := world.Table.CreateRowAuto(1, 899, &world.NextID)
 	return id
 }
 
 // TODO: rename to ResetEntity?
-func (scene *Scene) ClearEntity(id ecs.ID) {
-	if _, ok := scene.physicsBodyExists.Get(id); ok {
-		scene.physicsSystem.RemoveBody(physics.BodyID(id.Index()))
+func (world *World) ClearEntity(id ecs.ID) {
+	if _, ok := world.physicsBodyExists.Get(id); ok {
+		world.physics.RemoveBody(physics.BodyID(id.Index()))
 	}
-	scene.Table.ClearRow(id)
+	world.Table.ClearRow(id)
 }
 
 // This is used by client networking to remove entities.
 // TODO: kill
-func (w *Scene) DeleteEntityImmediately(id ecs.ID) {
-	if _, ok := w.physicsBodyExists.Get(id); ok {
-		w.physicsSystem.RemoveBody(physics.BodyID(id.Index()))
+func (world *World) DeleteEntityImmediately(id ecs.ID) {
+	if _, ok := world.physicsBodyExists.Get(id); ok {
+		world.physics.RemoveBody(physics.BodyID(id.Index()))
 	}
-	w.Table.DeleteRow(id)
+	world.Table.DeleteRow(id)
 }
 
-func (w *Scene) Globals() SceneGlobals {
-	globals, _ := SceneGetEntity[SceneGlobals](w, 1)
+func (world *World) Globals() SceneGlobals {
+	globals, _ := SceneGetEntity[SceneGlobals](world, 1)
 	return globals
 }
 
-func (scene *Scene) GetParent(id ecs.ID) ecs.ID {
-	parent, _ := scene.Parent.Get(id)
+func (world *World) GetParent(id ecs.ID) ecs.ID {
+	parent, _ := world.Parent.Get(id)
 	return parent
 }
 
-func (scene *Scene) SetParent(id, parent ecs.ID) {
+func (world *World) SetParent(id, parent ecs.ID) {
 	if parent != 0 {
-		scene.Parent.Set(id, parent)
+		world.Parent.Set(id, parent)
 	} else {
 		// TODO: our panic behavior should be the same as if we tried to Set
 		// this id. I.e. if this id isn't valid, we should crash.
-		scene.Parent.Delete(id)
+		world.Parent.Delete(id)
 	}
 
 	// children, _ := scene.Children.Load(parent)
 	// children
 }
 
-func (scene *Scene) GetTransform(id ecs.ID) gmath.TRS3f64 {
-	tr, ok := scene.TransformTR.Get(id)
+func (world *World) GetTransform(id ecs.ID) gmath.TRS3f64 {
+	tr, ok := world.TransformTR.Get(id)
 	if !ok {
 		// TODO: replace this panic with an oops-esque thing which can be just a
 		// warning or whatever if need be, or return error from GetTransform and
@@ -259,19 +259,19 @@ func (scene *Scene) GetTransform(id ecs.ID) gmath.TRS3f64 {
 		panic(fmt.Sprintf("transform queried but does not exist on an object id=%d", id))
 		return gmath.TRS3One[float64]()
 	}
-	s, ok := scene.TransformS.Get(id)
+	s, ok := world.TransformS.Get(id)
 	if !ok {
 		s = gmath.Mat3x3UOne[float32]()
 	}
 	return gmath.TRS3f64{tr.T, tr.R, s}
 }
 
-func (scene *Scene) SetTransform(id ecs.ID, T gmath.TRS3f64) {
-	scene.TransformTR.Set(id, TR3f64{T.T, T.R})
+func (world *World) SetTransform(id ecs.ID, T gmath.TRS3f64) {
+	world.TransformTR.Set(id, TR3f64{T.T, T.R})
 	if T.S != gmath.Mat3x3UOne[float32]() {
-		scene.TransformS.Set(id, T.S)
+		world.TransformS.Set(id, T.S)
 	} else {
-		scene.TransformS.Delete(id)
+		world.TransformS.Delete(id)
 	}
 }
 
@@ -285,13 +285,13 @@ func (scene *Scene) SetTransform(id ecs.ID, T gmath.TRS3f64) {
 // common case
 //
 // TODO: clean up
-func (scene *Scene) GetGlobalTransform(id ecs.ID) gmath.Affine3f64 {
+func (world *World) GetGlobalTransform(id ecs.ID) gmath.Affine3f64 {
 	getEntityTransform := func(id ecs.ID) gmath.Affine3f64 {
-		tr, ok := scene.TransformTR.Get(id)
+		tr, ok := world.TransformTR.Get(id)
 		if !ok {
 			return gmath.Affine3One[float64]()
 		}
-		s, ok := scene.TransformS.Get(id)
+		s, ok := world.TransformS.Get(id)
 		if !ok {
 			s = gmath.Mat3x3UOne[float32]()
 		}
@@ -300,7 +300,7 @@ func (scene *Scene) GetGlobalTransform(id ecs.ID) gmath.Affine3f64 {
 
 	// TODO: make this a method on the scene?
 	getBoneTransform := func(id ecs.ID, bone string) gmath.Affine3f32 {
-		skelly := scene.GetSkeleton(id)
+		skelly := world.GetSkeleton(id)
 		if skelly == nil {
 			return gmath.Affine3One[float32]()
 		}
@@ -309,7 +309,7 @@ func (scene *Scene) GetGlobalTransform(id ecs.ID) gmath.Affine3f64 {
 			return gmath.Affine3One[float32]()
 		}
 
-		pose, _ := scene.Pose.Get(id)
+		pose, _ := world.Pose.Get(id)
 		boneTransform, ok := pose.Bones[boneIndex]
 		if !ok {
 			return skelly.BindPose[boneIndex]
@@ -328,13 +328,13 @@ func (scene *Scene) GetGlobalTransform(id ecs.ID) gmath.Affine3f64 {
 	for range 5000 {
 		A = getEntityTransform(id).Mul(A)
 
-		parent := scene.GetParent(id)
+		parent := world.GetParent(id)
 		if parent == 0 {
 			// TODO: ensure that parent to bone isn't set
 			break
 		}
 
-		if parentBone, parentedToBone := scene.ParentBone.Get(id); parentedToBone {
+		if parentBone, parentedToBone := world.ParentBone.Get(id); parentedToBone {
 			A = gmath.Affine3Convert[float64](getBoneTransform(parent, parentBone)).Mul(A)
 		}
 
@@ -344,8 +344,8 @@ func (scene *Scene) GetGlobalTransform(id ecs.ID) gmath.Affine3f64 {
 	return A
 }
 
-func (scene *Scene) GetSkeleton(id ecs.ID) *animgraph.Skeleton {
-	skellyName, ok := scene.Skeleton.Get(id)
+func (world *World) GetSkeleton(id ecs.ID) *animgraph.Skeleton {
+	skellyName, ok := world.Skeleton.Get(id)
 	if !ok {
 		return nil
 	}
@@ -353,8 +353,8 @@ func (scene *Scene) GetSkeleton(id ecs.ID) *animgraph.Skeleton {
 }
 
 // TODO: kill this
-func SceneGetEntity[T Entity](w *Scene, id ecs.ID) (T, bool) {
-	entity, _ := w.Entity.Get(id)
+func SceneGetEntity[T Entity](world *World, id ecs.ID) (T, bool) {
+	entity, _ := world.Entity.Get(id)
 	entityT, ok := entity.(T)
 	if !ok {
 		return *new(T), false
@@ -374,118 +374,68 @@ type UpdateParams struct {
 type Thinker interface {
 	Entity
 
-	Think(scene *Scene, id ecs.ID, updateParams *UpdateParams)
+	Think(world *World, id ecs.ID, updateParams *UpdateParams)
 }
 
-// TODO: we could rename this to enqueueUpdate or something
-func (w *Scene) SendMessage(to ecs.ID, f func(scene *Scene, id ecs.ID, updateParams *UpdateParams)) {
-	updates, _ := w.Updates.Get(to)
-	w.Updates.Set(to, append(updates, f))
+func (world *World) EnqueueEntityUpdate(to ecs.ID, f func(world *World, id ecs.ID, updateParams *UpdateParams)) {
+	updates, _ := world.Updates.Get(to)
+	world.Updates.Set(to, append(updates, f))
 }
 
-func (w *Scene) processUpdates(updateParams *UpdateParams) {
+func (world *World) processEntityUpdates(updateParams *UpdateParams) {
 	// TODO: double buffer messages so that messages can be sent during
 	// processing and process them until there's no more messages.
 
-	for id, updates := range ecs.All(&w.Updates) {
+	for id, updates := range ecs.All(&world.Updates) {
 		for _, f := range updates {
-			f(w, id, updateParams)
+			f(world, id, updateParams)
 		}
 	}
 
-	w.Updates.Clear()
+	world.Updates.Clear()
 }
 
-func (w *Scene) think(updateParams *UpdateParams) {
+func (world *World) think(updateParams *UpdateParams) {
 	// TODO: update systems which are allowed to be queried from Think
 	// w.updatePhysicsShadow(updateParams)
 
-	for id, scriptName := range ecs.All(&w.Script) {
+	for id, scriptName := range ecs.All(&world.Script) {
 		script := scripts[scriptName]
 		if script.Think == nil {
 			continue
 		}
 
 		// TODO: we'll want a timer wheel of sorts to make this fast
-		nextThink, _ := w.NextThink.Get(id)
-		if w.Now.Before(nextThink) {
+		nextThink, _ := world.NextThink.Get(id)
+		if world.Now.Before(nextThink) {
 			continue
 		}
 
-		script.Think(w, id, updateParams)
+		script.Think(world, id, updateParams)
 	}
 
 	// TODO: kill this
-	for id, entity := range ecs.All(&w.Entity) {
+	for id, entity := range ecs.All(&world.Entity) {
 		thinker, ok := entity.(Thinker)
 		if !ok {
 			continue
 		}
 
 		// TODO: we'll want a timer wheel of sorts to make this fast
-		nextThink, _ := w.NextThink.Get(id)
-		if w.Now.Before(nextThink) {
+		nextThink, _ := world.NextThink.Get(id)
+		if world.Now.Before(nextThink) {
 			continue
 		}
 
-		thinker.Think(w, id, updateParams)
+		thinker.Think(world, id, updateParams)
 	}
 
-	w.processUpdates(updateParams)
-}
-
-func (w *Scene) Step(updateParams *UpdateParams) {
-	w.Now = w.Now.Add(updateParams.Δt)
-
-	// TODO: optimize loops over entities implementing particular interface by
-	// having shadow columns.
-
-	w.think(updateParams)
-
-	w.physicsStep(updateParams)
-
-	for id, a := range ecs.All(&w.SoundEffectState) {
-		soundEffect, _ := w.SoundEffect.Get(id)
-		if soundEffect.PlayTime.Add(time.Duration(a.LengthInSamples * 1e9 / 48000)).After(w.Now) {
-			continue
-		}
-
-		soundEffect.Effect = a.Sound
-		soundEffect.Attenuation = a.Attenuation
-		soundEffect.PlayTime = w.Now
-		w.SoundEffect.Set(id, soundEffect)
-	}
-
-	// Must happen last
-	w.DeleteEntities()
-
-	// TODO: update physics shadow here so that the physics world doesn't
-	// include deleted entities.
-
-	// Clear transient columns
-	{
-		// TODO: we should create a helper for these
-		rcolumns := reflect.ValueOf(&w.Columns).Elem()
-		ty := rcolumns.Type()
-		for i := range rcolumns.NumField() {
-			if ty.Field(i).Tag.Get("worldspawn") != "transient" {
-				continue
-			}
-			rcolumns.Field(i).Addr().Interface().(interface{ Clear() }).Clear()
-		}
-	}
-}
-
-func mustOk[T any](v T, ok bool) T {
-	if !ok {
-		panic("not ok")
-	}
-	return v
+	world.processEntityUpdates(updateParams)
 }
 
 // TODO: rename to make it clear that we're deleting things already marked for
 // deletion.
-func (w *Scene) DeleteEntities() {
+func (world *World) DeleteEntities() {
 	// TODO: would we benefit from (optionally) checking whether any entities
 	// have dangling references to other entities?
 
@@ -503,27 +453,27 @@ func (w *Scene) DeleteEntities() {
 				return false
 			}
 
-			if _, delet := w.Delete.Get(id); delet {
+			if _, delet := world.Delete.Get(id); delet {
 				return true
 			}
 
-			delet := f(w.GetParent(id))
+			delet := f(world.GetParent(id))
 			if delet {
-				w.Delete.Set(id, struct{}{})
+				world.Delete.Set(id, struct{}{})
 			}
 			return delet
 		}
 
-		for id := range ecs.All(&w.Parent) {
+		for id := range ecs.All(&world.Parent) {
 			f(id)
 		}
 	}
 
 	// Remove entities that were scheduled for removal
-	for id := range ecs.All(&w.Delete) {
-		if _, ok := w.physicsBodyExists.Get(id); ok {
-			w.physicsSystem.RemoveBody(physics.BodyID(id.Index()))
+	for id := range ecs.All(&world.Delete) {
+		if _, ok := world.physicsBodyExists.Get(id); ok {
+			world.physics.RemoveBody(physics.BodyID(id.Index()))
 		}
-		w.Table.DeleteRow(id)
+		world.Table.DeleteRow(id)
 	}
 }

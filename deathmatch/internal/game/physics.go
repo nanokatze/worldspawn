@@ -34,11 +34,11 @@ type ContactEvent struct {
 	EntityID2 ecs.ID
 }
 
-func (contact ContactEvent) Apply(scene *Scene, id ecs.ID, updateParams *UpdateParams) {
+func (contact ContactEvent) Apply(world *World, id ecs.ID, updateParams *UpdateParams) {
 	if contact.Type == 1 {
-		if _, ok := scene.DeleteCosmeticOffsetOnContact.Get(id); ok {
-			scene.CosmeticOffset.Delete(id)
-			scene.DeleteCosmeticOffsetOnContact.Delete(id)
+		if _, ok := world.DeleteCosmeticOffsetOnContact.Get(id); ok {
+			world.CosmeticOffset.Delete(id)
+			world.DeleteCosmeticOffsetOnContact.Delete(id)
 		}
 	}
 
@@ -49,26 +49,26 @@ func (contact ContactEvent) Apply(scene *Scene, id ecs.ID, updateParams *UpdateP
 // uncrouch the player I think
 
 // Always run this before performing physics queries!!!
-func (w *Scene) updatePhysicsShadow(updateParams *UpdateParams) {
+func (world *World) updatePhysicsShadow(updateParams *UpdateParams) {
 	// TODO: remove bodies when we delete entities!!!!!!!!
-	for id := range ecs.All(&w.physicsBodyExists) {
-		if _, ok := w.CollisionLayer.Get(id); !ok {
-			w.physicsSystem.RemoveBody(physics.BodyID(id))
-			w.physicsBodyExists.Delete(id)
+	for id := range ecs.All(&world.physicsBodyExists) {
+		if _, ok := world.CollisionLayer.Get(id); !ok {
+			world.physics.RemoveBody(physics.BodyID(id))
+			world.physicsBodyExists.Delete(id)
 		}
 	}
 
-	for id, layer := range ecs.All(&w.CollisionLayer) {
-		trs := w.GetTransform(id)
+	for id, layer := range ecs.All(&world.CollisionLayer) {
+		trs := world.GetTransform(id)
 		// TODO: ensure trs.S is 1
-		velocity, _ := w.Velocity.Get(id)
-		filter, _ := w.PhysicsFilter.Get(id)
+		velocity, _ := world.Velocity.Get(id)
+		filter, _ := world.PhysicsFilter.Get(id)
 
 		// TODO: pairwise filter should pass ecs.IDs as is and we should store
 		// it on the rigid bodies in the user data slot.
 		filter2 := []physics.BodyID{}
 		for _, e := range filter {
-			_, ok := w.physicsBodyExists.Get(e)
+			_, ok := world.physicsBodyExists.Get(e)
 			if !ok {
 				continue
 			}
@@ -77,14 +77,14 @@ func (w *Scene) updatePhysicsShadow(updateParams *UpdateParams) {
 
 		motionType2 := collisionLayerMotionType[layer]
 
-		gravityFactor, ok := w.GravityFactor.Get(id)
+		gravityFactor, ok := world.GravityFactor.Get(id)
 		if !ok {
 			gravityFactor = 1
 		}
 
-		shape2 := getShape(w, id)
+		shape2 := getShape(world, id)
 
-		mass, overrideMass := w.PhysicsMassOverride.Get(id)
+		mass, overrideMass := world.PhysicsMassOverride.Get(id)
 		if !overrideMass {
 			mass = shape2.Mass()
 		}
@@ -92,16 +92,16 @@ func (w *Scene) updatePhysicsShadow(updateParams *UpdateParams) {
 		// mass=0.
 		mass = max(mass, 0.001)
 
-		inertia, overrideInertia := w.PhysicsInertiaOverride.Get(id)
+		inertia, overrideInertia := world.PhysicsInertiaOverride.Get(id)
 		if !overrideInertia {
 			inertia = shape2.Inertia()
 		}
 
 		bodyID := physics.BodyID(id.Index())
 
-		_, bodyExists := w.physicsBodyExists.Get(id)
+		_, bodyExists := world.physicsBodyExists.Get(id)
 		if !bodyExists {
-			w.physicsSystem.AddBody(
+			world.physics.AddBody(
 				bodyID,
 				shape2,
 				trs.T,
@@ -114,9 +114,9 @@ func (w *Scene) updatePhysicsShadow(updateParams *UpdateParams) {
 				gravityFactor,
 				mass,
 				inertia)
-			w.physicsBodyExists.Set(id, struct{}{})
+			world.physicsBodyExists.Set(id, struct{}{})
 		} else {
-			w.physicsSystem.UpdateBody(
+			world.physics.UpdateBody(
 				bodyID,
 				shape2,
 				trs.T,
@@ -133,9 +133,9 @@ func (w *Scene) updatePhysicsShadow(updateParams *UpdateParams) {
 	}
 }
 
-func getShape(w *Scene, id ecs.ID) *physics.Shape {
-	layer, _ := w.CollisionLayer.Get(id)
-	geom, _ := w.CollisionGeometry.Get(id)
+func getShape(world *World, id ecs.ID) *physics.Shape {
+	layer, _ := world.CollisionLayer.Get(id)
+	geom, _ := world.CollisionGeometry.Get(id)
 
 	motionType2 := collisionLayerMotionType[layer]
 
@@ -177,30 +177,29 @@ func getShape(w *Scene, id ecs.ID) *physics.Shape {
 	return shape2
 }
 
-// TODO: we could split this back so that we can run stuff in parallel
-func (w *Scene) physicsStep(updateParams *UpdateParams) {
+func (world *World) physicsStep(updateParams *UpdateParams) {
 	// TODO: push it back onto the user again?
-	w.updatePhysicsShadow(updateParams)
+	world.updatePhysicsShadow(updateParams)
 
-	w.physicsSystem.SetGravity(w.Globals().Gravity)
-	w.physicsSystem.Update(float32(durationToFloatSeconds(updateParams.Δt)))
+	world.physics.SetGravity(world.Globals().Gravity)
+	world.physics.Update(float32(durationToFloatSeconds(updateParams.Δt)))
 
-	for _, bodyID := range w.physicsSystem.ActiveBodies() {
+	for _, bodyID := range world.physics.ActiveBodies() {
 		entityID := ecs.ID(bodyID) // BUG: this is not correct anymore because the generations do not match!!!
 
-		pos, rot, linVel, angVel := w.physicsSystem.WritebackBody(bodyID)
+		pos, rot, linVel, angVel := world.physics.WritebackBody(bodyID)
 
-		if !w.EntityExists(entityID) {
+		if !world.EntityExists(entityID) {
 			updateParams.Logger.Info("entity does not exist for some reason", "id", entityID)
 		}
 
-		w.TransformTR.Set(entityID, TR3f64{T: pos, R: rot})
+		world.TransformTR.Set(entityID, TR3f64{T: pos, R: rot})
 
 		// TODO: don't store velocity back for kinematic bodies
-		w.Velocity.Set(entityID, Velocity{Linear: linVel, Angular: angVel})
+		world.Velocity.Set(entityID, Velocity{Linear: linVel, Angular: angVel})
 	}
 
-	for _, ce := range w.physicsSystem.ContactEvents() {
+	for _, ce := range world.physics.ContactEvents() {
 		// TODO: properly translate bodyID to entityID
 		entityID1 := ecs.ID(ce.Body1.BodyID)
 		entityID2 := ecs.ID(ce.Body2.BodyID)
@@ -210,13 +209,13 @@ func (w *Scene) physicsStep(updateParams *UpdateParams) {
 		// One or both entities in the contact event might've been removed
 		// before the last Update
 
-		if w.EntityExists(entityID1) && w.EntityExists(entityID2) {
-			w.SendMessage(entityID1, ContactEvent{Type: ce.Type, EntityID2: entityID2}.Apply)
-			w.SendMessage(entityID2, ContactEvent{Type: ce.Type, EntityID2: entityID1}.Apply)
+		if world.EntityExists(entityID1) && world.EntityExists(entityID2) {
+			world.EnqueueEntityUpdate(entityID1, ContactEvent{Type: ce.Type, EntityID2: entityID2}.Apply)
+			world.EnqueueEntityUpdate(entityID2, ContactEvent{Type: ce.Type, EntityID2: entityID1}.Apply)
 		}
 	}
 
-	w.processUpdates(updateParams)
+	world.processEntityUpdates(updateParams)
 }
 
 // TODO: don't duplicate things we don't need to.

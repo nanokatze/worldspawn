@@ -1,7 +1,6 @@
 package game
 
 import (
-	"iter"
 	"math"
 
 	"worldspawn/internal/gmath"
@@ -14,12 +13,15 @@ type distributionFunction func(gmath.Vec2f32) (gmath.Vec3f32, float32)
 
 // TODO: allow the user to specify filters
 // TODO: allow for a little bit of extra linear distance falloff to model dissipation?
-func (scene *Scene) radialImpact(
+// TODO: reformulate resolution in terms of something that doesn't require
+// adjustment along with the radius
+// (https://github.com/nanokatze/worldspawn/issues/152)
+func (world *World) radialImpact(
 	impact Impact,
 	T gmath.Affine3f64, // TODO: move this to be the first parameter?
 	df distributionFunction,
 	radius float32,
-	resolution float32, // TODO: reformulate it in terms of something that doesn't require adjustment along with the radius
+	resolution float32,
 ) {
 	spat := resolution / (4 * math.Pi)
 	nrays := math.Ceil(1.0 / float64(spat))
@@ -51,7 +53,7 @@ func (scene *Scene) radialImpact(
 			},
 		}
 
-		scene.physicsSystem.TraceRay(
+		world.physics.TraceRay(
 			physics.Ray{
 				Origin:    T.T,
 				Direction: d.Normalize(),
@@ -71,7 +73,7 @@ func (scene *Scene) radialImpact(
 	}
 
 	for bodyID, result := range results {
-		entityID := scene.Table.IDs().Index(int(bodyID))
+		entityID := world.Table.IDs().Index(int(bodyID))
 
 		impact := Impact{
 			Type:      impact.Type,
@@ -80,7 +82,7 @@ func (scene *Scene) radialImpact(
 			Inflictor: impact.Inflictor,
 		}
 
-		scene.SendMessage(entityID, impact.Apply)
+		world.EnqueueEntityUpdate(entityID, impact.Apply)
 	}
 }
 
@@ -101,31 +103,3 @@ func (collector *explosionHitCollector) Hit(hit physics.SceneRayHit) physics.Que
 }
 
 func sphericalExplosion(u gmath.Vec2f32) (gmath.Vec3f32, float32) { return sampleSphere(u), 1 }
-
-// TODO: move these somewhere else
-
-func sampleSphere(u gmath.Vec2f32) gmath.Vec3f32 {
-	theta := float64(2 * math.Pi * u[0])
-	phi := math.Acos(float64(1 - 2*u[1]))
-	sinTheta, cosTheta := math.Sincos(theta)
-	sinPhi, cosPhi := math.Sincos(phi)
-	return gmath.Vec3Convert[float32](gmath.Vec3f64{
-		cosTheta * sinPhi,
-		sinTheta * sinPhi,
-		cosPhi,
-	})
-}
-
-// TODO: https://extremelearning.com.au/evenly-distributing-points-on-a-sphere/
-func fibonacciLattice(n int64) iter.Seq[gmath.Vec2f32] {
-	goldenRatio := (1 + math.Sqrt(5)) / 2
-
-	return func(yield func(gmath.Vec2f32) bool) {
-		for i := range n {
-			p := gmath.Vec2f64{math.Mod(float64(i)/goldenRatio, 1), float64(i) / float64(n-1)}
-			if !yield(gmath.Vec2Convert[float32](p)) {
-				break
-			}
-		}
-	}
-}

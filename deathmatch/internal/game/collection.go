@@ -63,10 +63,10 @@ type PrefabRef struct {
 // TODO: rename this to make it clear that we're instanting collections
 // specified by CollectionInstance components. E.g.
 // Realize{,Collection,Prefab}Instances?
-func (w *Scene) InstantinateCollections() {
-	for id, collection := range ecs.All(&w.CollectionInstance) {
-		w.CollectionInstance.Delete(id)
-		w.InstanceCollectionAt(id, PrefabRef{Filename: collection.Filename})
+func (world *World) InstantinateCollections() {
+	for id, collection := range ecs.All(&world.CollectionInstance) {
+		world.CollectionInstance.Delete(id)
+		world.InstanceCollectionAt(id, PrefabRef{Filename: collection.Filename})
 	}
 }
 
@@ -90,19 +90,19 @@ func prefab(filename string) *Columns {
 	return w
 }
 
-func (w *Scene) SpawnPrefab(filename string, info *UpdateParams) ecs.ID {
-	e := w.CreateEntity(info)
-	w.CopyEntities(e, prefab(filename))
+func (world *World) SpawnPrefab(filename string, info *UpdateParams) ecs.ID {
+	e := world.CreateEntity(info)
+	world.CopyEntities(e, prefab(filename))
 	return e
 }
 
 // TODO: this should create the collection entities
-func (w *Scene) InstanceCollectionAt(id ecs.ID, prefabRef PrefabRef) {
-	T := w.GetTransform(id)
+func (world *World) InstanceCollectionAt(id ecs.ID, prefabRef PrefabRef) {
+	T := world.GetTransform(id)
 
-	w.CopyEntities(id, prefab(prefabRef.Filename))
+	world.CopyEntities(id, prefab(prefabRef.Filename))
 	// TODO: actually compose these rather than override!
-	w.SetTransform(id, T)
+	world.SetTransform(id, T)
 
 	// TODO: we also need to take velocity into account
 }

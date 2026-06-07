@@ -131,36 +131,36 @@ func (re *rendererGlue) commitUpdate(update *sceneUpdate) {
 	}
 }
 
-func (re *rendererGlue) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration) {
+func (re *rendererGlue) Tick(world *game.World, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration) {
 	conf := config.Load()
 
 	update := re.beginUpdate()
 	defer re.commitUpdate(update)
 
-	fpsCharacter, _ := game.SceneGetEntity[game.Player](w, playerID)
+	fpsCharacter, _ := game.SceneGetEntity[game.Player](world, playerID)
 
-	camera := fpsCharacter.Camera(w)
+	camera := fpsCharacter.Camera(world)
 
 	{
 		for i := range update.parent {
 			update.parent[i] = -1
 		}
 
-		update.sky = texture(w.Globals().Sky).Image
+		update.sky = texture(world.Globals().Sky).Image
 
-		for id, tr := range ecs.All(&w.TransformTR) {
+		for id, tr := range ecs.All(&world.TransformTR) {
 			i := id.Index()
 
-			s, ok := w.TransformS.Get(id)
+			s, ok := world.TransformS.Get(id)
 			if !ok {
 				s = gmath.Mat3x3UOne[float32]()
 			}
 
-			cosmeticOffset, _ := w.CosmeticOffset.Get(id)
+			cosmeticOffset, _ := world.CosmeticOffset.Get(id)
 
 			var offset gmath.Vec3f32
 			if !conf.Developer.DisableCosmeticOffset {
-				offset = cosmeticOffset.Eval(w.Now)
+				offset = cosmeticOffset.Eval(world.Now)
 			}
 
 			trs := gmath.TRS3f32{
@@ -169,14 +169,14 @@ func (re *rendererGlue) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, f
 				S: s,
 			}
 
-			parent := w.GetParent(id)
+			parent := world.GetParent(id)
 			if parent != 0 {
 				update.parent[i] = parent.Index()
 			}
 
-			if parentBone, parentedToBone := w.ParentBone.Get(id); parentedToBone {
-				pose, _ := w.Pose.Get(parent)
-				skelly := w.GetSkeleton(parent)
+			if parentBone, parentedToBone := world.ParentBone.Get(id); parentedToBone {
+				pose, _ := world.Pose.Get(parent)
+				skelly := world.GetSkeleton(parent)
 				parentBoneIndex := skelly.JointByName(parentBone)
 				hmm, ok := pose.Bones[parentBoneIndex]
 				if !ok {
@@ -209,12 +209,12 @@ func (re *rendererGlue) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, f
 		// that when a probe fails, we spawn a new goroutine with fetch and
 		// everything that follows.
 
-		for id, v := range ecs.Join(&w.RenderingGeometry, &w.TransformTR) {
+		for id, v := range ecs.Join(&world.RenderingGeometry, &world.TransformTR) {
 			renderingGeometry := v.V1
 
 			i := id.Index()
 
-			visibility, _ := w.VisibilityMask.Get(id)
+			visibility, _ := world.VisibilityMask.Get(id)
 			mask := visibility.Mask & 0b11
 			if visibility.Camera != camera {
 				mask ^= 0b11
@@ -223,11 +223,11 @@ func (re *rendererGlue) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, f
 
 			geometry := getgeometry(renderingGeometry)
 
-			pose, _ := w.Pose.Get(id)
+			pose, _ := world.Pose.Get(id)
 
 			update.geoNodes[i] = geoNodes{
 				src:    geometry,
-				skelly: w.GetSkeleton(id),
+				skelly: world.GetSkeleton(id),
 				pose:   pose,
 			}
 
@@ -238,7 +238,7 @@ func (re *rendererGlue) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, f
 			for j := range update.materials[i] {
 				material := getmaterial(geometry.materials[j])
 				update.materials[i][j] = material.material
-				material.preamble.Call(update.materialArgs[i][j][:], &attributeGetter{w, id})
+				material.preamble.Call(update.materialArgs[i][j][:], &attributeGetter{world, id})
 			}
 		}
 
@@ -265,8 +265,8 @@ func (re *rendererGlue) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, f
 
 		clear(scene.Emitters)
 
-		for id, soundEffect := range ecs.All(&w.SoundEffect) {
-			T := w.GetGlobalTransform(id)
+		for id, soundEffect := range ecs.All(&world.SoundEffect) {
+			T := world.GetGlobalTransform(id)
 
 			effect := lookupsound(soundEffect.Effect)
 
@@ -282,7 +282,7 @@ func (re *rendererGlue) Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, f
 	}
 }
 
-func (re *rendererGlue) Subtick(w *game.Scene, playerID ecs.ID) {
+func (re *rendererGlue) Subtick(world *game.World, playerID ecs.ID) {
 	// TODO: this will need to enqueue an update and not modify any fields directly!
 
 	// re.stuffMu.Lock()
@@ -388,12 +388,12 @@ func (re *rendererGlue) Redraw(jq *gpu.JobQueue, dst *gpu.Image, sdlNow uint64) 
 }
 
 type attributeGetter struct {
-	scene  *game.Scene
-	object ecs.ID
+	world  *game.World
+	entity ecs.ID
 }
 
 func (getter *attributeGetter) UniformAttribute(name string, out *[4]float32) bool {
-	objectData, ok := getter.scene.Entity.Get(getter.object)
+	objectData, ok := getter.world.Entity.Get(getter.entity)
 	if !ok {
 		return false
 	}

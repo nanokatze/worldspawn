@@ -53,5 +53,5 @@ var InputCmdTypes = []reflect.Type{
 type PlayableCharacter interface {
 	Entity
 
-	HandleInput(w *Scene, id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams)
+	HandleInput(world *World, id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams)
 }

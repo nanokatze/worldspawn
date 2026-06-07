@@ -67,6 +67,37 @@ type Gladiator struct {
 	// Ammo [numAmmoTypes]int64 ; or map[string]int64 but we'll probably really just go with
 }
 
+func init() {
+	scripts["gladiator"] = scriptFuncs{
+		State: reflect.TypeFor[Gladiator](),
+
+		// Think: func(world *World, id ecs.ID, info *UpdateParams) {
+
+		// },
+
+		Impact: func(world *World, id ecs.ID, impact Impact, info *UpdateParams) {
+			info.Logger.Info("impact", "damage", impact.Damage)
+
+			gladiator, _ := SceneGetEntity[Gladiator](world, id)
+			gladiator.Health -= impact.Damage
+			if gladiator.Health <= 0 {
+				// TODO: we should probably enqueue the death so that it happens
+				// after all impacts. That way we can see how far we are below 0
+				// and therefore decide whether we want to spawn gibs or just
+				// drop a ragdoll.
+
+				info.Logger.Info("killing myself!!!", "id", id)
+
+				// TODO: spawn gibs
+
+				world.Delete.Set(id, struct{}{})
+			}
+
+			world.Entity.Set(id, gladiator)
+		},
+	}
+}
+
 var _ Thinker = Gladiator{}
 
 var _ PlayableCharacter = Gladiator{}
@@ -75,43 +106,28 @@ func (Gladiator) entity() {}
 
 // TODO: pass down the info like team, character, weapons etc. Don't pass Player
 // as-is though.
-func createGladiator(scene *Scene, info *UpdateParams) ecs.ID {
-	// TODO: probably move this out of here? What if we want to spawn the
-	// gladiator elsewhere (e.g. next to teammates.) The whole logic should
-	// probably be delegated elsewhere.
-	var playerSpawns []ecs.ID
-	for id, entity := range ecs.All(&scene.Entity) {
-		if _, ok := entity.(PlayerSpawn); ok {
-			playerSpawns = append(playerSpawns, id)
-		}
-	}
+func (world *World) spawnGladiator(T gmath.TRS3f64, info *UpdateParams) ecs.ID {
+	gladiator := world.CreateEntity(info)
 
-	// TODO: we need to pass something to avoid coinciding with other players.
-	// We'll also need to do several attempts at spawning the player. We should
-	// probably factor looking for a spawn point into its own function.
-	T := scene.GetGlobalTransform(playerSpawns[Rand(scene.Now).IntN(len(playerSpawns))])
-
-	gladiator := scene.CreateEntity(info)
-
-	camera := scene.CreateEntity(info)
-	scene.SetParent(camera, gladiator)
+	camera := world.CreateEntity(info)
+	world.SetParent(camera, gladiator)
 	// The transform will be set at the next simulation step.
 
-	hands := scene.CreateEntity(info)
-	scene.SetParent(hands, camera)
-	scene.SetTransform(hands, gmath.TRS3One[float64]())
-	scene.VisibilityMask.Set(gladiator, VisibilityMask{Mask: 0b01, Camera: camera})
-	scene.RenderingGeometry.Set(hands, "testcharacter4/geometries/Hands")
+	hands := world.CreateEntity(info)
+	world.SetParent(hands, camera)
+	world.SetTransform(hands, gmath.TRS3One[float64]())
+	world.VisibilityMask.Set(gladiator, VisibilityMask{Mask: 0b01, Camera: camera})
+	world.RenderingGeometry.Set(hands, "testcharacter4/geometries/Hands")
 
-	scene.SetTransform(gladiator, T.TRS())
-	scene.Skeleton.Set(gladiator, "testcharacter4/skeletons/metarig")
-	scene.CollisionGeometry.Set(gladiator, "FPSCharacter")
-	scene.CollisionLayer.Set(gladiator, CollisionLayerMovingKinematic)
-	scene.PhysicsMassOverride.Set(gladiator, 100)
-	scene.VisibilityMask.Set(gladiator, VisibilityMask{Mask: 0b10, Camera: camera})
-	scene.RenderingGeometry.Set(gladiator, "testcharacter4/geometries/TestCharacter4")
-	scene.SetScript(gladiator, "gladiator")
-	scene.Entity.Set(gladiator, Gladiator{
+	world.SetTransform(gladiator, T)
+	world.Skeleton.Set(gladiator, "testcharacter4/skeletons/metarig")
+	world.CollisionGeometry.Set(gladiator, "FPSCharacter")
+	world.CollisionLayer.Set(gladiator, CollisionLayerMovingKinematic)
+	world.PhysicsMassOverride.Set(gladiator, 100)
+	world.VisibilityMask.Set(gladiator, VisibilityMask{Mask: 0b10, Camera: camera})
+	world.RenderingGeometry.Set(gladiator, "testcharacter4/geometries/TestCharacter4")
+	world.SetScript(gladiator, "gladiator")
+	world.Entity.Set(gladiator, Gladiator{
 		FirstPersonCamera: camera,
 		FirstPersonHands:  hands,
 
@@ -121,24 +137,24 @@ func createGladiator(scene *Scene, info *UpdateParams) ecs.ID {
 	// Give the gladiator some guns
 
 	{
-		weapon := scene.CreateEntity(info)
-		scene.Entity.Set(weapon, WeaponGrenadeLauncher{})
+		weapon := world.CreateEntity(info)
+		world.Entity.Set(weapon, WeaponGrenadeLauncher{})
 
-		scene.GiveWeapon(gladiator, weapon)
+		world.GiveWeapon(gladiator, weapon)
 	}
 
 	{
-		weapon := scene.CreateEntity(info)
-		scene.Entity.Set(weapon, WeaponPhysgun{})
+		weapon := world.CreateEntity(info)
+		world.Entity.Set(weapon, WeaponPhysgun{})
 
-		scene.GiveWeapon(gladiator, weapon)
+		world.GiveWeapon(gladiator, weapon)
 	}
 
 	return gladiator
 }
 
-func (gladiator Gladiator) HandleInput(w *Scene, id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
-	defer func() { w.Entity.Set(id, gladiator) }()
+func (gladiator Gladiator) HandleInput(world *World, id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
+	defer func() { world.Entity.Set(id, gladiator) }()
 
 	var switchToWeapon ecs.ID
 
@@ -169,7 +185,7 @@ func (gladiator Gladiator) HandleInput(w *Scene, id ecs.ID, cmd TimestampedInput
 		}
 	}
 
-	if !w.EntityExists(gladiator.ActiveWeapon) && switchToWeapon == 0 {
+	if !world.EntityExists(gladiator.ActiveWeapon) && switchToWeapon == 0 {
 		for _, slot := range gladiator.Slots {
 			if slot != 0 {
 				switchToWeapon = slot
@@ -179,7 +195,7 @@ func (gladiator Gladiator) HandleInput(w *Scene, id ecs.ID, cmd TimestampedInput
 	}
 
 	// TODO: rewrite this
-	if w.EntityExists(switchToWeapon) && gladiator.ActiveWeapon != switchToWeapon {
+	if world.EntityExists(switchToWeapon) && gladiator.ActiveWeapon != switchToWeapon {
 		// TODO: for weapon sway we would need to introduce another entity
 		// (basically hands) which we would move around and actually use to
 		// implement sway with.
@@ -187,17 +203,17 @@ func (gladiator Gladiator) HandleInput(w *Scene, id ecs.ID, cmd TimestampedInput
 		if !info.Speculating {
 			gladiator.ActiveWeapon = 0
 
-			if w.EntityExists(gladiator.ActiveWeaponFirstPersonProp) {
-				w.Delete.Set(gladiator.ActiveWeaponFirstPersonProp, struct{}{})
+			if world.EntityExists(gladiator.ActiveWeaponFirstPersonProp) {
+				world.Delete.Set(gladiator.ActiveWeaponFirstPersonProp, struct{}{})
 			}
 			gladiator.ActiveWeaponFirstPersonProp = 0
 
 			// Now we can switch the weapons
 
-			if weapon, ok := SceneGetEntity[Weapon](w, switchToWeapon); ok {
-				gladiator.ActiveWeaponFirstPersonProp = weapon.CreateProp(w, info)
-				w.SetParent(gladiator.ActiveWeaponFirstPersonProp, gladiator.FirstPersonHands)
-				w.VisibilityMask.Set(gladiator.ActiveWeaponFirstPersonProp,
+			if weapon, ok := SceneGetEntity[Weapon](world, switchToWeapon); ok {
+				gladiator.ActiveWeaponFirstPersonProp = weapon.CreateProp(world, info)
+				world.SetParent(gladiator.ActiveWeaponFirstPersonProp, gladiator.FirstPersonHands)
+				world.VisibilityMask.Set(gladiator.ActiveWeaponFirstPersonProp,
 					VisibilityMask{Mask: 0b01, Camera: gladiator.FirstPersonCamera})
 
 				gladiator.ActiveWeapon = switchToWeapon
@@ -207,25 +223,25 @@ func (gladiator Gladiator) HandleInput(w *Scene, id ecs.ID, cmd TimestampedInput
 
 	// TODO: under some conditions we should autoselect a gun for the player
 
-	if weapon, ok := SceneGetEntity[Weapon](w, gladiator.ActiveWeapon); ok {
+	if weapon, ok := SceneGetEntity[Weapon](world, gladiator.ActiveWeapon); ok {
 		var buttons WeaponButtons
 		if gladiator.HeldButtons&uint64(1<<ButtonAttack) != 0 {
 			buttons |= WeaponTrigger
 		}
 
-		shootT := w.GetGlobalTransform(id).
+		shootT := world.GetGlobalTransform(id).
 			Mul(gmath.TRS3f64{
 				T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
 				R: e01.Pow(4 * gladiator.LookDir[0]).Mul(e12.Pow(4 * gladiator.LookDir[1])),
 				S: gmath.Mat3x3UOne[float32](),
 			}.Compose())
 
-		shootv, _ := w.Velocity.Get(id)
+		shootv, _ := world.Velocity.Get(id)
 
 		// TODO: shooter id we pass should be that of player, actually. Maybe we
 		// should have a component to attribute kills and damage to something
 		// else.
-		stepResult := weapon.WeaponSubstep(w, gladiator.ActiveWeapon, []ecs.ID{gladiator.ActiveWeaponFirstPersonProp}, id, shootT, shootv, buttons, info)
+		stepResult := weapon.WeaponSubstep(world, gladiator.ActiveWeapon, []ecs.ID{gladiator.ActiveWeaponFirstPersonProp}, id, shootT, shootv, buttons, info)
 		// TODO: apply some part of the recoil as viewpunch?
 		// TODO: make sure we don't overflow LookDir
 		gladiator.LookDir[0] += stepResult.Recoil[0]
@@ -233,7 +249,7 @@ func (gladiator Gladiator) HandleInput(w *Scene, id ecs.ID, cmd TimestampedInput
 	}
 
 	// TODO: factor this out?
-	w.SetTransform(gladiator.FirstPersonCamera,
+	world.SetTransform(gladiator.FirstPersonCamera,
 		gmath.TRS3f64{
 			T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
 			R: e01.Pow(4 * gladiator.LookDir[0]).Mul(e12.Pow(4 * gladiator.LookDir[1])),
@@ -241,47 +257,23 @@ func (gladiator Gladiator) HandleInput(w *Scene, id ecs.ID, cmd TimestampedInput
 		})
 }
 
-// func (gladiator Gladiator) PrePhysicsStep(w *Scene, id ecs.ID, info *UpdateParams) {
-// }
-
-func init() {
-	scripts["gladiator"] = scriptFuncs{
-		State: reflect.TypeFor[Gladiator](),
-
-		Impact: func(scene *Scene, id ecs.ID, impact Impact, info *UpdateParams) {
-			info.Logger.Info("impact", "damage", impact.Damage)
-
-			gladiator, _ := SceneGetEntity[Gladiator](scene, id)
-			gladiator.Health -= impact.Damage
-			if gladiator.Health <= 0 {
-				// TODO: kill ourselves. This is a good place to play spawn gibs or
-				// ragdoll or a death animation play thing, play death sound, etc.
-				info.Logger.Info("die!!!!!", "id", id)
-			}
-			scene.Entity.Set(id, gladiator)
-		},
-	}
-}
-
-// TODO: player movement should happen in PrePhysicsStep.
-func (gladiator Gladiator) Think(w *Scene, self ecs.ID, info *UpdateParams) {
+func (gladiator Gladiator) Think(world *World, self ecs.ID, info *UpdateParams) {
 	// TODO: do not call this here
-	gladiator.HandleInput(w, self, TimestampedInputCmd{}, info)
+	gladiator.HandleInput(world, self, TimestampedInputCmd{}, info)
 
 	// TODO: this is incredibly gross and ugly, FIXME
-	gladiator = mustOk(SceneGetEntity[Gladiator](w, self))
+	gladiator = mustOk(SceneGetEntity[Gladiator](world, self))
 
-	velocity, _ := w.Velocity.Get(self)
+	velocity, _ := world.Velocity.Get(self)
 
-	// TODO: more elaborate viewmodel sway
-	w.SetTransform(gladiator.FirstPersonHands,
+	world.SetTransform(gladiator.FirstPersonHands,
 		gmath.TRS3f64{
-			T: gmath.Vec3f64{0, math.Sin(float64(w.Now.Sub(Time{}))/1e9*6) * 0.03 * min(float64(velocity.Linear.Length()/6), 1), 0},
+			T: gmath.Vec3f64{0, math.Sin(float64(world.Now.Sub(Time{}))/1e9*6) * 0.03 * min(float64(velocity.Linear.Length()/6), 1), 0},
 			R: gmath.Rot3One(),
 			S: gmath.Mat3x3UOne[float32](),
 		})
 
-	trs := w.GetTransform(self)
+	trs := world.GetTransform(self)
 
 	rotation := trs.R.Mul(e01.Pow(4 * gladiator.LookDir[0]))
 
@@ -301,25 +293,25 @@ func (gladiator Gladiator) Think(w *Scene, self ecs.ID, info *UpdateParams) {
 	velocity.Linear = rotation.Rotate(localVel)
 
 	if !gladiator.Supported {
-		velocity.Linear = velocity.Linear.Add(w.Globals().Gravity.Scale(float32(durationToFloatSeconds(info.Δt))))
+		velocity.Linear = velocity.Linear.Add(world.Globals().Gravity.Scale(float32(durationToFloatSeconds(info.Δt))))
 	}
 
-	velocity.Linear = gladiator.asdasd(w, self, velocity.Linear, info.Δt)
+	velocity.Linear = gladiator.asdasd(world, self, velocity.Linear, info.Δt)
 
 	if gladiator.Supported {
 		gladiator.Steps += float64(velocity.Linear.Length()) * durationToFloatSeconds(info.Δt)
 	}
 	if gladiator.Steps > 3 {
-		w.SoundEffect.Set(self, SoundEmitter{
+		world.SoundEffect.Set(self, SoundEmitter{
 			Effect:      "step.wav",
 			Attenuation: 1,
-			PlayTime:    w.Now,
+			PlayTime:    world.Now,
 		})
 		gladiator.Steps = 0
 	}
 
-	w.Entity.Set(self, gladiator)
-	w.Velocity.Set(self, velocity)
+	world.Entity.Set(self, gladiator)
+	world.Velocity.Set(self, velocity)
 }
 
 func planeNormal(plane gmath.Vec4f32) gmath.Vec3f32 {
@@ -351,8 +343,8 @@ func (a *gladiatorMovementQueryPipeline) Hit(x physics.SceneIntersection[physics
 	return physics.IgnoreHit
 }
 
-func (gladiator *Gladiator) asdasd(w *Scene, id ecs.ID, velocity gmath.Vec3f32, Δt time.Duration) gmath.Vec3f32 {
-	trs := w.GetTransform(id)
+func (gladiator *Gladiator) asdasd(world *World, id ecs.ID, velocity gmath.Vec3f32, Δt time.Duration) gmath.Vec3f32 {
+	trs := world.GetTransform(id)
 
 	up := gmath.Vec3f32{0, 0, 1}
 
@@ -365,12 +357,12 @@ func (gladiator *Gladiator) asdasd(w *Scene, id ecs.ID, velocity gmath.Vec3f32, 
 	contactBuffer := gladiatorMovementQueryPipeline{
 		player: physics.BodyID(id.Index()),
 	}
-	w.physicsSystem.Overlap(
+	world.physics.Overlap(
 		physics.Overlap{
 			Pos:                   trs.T,
 			Rot:                   trs.R,
 			Scale:                 gmath.Vec3Ones[float32](),
-			Shape:                 getShape(w, id),
+			Shape:                 getShape(world, id),
 			MovementDirection:     velocity.Normalize(),
 			MaxSeparationDistance: 0.1,
 		},
@@ -429,13 +421,11 @@ func (gladiator *Gladiator) asdasd(w *Scene, id ecs.ID, velocity gmath.Vec3f32, 
 	return velocity
 }
 
-// TODO: should probs be a freestanding method
-// TODO: allow it not to assume Gladiator? E.g. make things an interface.
-func (scene *Scene) GiveWeapon(id ecs.ID, weapon ecs.ID) {
-	char := mustOk(SceneGetEntity[Gladiator](scene, id))
+func (world *World) GiveWeapon(id ecs.ID, weapon ecs.ID) {
+	char := mustOk(SceneGetEntity[Gladiator](world, id))
 	freeSlot := slices.Index(char.Slots[:], 0)
 	char.Slots[freeSlot] = weapon
-	scene.Entity.Set(id, char)
+	world.Entity.Set(id, char)
 
-	scene.SetParent(weapon, id)
+	world.SetParent(weapon, id)
 }

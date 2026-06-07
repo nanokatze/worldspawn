@@ -5,8 +5,6 @@ import (
 	"worldspawn/internal/gmath"
 )
 
-// TODO: rename the Weapon interface to just something that can be held?
-
 type WeaponButtons uint64
 
 const (
@@ -22,14 +20,14 @@ type Recoil struct {
 type Weapon interface {
 	Entity
 
-	CreateProp(scene *Scene, info *UpdateParams) ecs.ID
+	CreateProp(world *World, info *UpdateParams) ecs.ID
 
 	// Returns a function that updates the rendering geometry.
 	// TODO: we also need to return stuff like recoil and such.
 	// TODO: we need to somehow tell the thing to filter the shooter and
 	// possibly other entities
 	WeaponSubstep(
-		scene *Scene,
+		world *World,
 		weaponID ecs.ID,
 		propIDs []ecs.ID,
 		shooterID ecs.ID,

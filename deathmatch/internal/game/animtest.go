@@ -18,12 +18,12 @@ func init() {
 	scripts["animtest"] = scriptFuncs{
 		State: reflect.TypeFor[Animtest](),
 
-		Think: func(scene *Scene, id ecs.ID, info *UpdateParams) {
-			animtest, _ := SceneGetEntity[Animtest](scene, id)
+		Think: func(world *World, id ecs.ID, info *UpdateParams) {
+			animtest, _ := SceneGetEntity[Animtest](world, id)
 
 			animation := animation(animtest.Animation)
 
-			skelly := scene.GetSkeleton(id)
+			skelly := world.GetSkeleton(id)
 
 			localTransforms := map[int]gmath.Affine3f32{}
 
@@ -39,7 +39,7 @@ func init() {
 				"forearm.L",
 				"hand.L",
 			} {
-				t := float64(scene.Now.Sub(Time{})%1e9) / 1e9 * 30
+				t := float64(world.Now.Sub(Time{})%1e9) / 1e9 * 30
 
 				localTransforms[skelly.JointByName(bone)] =
 					gmath.TRS3f32{
@@ -80,7 +80,7 @@ func init() {
 				pose.Bones[bone] = A.Mul(skelly.BindPoseInverse[bone])
 			}
 
-			scene.Pose.Set(id, pose)
+			world.Pose.Set(id, pose)
 		},
 	}
 }

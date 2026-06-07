@@ -27,8 +27,8 @@ import (
 type Renderer interface {
 	// TODO: rename to Update
 	Reset(n int)
-	Tick(w *game.Scene, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration)
-	Subtick(w *game.Scene, playerID ecs.ID)
+	Tick(world *game.World, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration)
+	Subtick(world *game.World, playerID ecs.ID)
 }
 
 type Client struct {
@@ -42,7 +42,7 @@ type Client struct {
 	inputCmds []game.TimestampedInputCmd
 
 	tickPeriod time.Duration
-	world      *game.Scene
+	world      *game.World
 
 	player ecs.ID
 
@@ -104,25 +104,25 @@ func newClient(renderer Renderer, addr string) (*Client, error) {
 				// TODO: we should restart the ticker with the new period when this happens
 				binary.Read(deframer, binary.LittleEndian, &s.tickPeriod)
 
-			case replication.ResetScene:
-				var sceneCap int64
-				binary.Read(deframer, binary.LittleEndian, &sceneCap)
+			case replication.ResetWorld:
+				var cap int64
+				binary.Read(deframer, binary.LittleEndian, &cap)
 				// TODO: for client-only entities we can use the high
 				// indices that server won't use. For this we'll want to
 				// change IDAlloc to be aware of two heaps, one primary
 				// (indices 0 to server's entity limit) and one
 				// secondary (above the primary)
-				slog.Info("scene reset", "cap", sceneCap)
+				slog.Info("world reset", "cap", cap)
 				s.mu.Lock()
-				s.world = game.NewScene(int(sceneCap))
+				s.world = game.NewWorld(int(cap))
 				// TODO: we should also stop rendering until we get the first
 				// UpdateWorld
-				s.renderer.Reset(int(sceneCap))
+				s.renderer.Reset(int(cap))
 				s.mu.Unlock()
 
 				// The renderer will resize its scene by itself
 
-			case replication.UpdateScene:
+			case replication.UpdateWorld:
 				// TODO: be careful to only read up to a limit.
 				buf, err := io.ReadAll(deframer)
 				if err != nil {

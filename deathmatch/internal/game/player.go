@@ -16,26 +16,25 @@ type Player struct {
 func (Player) entity() {}
 
 // TODO: delete, client should figure this out by itself
-func (player Player) Camera(w *Scene) ecs.ID {
+func (player Player) Camera(world *World) ecs.ID {
 	if player.ControlledCharacter == 0 {
 		return 0 // TODO: get rid of this and make the callers care
 	}
-	char := mustOk(SceneGetEntity[Gladiator](w, player.ControlledCharacter))
+	char := mustOk(SceneGetEntity[Gladiator](world, player.ControlledCharacter))
 	return char.FirstPersonCamera
 }
 
-func (w *Scene) HandleInput(playerID ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
-	player := mustOk(SceneGetEntity[Player](w, playerID))
-	char := mustOk(SceneGetEntity[PlayableCharacter](w, player.ControlledCharacter))
-	char.HandleInput(w, player.ControlledCharacter, cmd, info)
+func (world *World) HandleInput(playerID ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
+	player := mustOk(SceneGetEntity[Player](world, playerID))
+	char := mustOk(SceneGetEntity[PlayableCharacter](world, player.ControlledCharacter))
+	char.HandleInput(world, player.ControlledCharacter, cmd, info)
 }
 
-// TODO: this should be a method on the scene
-func SpawnPlayer(scene *Scene, info *UpdateParams) ecs.ID {
-	player := scene.CreateEntity(info)
+func (world *World) SpawnPlayer(info *UpdateParams) ecs.ID {
+	player := world.CreateEntity(info)
 
-	char := createGladiator(scene, info)
-	scene.Entity.Set(player, Player{
+	char := world.spawnGladiator(world.findSpawnPoint(), info)
+	world.Entity.Set(player, Player{
 		ControlledCharacter: char,
 	})
 

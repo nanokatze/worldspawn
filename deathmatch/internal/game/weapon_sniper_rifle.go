@@ -29,10 +29,10 @@ var _ Weapon = WeaponSniperRifle{}
 
 func (WeaponSniperRifle) entity() {}
 
-func (weapon WeaponSniperRifle) CreateProp(scene *Scene, info *UpdateParams) ecs.ID {
-	root := scene.CreateEntity(info)
-	scene.SetTransform(root, sniperRifleStats.ViewGeometryTRS)
-	scene.RenderingGeometry.Set(root, sniperRifleStats.RenderingGeometry)
+func (weapon WeaponSniperRifle) CreateProp(world *World, info *UpdateParams) ecs.ID {
+	root := world.CreateEntity(info)
+	world.SetTransform(root, sniperRifleStats.ViewGeometryTRS)
+	world.RenderingGeometry.Set(root, sniperRifleStats.RenderingGeometry)
 
 	// sound := scene.CreateEntity(info)
 	// // scene.CreationTime.Set(sound, scene.Now)
@@ -49,7 +49,7 @@ func (weapon WeaponSniperRifle) CreateProp(scene *Scene, info *UpdateParams) ecs
 }
 
 func (weapon WeaponSniperRifle) WeaponSubstep(
-	scene *Scene,
+	world *World,
 	weaponID ecs.ID,
 	propIDs []ecs.ID,
 	shooterID ecs.ID,

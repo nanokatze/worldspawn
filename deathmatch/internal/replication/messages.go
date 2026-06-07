@@ -6,8 +6,8 @@ const (
 	_ = iota
 
 	ResetTicker
-	ResetScene
-	UpdateScene
+	ResetWorld
+	UpdateWorld
 	SetPlayer
 )
 

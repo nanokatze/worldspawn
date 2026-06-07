@@ -1,7 +1,33 @@
 package game
 
+import (
+	"slices"
+	"worldspawn/internal/ecs"
+	"worldspawn/internal/gmath"
+)
+
 // TODO: rename to SpawnPoint
-// TODO: change this to a column
 type PlayerSpawn struct{}
 
 func (PlayerSpawn) entity() {}
+
+// TODO: we need to pass more data here to choose the spawn point
+// TODO: we should also perform collision queries to ensure free space
+func (world *World) findSpawnPoint() gmath.TRS3f64 {
+	candidates := slices.Collect(func(yield func(ecs.ID) bool) {
+		for id, entity := range ecs.All(&world.Entity) {
+			if _, ok := entity.(PlayerSpawn); ok {
+				yield(id)
+			}
+		}
+	})
+
+	rnd := Rand(world.Now)
+
+	for {
+		// TODO: perform collision queries to make sure the spawn point is free.
+		// The collision geometry and other info should be passed by the user.
+
+		return world.GetGlobalTransform(candidates[rnd.IntN(len(candidates))]).TRS()
+	}
+}
