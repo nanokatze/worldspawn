@@ -38,14 +38,14 @@ struct MotionProperties {
 	MotionState motionState;
 
 	int objectLayer;
-	const BodyID *ignoreBodies;
-	size_t ignoreBodyCount;
 
 	int motionType;
 	float gravityFactor;
 
 	float mass;
 	mat4 inertia;
+
+	bool sensor;
 };
 
 typedef enum ContactEventType {

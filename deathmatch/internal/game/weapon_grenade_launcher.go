@@ -98,7 +98,6 @@ func (weapon WeaponGrenadeLauncher) WeaponSubstep(
 					Linear: v.Linear.Add(T.M.Mulv(gmath.Vec3f32{0, grenadeLauncherStats.MuzzleVelocity, 0})),
 				})
 			world.CollisionLayer.Set(projectile, CollisionLayerProjectiles)
-			world.PhysicsFilter.Set(projectile, []ecs.ID{shooterID})
 			world.CosmeticOffset.Set(projectile,
 				CosmeticOffset{
 					Alpha: 2,

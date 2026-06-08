@@ -97,22 +97,30 @@ type Columns struct {
 	// TODO: this should just point to an animgraph script
 	Pose ecs.Column[animgraph.Pose]
 
-	// Physics should only run for bodies that have no parent. We could
-	// generalize a little by having an entity be "physics scene" and run sim
-	// for the immediate children (but not for the grandchildren), basically.
-	// Though on the other hand it might turn out to be annoying to figure out
-	// what to parent newly spawned object to.
+	// TODO: require that entities that we're do collision/physics for have no
+	// parent. Or maybe allow that somehow, e.g. by having children be joined
+	// with the collision geometry of the parent?
 
-	// TODO: generalize PhysicsFilter to PhysicsConstraint (singular) or
-	// whatever
-	// TODO: remove Physics{Mass,Inertia}Override
+	// Collision
 
-	Velocity               ecs.Column[Velocity]
-	CollisionGeometry      ecs.Column[string]
-	CollisionLayer         ecs.Column[CollisionLayer]
-	PhysicsFilter          ecs.Column[[]ecs.ID] // TODO: generalize to all physics constraints
+	CollisionLayer    ecs.Column[CollisionLayer]
+	CollisionGeometry ecs.Column[string]
+
+	Sensor ecs.Column[struct{}]
+
+	// Motion
+
+	// Motion ecs.Column[MotionType]
+	// MotionProperties ecs.Column[MotionProperties]
+
+	Velocity ecs.Column[Velocity]
+
+	// TODO: remove GravityFactor, Physics{Mass,Inertia}Override in favor of the
+	// MotionProperties column. Or better yet, CollisionGeometry script setting
+	// that.
+
 	GravityFactor          ecs.Column[float32]
-	PhysicsMassOverride    ecs.Column[float32] // TODO: remove "Physics" prefix from these
+	PhysicsMassOverride    ecs.Column[float32]
 	PhysicsInertiaOverride ecs.Column[gmath.Mat4x4f32]
 
 	// TODO: kill this column and handle it at prefab instantination

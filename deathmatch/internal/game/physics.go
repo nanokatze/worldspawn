@@ -20,15 +20,7 @@ func (a Velocity) Add(b Velocity) Velocity {
 	}
 }
 
-/*
-type ContactKey struct {
-	EntityID2   ecs.ID
-	SubShapeID1 uint32
-	SubShapeID2 uint32
-}
-*/
-
-// TODO: have different types depending on contact added/removed/etc
+// TODO: kill
 type ContactEvent struct {
 	Type      int32
 	EntityID2 ecs.ID
@@ -45,9 +37,6 @@ func (contact ContactEvent) Apply(world *World, id ecs.ID, updateParams *UpdateP
 	// TODO: pass it to the script
 }
 
-// TODO: add ability to sync per-entity, e.g. we need this to crouch and
-// uncrouch the player I think
-
 // Always run this before performing physics queries!!!
 func (world *World) updatePhysicsShadow(updateParams *UpdateParams) {
 	// TODO: remove bodies when we delete entities!!!!!!!!
@@ -62,18 +51,7 @@ func (world *World) updatePhysicsShadow(updateParams *UpdateParams) {
 		trs := world.GetTransform(id)
 		// TODO: ensure trs.S is 1
 		velocity, _ := world.Velocity.Get(id)
-		filter, _ := world.PhysicsFilter.Get(id)
-
-		// TODO: pairwise filter should pass ecs.IDs as is and we should store
-		// it on the rigid bodies in the user data slot.
-		filter2 := []physics.BodyID{}
-		for _, e := range filter {
-			_, ok := world.physicsBodyExists.Get(e)
-			if !ok {
-				continue
-			}
-			filter2 = append(filter2, physics.BodyID(e))
-		}
+		_, sensor := world.Sensor.Get(id)
 
 		motionType2 := collisionLayerMotionType[layer]
 
@@ -109,11 +87,11 @@ func (world *World) updatePhysicsShadow(updateParams *UpdateParams) {
 				velocity.Linear,
 				velocity.Angular,
 				int(layer),
-				filter2,
 				motionType2,
 				gravityFactor,
 				mass,
-				inertia)
+				inertia,
+				sensor)
 			world.physicsBodyExists.Set(id, struct{}{})
 		} else {
 			world.physics.UpdateBody(
@@ -124,11 +102,11 @@ func (world *World) updatePhysicsShadow(updateParams *UpdateParams) {
 				velocity.Linear,
 				velocity.Angular,
 				int(layer),
-				filter2,
 				motionType2,
 				gravityFactor,
 				mass,
-				inertia)
+				inertia,
+				sensor)
 		}
 	}
 }

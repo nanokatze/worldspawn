@@ -71,7 +71,18 @@ func (system *System) Update(dt float32) {
 	C.physicsUpdate((*C.Physics)(system), C.float(dt))
 }
 
-func (system *System) AddBody(bodyID BodyID, shape *Shape, pos gmath.Vec3f64, rot gmath.Rot3, vel, angVel gmath.Vec3f32, objectLayer int, ignoreBodyIDs []BodyID, motionType int, gravityFactor float32, mass float32, inertia gmath.Mat4x4f32) {
+func (system *System) AddBody(
+	bodyID BodyID,
+	shape *Shape,
+	pos gmath.Vec3f64,
+	rot gmath.Rot3,
+	vel, angVel gmath.Vec3f32,
+	objectLayer int,
+	motionType int,
+	gravityFactor float32,
+	mass float32,
+	inertia gmath.Mat4x4f32,
+	sensor bool) {
 	motionProperties := C.MotionProperties{
 		shape: (*C.Shape)(shape),
 		motionState: C.MotionState{
@@ -80,19 +91,29 @@ func (system *System) AddBody(bodyID BodyID, shape *Shape, pos gmath.Vec3f64, ro
 			velocity:        *(*C.vec3)(unsafe.Pointer(&vel)),
 			angularVelocity: *(*C.vec3)(unsafe.Pointer(&angVel)),
 		},
-		objectLayer:     C.int(objectLayer),
-		ignoreBodies:    (*C.BodyID)(unsafe.Pointer(unsafe.SliceData(ignoreBodyIDs))),
-		ignoreBodyCount: C.size_t(len(ignoreBodyIDs)),
-		motionType:      C.int(motionType),
-		gravityFactor:   C.float(gravityFactor),
-		mass:            C.float(mass),
-		inertia:         *(*C.mat4)(unsafe.Pointer(&inertia)),
+		objectLayer:   C.int(objectLayer),
+		motionType:    C.int(motionType),
+		gravityFactor: C.float(gravityFactor),
+		mass:          C.float(mass),
+		inertia:       *(*C.mat4)(unsafe.Pointer(&inertia)),
+		sensor:        C.bool(sensor),
 	}
 	C.physicsAddBody((*C.Physics)(system), C.BodyID(bodyID), motionProperties)
 }
 
 // TODO: merge AddBody and UpdateBody into one
-func (system *System) UpdateBody(bodyID BodyID, shape *Shape, pos gmath.Vec3f64, rot gmath.Rot3, vel, angVel gmath.Vec3f32, objectLayer int, ignoreBodyIDs []BodyID, motionType int, gravityFactor float32, mass float32, inertia gmath.Mat4x4f32) {
+func (system *System) UpdateBody(
+	bodyID BodyID,
+	shape *Shape,
+	pos gmath.Vec3f64,
+	rot gmath.Rot3,
+	vel, angVel gmath.Vec3f32,
+	objectLayer int,
+	motionType int,
+	gravityFactor float32,
+	mass float32,
+	inertia gmath.Mat4x4f32,
+	sensor bool) {
 	motionProperties := C.MotionProperties{
 		shape: (*C.Shape)(shape),
 		motionState: C.MotionState{
@@ -101,13 +122,12 @@ func (system *System) UpdateBody(bodyID BodyID, shape *Shape, pos gmath.Vec3f64,
 			velocity:        *(*C.vec3)(unsafe.Pointer(&vel)),
 			angularVelocity: *(*C.vec3)(unsafe.Pointer(&angVel)),
 		},
-		objectLayer:     C.int(objectLayer),
-		ignoreBodies:    (*C.BodyID)(unsafe.Pointer(unsafe.SliceData(ignoreBodyIDs))),
-		ignoreBodyCount: C.size_t(len(ignoreBodyIDs)),
-		motionType:      C.int(motionType),
-		gravityFactor:   C.float(gravityFactor),
-		mass:            C.float(mass),
-		inertia:         *(*C.mat4)(unsafe.Pointer(&inertia)),
+		objectLayer:   C.int(objectLayer),
+		motionType:    C.int(motionType),
+		gravityFactor: C.float(gravityFactor),
+		mass:          C.float(mass),
+		inertia:       *(*C.mat4)(unsafe.Pointer(&inertia)),
+		sensor:        C.bool(sensor),
 	}
 	C.physicsUpdateBody((*C.Physics)(system), C.BodyID(bodyID), motionProperties)
 }

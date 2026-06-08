@@ -25,6 +25,17 @@ type scriptFuncs struct {
 	WeaponCreateProp func(world *World, info *UpdateParams) ecs.ID
 	// WeaponUpdate func(world *World) Recoil
 
+	// Physics
+
+	// TODO: naming
+	// TODO: pass JPH::CollideShapeResult
+	ShouldCollide func(world *World, id1, id2 ecs.ID) int // TODO: return a enum that corresponds to JPH::ValidateResult
+
+	// TODO: naming
+	// TODO: inout parameter which lets the script edit the contact
+	// ContactAdded func(world *World, id, id2 ecs.ID)
+	// ContactRemoved func(world *World)
+
 	// OutOfBounds func(world *World, id ecs.ID, info *UpdateParams)
 }
 

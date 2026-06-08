@@ -319,6 +319,8 @@ JPH::BodyCreationSettings motionPropertiesToJPHBodyCreationSettings(MotionProper
 		.mInertia = mat4x4ToJPHMat44(motionProperties.inertia),
 	};
 
+	bodyCreationSettings.mIsSensor = motionProperties.sensor;
+
 	return bodyCreationSettings;
 }
 
@@ -476,13 +478,6 @@ void physicsAddBody(Physics *system, BodyID bodyID_, MotionProperties motionProp
 	auto body = bodyInterface.CreateBodyWithID(JPH::BodyID(bodyID_), motionPropertiesToJPHBodyCreationSettings(motionProperties));
 	assert(body != nullptr);
 
-	if (motionProperties.ignoreBodyCount > 0) {
-		// TODO: we should reinterpret uint64_t as a type with destructor so
-		// that replacing it doesn't induce headaches
-		// TODO: apply this when updating the body as well
-		//body->SetUserData(reinterpret_cast<uint64_t>(new std::vector<JPH::BodyID>(motionProperties.ignoreBodies, motionProperties.ignoreBodies + motionProperties.ignoreBodyCount)));
-	}
-
 	// TODO: append this to a list of bodies to add instead of adding
 	// immediately when this function becomes multi-body
 	bodyInterface.AddBody(body->GetID(), JPH::EActivation::Activate);
@@ -550,6 +545,8 @@ void physicsUpdateBody(Physics *system, BodyID bodyID_, MotionProperties motionP
 		motionProperties->SetGravityFactor(bodyCreationSettings.mGravityFactor);
 		motionProperties->SetMassProperties(JPH::EAllowedDOFs::All, bodyCreationSettings.mMassPropertiesOverride);
 	}
+
+	body.SetIsSensor(motionProperties.sensor);
 
 	if (activate) {
 		// TODO: add this body to the list of bodies to activate instead of activating immediately
