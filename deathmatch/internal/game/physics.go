@@ -130,7 +130,7 @@ func getShape(world *World, id ecs.ID) *physics.Shape {
 			HalfExtent: gmath.Vec3f32{0.0568, 0.0568, 0.0568},
 		})
 
-	case "FPSCharacter":
+	case "Gladiator":
 		shape = packGeometry(_Geometry{
 			Translation: gmath.Vec3f32{0, 0, 1.9 / 2}, // TODO: read standing height off Entity
 			Rotation:    gmath.Rot3One(),

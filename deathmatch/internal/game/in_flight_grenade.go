@@ -13,17 +13,16 @@ func init() {
 			world.radialImpact(
 				Impact{
 					Inflictor: grenade, // TODO: this should be the character, actually
-					Type:      0,
+					Type:      BlastImpactWithFragmentation,
 					Damage:    1500,
 				},
-				world.GetTransform(grenade).Compose(),
+				world.GetGlobalTransform(grenade),
 				sphericalExplosion, 3,
 				4*math.Pi/500)
 
 			world.EnqueueEntityUpdate(grenade,
 				func(world *World, grenade ecs.ID, info *UpdateParams) {
 					T := world.GetTransform(grenade)
-
 					world.ClearEntity(grenade)
 					world.SetScript(grenade, "delete_after")
 					world.NextThink.Set(grenade, world.Now.Add(2*time.Second))

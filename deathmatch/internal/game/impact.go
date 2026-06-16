@@ -4,9 +4,23 @@ import "worldspawn/internal/ecs"
 
 type ImpactType int
 
+// TODO: it would be nice if we could register these at runtime somehow.
+const (
+	_ ImpactType = iota
+	BlastImpact
+	BlastImpactWithFragmentation
+	BulletImpact
+)
+
+var impactBleedFactor = map[ImpactType]float32{
+	BlastImpactWithFragmentation: 0.33,
+	BulletImpact:                 0.5,
+}
+
 // TODO: make this more structured and possibly pull this from json
-var impactTypes = []float32{
-	0.2,
+var impactForceFactor = map[ImpactType]float32{
+	BlastImpact:                  0.2,
+	BlastImpactWithFragmentation: 0.2,
 }
 
 // TODO: reorder the fields in here
@@ -20,7 +34,7 @@ type Impact struct {
 
 	Type ImpactType
 
-	Damage float32
+	Damage int32
 
 	Δv Velocity
 }

@@ -17,7 +17,9 @@ func (Player) entity() {}
 
 // TODO: returning ecs.ID is kinda meh, ideally we'd return a pile of data that
 // can be fed straight into pathtracer
-// TODO: make this a method on the World?
+// TODO: make this a method on the World? We need to think how to handle the
+// case when Camera is independent of player input (e.g. when we're flying along
+// some track.) In that case, the client should not set T0 and T1 to whatever value we return
 func (player Player) Camera(world *World) ecs.ID {
 	char, ok := SceneGetEntity[Gladiator](world, player.ControlledCharacter)
 	if !ok {
