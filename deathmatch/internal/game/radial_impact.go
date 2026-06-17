@@ -67,7 +67,7 @@ func (world *World) radialImpact(
 		dmg := pdf * spat
 
 		tmp := results[collector.closestHit.BodyID]
-		tmp.dvel = tmp.dvel.Add(Velocity{Linear: d.Scale(dmg * impactForceFactor[impact.Type])})
+		tmp.dvel = tmp.dvel.Add(Velocity{Linear: d}.Scale(dmg))
 		tmp.dmg += dmg
 		results[collector.closestHit.BodyID] = tmp
 	}
@@ -75,11 +75,9 @@ func (world *World) radialImpact(
 	for bodyID, result := range results {
 		entityID := world.Table.IDs().Index(int(bodyID))
 
-		result.dvel.Linear = result.dvel.Linear.Scale(float32(impact.Damage))
-
 		impact := Impact{
 			Type:      impact.Type,
-			Δv:        result.dvel,
+			Δv:        result.dvel.Scale(impactForceFactor[impact.Type] * float32(impact.Damage)),
 			Damage:    int32(result.dmg * float32(impact.Damage)),
 			Inflictor: impact.Inflictor,
 		}

@@ -17,7 +17,8 @@ func init() {
 					Damage:    1500,
 				},
 				world.GetGlobalTransform(grenade),
-				sphericalExplosion, 3,
+				sphericalExplosion,
+				5,
 				4*math.Pi/500)
 
 			world.EnqueueEntityUpdate(grenade,

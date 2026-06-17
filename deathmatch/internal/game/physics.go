@@ -20,6 +20,13 @@ func (a Velocity) Add(b Velocity) Velocity {
 	}
 }
 
+func (a Velocity) Scale(λ float32) Velocity {
+	return Velocity{
+		Linear:  a.Linear.Scale(λ),
+		Angular: a.Angular.Scale(λ),
+	}
+}
+
 // TODO: kill
 type ContactEvent struct {
 	Type      int32
