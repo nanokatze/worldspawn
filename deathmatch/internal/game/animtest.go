@@ -16,7 +16,7 @@ func (Animtest) entity() {}
 
 func init() {
 	scripts["animtest"] = scriptFuncs{
-		State: reflect.TypeFor[Animtest](),
+		Types: []reflect.Type{reflect.TypeFor[Animtest]()},
 
 		Think: func(world *World, id ecs.ID, info *UpdateParams) {
 			animtest, _ := SceneGetEntity[Animtest](world, id)

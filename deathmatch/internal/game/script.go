@@ -10,9 +10,14 @@ import (
 // control?
 // TODO: pass the object through which updates are enqueued explicitly. That way
 // we could straightforwardly doublebuffer things.
+// TODO: rename to just script
 type scriptFuncs struct {
-	// TODO: actually nuke this and let scripts do whatever?
-	State reflect.Type
+	// Types to register for de/serialization
+	Types []reflect.Type
+
+	Funcs map[string]any
+
+	// TODO: the following should be shadows of Funcs basically
 
 	// Thinkers must not mutate any entities. Thinkers are only allowed to read
 	// entity states, perform physics queries and enqueue entity updates.

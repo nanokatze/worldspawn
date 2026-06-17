@@ -78,7 +78,7 @@ type Gladiator struct {
 
 func init() {
 	scripts["gladiator"] = scriptFuncs{
-		State: reflect.TypeFor[Gladiator](),
+		Types: []reflect.Type{reflect.TypeFor[Gladiator]()},
 
 		Input: func(world *World, id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
 			gladiator, _ := SceneGetEntity[Gladiator](world, id)

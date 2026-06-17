@@ -19,6 +19,8 @@ func (InFlightGrenade) entity() {}
 
 func init() {
 	scripts["in_flight_grenade"] = scriptFuncs{
+		Types: []reflect.Type{reflect.TypeFor[InFlightGrenade]()},
+
 		Think: func(world *World, grenade ecs.ID, info *UpdateParams) {
 			const fuse = 1400 * time.Millisecond
 
