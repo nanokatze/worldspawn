@@ -1,8 +1,10 @@
-package arenderer
+package spatialaudio
 
 import (
 	"worldspawn/internal/gmath"
 )
+
+// TODO: rename this package to spatialaudio I guess
 
 // TODO: duplicate Geometry from grenderer, or make a renderer directory with a
 // and g subdirectories for audio and graphics. Common structures would stay in

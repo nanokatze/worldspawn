@@ -13,7 +13,6 @@ import (
 	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
 	"worldspawn/gpu/wsi"
-	"worldspawn/internal/arenderer"
 	"worldspawn/internal/gmath"
 	"worldspawn/internal/renderer"
 	"worldspawn/internal/sdl"
@@ -74,7 +73,7 @@ func (w *mainWindow) Run() {
 
 		gsdata: make([]gsdata, 10000),
 
-		ascene: arenderer.NewScene(10000),
+		ascene: spatialaudio.NewScene(10000),
 	}
 	for i := range w.renderer.idGen {
 		w.renderer.idGen[i] = 0xffffffff

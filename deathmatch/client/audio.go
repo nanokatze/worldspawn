@@ -11,11 +11,11 @@ import (
 
 	"worldspawn/deathmatch/internal/game"
 	"worldspawn/internal/apostprocess"
-	"worldspawn/internal/arenderer"
 	"worldspawn/internal/fuckwwise/opusfile"
 	"worldspawn/internal/fuckwwise/wav"
 	"worldspawn/internal/gmath"
 	"worldspawn/internal/sdl"
+	"worldspawn/internal/spatialaudio"
 )
 
 // TODO: output related stuff back to main.go?
@@ -45,7 +45,7 @@ var au = sync.OnceValue(func() *sdl.AudioStream {
 // guess we should just use our 3d sound renderer for this purpose.
 
 // TODO: factor shrinker/stretcher out into apostprocess or something
-func renderAudio(scene *arenderer.Scene, cameraTransform gmath.Affine3f32, Δt int64) {
+func renderAudio(scene *spatialaudio.Scene, cameraTransform gmath.Affine3f32, Δt int64) {
 	// TODO: make this tunable at runtime
 	queueingTargetSamples := 48000 / 50
 
@@ -58,7 +58,7 @@ func renderAudio(scene *arenderer.Scene, cameraTransform gmath.Affine3f32, Δt i
 	tmp := make([]float32, L*2)
 
 	scene.Render(
-		arenderer.Film{
+		spatialaudio.Film{
 			Samples:  tmp,
 			Channels: 2,
 		},
