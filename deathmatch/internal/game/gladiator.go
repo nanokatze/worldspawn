@@ -80,6 +80,111 @@ func init() {
 	scripts["gladiator"] = scriptFuncs{
 		State: reflect.TypeFor[Gladiator](),
 
+		Input: func(world *World, id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
+			gladiator, _ := SceneGetEntity[Gladiator](world, id)
+			defer func() { world.Entity.Set(id, gladiator) }()
+
+			var switchToWeapon ecs.ID
+
+			switch cmd := cmd.Cmd.(type) {
+			case InputCmdDLookXY:
+				gladiator.Input.LookDir[0] = float32(math.Mod(float64(gladiator.Input.LookDir[0]-float32(cmd)), 1))
+			case InputCmdDLookYZ:
+				gladiator.Input.LookDir[1] = min(max(gladiator.Input.LookDir[1]-float32(cmd), -0.25), 0.25)
+			case InputCmdMoveX:
+				gladiator.Input.WalkVel[0] = float32(cmd)
+			case InputCmdMoveY:
+				gladiator.Input.WalkVel[1] = float32(cmd)
+			case InputCmdPressButton:
+				gladiator.Input.HeldButtons |= uint64(1) << cmd
+			case InputCmdReleaseButton:
+				gladiator.Input.HeldButtons &^= uint64(1) << cmd
+			case Slot:
+				if !(0 <= int(cmd) && int(cmd) < len(gladiator.Slots)) {
+					break
+				}
+
+				switchToWeapon = gladiator.Slots[cmd]
+
+			default:
+				// TODO: we should not hit this with nil either
+				if cmd != nil {
+					panic("unreachable")
+				}
+			}
+
+			if !world.EntityExists(gladiator.Weapon) && switchToWeapon == 0 {
+				for _, slot := range gladiator.Slots {
+					if slot != 0 {
+						switchToWeapon = slot
+						break
+					}
+				}
+			}
+
+			// TODO: rewrite this
+			if world.EntityExists(switchToWeapon) && gladiator.Weapon != switchToWeapon {
+				// TODO: for weapon sway we would need to introduce another entity
+				// (basically hands) which we would move around and actually use to
+				// implement sway with.
+				// TODO: make weapon switching predicted when we make CreateEntity work in speculative mode
+				if !info.Speculating {
+					gladiator.Weapon = 0
+
+					if world.EntityExists(gladiator.FirstPersonWeaponProp) {
+						world.Delete.Set(gladiator.FirstPersonWeaponProp, struct{}{})
+					}
+					gladiator.FirstPersonWeaponProp = 0
+
+					// Now we can switch the weapons
+
+					if weapon, ok := world.GetEntity[Weapon](switchToWeapon); ok {
+						gladiator.FirstPersonWeaponProp = weapon.CreateProp(world, info)
+						world.SetParent(gladiator.FirstPersonWeaponProp, gladiator.FirstPersonHands)
+						world.VisibilityMask.Set(gladiator.FirstPersonWeaponProp,
+							VisibilityMask{Mask: 0b01, Camera: gladiator.FirstPersonCamera})
+
+						gladiator.Weapon = switchToWeapon
+					}
+				}
+			}
+
+			// TODO: under some conditions we should autoselect a gun for the player
+
+			if weapon, ok := SceneGetEntity[Weapon](world, gladiator.Weapon); ok {
+				var buttons WeaponButtons
+				if gladiator.Input.HeldButtons&uint64(1<<ButtonAttack) != 0 {
+					buttons |= WeaponTrigger
+				}
+
+				shootT := world.GetGlobalTransform(id).
+					Mul(gmath.TRS3f64{
+						T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
+						R: e01.Pow(4 * gladiator.Input.LookDir[0]).Mul(e12.Pow(4 * gladiator.Input.LookDir[1])),
+						S: gmath.Mat3x3UOne[float32](),
+					}.Compose())
+
+				shootv, _ := world.Velocity.Get(id)
+
+				// TODO: shooter id we pass should be that of player, actually. Maybe we
+				// should have a component to attribute kills and damage to something
+				// else.
+				stepResult := weapon.WeaponSubstep(world, gladiator.Weapon, []ecs.ID{gladiator.FirstPersonWeaponProp}, id, shootT, shootv, buttons, info)
+				// TODO: apply some part of the recoil as viewpunch?
+				// TODO: make sure we don't overflow LookDir
+				gladiator.Input.LookDir[0] += stepResult.Recoil[0]
+				gladiator.Input.LookDir[1] += stepResult.Recoil[1]
+			}
+
+			// TODO: factor this out?
+			world.SetTransform(gladiator.FirstPersonCamera,
+				gmath.TRS3f64{
+					T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
+					R: e01.Pow(4 * gladiator.Input.LookDir[0]).Mul(e12.Pow(4 * gladiator.Input.LookDir[1])),
+					S: gmath.Mat3x3UOne[float32](),
+				})
+		},
+
 		// Think: func(world *World, id ecs.ID, info *UpdateParams) {
 		// },
 
@@ -108,8 +213,6 @@ func init() {
 }
 
 var _ Thinker = Gladiator{}
-
-var _ PlayableCharacter = Gladiator{}
 
 func (Gladiator) entity() {}
 
@@ -162,113 +265,9 @@ func (world *World) spawnGladiator(T gmath.TRS3f64, info *UpdateParams) ecs.ID {
 	return gladiator
 }
 
-func (gladiator Gladiator) HandleInput(world *World, id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
-	defer func() { world.Entity.Set(id, gladiator) }()
-
-	var switchToWeapon ecs.ID
-
-	switch cmd := cmd.Cmd.(type) {
-	case InputCmdDLookXY:
-		gladiator.Input.LookDir[0] = float32(math.Mod(float64(gladiator.Input.LookDir[0]-float32(cmd)), 1))
-	case InputCmdDLookYZ:
-		gladiator.Input.LookDir[1] = min(max(gladiator.Input.LookDir[1]-float32(cmd), -0.25), 0.25)
-	case InputCmdMoveX:
-		gladiator.Input.WalkVel[0] = float32(cmd)
-	case InputCmdMoveY:
-		gladiator.Input.WalkVel[1] = float32(cmd)
-	case InputCmdPressButton:
-		gladiator.Input.HeldButtons |= uint64(1) << cmd
-	case InputCmdReleaseButton:
-		gladiator.Input.HeldButtons &^= uint64(1) << cmd
-	case Slot:
-		if !(0 <= int(cmd) && int(cmd) < len(gladiator.Slots)) {
-			break
-		}
-
-		switchToWeapon = gladiator.Slots[cmd]
-
-	default:
-		// TODO: we should not hit this with nil either
-		if cmd != nil {
-			panic("unreachable")
-		}
-	}
-
-	if !world.EntityExists(gladiator.Weapon) && switchToWeapon == 0 {
-		for _, slot := range gladiator.Slots {
-			if slot != 0 {
-				switchToWeapon = slot
-				break
-			}
-		}
-	}
-
-	// TODO: rewrite this
-	if world.EntityExists(switchToWeapon) && gladiator.Weapon != switchToWeapon {
-		// TODO: for weapon sway we would need to introduce another entity
-		// (basically hands) which we would move around and actually use to
-		// implement sway with.
-		// TODO: make weapon switching predicted when we make CreateEntity work in speculative mode
-		if !info.Speculating {
-			gladiator.Weapon = 0
-
-			if world.EntityExists(gladiator.FirstPersonWeaponProp) {
-				world.Delete.Set(gladiator.FirstPersonWeaponProp, struct{}{})
-			}
-			gladiator.FirstPersonWeaponProp = 0
-
-			// Now we can switch the weapons
-
-			if weapon, ok := SceneGetEntity[Weapon](world, switchToWeapon); ok {
-				gladiator.FirstPersonWeaponProp = weapon.CreateProp(world, info)
-				world.SetParent(gladiator.FirstPersonWeaponProp, gladiator.FirstPersonHands)
-				world.VisibilityMask.Set(gladiator.FirstPersonWeaponProp,
-					VisibilityMask{Mask: 0b01, Camera: gladiator.FirstPersonCamera})
-
-				gladiator.Weapon = switchToWeapon
-			}
-		}
-	}
-
-	// TODO: under some conditions we should autoselect a gun for the player
-
-	if weapon, ok := SceneGetEntity[Weapon](world, gladiator.Weapon); ok {
-		var buttons WeaponButtons
-		if gladiator.Input.HeldButtons&uint64(1<<ButtonAttack) != 0 {
-			buttons |= WeaponTrigger
-		}
-
-		shootT := world.GetGlobalTransform(id).
-			Mul(gmath.TRS3f64{
-				T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
-				R: e01.Pow(4 * gladiator.Input.LookDir[0]).Mul(e12.Pow(4 * gladiator.Input.LookDir[1])),
-				S: gmath.Mat3x3UOne[float32](),
-			}.Compose())
-
-		shootv, _ := world.Velocity.Get(id)
-
-		// TODO: shooter id we pass should be that of player, actually. Maybe we
-		// should have a component to attribute kills and damage to something
-		// else.
-		stepResult := weapon.WeaponSubstep(world, gladiator.Weapon, []ecs.ID{gladiator.FirstPersonWeaponProp}, id, shootT, shootv, buttons, info)
-		// TODO: apply some part of the recoil as viewpunch?
-		// TODO: make sure we don't overflow LookDir
-		gladiator.Input.LookDir[0] += stepResult.Recoil[0]
-		gladiator.Input.LookDir[1] += stepResult.Recoil[1]
-	}
-
-	// TODO: factor this out?
-	world.SetTransform(gladiator.FirstPersonCamera,
-		gmath.TRS3f64{
-			T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
-			R: e01.Pow(4 * gladiator.Input.LookDir[0]).Mul(e12.Pow(4 * gladiator.Input.LookDir[1])),
-			S: gmath.Mat3x3UOne[float32](),
-		})
-}
-
 func (gladiator Gladiator) Think(world *World, id ecs.ID, info *UpdateParams) {
 	// TODO: do not call this here
-	gladiator.HandleInput(world, id, TimestampedInputCmd{}, info)
+	world.GetScriptFuncs(id).Input(world, id, TimestampedInputCmd{}, info)
 
 	// TODO: this is incredibly gross and ugly, FIXME
 	gladiator = mustOk(SceneGetEntity[Gladiator](world, id))

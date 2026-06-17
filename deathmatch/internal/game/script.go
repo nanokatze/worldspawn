@@ -20,7 +20,7 @@ type scriptFuncs struct {
 
 	Impact func(world *World, id ecs.ID, impact Impact, info *UpdateParams)
 
-	// Input func(world *World, id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams)
+	Input func(world *World, id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams)
 
 	WeaponCreateProp func(world *World, info *UpdateParams) ecs.ID
 	// WeaponUpdate func(world *World) Recoil

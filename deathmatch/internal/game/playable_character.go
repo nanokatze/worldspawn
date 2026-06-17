@@ -2,8 +2,6 @@ package game
 
 import (
 	"reflect"
-
-	"worldspawn/internal/ecs"
 )
 
 // TODO: replace with []byte and do de/serialization at HandleInput time?
@@ -48,10 +46,4 @@ var InputCmdTypes = []reflect.Type{
 	reflect.TypeFor[InputCmdPressButton](),
 	reflect.TypeFor[InputCmdReleaseButton](),
 	reflect.TypeFor[Slot](),
-}
-
-type PlayableCharacter interface {
-	Entity
-
-	HandleInput(world *World, id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams)
 }
