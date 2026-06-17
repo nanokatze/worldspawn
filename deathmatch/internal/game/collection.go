@@ -90,7 +90,7 @@ func prefab(filename string) *Columns {
 	return w
 }
 
-func (world *World) SpawnPrefab(filename string, info *UpdateParams) ecs.ID {
+func (world *World) InstantinatePrefab(filename string, info *UpdateParams) ecs.ID {
 	e := world.CreateEntity(info)
 	world.CopyEntities(e, prefab(filename))
 	return e
