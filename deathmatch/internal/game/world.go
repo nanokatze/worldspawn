@@ -236,7 +236,7 @@ func (world *World) DeleteEntityImmediately(id ecs.ID) {
 }
 
 func (world *World) Globals() SceneGlobals {
-	globals, _ := SceneGetEntity[SceneGlobals](world, 1)
+	globals, _ := world.GetEntity[SceneGlobals](1)
 	return globals
 }
 
@@ -360,8 +360,8 @@ func (world *World) GetSkeleton(id ecs.ID) *animgraph.Skeleton {
 	return skeleton(skellyName)
 }
 
-// TODO: kill this
-func SceneGetEntity[T Entity](world *World, id ecs.ID) (T, bool) {
+// TODO: rename this
+func (world *World) GetEntity[T Entity](id ecs.ID) (T, bool) {
 	entity, _ := world.Entity.Get(id)
 	entityT, ok := entity.(T)
 	if !ok {

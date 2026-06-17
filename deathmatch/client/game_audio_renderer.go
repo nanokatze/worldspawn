@@ -25,7 +25,7 @@ func (re *gameAudioRenderer) Reset(n int) {
 // TODO: factor shrinker/stretcher out into apostprocess or something
 
 func (re *gameAudioRenderer) Tick(world *game.World, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration) {
-	fpsCharacter, _ := game.SceneGetEntity[game.Player](world, playerID)
+	fpsCharacter, _ := world.GetEntity[game.Player](playerID)
 
 	camera := fpsCharacter.Camera(world)
 

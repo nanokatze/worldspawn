@@ -19,7 +19,7 @@ func init() {
 		Types: []reflect.Type{reflect.TypeFor[Animtest]()},
 
 		Think: func(world *World, id ecs.ID, info *UpdateParams) {
-			animtest, _ := SceneGetEntity[Animtest](world, id)
+			animtest, _ := world.GetEntity[Animtest](id)
 
 			animation := animation(animtest.Animation)
 

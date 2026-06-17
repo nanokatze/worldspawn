@@ -21,7 +21,7 @@ func (Player) entity() {}
 // case when Camera is independent of player input (e.g. when we're flying along
 // some track.) In that case, the client should not set T0 and T1 to whatever value we return
 func (player Player) Camera(world *World) ecs.ID {
-	char, ok := SceneGetEntity[Gladiator](world, player.ControlledCharacter)
+	char, ok := world.GetEntity[Gladiator](player.ControlledCharacter)
 	if !ok {
 		return 0
 	}
@@ -29,9 +29,10 @@ func (player Player) Camera(world *World) ecs.ID {
 }
 
 func (world *World) HandleInput(playerID ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
-	player := mustOk(SceneGetEntity[Player](world, playerID))
-	if char, ok := SceneGetEntity[PlayableCharacter](world, player.ControlledCharacter); ok {
-		char.HandleInput(world, player.ControlledCharacter, cmd, info)
+	player := mustOk(world.GetEntity[Player](playerID))
+	if world.EntityExists(player.ControlledCharacter) {
+		world.GetScriptFuncs(player.ControlledCharacter).
+			Input(world, player.ControlledCharacter, cmd, info)
 	} else {
 		if !info.Speculating {
 			player.ControlledCharacter = world.spawnGladiator(world.findSpawnPoint(), info)

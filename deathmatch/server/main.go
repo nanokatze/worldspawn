@@ -174,7 +174,7 @@ func (s *Server) serveConn(conn *quic.Conn, logger *slog.Logger) error {
 			defer s.mu.Unlock()
 
 			// TODO: don't kill Character here
-			player, _ := game.SceneGetEntity[game.Player](s.world, u.player)
+			player, _ := s.world.GetEntity[game.Player](u.player)
 			s.world.Delete.Set(player.ControlledCharacter, struct{}{})
 			s.world.Delete.Set(u.player, struct{}{})
 		}()

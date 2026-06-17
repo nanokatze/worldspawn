@@ -81,7 +81,7 @@ func init() {
 		Types: []reflect.Type{reflect.TypeFor[Gladiator]()},
 
 		Input: func(world *World, id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
-			gladiator, _ := SceneGetEntity[Gladiator](world, id)
+			gladiator, _ := world.GetEntity[Gladiator](id)
 			defer func() { world.Entity.Set(id, gladiator) }()
 
 			var switchToWeapon ecs.ID
@@ -151,7 +151,7 @@ func init() {
 
 			// TODO: under some conditions we should autoselect a gun for the player
 
-			if weapon, ok := SceneGetEntity[Weapon](world, gladiator.Weapon); ok {
+			if weapon, ok := world.GetEntity[Weapon](gladiator.Weapon); ok {
 				var buttons WeaponButtons
 				if gladiator.Input.HeldButtons&uint64(1<<ButtonAttack) != 0 {
 					buttons |= WeaponTrigger
@@ -203,7 +203,7 @@ func init() {
 			directDamage := int32(math.Ceil(float64(modifiedDamage) * (1 - float64(impactBleedFactor[impact.Type]))))
 			bleeding := modifiedDamage - directDamage
 
-			gladiator, _ := SceneGetEntity[Gladiator](world, id)
+			gladiator, _ := world.GetEntity[Gladiator](id)
 			gladiator.Vitals.Health -= directDamage
 			gladiator.Vitals.HealthToBleed += bleeding
 			gladiator.Vitals.NextBleed = world.Now
@@ -270,7 +270,7 @@ func (gladiator Gladiator) Think(world *World, id ecs.ID, info *UpdateParams) {
 	world.GetScriptFuncs(id).Input(world, id, TimestampedInputCmd{}, info)
 
 	// TODO: this is incredibly gross and ugly, FIXME
-	gladiator = mustOk(SceneGetEntity[Gladiator](world, id))
+	gladiator = mustOk(world.GetEntity[Gladiator](id))
 
 	velocity, _ := world.Velocity.Get(id)
 
@@ -453,7 +453,7 @@ func (gladiator *Gladiator) asdasd(world *World, id ecs.ID, velocity gmath.Vec3f
 
 // TODO: delete this and handle it entirely in the character's code
 func (world *World) GiveWeapon(id ecs.ID, weapon ecs.ID) {
-	char := mustOk(SceneGetEntity[Gladiator](world, id))
+	char := mustOk(world.GetEntity[Gladiator](id))
 	freeSlot := slices.Index(char.Slots[:], 0)
 	char.Slots[freeSlot] = weapon
 	world.Entity.Set(id, char)

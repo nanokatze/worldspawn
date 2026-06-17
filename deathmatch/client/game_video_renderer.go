@@ -138,13 +138,13 @@ func (re *gameVideoRenderer) Tick(world *game.World, playerID ecs.ID, t0, t1 gam
 	update := re.beginUpdate()
 	defer re.commitUpdate(update)
 
-	fpsCharacter, _ := game.SceneGetEntity[game.Player](world, playerID)
+	fpsCharacter, _ := world.GetEntity[game.Player](playerID)
 
 	camera := fpsCharacter.Camera(world)
 
 	{
 		update.hudState = hudState{}
-		if gladiator, ok := game.SceneGetEntity[game.Gladiator](world, fpsCharacter.ControlledCharacter); ok {
+		if gladiator, ok := world.GetEntity[game.Gladiator](fpsCharacter.ControlledCharacter); ok {
 			update.hudState.Health = gladiator.Vitals.Health
 			update.hudState.Bleed = gladiator.Vitals.HealthToBleed
 		}
