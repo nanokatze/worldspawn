@@ -5,6 +5,11 @@ import (
 	"text/template"
 )
 
+// TODO: swizzle/permutation objects? These objects would be basically tuples of
+// indices and we would have operations to compose and invert them and
+// everything, and apply them to vectors. This would be basically a more
+// effishent alternative to matrices.
+
 type vecGen struct{ D int64 }
 
 func (gen vecGen) Gen(w io.Writer) error { return vecTmpl.Execute(w, &gen) }
@@ -19,10 +24,10 @@ type (
 	Vec{{.D}}f64 = {{$VecD}}[float64]
 )
 
-func (v {{$VecD}}[From]) Convert[To constraints.Float]() {{$VecD}}[To] {
+func (a {{$VecD}}[From]) Convert[To constraints.Float]() {{$VecD}}[To] {
 	return {{$VecD}}[To]{
 		{{- range .D}}
-		To(v[{{.}}]),
+		To(a[{{.}}]),
 		{{- end}}
 	}
 }
@@ -67,15 +72,15 @@ func (a {{$VecD}}[T]) Dot(b {{$VecD}}[T]) T {
 	return 0 {{- range .D}} + a[{{.}}] * b[{{.}}] {{- end}}
 }
 
-func (v {{$VecD}}[T]) Normalize() {{$VecD}}[T] {
-	lengthSqr := v.Dot(v)
+func (a {{$VecD}}[T]) Normalize() {{$VecD}}[T] {
+	lengthSqr := a.Dot(a)
 	if !(lengthSqr > 0) {
 		return {{$VecD}}[T]{}
 	}
 	length := T(math.Sqrt(float64(lengthSqr)))
 	return {{$VecD}}[T]{
 		{{- range .D}}
-		v[{{.}}] / length,
+		a[{{.}}] / length,
 		{{- end}}
 	}
 }

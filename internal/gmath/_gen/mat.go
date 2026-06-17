@@ -10,7 +10,8 @@ import (
 // TranslationD and ScaleD both with .Mul method for composition.
 
 // TODO: unify multiplication templates into something single so that we can
-// reuse them in square matrix mul, general matmul and matvec
+// reuse them in square matrix mul, general matmul and matvec and maybe even
+// runtime.
 
 type matGen struct{ M, N int64 }
 
@@ -18,17 +19,19 @@ func (gen matGen) Gen(w io.Writer) error { return matTmpl.Execute(w, &gen) }
 
 var matTmpl = template.Must(template.New("mat").Parse(`
 {{$MatMxN := printf "Mat%dx%d" .M .N}}
+{{$VecN := printf "Vec%d" .N}}
+{{$VecM := printf "Vec%d" .M}}
 
 type {{$MatMxN}}[T constraints.Float] [{{.M}} * {{.N}}]T
 
 type Mat{{.M}}x{{.N}}f32 = {{$MatMxN}}[float32]
 
-func (M {{$MatMxN}}[From]) Convert[To constraints.Float]() {{$MatMxN}}[To] {
-	var M2 {{$MatMxN}}[To]
-	for i, v := range M {
-		M2[i] = To(v)
+func (A {{$MatMxN}}[From]) Convert[To constraints.Float]() {{$MatMxN}}[To] {
+	var B {{$MatMxN}}[To]
+	for i, v := range A {
+		B[i] = To(v)
 	}
-	return M2
+	return B
 }
 
 func (A *{{$MatMxN}}[T]) Index(i, j int) *T {
@@ -72,6 +75,14 @@ func (A {{$MatMxM}}[T]) Mul(B {{$MatMxM}}[T]) {{$MatMxM}}[T] {
 }
 
 {{end}}
+
+func (A {{$MatMxN}}[T]) Mulv(b {{$VecN}}[T]) {{$VecM}}[T] {
+	var Ab {{$VecM}}[T]
+	{{- range $i := $.M}}
+	Ab[{{$i}}] = 0 {{range $j := $.N}} + *A.Index({{$i}}, {{$j}}) * b[{{$j}}] {{end}}
+	{{- end}}
+	return Ab
+}
 `))
 
 type matmulGen struct{ M, N, P int64 }
@@ -94,24 +105,7 @@ func (A {{$MatMxN}}[T]) Mul{{.N}}x{{.P}}(B {{$MatNxP}}[T]) {{$MatMxP}}[T] {
 }
 `))
 
-type matvecGen struct{ M, N int64 }
-
-func (gen matvecGen) Gen(w io.Writer) error { return matvecTmpl.Execute(w, &gen) }
-
-var matvecTmpl = template.Must(template.New("matvec").Parse(`
-{{$MatMxN := printf "Mat%dx%d" .M .N}}
-{{$VecN := printf "Vec%d" .N}}
-{{$VecM := printf "Vec%d" .M}}
-
-func (A {{$MatMxN}}[T]) Mulv(b {{$VecN}}[T]) {{$VecM}}[T] {
-	var Ab {{$VecM}}[T]
-	{{- range $i := $.M}}
-	Ab[{{$i}}] = 0 {{range $j := $.N}} + *A.Index({{$i}}, {{$j}}) * b[{{$j}}] {{end}}
-	{{- end}}
-	return Ab
-}
-`))
-
+// TODO: fold trmat into matTmpl for rectangular M, N
 type trmatGen struct{ M int64 }
 
 func (gen trmatGen) Gen(w io.Writer) error { return trmatTmpl.Execute(w, &gen) }

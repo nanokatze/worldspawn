@@ -4,10 +4,16 @@ import (
 	"bytes"
 	"flag"
 	"go/format"
+	"io"
+	"log"
 	"os"
 )
 
 var out = flag.String("o", "", "a")
+
+type Generator interface {
+	Gen(w io.Writer) error
+}
 
 func main() {
 	flag.Parse()
@@ -19,23 +25,31 @@ func main() {
 
 	// TODO: specify what to generate on the command line
 
-	vecGen{2}.Gen(buf)
-	matGen{2, 2}.Gen(buf)
-	matvecGen{2, 2}.Gen(buf)
+	for _, generator := range []Generator{
+		vecGen{2},
+		matGen{2, 2},
 
-	vecGen{3}.Gen(buf)
-	matGen{3, 3}.Gen(buf)
-	matvecGen{3, 3}.Gen(buf)
-	trmatGen{3}.Gen(buf)
+		vecGen{3},
+		matGen{3, 3},
+		trmatGen{3},
 
-	vecGen{4}.Gen(buf)
-	matGen{4, 4}.Gen(buf)
-	matvecGen{4, 4}.Gen(buf)
+		vecGen{4},
+		matGen{4, 4},
 
-	affineGen{3}.Gen(buf)
+		affineGen{3},
+	} {
+		if err := generator.Gen(buf); err != nil {
+			log.Fatal(err)
+		}
+	}
 
-	src, _ := format.Source(buf.Bytes())
-	os.WriteFile(*out, src, 0644)
+	src, err := format.Source(buf.Bytes())
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := os.WriteFile(*out, src, 0644); err != nil {
+		log.Fatal(err)
+	}
 }
 
 const header = `

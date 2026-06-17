@@ -15,10 +15,10 @@ type (
 	Vec2f64 = Vec2[float64]
 )
 
-func (v Vec2[From]) Convert[To constraints.Float]() Vec2[To] {
+func (a Vec2[From]) Convert[To constraints.Float]() Vec2[To] {
 	return Vec2[To]{
-		To(v[0]),
-		To(v[1]),
+		To(a[0]),
+		To(a[1]),
 	}
 }
 
@@ -58,15 +58,15 @@ func (a Vec2[T]) Dot(b Vec2[T]) T {
 	return 0 + a[0]*b[0] + a[1]*b[1]
 }
 
-func (v Vec2[T]) Normalize() Vec2[T] {
-	lengthSqr := v.Dot(v)
+func (a Vec2[T]) Normalize() Vec2[T] {
+	lengthSqr := a.Dot(a)
 	if !(lengthSqr > 0) {
 		return Vec2[T]{}
 	}
 	length := T(math.Sqrt(float64(lengthSqr)))
 	return Vec2[T]{
-		v[0] / length,
-		v[1] / length,
+		a[0] / length,
+		a[1] / length,
 	}
 }
 
@@ -82,12 +82,12 @@ type Mat2x2[T constraints.Float] [2 * 2]T
 
 type Mat2x2f32 = Mat2x2[float32]
 
-func (M Mat2x2[From]) Convert[To constraints.Float]() Mat2x2[To] {
-	var M2 Mat2x2[To]
-	for i, v := range M {
-		M2[i] = To(v)
+func (A Mat2x2[From]) Convert[To constraints.Float]() Mat2x2[To] {
+	var B Mat2x2[To]
+	for i, v := range A {
+		B[i] = To(v)
 	}
-	return M2
+	return B
 }
 
 func (A *Mat2x2[T]) Index(i, j int) *T {
@@ -137,11 +137,11 @@ type (
 	Vec3f64 = Vec3[float64]
 )
 
-func (v Vec3[From]) Convert[To constraints.Float]() Vec3[To] {
+func (a Vec3[From]) Convert[To constraints.Float]() Vec3[To] {
 	return Vec3[To]{
-		To(v[0]),
-		To(v[1]),
-		To(v[2]),
+		To(a[0]),
+		To(a[1]),
+		To(a[2]),
 	}
 }
 
@@ -185,16 +185,16 @@ func (a Vec3[T]) Dot(b Vec3[T]) T {
 	return 0 + a[0]*b[0] + a[1]*b[1] + a[2]*b[2]
 }
 
-func (v Vec3[T]) Normalize() Vec3[T] {
-	lengthSqr := v.Dot(v)
+func (a Vec3[T]) Normalize() Vec3[T] {
+	lengthSqr := a.Dot(a)
 	if !(lengthSqr > 0) {
 		return Vec3[T]{}
 	}
 	length := T(math.Sqrt(float64(lengthSqr)))
 	return Vec3[T]{
-		v[0] / length,
-		v[1] / length,
-		v[2] / length,
+		a[0] / length,
+		a[1] / length,
+		a[2] / length,
 	}
 }
 
@@ -211,12 +211,12 @@ type Mat3x3[T constraints.Float] [3 * 3]T
 
 type Mat3x3f32 = Mat3x3[float32]
 
-func (M Mat3x3[From]) Convert[To constraints.Float]() Mat3x3[To] {
-	var M2 Mat3x3[To]
-	for i, v := range M {
-		M2[i] = To(v)
+func (A Mat3x3[From]) Convert[To constraints.Float]() Mat3x3[To] {
+	var B Mat3x3[To]
+	for i, v := range A {
+		B[i] = To(v)
 	}
-	return M2
+	return B
 }
 
 func (A *Mat3x3[T]) Index(i, j int) *T {
@@ -326,12 +326,12 @@ type (
 	Vec4f64 = Vec4[float64]
 )
 
-func (v Vec4[From]) Convert[To constraints.Float]() Vec4[To] {
+func (a Vec4[From]) Convert[To constraints.Float]() Vec4[To] {
 	return Vec4[To]{
-		To(v[0]),
-		To(v[1]),
-		To(v[2]),
-		To(v[3]),
+		To(a[0]),
+		To(a[1]),
+		To(a[2]),
+		To(a[3]),
 	}
 }
 
@@ -379,17 +379,17 @@ func (a Vec4[T]) Dot(b Vec4[T]) T {
 	return 0 + a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3]
 }
 
-func (v Vec4[T]) Normalize() Vec4[T] {
-	lengthSqr := v.Dot(v)
+func (a Vec4[T]) Normalize() Vec4[T] {
+	lengthSqr := a.Dot(a)
 	if !(lengthSqr > 0) {
 		return Vec4[T]{}
 	}
 	length := T(math.Sqrt(float64(lengthSqr)))
 	return Vec4[T]{
-		v[0] / length,
-		v[1] / length,
-		v[2] / length,
-		v[3] / length,
+		a[0] / length,
+		a[1] / length,
+		a[2] / length,
+		a[3] / length,
 	}
 }
 
@@ -407,12 +407,12 @@ type Mat4x4[T constraints.Float] [4 * 4]T
 
 type Mat4x4f32 = Mat4x4[float32]
 
-func (M Mat4x4[From]) Convert[To constraints.Float]() Mat4x4[To] {
-	var M2 Mat4x4[To]
-	for i, v := range M {
-		M2[i] = To(v)
+func (A Mat4x4[From]) Convert[To constraints.Float]() Mat4x4[To] {
+	var B Mat4x4[To]
+	for i, v := range A {
+		B[i] = To(v)
 	}
-	return M2
+	return B
 }
 
 func (A *Mat4x4[T]) Index(i, j int) *T {
