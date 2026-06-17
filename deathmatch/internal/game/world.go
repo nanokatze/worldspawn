@@ -343,7 +343,7 @@ func (world *World) GetGlobalTransform(id ecs.ID) gmath.Affine3f64 {
 		}
 
 		if parentBone, parentedToBone := world.ParentBone.Get(id); parentedToBone {
-			A = gmath.Affine3Convert[float64](getBoneTransform(parent, parentBone)).Mul(A)
+			A = getBoneTransform(parent, parentBone).Convert[float64]().Mul(A)
 		}
 
 		id = parent

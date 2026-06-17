@@ -172,6 +172,6 @@ func (R Rot3) Rotate(v Vec3f32) Vec3f32 {
 }
 
 func (R Rot3) Rotate64(v Vec3f64) Vec3f64 {
-	q := quat[float64](Vec4Convert[float64](Vec4f32(R)))
+	q := quat[float64](Vec4f32(R).Convert[float64]())
 	return q.Mul(quatFromVec3(v)).Mul(q.Conj()).Imag()
 }

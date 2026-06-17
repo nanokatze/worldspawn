@@ -15,11 +15,10 @@ type (
 	Vec2f64 = Vec2[float64]
 )
 
-// TODO: make this a method once generic methods are in
-func Vec2Convert[To, From constraints.Float](a Vec2[From]) Vec2[To] {
+func (v Vec2[From]) Convert[To constraints.Float]() Vec2[To] {
 	return Vec2[To]{
-		To(a[0]),
-		To(a[1]),
+		To(v[0]),
+		To(v[1]),
 	}
 }
 
@@ -83,7 +82,7 @@ type Mat2x2[T constraints.Float] [2 * 2]T
 
 type Mat2x2f32 = Mat2x2[float32]
 
-func Mat2x2Convert[To, From constraints.Float](M Mat2x2[From]) Mat2x2[To] {
+func (M Mat2x2[From]) Convert[To constraints.Float]() Mat2x2[To] {
 	var M2 Mat2x2[To]
 	for i, v := range M {
 		M2[i] = To(v)
@@ -138,12 +137,11 @@ type (
 	Vec3f64 = Vec3[float64]
 )
 
-// TODO: make this a method once generic methods are in
-func Vec3Convert[To, From constraints.Float](a Vec3[From]) Vec3[To] {
+func (v Vec3[From]) Convert[To constraints.Float]() Vec3[To] {
 	return Vec3[To]{
-		To(a[0]),
-		To(a[1]),
-		To(a[2]),
+		To(v[0]),
+		To(v[1]),
+		To(v[2]),
 	}
 }
 
@@ -213,7 +211,7 @@ type Mat3x3[T constraints.Float] [3 * 3]T
 
 type Mat3x3f32 = Mat3x3[float32]
 
-func Mat3x3Convert[To, From constraints.Float](M Mat3x3[From]) Mat3x3[To] {
+func (M Mat3x3[From]) Convert[To constraints.Float]() Mat3x3[To] {
 	var M2 Mat3x3[To]
 	for i, v := range M {
 		M2[i] = To(v)
@@ -328,13 +326,12 @@ type (
 	Vec4f64 = Vec4[float64]
 )
 
-// TODO: make this a method once generic methods are in
-func Vec4Convert[To, From constraints.Float](a Vec4[From]) Vec4[To] {
+func (v Vec4[From]) Convert[To constraints.Float]() Vec4[To] {
 	return Vec4[To]{
-		To(a[0]),
-		To(a[1]),
-		To(a[2]),
-		To(a[3]),
+		To(v[0]),
+		To(v[1]),
+		To(v[2]),
+		To(v[3]),
 	}
 }
 
@@ -410,7 +407,7 @@ type Mat4x4[T constraints.Float] [4 * 4]T
 
 type Mat4x4f32 = Mat4x4[float32]
 
-func Mat4x4Convert[To, From constraints.Float](M Mat4x4[From]) Mat4x4[To] {
+func (M Mat4x4[From]) Convert[To constraints.Float]() Mat4x4[To] {
 	var M2 Mat4x4[To]
 	for i, v := range M {
 		M2[i] = To(v)
@@ -486,10 +483,10 @@ type (
 	Affine3f64 = Affine3[float64]
 )
 
-func Affine3Convert[To, From constraints.Float](A Affine3[From]) Affine3[To] {
+func (A Affine3[From]) Convert[To constraints.Float]() Affine3[To] {
 	return Affine3[To]{
 		M: A.M,
-		T: Vec3Convert[To](A.T),
+		T: A.T.Convert[To](),
 	}
 }
 
@@ -508,7 +505,7 @@ func (A Affine3[T]) Inv() Affine3[T] {
 func (A Affine3[T]) Mul(B Affine3[T]) Affine3[T] {
 	return Affine3[T]{
 		M: A.M.Mul(B.M),
-		T: A.T.Add(Mat3x3Convert[T](A.M).Mulv(B.T)),
+		T: A.T.Add(A.M.Convert[T]().Mulv(B.T)),
 	}
 }
 

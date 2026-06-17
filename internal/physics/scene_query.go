@@ -69,7 +69,7 @@ type Ray struct {
 
 // TODO: rename
 func (r Ray) F(t float32) gmath.Vec3f64 {
-	return r.Origin.Add(gmath.Vec3Convert[float64](r.Direction.Scale(t)))
+	return r.Origin.Add(r.Direction.Scale(t).Convert[float64]())
 }
 
 type SceneRayHit = SceneIntersection[RayHit]

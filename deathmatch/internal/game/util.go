@@ -27,11 +27,11 @@ func sampleSphere(u gmath.Vec2f32) gmath.Vec3f32 {
 	φ := math.Acos(float64(1 - 2*u[1]))
 	sinθ, cosθ := math.Sincos(θ)
 	sinφ, cosφ := math.Sincos(φ)
-	return gmath.Vec3Convert[float32](gmath.Vec3f64{
+	return gmath.Vec3f64{
 		cosθ * sinφ,
 		sinθ * sinφ,
 		cosφ,
-	})
+	}.Convert[float32]()
 }
 
 // TODO: https://extremelearning.com.au/evenly-distributing-points-on-a-sphere/
@@ -41,7 +41,7 @@ func fibonacciLattice(n int64) iter.Seq[gmath.Vec2f32] {
 	return func(yield func(gmath.Vec2f32) bool) {
 		for i := range n {
 			p := gmath.Vec2f64{math.Mod(float64(i)/goldenRatio, 1), float64(i) / float64(n-1)}
-			if !yield(gmath.Vec2Convert[float32](p)) {
+			if !yield(p.Convert[float32]()) {
 				break
 			}
 		}

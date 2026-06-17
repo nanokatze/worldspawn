@@ -171,7 +171,7 @@ func (re *gameVideoRenderer) Tick(world *game.World, playerID ecs.ID, t0, t1 gam
 			}
 
 			trs := gmath.TRS3f32{
-				T: gmath.Vec3Convert[float32](tr.T).Add(offset),
+				T: tr.T.Convert[float32]().Add(offset),
 				R: tr.R,
 				S: s,
 			}

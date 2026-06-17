@@ -24,10 +24,10 @@ type (
 	Affine{{.D}}f64 = {{$AffineD}}[float64]
 )
 
-func Affine{{.D}}Convert[To, From constraints.Float](A {{$AffineD}}[From]) {{$AffineD}}[To] {
+func (A {{$AffineD}}[From]) Convert[To constraints.Float]() {{$AffineD}}[To] {
 	return {{$AffineD}}[To]{
 		M: A.M,
-		T: Vec{{.D}}Convert[To](A.T),
+		T: A.T.Convert[To](),
 	}
 }
 
@@ -46,7 +46,7 @@ func (A {{$AffineD}}[T]) Inv() {{$AffineD}}[T] {
 func (A {{$AffineD}}[T]) Mul(B {{$AffineD}}[T]) {{$AffineD}}[T] {
 	return {{$AffineD}}[T]{
 		M: A.M.Mul(B.M),
-		T: A.T.Add(Mat{{.D}}x{{.D}}Convert[T](A.M).Mulv(B.T)),
+		T: A.T.Add(A.M.Convert[T]().Mulv(B.T)),
 	}
 }
 

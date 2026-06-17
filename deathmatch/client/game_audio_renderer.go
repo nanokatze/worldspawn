@@ -8,7 +8,6 @@ import (
 	"worldspawn/deathmatch/internal/game"
 	"worldspawn/internal/apostprocess"
 	"worldspawn/internal/ecs"
-	"worldspawn/internal/gmath"
 	"worldspawn/internal/spatialaudio"
 )
 
@@ -40,7 +39,7 @@ func (re *gameAudioRenderer) Tick(world *game.World, playerID ecs.ID, t0, t1 gam
 
 		effect := lookupsound(soundEffect.Effect)
 
-		scene.Transform[id.Index()] = gmath.Affine3Convert[float32](T).TRS()
+		scene.Transform[id.Index()] = T.Convert[float32]().TRS()
 
 		hmm := min(max(int64(t0.Sub(soundEffect.PlayTime)*48000/1e9), 0), int64(len(effect)))
 		scene.Emitters[id.Index()] = effect[hmm:]
@@ -64,7 +63,7 @@ func (re *gameAudioRenderer) Tick(world *game.World, playerID ecs.ID, t0, t1 gam
 			Samples:  tmp,
 			Channels: 2,
 		},
-		gmath.Affine3Convert[float32](cameraTransform))
+		cameraTransform.Convert[float32]())
 
 	// TODO: this is the place where we could mix other sounds
 

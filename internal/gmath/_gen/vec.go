@@ -19,11 +19,10 @@ type (
 	Vec{{.D}}f64 = {{$VecD}}[float64]
 )
 
-// TODO: make this a method once generic methods are in
-func Vec{{.D}}Convert[To, From constraints.Float](a {{$VecD}}[From]) {{$VecD}}[To] {
+func (v {{$VecD}}[From]) Convert[To constraints.Float]() {{$VecD}}[To] {
 	return {{$VecD}}[To]{
 		{{- range .D}}
-		To(a[{{.}}]),
+		To(v[{{.}}]),
 		{{- end}}
 	}
 }
