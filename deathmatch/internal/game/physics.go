@@ -159,8 +159,7 @@ func (world *World) physicsStep(updateParams *UpdateParams) {
 	// TODO: push it back onto the user again?
 	world.updatePhysicsShadow(updateParams)
 
-	world.physics.SetGravity(world.Globals().Gravity)
-	world.physics.Update(float32(durationToFloatSeconds(updateParams.Δt)))
+	world.physics.Update(float32(durationToFloatSeconds(updateParams.Δt)), world.Globals().Gravity)
 
 	for _, bodyID := range world.physics.ActiveBodies() {
 		entityID := ecs.ID(bodyID) // BUG: this is not correct anymore because the generations do not match!!!

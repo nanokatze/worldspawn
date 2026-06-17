@@ -30,7 +30,18 @@ type Triangle struct {
 	MaterialIndex uint32
 }
 
+// TODO: hide the internals and require that the user uses Set
 type LayerCollisionRules []bool
+
+func (layers *LayerCollisionRules) Set(a, b int) {
+	panic("not implemented")
+}
+
+type ContactListener interface {
+	ContactValidate() // TODO: rename to ShouldCollide?
+	ContactAdded()
+	ContactRemoved()
+}
 
 func NewSystem(
 	ObjectLayerCount int,
@@ -50,24 +61,9 @@ func NewSystem(
 		(*C.bool)(unsafe.SliceData(layerRules))))
 }
 
-type QueryFilter struct {
-	// TODO: specify stuff for the body we pretend to be, i.e. its layer as well
-	// as BodyID and list of other BodyIDs to ignore
-	Ignore BodyID
-}
-
-type QueryHit struct {
-	Point  gmath.Vec3f64
-	Normal gmath.Vec3f32
-	Depth  float32
-}
-
-// TODO: fold this and other simulation-related stuff into Update
-func (system *System) SetGravity(gravity gmath.Vec3f32) {
+// TODO: factor all parameters into a struct?
+func (system *System) Update(dt float32, gravity gmath.Vec3f32) {
 	C.physicsSetGravity((*C.Physics)(system), *(*C.vec3)(unsafe.Pointer(&gravity)))
-}
-
-func (system *System) Update(dt float32) {
 	C.physicsUpdate((*C.Physics)(system), C.float(dt))
 }
 
@@ -148,6 +144,7 @@ func (system *System) ActiveBodies() []BodyID {
 	return unsafe.Slice((*BodyID)(unsafe.Pointer(cActiveBodies)), int(cActiveBodyCount))
 }
 
+// TODO: kill this in favor of just passing contact listener
 func (system *System) ContactEvents() []ContactEvent {
 	// TODO: if we're careful, we should get away with just pointer casting alone
 

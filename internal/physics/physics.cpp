@@ -152,6 +152,33 @@ private:
 	std::vector<bool> shouldCollide;
 };
 
+class ContactListener2 : public JPH::ContactListener {
+public:
+	virtual JPH::ValidateResult OnContactValidate(const JPH::Body &inBody1, const JPH::Body &inBody2, JPH::RVec3Arg inBaseOffset, const JPH::CollideShapeResult &inCollisionResult) override
+	{
+		// physicsContactValidateTramp(listener);
+
+		return JPH::ValidateResult::AcceptAllContactsForThisBodyPair;
+	}
+
+	virtual void OnContactAdded(const JPH::Body &inBody1, const JPH::Body &inBody2, const JPH::ContactManifold &inManifold, JPH::ContactSettings &ioSettings) override
+	{
+		// physicsContactAddedTramp(listener);
+	}
+
+	virtual void OnContactPersisted(const JPH::Body &inBody1, const JPH::Body &inBody2, const JPH::ContactManifold &inManifold, JPH::ContactSettings &ioSettings) override
+	{
+	}
+
+	virtual void OnContactRemoved(const JPH::SubShapeIDPair &inSubShapePair) override
+	{
+		// physicsContactRemovedTramp(listener);
+	}
+
+	void *listener;
+};
+
+
 class ContactListener : public JPH::ContactListener {
 public:
 	virtual JPH::ValidateResult OnContactValidate(const JPH::Body &inBody1, const JPH::Body &inBody2, JPH::RVec3Arg inBaseOffset, const JPH::CollideShapeResult &inCollisionResult) override
