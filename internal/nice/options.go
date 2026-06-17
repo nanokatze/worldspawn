@@ -4,6 +4,7 @@ import (
 	"reflect"
 )
 
+// TODO: pool this struct
 type options struct {
 	budget      int
 	getArshaler func(reflect.Type) arshaler

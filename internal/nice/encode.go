@@ -10,7 +10,6 @@ type Encoder struct {
 
 	w io.Writer
 
-	// TODO: can we thread this in a way that's decoupled from Encoder?
 	getArshaler func(reflect.Type) arshaler
 }
 

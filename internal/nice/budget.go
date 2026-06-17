@@ -27,7 +27,7 @@ func (budget *Budget) Draw(n int) error {
 	return nil
 }
 
-func budgetDrawValues(budget *Budget, t reflect.Type, n int) error {
+func budgetDrawN(budget *Budget, t reflect.Type, n int) error {
 	return budget.Draw(n * int(t.Size()))
 }
 

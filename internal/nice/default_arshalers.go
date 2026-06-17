@@ -240,7 +240,7 @@ func makeDefaultArshaler(t reflect.Type) arshaler {
 					return nil
 				}
 
-				if err := budgetDrawValues(dec.Budget(), t.Elem(), 1); err != nil {
+				if err := budgetDrawN(dec.Budget(), t.Elem(), 1); err != nil {
 					return err
 				}
 
@@ -283,7 +283,7 @@ func makeDefaultArshaler(t reflect.Type) arshaler {
 					return nil
 				}
 
-				if err := budgetDrawValues(dec.Budget(), t.Elem(), n); err != nil {
+				if err := budgetDrawN(dec.Budget(), t.Elem(), n); err != nil {
 					return err
 				}
 

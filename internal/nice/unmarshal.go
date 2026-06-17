@@ -2,16 +2,25 @@ package nice
 
 import (
 	"bytes"
+	"io"
 	"reflect"
 )
 
-func Unmarshal(in []byte, out any, opts ...Options) error {
-	buf := bytes.NewReader(in)
+// TODO: pool the decoders and the byte buffers
 
-	if err := UnmarshalDecode(NewDecoder(buf, opts...), out); err != nil {
+func Unmarshal(in []byte, out any, opts ...Options) error {
+	dec := new(Decoder)
+	dec.Reset(bytes.NewBuffer(in), opts...)
+	if err := UnmarshalDecode(dec, out); err != nil {
 		return err
 	}
 	return nil
+}
+
+func UnmarshalRead(r io.Reader, out any, opts ...Options) error {
+	dec := new(Decoder)
+	dec.Reset(r, opts...)
+	return UnmarshalDecode(dec, out)
 }
 
 func UnmarshalDecode(dec *Decoder, out any) error {
