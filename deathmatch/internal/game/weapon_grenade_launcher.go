@@ -14,11 +14,6 @@ type Testburger struct {
 
 func (Testburger) entity() {}
 
-// TODO: keep the stats in a json file. We should name the stats file
-// explicitly, perhaps in a component.
-//
-// Or alternatively if we commit to moving entities into scripts, just kill this
-// off.
 var grenadeLauncherStats = struct {
 	ViewGeometryTRS   gmath.TRS3f64 // TODO: this should be killed
 	RenderingGeometry string
@@ -48,7 +43,7 @@ var _ Weapon = WeaponGrenadeLauncher{}
 
 func (WeaponGrenadeLauncher) entity() {}
 
-func (weapon WeaponGrenadeLauncher) CreateProp(world *World, info *UpdateParams) ecs.ID {
+func (weaponState WeaponGrenadeLauncher) CreateProp(world *World, info *UpdateParams) ecs.ID {
 	root := world.CreateEntity(info)
 	// Ok so what we should do is not parent it to any hands bone. Or maybe we
 	// should, but we need a special "weapon" bone I guess and the hands
@@ -60,31 +55,35 @@ func (weapon WeaponGrenadeLauncher) CreateProp(world *World, info *UpdateParams)
 	world.Skeleton.Set(root, "weapons/grenade_launcher/skeletons/Armature")
 	world.RenderingGeometry.Set(root, grenadeLauncherStats.RenderingGeometry)
 	world.Entity.Set(root, Testburger{
-		BaseColor: [4]float32{1, 1, 1, 1}, // pretend it's a team color
+		BaseColor: [4]float32{1, 0.5, 0.5, 1}, // pretend it's a team color
 	})
 
 	return root
 }
 
-func (weapon WeaponGrenadeLauncher) WeaponSubstep(
+func (weaponState WeaponGrenadeLauncher) WeaponSubstep(
 	world *World,
-	weaponID ecs.ID,
-	propIDs []ecs.ID,
-	shooterID ecs.ID,
+	weapon ecs.ID,
+	weaponProps []ecs.ID,
+	attacker ecs.ID,
 	T gmath.Affine3f64,
 	v Velocity,
 	buttons WeaponButtons,
 	info *UpdateParams) Recoil {
-	defer func() { world.Entity.Set(weaponID, weapon) }()
+	defer func() { world.Entity.Set(weapon, weaponState) }()
 
 	if buttons&WeaponTrigger != 0 {
-		if weapon.CycleEnds.After(world.Now) {
+		if weaponState.CycleEnds.After(world.Now) {
 			return Recoil{}
 		}
 
 		if !info.Speculating {
-			projectile := world.SpawnPrefab(grenadeLauncherStats.Projectile, info)
-			world.NextThink.Set(projectile, world.Now.Add(1400*time.Millisecond)) // TODO: this should be put into grenade somehow
+			projectile := world.InstantinatePrefab(grenadeLauncherStats.Projectile, info)
+			// TODO: it would be nice if we could specify this bit without assuming ScriptState type
+			world.Entity.Set(projectile, InFlightGrenade{
+				LaunchedAt: world.Now,
+				Attacker:   attacker,
+			})
 			world.SetTransform(projectile,
 				T.
 					Mul(gmath.TRS3f64{
@@ -108,11 +107,11 @@ func (weapon WeaponGrenadeLauncher) WeaponSubstep(
 			world.DeleteCosmeticOffsetOnContact.Set(projectile, struct{}{})
 		}
 
-		weapon.CycleEnds = world.Now.Add(grenadeLauncherStats.CycleDuration)
+		weaponState.CycleEnds = world.Now.Add(grenadeLauncherStats.CycleDuration)
 
 		// Apply effects to the props; TODO: let's have scripts on the props
 		// instead and let props consult the state.
-		for _, id := range propIDs {
+		for _, id := range weaponProps {
 			// skelly := world.GetSkeleton(id)
 			// world.Pose.Set(id, animgraph.Pose{
 			// 	Bones: map[int]gmath.Affine3f32{
@@ -132,7 +131,7 @@ func (weapon WeaponGrenadeLauncher) WeaponSubstep(
 		}
 
 		// TODO: eschew rnd?
-		rnd := Rand(world.Now, weaponID, T)
+		rnd := Rand(world.Now, weapon, T)
 
 		θ := 0.1 * 2 * math.Pi * (rnd.Float64() - 0.5)
 		r := 0.02
