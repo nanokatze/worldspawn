@@ -30,7 +30,7 @@ type Impact struct {
 	// TODO: rename to Attacker?
 	// TODO: we might need more attribution fields (weapon id for weapon name
 	// and icon, etc)
-	Inflictor ecs.ID
+	Attacker ecs.ID
 
 	Type ImpactType
 

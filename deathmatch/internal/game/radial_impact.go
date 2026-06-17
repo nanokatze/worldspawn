@@ -76,10 +76,10 @@ func (world *World) radialImpact(
 		entityID := world.Table.IDs().Index(int(bodyID))
 
 		impact := Impact{
-			Type:      impact.Type,
-			Δv:        result.dvel.Scale(impactForceFactor[impact.Type] * float32(impact.Damage)),
-			Damage:    int32(result.dmg * float32(impact.Damage)),
-			Inflictor: impact.Inflictor,
+			Type:     impact.Type,
+			Δv:       result.dvel.Scale(impactForceFactor[impact.Type] * float32(impact.Damage)),
+			Damage:   int32(result.dmg * float32(impact.Damage)),
+			Attacker: impact.Attacker,
 		}
 
 		world.EnqueueEntityUpdate(entityID, impact.Apply)
