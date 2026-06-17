@@ -1,21 +1,66 @@
 package main
 
 import (
+	"math"
 	"reflect"
 	"sync"
 	"time"
 
 	"worldspawn/deathmatch/internal/game"
 	"worldspawn/gpu"
-	"worldspawn/internal/arenderer"
+	"worldspawn/gpu/image/draw"
+	"worldspawn/gpu/vk"
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/gmath"
 	"worldspawn/internal/renderer"
 	"worldspawn/internal/sdl"
 )
 
+// TODO: rename the objects in here
+
+// TODO: could we replace this with an arbitrary widget tree pretty pls?
+type hudState struct {
+	Health int32
+	Bleed  int32
+}
+
+type gameVideoRenderer struct {
+	n int
+
+	// TODO: instead of generation, look at whether T_0 + velocity * dt is
+	// too far from T_1
+	idGen []uint32
+	// parent []int
+	transform []gmath.TRS3f32
+
+	// The update that didn't fit into the queue
+	stagingUpdate *sceneUpdate
+	// Queue of updates, consumed by Render
+	updates chan *sceneUpdate
+
+	frameNumber uint32
+	tmMu        sync.Mutex
+	tm          timeMapping
+	// TODO: what if we want to pass multiple cameras to the composition
+	// pipeline?
+	// TODO: camera states need to be t0 and t1 too
+	ourCamera          renderer.Camera
+	ourCameraTransform int
+	scene2             *sceneUpdate
+	gsdata             []gsdata
+	scene              *renderer.Scene
+	hudState           hudState
+}
+
+func (re *gameVideoRenderer) Reset(n int) {
+	// NOTE: this is called concurrently with Redraw. Keep that in mind when
+	// implementing this function.
+}
+
 type sceneUpdate struct {
 	tm timeMapping
+
+	hudState hudState
 
 	camera          renderer.Camera
 	cameraTransform int
@@ -66,54 +111,9 @@ type timeMapping struct {
 	t0game, t1game game.Time
 }
 
-type rendererGlue struct {
-	n int
-
-	idGen []uint32
-	// parent []int
-	transform []gmath.TRS3f32
-
-	// TODO: outline things into video and audio parts?
-
-	// The update that didn't fit into the queue
-	stagingUpdate *sceneUpdate
-	// Queue of updates, consumed by Render
-	updates chan *sceneUpdate
-
-	frameNumber uint32
-	tmMu        sync.Mutex
-	tm          timeMapping
-	// TODO: what if we want to pass multiple cameras to the composition
-	// pipeline?
-	// TODO: camera states need to be t0 and t1 too
-	ourCamera          renderer.Camera
-	ourCameraTransform int
-	scene2             *sceneUpdate
-	gsdata             []gsdata
-	gscene             *renderer.Scene
-
-	// NOTE: sound renderer works very differently from graphics renderer: we'll
-	// probably tie it to simulation ticks. Or I guess we could also piggyback
-	// off renderer but that's varying degrees of annoying...
-	//
-	// Anyway, we'll have an equivalent of pathtracer.Scene but for audio.
-	// EXCEPT, we'll also need to access the output buffers on host (I'm not
-	// sure if these will be per-instance or per-point-on-a-sphere.)
-	//
-	// We'll also need to have a huge output buffer so that we can write sound
-	// into the future (for doppler) and also a per-instance buffer of samples
-	// that we'll use wavegen or whatever to write into.
-	ascene *arenderer.Scene
-}
-
-func (re *rendererGlue) Reset(n int) {
-	// NOTE: this is called concurrently with Redraw. Keep that in mind when
-	// implementing this function.
-}
-
 // TODO: remove this in favor of merging updates at commitUpdate time. I.e.
 // we'll start off with a clean update every time.
-func (re *rendererGlue) beginUpdate() *sceneUpdate {
+func (re *gameVideoRenderer) beginUpdate() *sceneUpdate {
 	if re.stagingUpdate == nil {
 		// TODO: pool this stuff
 		return newSceneDirty(re.n)
@@ -124,14 +124,15 @@ func (re *rendererGlue) beginUpdate() *sceneUpdate {
 }
 
 // TODO: rename to enqueueUpdate?
-func (re *rendererGlue) commitUpdate(update *sceneUpdate) {
+func (re *gameVideoRenderer) commitUpdate(update *sceneUpdate) {
 	select {
 	case re.updates <- update:
 	default:
 	}
 }
 
-func (re *rendererGlue) Tick(world *game.World, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration) {
+func (re *gameVideoRenderer) Tick(world *game.World, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration) {
+	// TODO: pass the bits that interest us explicitly
 	conf := config.Load()
 
 	update := re.beginUpdate()
@@ -142,6 +143,12 @@ func (re *rendererGlue) Tick(world *game.World, playerID ecs.ID, t0, t1 game.Tim
 	camera := fpsCharacter.Camera(world)
 
 	{
+		update.hudState = hudState{}
+		if gladiator, ok := game.SceneGetEntity[game.Gladiator](world, fpsCharacter.ControlledCharacter); ok {
+			update.hudState.Health = gladiator.Vitals.Health
+			update.hudState.Bleed = gladiator.Vitals.HealthToBleed
+		}
+
 		for i := range update.parent {
 			update.parent[i] = -1
 		}
@@ -257,32 +264,9 @@ func (re *rendererGlue) Tick(world *game.World, playerID ecs.ID, t0, t1 game.Tim
 			NearClipPlane: 0.01,
 		}
 	}
-
-	{
-		cameraTransform := update.Transform(camera.Index(), 0)
-
-		scene := re.ascene
-
-		clear(scene.Emitters)
-
-		for id, soundEffect := range ecs.All(&world.SoundEffect) {
-			T := world.GetGlobalTransform(id)
-
-			effect := lookupsound(soundEffect.Effect)
-
-			scene.Transform[id.Index()] = gmath.Affine3Convert[float32](T).TRS()
-
-			hmm := min(max(int64(t0.Sub(soundEffect.PlayTime)*48000/1e9), 0), int64(len(effect)))
-			scene.Emitters[id.Index()] = effect[hmm:]
-		}
-
-		// TODO: for long ticks we'd like to do several short audio renders per
-		// tick
-		renderAudio(re.ascene, cameraTransform, int64(t1.Sub(t0)*48000/1e9))
-	}
 }
 
-func (re *rendererGlue) Subtick(world *game.World, playerID ecs.ID) {
+func (re *gameVideoRenderer) Subtick(world *game.World, playerID ecs.ID) {
 	// TODO: this will need to enqueue an update and not modify any fields directly!
 
 	// re.stuffMu.Lock()
@@ -316,7 +300,7 @@ var worldspawnToRenderer = gmath.Mat4x4f32{
 	0, 0, 0, 1,
 }
 
-func (re *rendererGlue) Redraw(jq *gpu.JobQueue, dst *gpu.Image, sdlNow uint64) {
+func (re *gameVideoRenderer) Redraw(jq *gpu.JobQueue, dst *gpu.Image, sdlNow uint64) {
 	conf := config.Load()
 
 	select {
@@ -324,10 +308,11 @@ func (re *rendererGlue) Redraw(jq *gpu.JobQueue, dst *gpu.Image, sdlNow uint64) 
 		re.tmMu.Lock()
 		re.tm = update.tm
 		re.tmMu.Unlock()
+		re.hudState = update.hudState
 		re.ourCamera = update.camera
 		re.ourCameraTransform = update.cameraTransform
 		re.scene2 = update
-		re.gscene.SetSky(
+		re.scene.SetSky(
 			gmath.Mat3x3f32{
 				0, -1, 0,
 				0, 0, 1,
@@ -340,7 +325,7 @@ func (re *rendererGlue) Redraw(jq *gpu.JobQueue, dst *gpu.Image, sdlNow uint64) 
 
 			geometry, accel := update.geoNodes[i].Outputs(&re.gsdata[i])
 
-			re.gscene.SetInstanceGeometry(i, update.mask[i], geometry, accel, update.materials[i], update.materialArgs[i])
+			re.scene.SetInstanceGeometry(i, update.mask[i], geometry, accel, update.materials[i], update.materialArgs[i])
 		}
 	default:
 	}
@@ -367,11 +352,11 @@ func (re *rendererGlue) Redraw(jq *gpu.JobQueue, dst *gpu.Image, sdlNow uint64) 
 				tmp2[i][2] = *tmp.M.Index(i, 2)
 				tmp2[i][3] = tmp.T[i]
 			}
-			re.gscene.SetInstanceTransform(i, tmp2)
+			re.scene.SetInstanceTransform(i, tmp2)
 		}
 	}
 
-	re.gscene.EnqueueUpdateAccel(jq)
+	re.scene.EnqueueUpdateAccel(jq)
 
 	film := renderer.Film{
 		Extent: [2]int(dst.Extent()),
@@ -383,7 +368,54 @@ func (re *rendererGlue) Redraw(jq *gpu.JobQueue, dst *gpu.Image, sdlNow uint64) 
 		RussianRouletteThreshold: conf.Quality.RussianRouletteThreshold,
 	}
 
-	re.gscene.EnqueueRender(jq, film, &camera, cameraTransform, re.frameNumber, &quality)
+	re.scene.EnqueueRender(jq, film, &camera, cameraTransform, re.frameNumber, &quality)
+
+	// TODO: please actually draw like a well-adjusted person
+
+	pass := draw.Begin(jq,
+		&draw.Config{
+			ColorAttachments: []draw.Attachment{
+				{
+					Image:  dst,
+					LoadOp: vk.ATTACHMENT_LOAD_OP_CLEAR,
+					ClearValue: [4]uint32{
+						math.Float32bits(0.2),
+						math.Float32bits(0),
+						math.Float32bits(0),
+						math.Float32bits(1),
+					},
+				},
+			},
+			RenderArea: vk.Rect2D{
+				Offset: vk.Offset2D{X: 128, Y: 128},
+				Extent: vk.Extent2D{Width: 1000, Height: 32},
+			},
+			LayerCount: 1,
+		})
+	pass.End()
+
+	pass2 := draw.Begin(jq,
+		&draw.Config{
+			ColorAttachments: []draw.Attachment{
+				{
+					Image:  dst,
+					LoadOp: vk.ATTACHMENT_LOAD_OP_CLEAR,
+					ClearValue: [4]uint32{
+						math.Float32bits(1),
+						math.Float32bits(0),
+						math.Float32bits(0),
+						math.Float32bits(1),
+					},
+				},
+			},
+			RenderArea: vk.Rect2D{
+				Offset: vk.Offset2D{X: 128, Y: 128},
+				Extent: vk.Extent2D{Width: uint32(10 * max(re.hudState.Health, 0)), Height: 32},
+			},
+			LayerCount: 1,
+		})
+	pass2.End()
+
 	re.frameNumber++
 }
 

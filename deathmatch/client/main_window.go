@@ -35,7 +35,8 @@ type mainWindow struct {
 	redrawJQ       gpu.JobQueue
 	swapchain      *wsi.Swapchain
 	swapchainImage *gpu.Image
-	renderer       *rendererGlue // TODO: this could be an interface probably
+	videoRenderer  gameVideoRenderer
+	audioRenderer  gameAudioRenderer
 }
 
 func (w *mainWindow) Run() {
@@ -60,24 +61,16 @@ func (w *mainWindow) Run() {
 
 	w.resized = make(chan struct{}, 1)
 
-	// TODO: implement Reset
-	w.renderer = &rendererGlue{
-		n: 10000,
-
-		idGen:     make([]uint32, 10000),
-		transform: make([]gmath.TRS3f32, 10000),
-
-		updates: make(chan *sceneUpdate, 1),
-
-		gscene: renderer.NewScene(10000, 6),
-
-		gsdata: make([]gsdata, 10000),
-
-		ascene: spatialaudio.NewScene(10000),
+	// TODO: implement Reset and then nuke this pile of trash
+	w.videoRenderer.n = 10000
+	w.videoRenderer.idGen = make([]uint32, w.videoRenderer.n)
+	for i := range w.videoRenderer.idGen {
+		w.videoRenderer.idGen[i] = 0xffffffff
 	}
-	for i := range w.renderer.idGen {
-		w.renderer.idGen[i] = 0xffffffff
-	}
+	w.videoRenderer.transform = make([]gmath.TRS3f32, w.videoRenderer.n)
+	w.videoRenderer.updates = make(chan *sceneUpdate, 1)
+	w.videoRenderer.gsdata = make([]gsdata, w.videoRenderer.n)
+	w.videoRenderer.scene = renderer.NewScene(w.videoRenderer.n, 6)
 
 	if err := sdlWindow.SetRelativeMouseMode(true); err != nil {
 		slog.Warn("failed to set relative mouse mode", "err", err)
@@ -85,7 +78,7 @@ func (w *mainWindow) Run() {
 
 	raddr := flag.Arg(0)
 
-	session, err := newClient(w.renderer, raddr)
+	session, err := newClient(multiRenderer{&w.videoRenderer, &w.audioRenderer}, raddr)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -287,7 +280,7 @@ func (w *mainWindow) redrawLocked() bool {
 
 	w.swapchainImage.EnqueueInit(jq)
 
-	w.renderer.Redraw(jq, w.swapchainImage, sdl.TicksNS())
+	w.videoRenderer.Redraw(jq, w.swapchainImage, sdl.TicksNS())
 
 	// TODO: it would probably be a good idea to inject overlay rendering into
 	// Render so that we can avoid breaking the render pass. This should become
@@ -308,13 +301,13 @@ type flickStick struct {
 }
 
 func (w *mainWindow) sdlTimeToGameTime(ticks uint64) game.Time {
-	w.renderer.tmMu.Lock()
-	defer w.renderer.tmMu.Unlock()
+	w.videoRenderer.tmMu.Lock()
+	defer w.videoRenderer.tmMu.Unlock()
 
 	// If we have DontInterpolate set, we'll want t = 1
-	t := min(max(float64(ticks-w.renderer.tm.t0sdl)/float64(w.renderer.tm.t1sdl-w.renderer.tm.t0sdl), 0), 1)
+	t := min(max(float64(ticks-w.videoRenderer.tm.t0sdl)/float64(w.videoRenderer.tm.t1sdl-w.videoRenderer.tm.t0sdl), 0), 1)
 
-	return w.renderer.tm.t0game.Add(time.Duration(float64(w.renderer.tm.t1game.Sub(w.renderer.tm.t0game)) * t))
+	return w.videoRenderer.tm.t0game.Add(time.Duration(float64(w.videoRenderer.tm.t1game.Sub(w.videoRenderer.tm.t0game)) * t))
 }
 
 // GAMEPAD_BUTTON_START and K_ESC act as ways to switch between the menu and the

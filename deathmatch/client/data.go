@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 	"io/fs"
 	"log"
@@ -19,6 +20,7 @@ import (
 	"worldspawn/gpu/vk"
 	"worldspawn/internal/compiler"
 	"worldspawn/internal/compiler/core"
+	"worldspawn/internal/fuckwwise/opusfile"
 	"worldspawn/internal/fuckwwise/wav"
 	"worldspawn/internal/geometry"
 	"worldspawn/internal/loaders/wmaterial"
@@ -33,6 +35,7 @@ import (
 var texturecache = make(map[string]*renderer.Texture)
 var materialcache = make(map[string]material)
 var modelcache = make(map[string]*fileBackedMesh)
+var soundcache = make(map[string][]float32)
 
 // TODO: should support streaming etc.
 func texture(filename string) *renderer.Texture {
@@ -400,4 +403,37 @@ func extractChannel(s []float32, channels, channel int) []float32 {
 		s2[i] = s[i*channels+channel]
 	}
 	return s2
+}
+
+func lookupsound(id string) []float32 {
+	effect, ok := soundcache[id]
+	if !ok {
+		f, err := game.Data.Open(id)
+		if err != nil {
+			// TODO: should be non-fatal
+			panic(fmt.Sprintf("failed to open file %v", id))
+		}
+
+		switch path.Ext(id) {
+		case ".wav":
+			reader, err := wav.NewReader(f.(io.ReaderAt))
+			if err != nil {
+				panic(err)
+			}
+			samples, _ := readSamples(reader, reader.Format())
+			effect = extractChannel(samples, reader.Channels(), 0)
+
+		case ".opus":
+			reader, _ := opusfile.NewReader(f)
+			samples, _ := readSamples(reader, wav.FORMAT_F32)
+			effect = extractChannel(samples, reader.Channels(), 0)
+
+		default:
+			panic("unsupported")
+		}
+
+		soundcache[id] = effect
+	}
+
+	return effect
 }
