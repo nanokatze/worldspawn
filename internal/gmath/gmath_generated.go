@@ -43,10 +43,10 @@ func (a Vec2[T]) Sub(b Vec2[T]) Vec2[T] {
 	}
 }
 
-func (a Vec2[T]) Scale(lambda T) Vec2[T] {
+func (a Vec2[T]) Scale(λ T) Vec2[T] {
 	return Vec2[T]{
-		lambda * a[0],
-		lambda * a[1],
+		λ * a[0],
+		λ * a[1],
 	}
 }
 
@@ -169,11 +169,11 @@ func (a Vec3[T]) Sub(b Vec3[T]) Vec3[T] {
 	}
 }
 
-func (a Vec3[T]) Scale(lambda T) Vec3[T] {
+func (a Vec3[T]) Scale(λ T) Vec3[T] {
 	return Vec3[T]{
-		lambda * a[0],
-		lambda * a[1],
-		lambda * a[2],
+		λ * a[0],
+		λ * a[1],
+		λ * a[2],
 	}
 }
 
@@ -362,12 +362,12 @@ func (a Vec4[T]) Sub(b Vec4[T]) Vec4[T] {
 	}
 }
 
-func (a Vec4[T]) Scale(lambda T) Vec4[T] {
+func (a Vec4[T]) Scale(λ T) Vec4[T] {
 	return Vec4[T]{
-		lambda * a[0],
-		lambda * a[1],
-		lambda * a[2],
-		lambda * a[3],
+		λ * a[0],
+		λ * a[1],
+		λ * a[2],
+		λ * a[3],
 	}
 }
 

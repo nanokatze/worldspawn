@@ -51,10 +51,10 @@ func (a {{$VecD}}[T]) Sub(b {{$VecD}}[T]) {{$VecD}}[T] {
 	}
 }
 
-func (a {{$VecD}}[T]) Scale(lambda T) {{$VecD}}[T] {
+func (a {{$VecD}}[T]) Scale(λ T) {{$VecD}}[T] {
 	return {{$VecD}}[T]{
 		{{- range .D}}
-		lambda * a[{{.}}],
+		λ * a[{{.}}],
 		{{- end}}
 	}
 }
