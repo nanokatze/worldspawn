@@ -21,3 +21,8 @@ func (t Time) Add(d time.Duration) Time { return Time{t.T + int64(d)} }
 
 func (t Time) Sub(u Time) time.Duration { return time.Duration(t.T - u.T) }
 
+func (t Time) String() string {
+	// TODO: verify this works correctly with negative t.T and see if we can get
+	// rid of fmt.Sprintf
+	return fmt.Sprintf("%d.%09ds", t.T/1e9, t.T%1e9)
+}
