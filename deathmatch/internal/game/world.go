@@ -128,8 +128,7 @@ type Columns struct {
 
 	// Renderer
 
-	CosmeticOffset                ecs.Column[CosmeticOffset]
-	DeleteCosmeticOffsetOnContact ecs.Column[struct{}]
+	CosmeticOffset ecs.Column[CosmeticOffset]
 
 	VisibilityMask ecs.Column[VisibilityMask]
 

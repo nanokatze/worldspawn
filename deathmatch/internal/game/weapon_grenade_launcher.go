@@ -104,7 +104,6 @@ func (weaponState WeaponGrenadeLauncher) WeaponSubstep(
 					// Ugh. TODO: think how we could make this not as gross.
 					Offset: T.M.Mulv(gmath.Vec3f32{0.18, 0, -0.2}),
 				})
-			world.DeleteCosmeticOffsetOnContact.Set(projectile, struct{}{})
 		}
 
 		weaponState.CycleEnds = world.Now.Add(grenadeLauncherStats.CycleDuration)

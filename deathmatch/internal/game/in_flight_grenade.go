@@ -54,5 +54,11 @@ func init() {
 					})
 				})
 		},
+
+		ContactAdded: func(world *World, grenade, _ ecs.ID) {
+			if _, ok := world.CosmeticOffset.Get(grenade); ok {
+				world.CosmeticOffset.Delete(grenade)
+			}
+		},
 	}
 }

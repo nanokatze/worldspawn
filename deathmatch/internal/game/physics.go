@@ -27,23 +27,6 @@ func (a Velocity) Scale(λ float32) Velocity {
 	}
 }
 
-// TODO: kill
-type ContactEvent struct {
-	Type      int32
-	EntityID2 ecs.ID
-}
-
-func (contact ContactEvent) Apply(world *World, id ecs.ID, updateParams *UpdateParams) {
-	if contact.Type == 1 {
-		if _, ok := world.DeleteCosmeticOffsetOnContact.Get(id); ok {
-			world.CosmeticOffset.Delete(id)
-			world.DeleteCosmeticOffsetOnContact.Delete(id)
-		}
-	}
-
-	// TODO: pass it to the script
-}
-
 // Always run this before performing physics queries!!!
 func (world *World) updatePhysicsShadow(updateParams *UpdateParams) {
 	// TODO: remove bodies when we delete entities!!!!!!!!
@@ -194,8 +177,14 @@ func (world *World) physicsStep(updateParams *UpdateParams) {
 		// before the last Update
 
 		if world.EntityExists(entityID1) && world.EntityExists(entityID2) {
-			world.EnqueueEntityUpdate(entityID1, ContactEvent{Type: ce.Type, EntityID2: entityID2}.Apply)
-			world.EnqueueEntityUpdate(entityID2, ContactEvent{Type: ce.Type, EntityID2: entityID1}.Apply)
+			if ce.Type == 1 {
+				if script := world.GetScriptFuncs(entityID1); script.ContactAdded != nil {
+					script.ContactAdded(world, entityID1, entityID2)
+				}
+				if script := world.GetScriptFuncs(entityID2); script.ContactAdded != nil {
+					script.ContactAdded(world, entityID2, entityID1)
+				}
+			}
 		}
 	}
 
