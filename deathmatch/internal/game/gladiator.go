@@ -86,8 +86,17 @@ func init() {
 		Impact: func(world *World, id ecs.ID, impact Impact, info *UpdateParams) {
 			info.Logger.Info("impact", "damage", impact.Damage)
 
-			directDamage := int32(math.Ceil(float64(impact.Damage) * (1 - float64(impactBleedFactor[impact.Type]))))
-			bleeding := impact.Damage - directDamage
+			// TODO: be verbose when computing the modifier
+			modifier := 1.0
+			if id == impact.Attacker {
+				modifier /= 2
+			}
+
+			// Ceil to avoid rounding to zero
+			modifiedDamage := int32(math.Ceil(float64(impact.Damage) * modifier))
+
+			directDamage := int32(math.Ceil(float64(modifiedDamage) * (1 - float64(impactBleedFactor[impact.Type]))))
+			bleeding := modifiedDamage - directDamage
 
 			gladiator, _ := SceneGetEntity[Gladiator](world, id)
 			gladiator.Vitals.Health -= directDamage
