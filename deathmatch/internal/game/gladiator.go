@@ -6,6 +6,7 @@ import (
 	"slices"
 	"time"
 
+	"worldspawn/internal/animgraph"
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/gmath"
 	"worldspawn/internal/physics"
@@ -271,6 +272,48 @@ func (gladiator Gladiator) Think(world *World, id ecs.ID, info *UpdateParams) {
 
 	// TODO: this is incredibly gross and ugly, FIXME
 	gladiator = mustOk(world.GetEntity[Gladiator](id))
+
+	// Yuck
+	{
+		skelly := world.GetSkeleton(id)
+
+		localTransforms := map[int]gmath.Affine3f32{}
+		localTransforms[skelly.JointByName("spine")] =
+			gmath.TRS3f32{
+				R: gmath.Rot3AToB(gmath.Vec3f32{0, 0, 1}, gmath.Vec3f32{1, 0, 0}).
+					Pow(4 * gladiator.Input.LookDir[0]),
+				S: gmath.Mat3x3UOne[float32](),
+			}.Compose()
+
+		pose := animgraph.Pose{
+			Bones: map[int]gmath.Affine3f32{},
+		}
+
+		// TODO: flooding would be more efficient
+		for bone := range skelly.JointNames {
+			A := gmath.Affine3One[float32]()
+
+			tmp := bone
+			for {
+				B, ok := localTransforms[tmp]
+				if !ok {
+					B = gmath.Affine3One[float32]()
+				}
+
+				A = skelly.ParentRelative[tmp].Mul(B).Mul(A)
+
+				parent := skelly.Parent[tmp]
+				if parent == -1 {
+					break
+				}
+				tmp = parent
+			}
+
+			pose.Bones[bone] = A.Mul(skelly.BindPoseInverse[bone])
+		}
+
+		world.Pose.Set(id, pose)
+	}
 
 	velocity, _ := world.Velocity.Get(id)
 
