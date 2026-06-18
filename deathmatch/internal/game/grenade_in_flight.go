@@ -8,30 +8,30 @@ import (
 	"worldspawn/internal/ecs"
 )
 
-type InFlightGrenade struct {
+type GrenadeInFlight struct {
 	LaunchedAt Time // when the fuse was ignited
 	ExplodeNow bool // whether we should explode ASAP
 
 	Attacker ecs.ID // who to attribute this damage to
 }
 
-func (InFlightGrenade) entity() {}
+func (GrenadeInFlight) entity() {}
 
 func init() {
-	scripts["in_flight_grenade"] = scriptFuncs{
-		Types: []reflect.Type{reflect.TypeFor[InFlightGrenade]()},
+	scripts["grenade_in_flight"] = scriptFuncs{
+		Types: []reflect.Type{reflect.TypeFor[GrenadeInFlight]()},
 
 		Think: func(world *World, grenade ecs.ID, info *UpdateParams) {
 			const fuse = 1400 * time.Millisecond
 
-			state, _ := world.GetEntity[InFlightGrenade](grenade)
-			if state.LaunchedAt.Add(fuse).After(world.Now) && !state.ExplodeNow {
+			grenadeState, _ := world.GetEntity[GrenadeInFlight](grenade)
+			if grenadeState.LaunchedAt.Add(fuse).After(world.Now) && !grenadeState.ExplodeNow {
 				return
 			}
 
 			world.radialImpact(
 				Impact{
-					Attacker: state.Attacker,
+					Attacker: grenadeState.Attacker,
 					Type:     BlastImpactWithFragmentation,
 					Damage:   1500,
 				},
@@ -55,9 +55,15 @@ func init() {
 				})
 		},
 
-		ContactAdded: func(world *World, grenade, _ ecs.ID) {
+		ContactAdded: func(world *World, grenade, entity2 ecs.ID) {
 			if _, ok := world.CosmeticOffset.Get(grenade); ok {
 				world.CosmeticOffset.Delete(grenade)
+			}
+
+			if false {
+				grenadeState, _ := world.GetEntity[GrenadeInFlight](grenade)
+				grenadeState.ExplodeNow = true
+				world.Entity.Set(grenade, grenadeState)
 			}
 		},
 	}

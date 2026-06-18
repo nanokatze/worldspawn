@@ -80,7 +80,7 @@ func (weaponState WeaponGrenadeLauncher) WeaponSubstep(
 		if !info.Speculating {
 			projectile := world.InstantinatePrefab(grenadeLauncherStats.Projectile, info)
 			// TODO: it would be nice if we could specify this bit without assuming ScriptState type
-			world.Entity.Set(projectile, InFlightGrenade{
+			world.Entity.Set(projectile, GrenadeInFlight{
 				LaunchedAt: world.Now,
 				Attacker:   attacker,
 			})
