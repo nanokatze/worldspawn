@@ -38,7 +38,7 @@ type scriptFuncs struct {
 	//
 	// TODO: naming
 	// TODO: pass JPH::CollideShapeResult
-	ShouldCollide func(world *World, entity1, entity2 ecs.ID) int // TODO: return a enum that corresponds to JPH::ValidateResult
+	ShouldCollide func(world *World, entity1, entity2 ecs.ID, info *UpdateParams) int // TODO: return a enum that corresponds to JPH::ValidateResult
 
 	// Note that ContactAdded and ContactRemoved are not called
 	// deterministically, it's thus necessary to put extra care so that the
@@ -46,8 +46,8 @@ type scriptFuncs struct {
 	//
 	// TODO: naming
 	// TODO: inout parameter which lets the script edit the contact
-	ContactAdded func(world *World, entity1, entity2 ecs.ID)
-	// ContactRemoved func(world *World)
+	ContactAdded   func(world *World, entity1, entity2 ecs.ID, info *UpdateParams)
+	ContactRemoved func(world *World, entity1, entity2 ecs.ID, info *UpdateParams)
 
 	// OutOfBounds func(world *World, entity ecs.ID, info *UpdateParams)
 }

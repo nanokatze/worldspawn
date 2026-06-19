@@ -55,7 +55,7 @@ func init() {
 				})
 		},
 
-		ContactAdded: func(world *World, grenade, entity2 ecs.ID) {
+		ContactAdded: func(world *World, grenade, entity2 ecs.ID, info *UpdateParams) {
 			if _, ok := world.CosmeticOffset.Get(grenade); ok {
 				world.CosmeticOffset.Delete(grenade)
 			}

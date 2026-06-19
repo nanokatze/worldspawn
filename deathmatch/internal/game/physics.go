@@ -177,12 +177,21 @@ func (world *World) physicsStep(updateParams *UpdateParams) {
 		// before the last Update
 
 		if world.EntityExists(entityID1) && world.EntityExists(entityID2) {
-			if ce.Type == 1 {
+			switch ce.Type {
+			case 1:
 				if script := world.GetScriptFuncs(entityID1); script.ContactAdded != nil {
-					script.ContactAdded(world, entityID1, entityID2)
+					script.ContactAdded(world, entityID1, entityID2, updateParams)
 				}
 				if script := world.GetScriptFuncs(entityID2); script.ContactAdded != nil {
-					script.ContactAdded(world, entityID2, entityID1)
+					script.ContactAdded(world, entityID2, entityID1, updateParams)
+				}
+
+			case 2:
+				if script := world.GetScriptFuncs(entityID1); script.ContactRemoved != nil {
+					script.ContactRemoved(world, entityID1, entityID2, updateParams)
+				}
+				if script := world.GetScriptFuncs(entityID2); script.ContactRemoved != nil {
+					script.ContactRemoved(world, entityID2, entityID1, updateParams)
 				}
 			}
 		}
