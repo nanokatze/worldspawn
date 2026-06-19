@@ -77,6 +77,8 @@ type Gladiator struct {
 	// Inventory map[]
 }
 
+func (Gladiator) entity() {}
+
 func init() {
 	scripts["gladiator"] = scriptFuncs{
 		Types: []reflect.Type{reflect.TypeFor[Gladiator]()},
@@ -186,8 +188,131 @@ func init() {
 				})
 		},
 
-		// Think: func(world *World, id ecs.ID, info *UpdateParams) {
-		// },
+		Think: func(world *World, entity ecs.ID, info *UpdateParams) {
+			// TODO: do not call this here
+			world.GetScriptFuncs(entity).Input(world, entity, TimestampedInputCmd{}, info)
+
+			// TODO: this is incredibly gross and ugly, FIXME
+			gladiator := mustOk(world.GetEntity[Gladiator](entity))
+
+			// Yuck
+			{
+				skelly := world.GetSkeleton(entity)
+
+				localTransforms := map[int]gmath.Affine3f32{}
+				localTransforms[skelly.JointByName("spine")] =
+					gmath.TRS3f32{
+						R: gmath.Rot3AToB(gmath.Vec3f32{0, 0, 1}, gmath.Vec3f32{1, 0, 0}).
+							Pow(4 * gladiator.Input.LookDir[0]),
+						S: gmath.Mat3x3UOne[float32](),
+					}.Compose()
+
+				pose := animgraph.Pose{
+					Bones: map[int]gmath.Affine3f32{},
+				}
+
+				// TODO: flooding would be more efficient
+				for bone := range skelly.JointNames {
+					A := gmath.Affine3One[float32]()
+
+					tmp := bone
+					for {
+						B, ok := localTransforms[tmp]
+						if !ok {
+							B = gmath.Affine3One[float32]()
+						}
+
+						A = skelly.ParentRelative[tmp].Mul(B).Mul(A)
+
+						parent := skelly.Parent[tmp]
+						if parent == -1 {
+							break
+						}
+						tmp = parent
+					}
+
+					pose.Bones[bone] = A.Mul(skelly.BindPoseInverse[bone])
+				}
+
+				world.Pose.Set(entity, pose)
+			}
+
+			velocity, _ := world.Velocity.Get(entity)
+
+			world.SetTransform(gladiator.FirstPersonHands,
+				gmath.TRS3f64{
+					T: gmath.Vec3f64{0, 1, 0}.
+						Scale(math.Sin(float64(world.Now.Sub(Time{}))/1e9*6) * 0.03 * min(float64(velocity.Linear.Length()/6), 1)),
+					R: gmath.Rot3One(),
+					S: gmath.Mat3x3UOne[float32](),
+				})
+
+			trs := world.GetTransform(entity)
+
+			rotation := trs.R.Mul(e01.Pow(4 * gladiator.Input.LookDir[0]))
+
+			move := gladiator.Input.WalkVel
+			if lengthSqr := move.Dot(move); lengthSqr > 1 {
+				move = move.Scale(1 / float32(math.Sqrt(float64(lengthSqr))))
+			}
+
+			localVel := rotation.Inverse().Rotate(velocity.Linear)
+			if gladiator.Supported {
+				localVel[0] = move[0] * gladiatorStats.WalkSpeed
+				localVel[1] = move[1] * gladiatorStats.WalkSpeed
+				if gladiator.Input.HeldButtons&(1<<ButtonJump) != 0 {
+					localVel[2] = 4
+				}
+			}
+			velocity.Linear = rotation.Rotate(localVel)
+
+			if !gladiator.Supported {
+				velocity.Linear = velocity.Linear.Add(world.Globals().Gravity.Scale(float32(durationToFloatSeconds(info.Δt))))
+			}
+
+			velocity.Linear = gladiator.asdasd(world, entity, velocity.Linear, info.Δt)
+
+			if gladiator.Supported {
+				gladiator.Steps += float64(velocity.Linear.Length()) * durationToFloatSeconds(info.Δt)
+			}
+			if gladiator.Steps > 3 {
+				world.SoundEffect.Set(entity, SoundEmitter{
+					Effect:      "step.wav",
+					Attenuation: 1,
+					PlayTime:    world.Now,
+				})
+				gladiator.Steps = 0
+			}
+
+			for gladiator.Vitals.HealthToBleed > 0 && !gladiator.Vitals.NextBleed.After(world.Now) {
+				const bleedSpeedFactor = 0.1
+				const minBleedSpeed = 1.0
+
+				gladiator.Vitals.Health--
+				gladiator.Vitals.HealthToBleed--
+				gladiator.Vitals.NextBleed = gladiator.Vitals.NextBleed.
+					Add(time.Duration(1e9 / max(float64(gladiator.Vitals.HealthToBleed)*bleedSpeedFactor, minBleedSpeed)))
+			}
+
+			// TODO: we should probably enqueue the death so that it happens
+			// after all impacts. That way we can see how far we are below 0
+			// and therefore decide whether we want to spawn gibs or just
+			// drop a ragdoll.
+			if gladiator.Vitals.Health <= 0 {
+				info.Logger.Info("killing myself!!!", "id", entity)
+
+				// TODO: spawn ragdoll or gibs
+
+				// TODO: bump the death counter and also attribute kill and/or assist to
+				// other players. We'll need to keep a damage log for that (even if
+				// limited)
+
+				world.Delete.Set(entity, struct{}{})
+			}
+
+			world.Entity.Set(entity, gladiator)
+			world.Velocity.Set(entity, velocity)
+		},
 
 		Impact: func(world *World, id ecs.ID, impact Impact, info *UpdateParams) {
 			info.Logger.Info("impact", "damage", impact.Damage)
@@ -212,10 +337,6 @@ func init() {
 		},
 	}
 }
-
-var _ Thinker = Gladiator{}
-
-func (Gladiator) entity() {}
 
 // TODO: pass down the info like team, character, weapons etc. Don't pass Player
 // as-is though.
@@ -264,127 +385,6 @@ func (world *World) spawnGladiator(T gmath.TRS3f64, info *UpdateParams) ecs.ID {
 	}
 
 	return gladiator
-}
-
-func (gladiator Gladiator) Think(world *World, id ecs.ID, info *UpdateParams) {
-	// TODO: do not call this here
-	world.GetScriptFuncs(id).Input(world, id, TimestampedInputCmd{}, info)
-
-	// TODO: this is incredibly gross and ugly, FIXME
-	gladiator = mustOk(world.GetEntity[Gladiator](id))
-
-	// Yuck
-	{
-		skelly := world.GetSkeleton(id)
-
-		localTransforms := map[int]gmath.Affine3f32{}
-		localTransforms[skelly.JointByName("spine")] =
-			gmath.TRS3f32{
-				R: gmath.Rot3AToB(gmath.Vec3f32{0, 0, 1}, gmath.Vec3f32{1, 0, 0}).
-					Pow(4 * gladiator.Input.LookDir[0]),
-				S: gmath.Mat3x3UOne[float32](),
-			}.Compose()
-
-		pose := animgraph.Pose{
-			Bones: map[int]gmath.Affine3f32{},
-		}
-
-		// TODO: flooding would be more efficient
-		for bone := range skelly.JointNames {
-			A := gmath.Affine3One[float32]()
-
-			tmp := bone
-			for {
-				B, ok := localTransforms[tmp]
-				if !ok {
-					B = gmath.Affine3One[float32]()
-				}
-
-				A = skelly.ParentRelative[tmp].Mul(B).Mul(A)
-
-				parent := skelly.Parent[tmp]
-				if parent == -1 {
-					break
-				}
-				tmp = parent
-			}
-
-			pose.Bones[bone] = A.Mul(skelly.BindPoseInverse[bone])
-		}
-
-		world.Pose.Set(id, pose)
-	}
-
-	velocity, _ := world.Velocity.Get(id)
-
-	world.SetTransform(gladiator.FirstPersonHands,
-		gmath.TRS3f64{
-			T: gmath.Vec3f64{0, math.Sin(float64(world.Now.Sub(Time{}))/1e9*6) * 0.03 * min(float64(velocity.Linear.Length()/6), 1), 0},
-			R: gmath.Rot3One(),
-			S: gmath.Mat3x3UOne[float32](),
-		})
-
-	trs := world.GetTransform(id)
-
-	rotation := trs.R.Mul(e01.Pow(4 * gladiator.Input.LookDir[0]))
-
-	move := gladiator.Input.WalkVel
-	if lengthSqr := move.Dot(move); lengthSqr > 1 {
-		move = move.Scale(1 / float32(math.Sqrt(float64(lengthSqr))))
-	}
-
-	localVel := rotation.Inverse().Rotate(velocity.Linear)
-	if gladiator.Supported {
-		localVel[0] = move[0] * gladiatorStats.WalkSpeed
-		localVel[1] = move[1] * gladiatorStats.WalkSpeed
-		if gladiator.Input.HeldButtons&(1<<ButtonJump) != 0 {
-			localVel[2] = 4
-		}
-	}
-	velocity.Linear = rotation.Rotate(localVel)
-
-	if !gladiator.Supported {
-		velocity.Linear = velocity.Linear.Add(world.Globals().Gravity.Scale(float32(durationToFloatSeconds(info.Δt))))
-	}
-
-	velocity.Linear = gladiator.asdasd(world, id, velocity.Linear, info.Δt)
-
-	if gladiator.Supported {
-		gladiator.Steps += float64(velocity.Linear.Length()) * durationToFloatSeconds(info.Δt)
-	}
-	if gladiator.Steps > 3 {
-		world.SoundEffect.Set(id, SoundEmitter{
-			Effect:      "step.wav",
-			Attenuation: 1,
-			PlayTime:    world.Now,
-		})
-		gladiator.Steps = 0
-	}
-
-	for gladiator.Vitals.HealthToBleed > 0 && !gladiator.Vitals.NextBleed.After(world.Now) {
-		const bleedSpeedFactor = 0.1
-		const minBleedSpeed = 1.0
-
-		gladiator.Vitals.Health--
-		gladiator.Vitals.HealthToBleed--
-		gladiator.Vitals.NextBleed = gladiator.Vitals.NextBleed.
-			Add(time.Duration(1e9 / max(float64(gladiator.Vitals.HealthToBleed)*bleedSpeedFactor, minBleedSpeed)))
-	}
-
-	// TODO: we should probably enqueue the death so that it happens
-	// after all impacts. That way we can see how far we are below 0
-	// and therefore decide whether we want to spawn gibs or just
-	// drop a ragdoll.
-	if gladiator.Vitals.Health <= 0 {
-		info.Logger.Info("killing myself!!!", "id", id)
-
-		// TODO: spawn ragdoll or gibs
-
-		world.Delete.Set(id, struct{}{})
-	}
-
-	world.Entity.Set(id, gladiator)
-	world.Velocity.Set(id, velocity)
 }
 
 func planeNormal(plane gmath.Vec4f32) gmath.Vec3f32 {

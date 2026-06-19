@@ -377,13 +377,6 @@ type UpdateParams struct {
 	Logger      *slog.Logger
 }
 
-// TODO: kill
-type Thinker interface {
-	Entity
-
-	Think(world *World, id ecs.ID, updateParams *UpdateParams)
-}
-
 func (world *World) EnqueueEntityUpdate(to ecs.ID, f func(world *World, id ecs.ID, updateParams *UpdateParams)) {
 	updates, _ := world.Updates.Get(to)
 	world.Updates.Set(to, append(updates, f))
@@ -423,21 +416,6 @@ func (world *World) think(updateParams *UpdateParams) {
 		script.Think(world, id, updateParams)
 	}
 
-	// TODO: kill this
-	for id, entity := range ecs.All(&world.Entity) {
-		thinker, ok := entity.(Thinker)
-		if !ok {
-			continue
-		}
-
-		// TODO: we'll want a timer wheel of sorts to make this fast
-		nextThink, _ := world.NextThink.Get(id)
-		if world.Now.Before(nextThink) {
-			continue
-		}
-
-		thinker.Think(world, id, updateParams)
-	}
 
 	world.processEntityUpdates(updateParams)
 }
