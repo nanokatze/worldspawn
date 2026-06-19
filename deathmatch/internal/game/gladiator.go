@@ -350,7 +350,7 @@ func (world *World) spawnGladiator(T gmath.TRS3f64, info *UpdateParams) ecs.ID {
 	hands := world.CreateEntity(info)
 	world.SetParent(hands, camera)
 	world.SetTransform(hands, gmath.TRS3One[float64]())
-	world.VisibilityMask.Set(gladiator, VisibilityMask{Mask: 0b01, Camera: camera})
+	world.VisibilityMask.Set(hands, VisibilityMask{Mask: 0b01, Camera: camera})
 	world.RenderingGeometry.Set(hands, "testcharacter4/geometries/Hands")
 
 	world.SetTransform(gladiator, T)
