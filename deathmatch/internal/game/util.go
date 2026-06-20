@@ -17,7 +17,7 @@ func mustOk[T any](v T, ok bool) T {
 }
 
 func durationToFloatSeconds(d time.Duration) float64 {
-	return float64(d) / 1e9
+	return float64(d/1e9) + float64(d%1e9)/1e9
 }
 
 // TODO: move these somewhere else
