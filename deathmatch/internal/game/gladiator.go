@@ -137,17 +137,37 @@ func init() {
 					if world.EntityExists(gladiator.FirstPersonWeaponProp) {
 						world.Delete.Set(gladiator.FirstPersonWeaponProp, struct{}{})
 					}
+					gladiator.ThirdPersonWeaponProp = 0
+
+					if world.EntityExists(gladiator.ThirdPersonWeaponProp) {
+						world.Delete.Set(gladiator.ThirdPersonWeaponProp, struct{}{})
+					}
 					gladiator.FirstPersonWeaponProp = 0
 
 					// Now we can switch the weapons
 
-					if weapon, ok := world.GetEntity[Weapon](switchToWeapon); ok {
-						gladiator.FirstPersonWeaponProp = weapon.CreateProp(world, info)
-						world.SetParent(gladiator.FirstPersonWeaponProp, gladiator.FirstPersonHands)
-						world.VisibilityMask.Set(gladiator.FirstPersonWeaponProp,
-							VisibilityMask{Mask: 0b01, Camera: gladiator.FirstPersonCamera})
-
+					if world.EntityExists(switchToWeapon) {
 						gladiator.Weapon = switchToWeapon
+
+						// Create the weapon props
+
+						script := world.GetScriptFuncs(switchToWeapon)
+						if script.WeaponCreateProp != nil {
+							// TODO: we need different functions for first
+							// person and third person props tbhonest
+
+							gladiator.FirstPersonWeaponProp = script.WeaponCreateProp(world, switchToWeapon, info)
+							world.SetParent(gladiator.FirstPersonWeaponProp, gladiator.FirstPersonHands) // parent it to camera instead
+							world.VisibilityMask.Set(gladiator.FirstPersonWeaponProp,
+								VisibilityCondition{Mask: 0b01, Camera: gladiator.FirstPersonCamera})
+
+							gladiator.ThirdPersonWeaponProp = script.WeaponCreateProp(world, switchToWeapon, info)
+							world.SetParent(gladiator.ThirdPersonWeaponProp, id)
+							world.ParentBone.Set(gladiator.ThirdPersonWeaponProp, "hand.R")
+							world.SetTransform(gladiator.ThirdPersonWeaponProp, gmath.TRS3One[float64]()) // bruh
+							world.VisibilityMask.Set(gladiator.ThirdPersonWeaponProp,
+								VisibilityCondition{Mask: 0b10, Camera: gladiator.FirstPersonCamera})
+						}
 					}
 				}
 			}
