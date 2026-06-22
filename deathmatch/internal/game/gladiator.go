@@ -241,15 +241,23 @@ func init() {
 			gladiator.Input.LookDir[0] += recoil.Recoil[0]
 			gladiator.Input.LookDir[1] += recoil.Recoil[1]
 
-			// Yuck
+			// EXTREMELY YUCKY!!!!!!!!!!!!
 			{
 				skelly := world.GetSkeleton(entity)
 
 				localTransforms := map[int]gmath.Affine3f32{}
 				localTransforms[skelly.JointByName("spine")] =
+					skelly.BindPoseInverse[skelly.JointByName("spine")].
+						Mul(gmath.TRS3f32{
+							R: gmath.Rot3AToB(gmath.Vec3f32{1, 0, 0}, gmath.Vec3f32{0, 1, 0}).
+								Pow(4 * gladiator.Input.LookDir[0]),
+							S: gmath.Mat3x3UOne[float32](),
+						}.Compose()).
+						Mul(skelly.BindPose[skelly.JointByName("spine")])
+				localTransforms[skelly.JointByName("spine.001")] =
 					gmath.TRS3f32{
-						R: gmath.Rot3AToB(gmath.Vec3f32{0, 0, 1}, gmath.Vec3f32{1, 0, 0}).
-							Pow(4 * gladiator.Input.LookDir[0]),
+						R: gmath.Rot3AToB(gmath.Vec3f32{0, 0, 1}, gmath.Vec3f32{0, 1, 0}).
+							Pow(4 * gladiator.Input.LookDir[1]),
 						S: gmath.Mat3x3UOne[float32](),
 					}.Compose()
 
