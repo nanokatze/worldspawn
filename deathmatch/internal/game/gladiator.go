@@ -174,30 +174,32 @@ func init() {
 
 			// TODO: under some conditions we should autoselect a gun for the player
 
-			if weapon, ok := world.GetEntity[Weapon](gladiator.Weapon); ok {
-				var buttons WeaponButtons
-				if gladiator.Input.HeldButtons&uint64(1<<ButtonAttack) != 0 {
-					buttons |= WeaponTrigger
+			/*
+				if world.EntityExists(gladiator.Weapon) {
+					var buttons WeaponButtons
+					if gladiator.Input.HeldButtons&uint64(1<<ButtonAttack) != 0 {
+						buttons |= WeaponTrigger
+					}
+
+					T_attack := world.GetGlobalTransform(id).
+						Mul(gmath.TRS3f64{
+							T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
+							R: e01.Pow(4 * gladiator.Input.LookDir[0]).Mul(e12.Pow(4 * gladiator.Input.LookDir[1])),
+							S: gmath.Mat3x3UOne[float32](),
+						}.Compose())
+
+					v_attack, _ := world.Velocity.Get(id)
+
+					// TODO: shooter id we pass should be that of player, actually. Maybe we
+					// should have a component to attribute kills and damage to something
+					// else.
+					stepResult := world.GetScriptFuncs(gladiator.Weapon).WeaponUpdate(world, gladiator.Weapon, []ecs.ID{gladiator.FirstPersonWeaponProp}, id, T_attack, v_attack, buttons, info)
+					// TODO: apply some part of the recoil as viewpunch?
+					// TODO: make sure we don't overflow LookDir
+					gladiator.Input.LookDir[0] += stepResult.Recoil[0]
+					gladiator.Input.LookDir[1] += stepResult.Recoil[1]
 				}
-
-				shootT := world.GetGlobalTransform(id).
-					Mul(gmath.TRS3f64{
-						T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
-						R: e01.Pow(4 * gladiator.Input.LookDir[0]).Mul(e12.Pow(4 * gladiator.Input.LookDir[1])),
-						S: gmath.Mat3x3UOne[float32](),
-					}.Compose())
-
-				shootv, _ := world.Velocity.Get(id)
-
-				// TODO: shooter id we pass should be that of player, actually. Maybe we
-				// should have a component to attribute kills and damage to something
-				// else.
-				stepResult := weapon.WeaponSubstep(world, gladiator.Weapon, []ecs.ID{gladiator.FirstPersonWeaponProp}, id, shootT, shootv, buttons, info)
-				// TODO: apply some part of the recoil as viewpunch?
-				// TODO: make sure we don't overflow LookDir
-				gladiator.Input.LookDir[0] += stepResult.Recoil[0]
-				gladiator.Input.LookDir[1] += stepResult.Recoil[1]
-			}
+			*/
 
 			// TODO: factor this out?
 			world.SetTransform(gladiator.FirstPersonCamera,
@@ -209,11 +211,35 @@ func init() {
 		},
 
 		Think: func(world *World, entity ecs.ID, info *UpdateParams) {
-			// TODO: do not call this here
-			world.GetScriptFuncs(entity).Input(world, entity, TimestampedInputCmd{}, info)
-
 			// TODO: this is incredibly gross and ugly, FIXME
-			gladiator := mustOk(world.GetEntity[Gladiator](entity))
+			gladiator, _ := world.GetEntity[Gladiator](entity)
+
+			var recoil Recoil
+			if world.EntityExists(gladiator.Weapon) {
+				var buttons WeaponButtons
+				if gladiator.Input.HeldButtons&uint64(1<<ButtonAttack) != 0 {
+					buttons |= WeaponTrigger
+				}
+
+				T_attack := world.GetGlobalTransform(entity).
+					Mul(gmath.TRS3f64{
+						T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
+						R: e01.Pow(4 * gladiator.Input.LookDir[0]).Mul(e12.Pow(4 * gladiator.Input.LookDir[1])),
+						S: gmath.Mat3x3UOne[float32](),
+					}.Compose())
+
+				v_attack, _ := world.Velocity.Get(entity)
+
+				// TODO: shooter id we pass should be that of player, actually. Maybe we
+				// should have a component to attribute kills and damage to something
+				// else.
+				recoil = world.GetScriptFuncs(gladiator.Weapon).WeaponUpdate(world, gladiator.Weapon, []ecs.ID{gladiator.FirstPersonWeaponProp}, entity, T_attack, v_attack, buttons, info)
+			}
+
+			// TODO: apply some part of the recoil as viewpunch?
+			// TODO: make sure we don't overflow LookDir
+			gladiator.Input.LookDir[0] += recoil.Recoil[0]
+			gladiator.Input.LookDir[1] += recoil.Recoil[1]
 
 			// Yuck
 			{
