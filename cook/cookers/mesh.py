@@ -56,8 +56,8 @@ class _Buffer:
 
 @dataclasses.dataclass
 class _AttributeBuffer:
-    Type: str # TODO: make this a VkFormat?
     Domain: int # TODO: make this a string
+    Type: str # TODO: make this a VkFormat?
     Data: _Buffer
 
 

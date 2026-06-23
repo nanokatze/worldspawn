@@ -50,6 +50,8 @@ type Gladiator struct {
 	Vitals struct {
 		Health int32
 
+		// TODO: generalize "de/buffs"? We'd have to put them separately from Vitals.
+
 		// How much health we still have to bleed.
 		HealthToBleed int32
 
@@ -67,6 +69,7 @@ type Gladiator struct {
 	FirstPersonHands ecs.ID
 
 	Weapon ecs.ID
+
 	// The first person prop is always a descendant of FirstPersonHands.
 	FirstPersonWeaponProp ecs.ID
 	// The third person prop is always a descendant of Character.
@@ -128,10 +131,7 @@ func init() {
 
 			// TODO: rewrite this
 			if world.EntityExists(switchToWeapon) && gladiator.Weapon != switchToWeapon {
-				// TODO: for weapon sway we would need to introduce another entity
-				// (basically hands) which we would move around and actually use to
-				// implement sway with.
-				// TODO: make weapon switching predicted when we make CreateEntity work in speculative mode
+				// TODO: make weapon switching predicted
 				if !info.Speculating {
 					gladiator.Weapon = 0
 
@@ -163,13 +163,13 @@ func init() {
 							// TODO: parent it directly to the camera instead.
 							world.SetParent(gladiator.FirstPersonWeaponProp, gladiator.FirstPersonHands)
 							world.SetTransform(gladiator.FirstPersonWeaponProp, hint.FirstPersonPropTRS)
-							world.VisibilityMask.Set(gladiator.FirstPersonWeaponProp,
+							world.VisibilityCondition.Set(gladiator.FirstPersonWeaponProp,
 								VisibilityCondition{Mask: 0b01, Camera: gladiator.FirstPersonCamera})
 
 							gladiator.ThirdPersonWeaponProp = script.WeaponCreateProp(world, switchToWeapon, info)
 							world.SetParent(gladiator.ThirdPersonWeaponProp, id)
 							world.ParentBone.Set(gladiator.ThirdPersonWeaponProp, "hand.R")
-							world.VisibilityMask.Set(gladiator.ThirdPersonWeaponProp,
+							world.VisibilityCondition.Set(gladiator.ThirdPersonWeaponProp,
 								VisibilityCondition{Mask: 0b10, Camera: gladiator.FirstPersonCamera})
 						}
 					}
@@ -297,12 +297,25 @@ func init() {
 
 			velocity, _ := world.Velocity.Get(entity)
 
-			world.SetTransform(gladiator.FirstPersonHands,
-				gmath.TRS3f64{
-					T: gmath.Vec3f64{0, 1, 0}.
-						Scale(math.Sin(float64(world.Now.Sub(Time{}))/1e9*6) * 0.03 * min(float64(velocity.Linear.Length()/6), 1)),
-					R: gmath.Rot3One(),
-					S: gmath.Mat3x3UOne[float32](),
+			world.EnqueueEntityUpdate(gladiator.FirstPersonHands,
+				func(world *World, id ecs.ID, updateParams *UpdateParams) {
+					world.SetTransform(id,
+						gmath.TRS3f64{
+							T: gmath.Vec3f64{0, 1, 0}.
+								Scale(math.Sin(float64(world.Now.Sub(Time{}))/1e9*6) * 0.03 * min(float64(velocity.Linear.Length()/6), 1)),
+							R: gmath.Rot3One(),
+							S: gmath.Mat3x3UOne[float32](),
+						})
+				})
+
+			world.EnqueueEntityUpdate(gladiator.FirstPersonCamera,
+				func(world *World, id ecs.ID, updateParams *UpdateParams) {
+					world.SetTransform(id,
+						gmath.TRS3f64{
+							T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
+							R: e01.Pow(4 * gladiator.Input.LookDir[0]).Mul(e12.Pow(4 * gladiator.Input.LookDir[1])),
+							S: gmath.Mat3x3UOne[float32](),
+						})
 				})
 
 			trs := world.GetTransform(entity)
@@ -373,8 +386,6 @@ func init() {
 		},
 
 		Impact: func(world *World, id ecs.ID, impact Impact, info *UpdateParams) {
-			info.Logger.Info("impact", "damage", impact.Damage)
-
 			// TODO: be verbose when computing the modifier
 			modifier := 1.0
 			if id == impact.Attacker {
@@ -397,7 +408,7 @@ func init() {
 }
 
 // TODO: pass down the info like team, character, weapons etc. Don't pass Player
-// as-is though.
+// as-is though. Or actually do pass it but keep it optional?
 func (world *World) spawnGladiator(T gmath.TRS3f64, info *UpdateParams) ecs.ID {
 	gladiator := world.CreateEntity(info)
 
@@ -408,17 +419,9 @@ func (world *World) spawnGladiator(T gmath.TRS3f64, info *UpdateParams) ecs.ID {
 	hands := world.CreateEntity(info)
 	world.SetParent(hands, camera)
 	world.SetTransform(hands, gmath.TRS3One[float64]())
-	world.VisibilityMask.Set(hands, VisibilityMask{Mask: 0b01, Camera: camera})
+	world.VisibilityCondition.Set(hands, VisibilityCondition{Mask: 0b01, Camera: camera})
 	world.RenderingGeometry.Set(hands, "testcharacter4/geometries/Hands")
 
-	world.SetTransform(gladiator, T)
-	world.Skeleton.Set(gladiator, "testcharacter4/skeletons/metarig")
-	world.CollisionGeometry.Set(gladiator, "Gladiator")
-	world.CollisionLayer.Set(gladiator, CollisionLayerMovingKinematic)
-	world.PhysicsMassOverride.Set(gladiator, 100)
-	world.ShouldSetOffFuseOnImpact.Set(gladiator, struct{}{})
-	world.VisibilityMask.Set(gladiator, VisibilityMask{Mask: 0b10, Camera: camera})
-	world.RenderingGeometry.Set(gladiator, "testcharacter4/geometries/TestCharacter4")
 	world.SetScript(gladiator, "gladiator")
 	s := Gladiator{
 		FirstPersonCamera: camera,
@@ -426,6 +429,14 @@ func (world *World) spawnGladiator(T gmath.TRS3f64, info *UpdateParams) ecs.ID {
 	}
 	s.Vitals.Health = 100
 	world.Entity.Set(gladiator, s)
+	world.SetTransform(gladiator, T)
+	world.Skeleton.Set(gladiator, "testcharacter4/skeletons/metarig")
+	world.CollisionGeometry.Set(gladiator, "Gladiator")
+	world.CollisionLayer.Set(gladiator, CollisionLayerMovingKinematic)
+	world.PhysicsMassOverride.Set(gladiator, 100)
+	world.ShouldSetOffFuseOnImpact.Set(gladiator, struct{}{})
+	world.VisibilityCondition.Set(gladiator, VisibilityCondition{Mask: 0b10, Camera: camera})
+	world.RenderingGeometry.Set(gladiator, "testcharacter4/geometries/TestCharacter4")
 
 	// Give the gladiator some guns
 
@@ -455,6 +466,8 @@ func planeSignedDistance(plane gmath.Vec4f32, point gmath.Vec3f32) float32 {
 }
 
 // TODO: introduce typedefs to physics for query types
+// TODO: replace query pipelines with a pile of funcs? Maybe we could even do
+// func vararg options. Ugh...
 
 type gladiatorMovementQueryPipeline struct {
 	player physics.BodyID

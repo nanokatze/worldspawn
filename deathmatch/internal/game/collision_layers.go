@@ -9,6 +9,7 @@ const (
 	CollisionLayerMoving
 	CollisionLayerProjectiles
 	CollisionLayerMovingKinematic // used by character controllers; TODO: rename
+	// TODO: I think we need another layer for triggers :thinking:
 	numCollisionLayers
 )
 

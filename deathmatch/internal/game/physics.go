@@ -41,7 +41,7 @@ func (world *World) updatePhysicsShadow(updateParams *UpdateParams) {
 		trs := world.GetTransform(id)
 		// TODO: ensure trs.S is 1
 		velocity, _ := world.Velocity.Get(id)
-		_, sensor := world.Sensor.Get(id)
+		_, sensor := world.CollisionSensor.Get(id)
 
 		motionType2 := collisionLayerMotionType[layer]
 
@@ -156,10 +156,6 @@ func (world *World) physicsStep(updateParams *UpdateParams) {
 
 		pos, rot, linVel, angVel := world.physics.WritebackBody(bodyID)
 
-		if !world.EntityExists(entityID) {
-			updateParams.Logger.Info("entity does not exist for some reason", "id", entityID)
-		}
-
 		world.TransformTR.Set(entityID, TR3f64{T: pos, R: rot})
 
 		// TODO: don't store velocity back for kinematic bodies
@@ -197,7 +193,7 @@ func (world *World) physicsStep(updateParams *UpdateParams) {
 		}
 	}
 
-	world.processEntityUpdates(updateParams)
+	world.processUpdates(updateParams)
 }
 
 // TODO: don't duplicate things we don't need to.

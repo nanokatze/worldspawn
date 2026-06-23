@@ -221,7 +221,7 @@ func (re *gameVideoRenderer) Tick(world *game.World, playerID ecs.ID, t0, t1 gam
 
 			i := id.Index()
 
-			visibility, _ := world.VisibilityMask.Get(id)
+			visibility, _ := world.VisibilityCondition.Get(id)
 			mask := visibility.Mask & 0b11
 			if visibility.Camera != camera {
 				mask ^= 0b11

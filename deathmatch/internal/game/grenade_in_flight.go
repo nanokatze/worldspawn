@@ -8,6 +8,12 @@ import (
 	"worldspawn/internal/ecs"
 )
 
+// TODO: projectiles should not rely on the physics engine to figure out
+// contacts but on queries instead, at least for now. In the future, if we
+// change the player's collider to a dynamic physics object (rather than rolling
+// our own physics) and our physics engine had a way to establish rules around
+// energy transfer, we could switch back to using physics engine for contacts.
+
 type GrenadeInFlight struct {
 	LaunchedAt Time // when the fuse was ignited
 	ExplodeNow bool // whether we should explode ASAP

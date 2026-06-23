@@ -9,6 +9,7 @@ const (
 	_ ImpactType = iota
 	BlastImpact
 	BlastImpactWithFragmentation
+	BlastImpactWithNoDamage // TODO: implement this
 	BulletImpact
 )
 
@@ -46,7 +47,8 @@ func (impact Impact) Apply(world *World, id ecs.ID, updateParams *UpdateParams) 
 		scriptFuncs.Impact(world, id, impact, updateParams)
 	}
 
-	// TODO: only do this if Impact is not implemented?
+	// TODO: only do this if Impact is not implemented and make entities
+	// implementing Impact do everything otherwise?
 	if vel, ok := world.Velocity.Get(id); ok {
 		world.Velocity.Set(id, vel.Add(impact.Δv))
 	}

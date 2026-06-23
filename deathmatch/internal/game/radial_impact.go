@@ -72,8 +72,8 @@ func (world *World) radialImpact(
 		results[collector.closestHit.BodyID] = tmp
 	}
 
-	for bodyID, result := range results {
-		entityID := world.Table.IDs().Index(int(bodyID))
+	for body, result := range results {
+		entity := world.Table.IDs().Index(int(body))
 
 		impact := Impact{
 			Type:     impact.Type,
@@ -82,7 +82,7 @@ func (world *World) radialImpact(
 			Attacker: impact.Attacker,
 		}
 
-		world.EnqueueEntityUpdate(entityID, impact.Apply)
+		world.EnqueueEntityUpdate(entity, impact.Apply)
 	}
 }
 

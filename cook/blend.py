@@ -69,9 +69,9 @@ class Context:
             case bpy.types.Action():
                 return 'animations'
             case bpy.types.Collection():
-                return 'collections'
+                return 'prefabs'
             case bpy.types.Scene():
-                return 'scenes'
+                return 'maps'
             case bpy.types.Material():
                 return 'materials'
             case bpy.types.Object():

@@ -4,7 +4,8 @@ import (
 	"reflect"
 )
 
-// TODO: replace with []byte and do de/serialization at HandleInput time?
+// TODO: rename this file
+
 type TimestampedInputCmd struct {
 	Time Time
 	Cmd  InputCmd
@@ -14,6 +15,7 @@ type TimestampedInputCmd struct {
 // administrative things like Respawn, etc.
 type InputCmd any
 
+// TODO: kill Button?
 type Button int8
 
 const (

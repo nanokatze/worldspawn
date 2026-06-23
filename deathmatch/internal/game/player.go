@@ -11,6 +11,9 @@ type Player struct {
 		Kills  int32
 		Deaths int32
 	}
+
+	Loadout struct {
+	}
 }
 
 func (Player) entity() {}
@@ -28,15 +31,18 @@ func (player Player) Camera(world *World) ecs.ID {
 	return char.FirstPersonCamera
 }
 
-func (world *World) HandleInput(playerID ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
-	player := mustOk(world.GetEntity[Player](playerID))
-	if world.EntityExists(player.ControlledCharacter) {
-		world.GetScriptFuncs(player.ControlledCharacter).
-			Input(world, player.ControlledCharacter, cmd, info)
+func (world *World) HandleInput(player ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
+	playerState := mustOk(world.GetEntity[Player](player))
+	if world.EntityExists(playerState.ControlledCharacter) {
+		world.GetScriptFuncs(playerState.ControlledCharacter).
+			Input(world, playerState.ControlledCharacter, cmd, info)
 	} else {
 		if !info.Speculating {
-			player.ControlledCharacter = world.spawnGladiator(world.findSpawnPoint(), info)
-			world.Entity.Set(playerID, player)
+			spawnPoint := world.findSpawnPoint()
+			info.Logger.Info("spawn", "player", player, "T", spawnPoint)
+
+			playerState.ControlledCharacter = world.spawnGladiator(spawnPoint, info)
+			world.Entity.Set(player, playerState)
 		}
 	}
 }

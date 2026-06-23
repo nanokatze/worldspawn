@@ -9,6 +9,7 @@ import (
 	"worldspawn/internal/gmath"
 )
 
+// TODO: make it more general and implement viewshake through this?
 type CosmeticOffset struct {
 	Alpha  float32
 	T0     Time
@@ -20,24 +21,13 @@ func (cosmeticOffset CosmeticOffset) Eval(now Time) gmath.Vec3f32 {
 	return cosmeticOffset.Offset.Scale(float32(extinction))
 }
 
-// TODO: give this a better name
-// TODO: should this apply to children?
-type VisibilityMask struct {
+// TODO: make it more general
+type VisibilityCondition struct {
 	Mask uint8
 	// TODO: replace with an arbitrary int64 id so we can have the same cameras
 	// share visibility sets? Or should this be a set of ids/ecs.IDs?
 	Camera ecs.ID
 }
-
-/*
-type SoundTrack struct {
-	Filename string
-	T0 Time
-	// T0
-	// TODO: I guess other state like which effects (FIR) to apply and how could
-	// be derived at render time either from sound state or w/e
-}
-*/
 
 type SoundEmitter struct {
 	Effect      string

@@ -3,9 +3,8 @@ package game
 import (
 	"fmt"
 	"io/fs"
-	"log/slog"
 	"reflect"
-	"time"
+	"runtime"
 
 	"worldspawn/internal/animgraph"
 	"worldspawn/internal/ecs"
@@ -18,7 +17,9 @@ var Data fs.FS
 
 // TODO: split this file up
 
-type SceneGlobals struct {
+// TODO: kill this (again) and make it a thing on World directly. We need this
+// so that we can allow querying these values even in entity updates
+type WorldGlobals struct {
 	// TODO: replace it with sky material
 	Sky string
 
@@ -27,17 +28,11 @@ type SceneGlobals struct {
 	Gravity gmath.Vec3f32
 }
 
-func (SceneGlobals) entity() {}
+func (WorldGlobals) entity() {}
 
 type TR3f64 struct {
 	T gmath.Vec3f64
 	R gmath.Rot3
-}
-
-// TODO: introduce Camera component which will specify fov etc. I guess we could
-// also just use Entity.
-type Camera struct {
-	FieldOfView float32
 }
 
 // TODO: fold almost all scripty stuff into the same column? Although I guess
@@ -49,33 +44,19 @@ type Camera struct {
 
 // TODO: certain columns could've perfectly feasibly been unique.Handle[string].
 // E.g. Script, CollisionGeometry and RenderingGeometry.
+// TODO: get rid of transient columns altogether (for now), they should be
+// simpler structures at the root of World
 type Columns struct {
-	// Name ecs.ComponentStore[string]
+	Name ecs.Column[string]
 
-	// Logic
-
-	Script ecs.Column[string]
-	// TODO: rename to ScriptState
-	Entity ecs.Column[Entity]
-
-	NextThink ecs.Column[Time]
-
-	// TODO: this doesn't really need to be a column, this could perfectly
-	// feasibly be a plain array with a bitmap.
-	Updates ecs.Column[[]func(world *World, id ecs.ID, updateParams *UpdateParams)] `worldspawn:"transient"`
-
-	// Entities marked for deletion
-	//
-	// TODO: we could try doing immediate deletion or at least fold processing
-	// of deletion into process updates?
-	Delete ecs.Column[struct{}] `worldspawn:"transient"`
+	// Transform
 
 	// Do not access this column directly; use {Get,Set}Parent. Specifies the
 	// parent entity.
 	Parent ecs.Column[ecs.ID]
 	// The bone in the parent's skeleton that transforms this entity.
 	ParentBone ecs.Column[string]
-	// Do not access this column directly; use {Get,Set}Transform and
+	// Do not access this column directly; use {Get,Set}Transform or
 	// GetGlobalTransform instead.
 	//
 	// The translation and rotation parts of the entity's parent-relative
@@ -91,11 +72,31 @@ type Columns struct {
 	// entity.
 	TransformS ecs.Column[gmath.Mat3x3Uf32]
 
-	// TODO: make skeletons part of geometry?
+	// TODO: make skeletons part of geometry? Ok actually wait which geometry
+	// lol. We'll need to think more about this.
 	Skeleton ecs.Column[string]
 
 	// TODO: this should just point to an animgraph script
 	Pose ecs.Column[animgraph.Pose]
+
+	// Entity programmability
+
+	NextThink ecs.Column[Time]
+
+	Script ecs.Column[string]
+
+	// TODO: rename to CustomState. Or Attributes. Or CustomAttributes. We also
+	// need to think a bit harder about how to represent this, a single any
+	// doesn't seem like enough.
+	Entity ecs.Column[Entity]
+
+	// TODO: this doesn't really need to be a column, this could perfectly
+	// feasibly be a plain array with a bitmap.
+	Updates ecs.Column[[]func(world *World, id ecs.ID, updateParams *UpdateParams)] `worldspawn:"transient"`
+
+	// Entities marked for deletion
+	// TODO: doesn't really need to be a column either
+	Delete ecs.Column[struct{}] `worldspawn:"transient"`
 
 	// TODO: require that entities that we're do collision/physics for have no
 	// parent. Or maybe allow that somehow, e.g. by having children be joined
@@ -106,7 +107,7 @@ type Columns struct {
 	CollisionLayer    ecs.Column[CollisionLayer]
 	CollisionGeometry ecs.Column[string]
 
-	Sensor ecs.Column[struct{}]
+	CollisionSensor ecs.Column[struct{}]
 
 	// Motion
 
@@ -133,9 +134,9 @@ type Columns struct {
 
 	// Renderer
 
-	CosmeticOffset ecs.Column[CosmeticOffset]
+	VisibilityCondition ecs.Column[VisibilityCondition]
 
-	VisibilityMask ecs.Column[VisibilityMask]
+	CosmeticOffset ecs.Column[CosmeticOffset]
 
 	RenderingGeometry ecs.Column[string]
 
@@ -150,12 +151,14 @@ type Columns struct {
 	SoundEffect      ecs.Column[SoundEmitter]
 	SoundEffectState ecs.Column[LoopedSound] // TODO: kill this column
 
+	// Misc
+
 	// Speculative object deadline
 	// TODO: rename
 	Speculation ecs.Column[Time] // TODO: do not network this
 }
 
-// TODO: make all of the internals. We'll need to add infrastructure for
+// TODO: make all of the internals private. We'll need to add infrastructure for
 // replication to World first.
 type World struct {
 	// TODO: could we move this to somewhere? Either way I would prefer if
@@ -187,6 +190,8 @@ func NewWorld(n int) *World {
 		columns.Field(i).Addr().Interface().(interface{ Init(*ecs.Table) }).Init(world.Table)
 	}
 
+	// TODO: pass contact listener. Or make it so that the contact listener is
+	// passed at call to Update.
 	world.physics = physics.NewSystem(
 		int(numCollisionLayers),
 		collisionLayerToBroadPhaseLayer[:],
@@ -203,9 +208,6 @@ func NewWorld(n int) *World {
 func (world *World) Cap() int { return world.Table.IDs().Cap() }
 
 func (world *World) EntityExists(id ecs.ID) bool { return world.Table.IDs().Exists(id) }
-
-// TODO: replace CreateEntity and DeleteEntityImmediately with
-// EnqueueCreateEntity(f func(id)) and EnqueueDeleteEntity(id)?
 
 // TODO: make this private?
 // TODO: same as DeleteEntityImmediately, we probably should make a column for
@@ -241,9 +243,19 @@ func (world *World) DeleteEntityImmediately(id ecs.ID) {
 	world.Table.DeleteRow(id)
 }
 
-func (world *World) Globals() SceneGlobals {
-	globals, _ := world.GetEntity[SceneGlobals](1)
+func (world *World) Globals() WorldGlobals {
+	globals, _ := world.GetEntity[WorldGlobals](1)
 	return globals
+}
+
+// TODO: rename this
+func (world *World) GetEntity[T Entity](id ecs.ID) (T, bool) {
+	entity, _ := world.Entity.Get(id)
+	entityT, ok := entity.(T)
+	if !ok {
+		return *new(T), false
+	}
+	return entityT, true
 }
 
 func (world *World) GetParent(id ecs.ID) ecs.ID {
@@ -364,16 +376,6 @@ func (world *World) GetSkeleton(id ecs.ID) *animgraph.Skeleton {
 		return nil
 	}
 	return skeleton(skellyName)
-}
-
-// TODO: rename this
-func (world *World) GetEntity[T Entity](id ecs.ID) (T, bool) {
-	entity, _ := world.Entity.Get(id)
-	entityT, ok := entity.(T)
-	if !ok {
-		return *new(T), false
-	}
-	return entityT, true
 }
 
 // TODO: kill this in favor of IO

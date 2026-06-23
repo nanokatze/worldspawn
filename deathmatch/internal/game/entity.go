@@ -12,9 +12,10 @@ var EntityTypes = []reflect.Type{
 	reflect.TypeFor[GrenadeInFlight](),
 	reflect.TypeFor[PlayerSpawn](),
 	reflect.TypeFor[Player](),
-	reflect.TypeFor[SceneGlobals](),
+	reflect.TypeFor[RocketInFlight](),
 	reflect.TypeFor[Testburger](),
 	reflect.TypeFor[WeaponGrenadeLauncher](),
 	reflect.TypeFor[WeaponPhysgun](),
 	reflect.TypeFor[WeaponSniperRifle](),
+	reflect.TypeFor[WorldGlobals](),
 }
