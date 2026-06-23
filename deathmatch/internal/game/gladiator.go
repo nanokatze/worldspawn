@@ -74,14 +74,15 @@ type Gladiator struct {
 
 	Slots [4]ecs.ID
 
-	// Inventory map[]
+	// TODO: make Inventory more abstract. What we really wanna do is just try
+	// to put items in there and take items in there.
 }
 
 func (Gladiator) entity() {}
 
 func init() {
-	scripts["gladiator"] = scriptFuncs{
-		Types: []reflect.Type{reflect.TypeFor[Gladiator]()},
+	scripts["gladiator"] = script{
+		Type: reflect.TypeFor[Gladiator](),
 
 		Input: func(world *World, id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
 			gladiator, _ := world.GetEntity[Gladiator](id)

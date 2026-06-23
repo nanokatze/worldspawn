@@ -16,7 +16,7 @@ func (WeaponPhysgun) entity() {}
 var _ Entity = WeaponPhysgun{}
 
 func init() {
-	scripts["weapon_physgun"] = scriptFuncs{
+	scripts["weapon_physgun"] = script{
 		WeaponThink: func(
 			world *World,
 			weapon ecs.ID,

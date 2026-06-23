@@ -32,7 +32,7 @@ type WeaponGrenadeLauncher struct {
 func (WeaponGrenadeLauncher) entity() {}
 
 func init() {
-	scripts["weapon_grenade_launcher"] = scriptFuncs{
+	scripts["weapon_grenade_launcher"] = script{
 		WeaponHint: func(world *World, entity ecs.ID) WeaponHint {
 			return WeaponHint{
 				FirstPersonPropTRS: gmath.TRS3f64{

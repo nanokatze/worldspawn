@@ -7,14 +7,30 @@ import (
 	"worldspawn/internal/gmath"
 )
 
+/*
+type IO struct {
+	info   *UpdateParams
+	world  *World
+	entity ecs.ID
+}
+
+func (io *IO) UpdateEntity(to ecs.ID, f func(world *World, entity ecs.ID, info *UpdateParams)) {
+	updates, _ := io.world.Updates.Get(to)
+	io.world.Updates.Set(to, append(updates, f))
+}
+
+func (io *IO) UpdateWorld(f func(world *World, info *UpdateParams)) {
+	world.globalUpdates = append(world.globalUpdates, f)
+}
+*/
+
 // TODO: replace world and id with some kind of object to enable tighter access
 // control?
 // TODO: pass the object through which updates are enqueued explicitly. That way
 // we could straightforwardly doublebuffer things.
 // TODO: rename to just script
-type scriptFuncs struct {
-	// Types to register for de/serialization
-	Types []reflect.Type
+type script struct {
+	Type reflect.Type
 
 	Funcs map[string]any
 
@@ -72,7 +88,7 @@ type scriptFuncs struct {
 		info *UpdateParams) Recoil
 }
 
-var scripts = map[string]scriptFuncs{}
+var scripts = map[string]script{}
 
 // TODO: we also need a way to SetScript and immediately initialize the state in
 // a convenient manner.
