@@ -1,17 +1,23 @@
 package game
 
 import (
+	"log/slog"
 	"reflect"
 	"time"
 
 	"worldspawn/internal/ecs"
 )
 
+// TODO: rename to StepContext or something
+type UpdateParams struct {
+	// Now         Time // for substeps
+	Δt          time.Duration
+	Speculating bool
+	Logger      *slog.Logger
+}
+
 func (world *World) Step(updateParams *UpdateParams) {
 	world.Now = world.Now.Add(updateParams.Δt)
-
-	// TODO: optimize loops over entities implementing particular interface by
-	// having shadow columns.
 
 	world.think(updateParams)
 

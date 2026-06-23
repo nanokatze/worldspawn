@@ -168,6 +168,8 @@ type World struct {
 	Table *ecs.Table
 	Columns
 
+	globalUpdates []func(*World, *UpdateParams)
+
 	physics *physics.System
 	// TODO: this should be folded into physicsSystem
 	physicsBodyExists ecs.Column[struct{}]
@@ -374,37 +376,25 @@ func (world *World) GetEntity[T Entity](id ecs.ID) (T, bool) {
 	return entityT, true
 }
 
-// TODO: rename to StepContext or something
-type UpdateParams struct {
-	// Now         Time // for substeps
-	Δt          time.Duration
-	Speculating bool
-	Logger      *slog.Logger
-}
-
+// TODO: kill this in favor of IO
 func (world *World) EnqueueEntityUpdate(to ecs.ID, f func(world *World, id ecs.ID, updateParams *UpdateParams)) {
 	updates, _ := world.Updates.Get(to)
 	world.Updates.Set(to, append(updates, f))
 }
 
-func (world *World) processEntityUpdates(updateParams *UpdateParams) {
-	// TODO: double buffer messages so that messages can be sent during
-	// processing and process them until there's no more messages.
-
-	for id, updates := range ecs.All(&world.Updates) {
-		for _, f := range updates {
-			f(world, id, updateParams)
-		}
-	}
-
-	world.Updates.Clear()
-
-	world.deleteMarkedEntities()
+// TODO: kill this in favor of IO
+func (world *World) EnqueueGlobalUpdate(f func(world *World, updateParams *UpdateParams)) {
+	world.globalUpdates = append(world.globalUpdates, f)
 }
 
 func (world *World) think(updateParams *UpdateParams) {
-	// TODO: update systems which are allowed to be queried from Think
-	// w.updatePhysicsShadow(updateParams)
+	// TODO: optimize the pass over thinkers by having a shadow column
+
+	// Update systems which are allowed to be queried from Think
+
+	world.updatePhysicsShadow(updateParams)
+
+	// Run thinkers
 
 	for id, scriptName := range ecs.All(&world.Script) {
 		script := scripts[scriptName]
@@ -421,8 +411,31 @@ func (world *World) think(updateParams *UpdateParams) {
 		script.Think(world, id, updateParams)
 	}
 
+	// Process the enqueued updates
 
-	world.processEntityUpdates(updateParams)
+	world.processUpdates(updateParams)
+}
+
+func (world *World) processUpdates(updateParams *UpdateParams) {
+	// TODO: double buffer messages so that messages can be sent during
+	// processing and process them until there's no more messages.
+
+	// TODO: do we run global updates before or after deletion? What should be
+	// the order in general.
+
+	for id, updates := range ecs.All(&world.Updates) {
+		for _, f := range updates {
+			f(world, id, updateParams)
+		}
+	}
+	world.Updates.Clear()
+
+	for _, f := range world.globalUpdates {
+		f(world, updateParams)
+	}
+	world.globalUpdates = world.globalUpdates[:0]
+
+	world.deleteMarkedEntities()
 }
 
 // TODO: rename to make it clear that we're deleting things already marked for
