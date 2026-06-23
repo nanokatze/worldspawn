@@ -412,6 +412,7 @@ func (world *World) spawnGladiator(T gmath.TRS3f64, info *UpdateParams) ecs.ID {
 	world.CollisionGeometry.Set(gladiator, "Gladiator")
 	world.CollisionLayer.Set(gladiator, CollisionLayerMovingKinematic)
 	world.PhysicsMassOverride.Set(gladiator, 100)
+	world.ShouldSetOffFuseOnImpact.Set(gladiator, struct{}{})
 	world.VisibilityMask.Set(gladiator, VisibilityMask{Mask: 0b10, Camera: camera})
 	world.RenderingGeometry.Set(gladiator, "testcharacter4/geometries/TestCharacter4")
 	world.SetScript(gladiator, "gladiator")

@@ -126,6 +126,11 @@ type Columns struct {
 	// TODO: kill this column and handle it at prefab instantination
 	CollectionInstance ecs.Column[CollectionInstance]
 
+	// Other gameplay stuff
+
+	// Certain projectiles normally bounce off on impact
+	ShouldSetOffFuseOnImpact ecs.Column[struct{}]
+
 	// Renderer
 
 	CosmeticOffset ecs.Column[CosmeticOffset]

@@ -25,9 +25,9 @@ var collisionLayerRules = func() physics.LayerCollisionRules {
 		/*                   g     le    */
 		/*                         s     */
 		/* NonMoving       */ F, T, T, F,
-		/* Moving             */ T, T, F,
-		/* Projectiles           */ F, F,
-		/* MovingKinematic          */ F,
+		/* Moving             */ T, T, T,
+		/* Projectiles           */ F, T,
+		/* MovingKinematic          */ T,
 	}
 }()
 
