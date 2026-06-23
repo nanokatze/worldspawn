@@ -4,6 +4,7 @@ import (
 	"reflect"
 
 	"worldspawn/internal/ecs"
+	"worldspawn/internal/gmath"
 )
 
 // TODO: replace world and id with some kind of object to enable tighter access
@@ -17,19 +18,19 @@ type scriptFuncs struct {
 
 	Funcs map[string]any
 
+	// TODO: handle the state as well so that the functions don't have to poke
+	// world.GetEntity
+
 	// TODO: the following should be shadows of Funcs basically
+
+	// OutOfBounds func(world *World, entity ecs.ID, info *UpdateParams)
+
+	// TODO: prefix this somehow, e.g. with Character. Also rename to HandleInput?
+	Input func(world *World, entity ecs.ID, cmd TimestampedInputCmd, info *UpdateParams)
 
 	// Think may not perform any mutations, but may read states of entities,
 	// perform physics queries and enqueue updates.
 	Think func(world *World, entity ecs.ID, info *UpdateParams)
-
-	// Impact may not perform any queries, but may mutate the entity.
-	Impact func(world *World, entity ecs.ID, impact Impact, info *UpdateParams)
-
-	Input func(world *World, entity ecs.ID, cmd TimestampedInputCmd, info *UpdateParams)
-
-	WeaponCreateProp func(world *World, info *UpdateParams) ecs.ID
-	// WeaponUpdate func(world *World) Recoil
 
 	// Physics
 
@@ -41,29 +42,49 @@ type scriptFuncs struct {
 	ShouldCollide func(world *World, entity1, entity2 ecs.ID, info *UpdateParams) int // TODO: return a enum that corresponds to JPH::ValidateResult
 
 	// Note that ContactAdded and ContactRemoved are not called
-	// deterministically, it's thus necessary to put extra care so that the
+	// deterministically, it's thus necessary to pay extra care so that the
 	// simulation is reproducible.
 	//
-	// TODO: naming
+	// TODO: naming. NewContactPair sounds like a good replacement for
+	// ContactAdded but I'm not sure what to rename ContactRemoved to.
 	// TODO: inout parameter which lets the script edit the contact
 	ContactAdded   func(world *World, entity1, entity2 ecs.ID, info *UpdateParams)
 	ContactRemoved func(world *World, entity1, entity2 ecs.ID, info *UpdateParams)
 
-	// OutOfBounds func(world *World, entity ecs.ID, info *UpdateParams)
+	// Impact may not perform any queries, but may mutate the entity.
+	Impact func(world *World, entity ecs.ID, impact Impact, info *UpdateParams)
+
+	// TODO: prefix things with underscore, e.g. Weapon_CreateProp
+
+	// TODO: elaborate that this is for FPS
+	WeaponHint       func(world *World, weapon ecs.ID) WeaponHint
+	WeaponCreateProp func(world *World, weapon ecs.ID, info *UpdateParams) ecs.ID
+	// TODO: I think we need to split WeaponThink into two, one subtick/Input
+	// thing and other the equivalent of Think basically.
+	WeaponThink func(
+		world *World,
+		weapon ecs.ID,
+		props []ecs.ID,
+		attacker ecs.ID,
+		T_attack gmath.Affine3f64,
+		v_attack Velocity,
+		buttons WeaponButtons,
+		info *UpdateParams) Recoil
 }
 
 var scripts = map[string]scriptFuncs{}
 
 // TODO: we also need a way to SetScript and immediately initialize the state in
 // a convenient manner.
-func (world *World) SetScript(entity ecs.ID, scriptID string) {
-	world.Script.Set(entity, scriptID)
-	// TODO: how do we deal with the state
+func (world *World) SetScript(entity ecs.ID, filename string) {
+	world.Script.Set(entity, filename)
+	if scripts[filename].Type != nil {
+		world.Entity.Set(entity, reflect.Zero(scripts[filename].Type).Interface().(Entity))
+	}
 }
 
 // TODO: return a pointer instead of struct as is?
-// TODO: rename to GetScript
-func (world *World) GetScriptFuncs(entity ecs.ID) scriptFuncs {
-	scriptID, _ := world.Script.Get(entity)
-	return scripts[scriptID]
+func (world *World) GetScriptFuncs(entity ecs.ID) script {
+	filename, _ := world.Script.Get(entity)
+	return scripts[filename]
 }

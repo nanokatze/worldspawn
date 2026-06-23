@@ -3,7 +3,6 @@ package game
 import (
 	"time"
 
-	"worldspawn/internal/ecs"
 	"worldspawn/internal/gmath"
 )
 
@@ -25,10 +24,11 @@ type WeaponSniperRifle struct {
 	NextAttack time.Duration
 }
 
-var _ Weapon = WeaponSniperRifle{}
+// var _ Weapon = WeaponSniperRifle{}
 
 func (WeaponSniperRifle) entity() {}
 
+/*
 func (weapon WeaponSniperRifle) CreateProp(world *World, info *UpdateParams) ecs.ID {
 	root := world.CreateEntity(info)
 	world.SetTransform(root, sniperRifleStats.ViewGeometryTRS)
@@ -59,3 +59,4 @@ func (weapon WeaponSniperRifle) WeaponSubstep(
 	info *UpdateParams) Recoil {
 	return Recoil{}
 }
+*/

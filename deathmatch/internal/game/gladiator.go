@@ -153,18 +153,21 @@ func init() {
 
 						script := world.GetScriptFuncs(switchToWeapon)
 						if script.WeaponCreateProp != nil {
-							// TODO: we need different functions for first
-							// person and third person props tbhonest
+							var hint WeaponHint
+							if script.WeaponHint != nil {
+								hint = script.WeaponHint(world, switchToWeapon)
+							}
 
 							gladiator.FirstPersonWeaponProp = script.WeaponCreateProp(world, switchToWeapon, info)
-							world.SetParent(gladiator.FirstPersonWeaponProp, gladiator.FirstPersonHands) // parent it to camera instead
+							// TODO: parent it directly to the camera instead.
+							world.SetParent(gladiator.FirstPersonWeaponProp, gladiator.FirstPersonHands)
+							world.SetTransform(gladiator.FirstPersonWeaponProp, hint.FirstPersonPropTRS)
 							world.VisibilityMask.Set(gladiator.FirstPersonWeaponProp,
 								VisibilityCondition{Mask: 0b01, Camera: gladiator.FirstPersonCamera})
 
 							gladiator.ThirdPersonWeaponProp = script.WeaponCreateProp(world, switchToWeapon, info)
 							world.SetParent(gladiator.ThirdPersonWeaponProp, id)
 							world.ParentBone.Set(gladiator.ThirdPersonWeaponProp, "hand.R")
-							world.SetTransform(gladiator.ThirdPersonWeaponProp, gmath.TRS3One[float64]()) // bruh
 							world.VisibilityMask.Set(gladiator.ThirdPersonWeaponProp,
 								VisibilityCondition{Mask: 0b10, Camera: gladiator.FirstPersonCamera})
 						}
@@ -233,7 +236,7 @@ func init() {
 				// TODO: shooter id we pass should be that of player, actually. Maybe we
 				// should have a component to attribute kills and damage to something
 				// else.
-				recoil = world.GetScriptFuncs(gladiator.Weapon).WeaponUpdate(world, gladiator.Weapon, []ecs.ID{gladiator.FirstPersonWeaponProp}, entity, T_attack, v_attack, buttons, info)
+				recoil = world.GetScriptFuncs(gladiator.Weapon).WeaponThink(world, gladiator.Weapon, []ecs.ID{gladiator.FirstPersonWeaponProp}, entity, T_attack, v_attack, buttons, info)
 			}
 
 			// TODO: apply some part of the recoil as viewpunch?
@@ -427,14 +430,14 @@ func (world *World) spawnGladiator(T gmath.TRS3f64, info *UpdateParams) ecs.ID {
 
 	{
 		weapon := world.CreateEntity(info)
-		world.Entity.Set(weapon, WeaponGrenadeLauncher{})
+		world.SetScript(weapon, "weapon_grenade_launcher")
 
 		world.GiveWeapon(gladiator, weapon)
 	}
 
 	{
 		weapon := world.CreateEntity(info)
-		world.Entity.Set(weapon, WeaponPhysgun{})
+		world.SetScript(weapon, "weapon_physgun")
 
 		world.GiveWeapon(gladiator, weapon)
 	}

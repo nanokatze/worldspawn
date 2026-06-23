@@ -7,72 +7,78 @@ import (
 )
 
 type WeaponPhysgun struct {
-	Holding   bool
-	Object    ecs.ID
-	Transform gmath.Affine3f64
+	HeldEntity ecs.ID
+	Transform  gmath.Affine3f64
 }
 
 func (WeaponPhysgun) entity() {}
 
 var _ Entity = WeaponPhysgun{}
-var _ Weapon = WeaponPhysgun{}
 
-func (physgun WeaponPhysgun) CreateProp(world *World, info *UpdateParams) ecs.ID {
-	return world.CreateEntity(info)
-}
+func init() {
+	scripts["weapon_physgun"] = scriptFuncs{
+		WeaponThink: func(
+			world *World,
+			weapon ecs.ID,
+			props []ecs.ID,
+			attacker ecs.ID,
+			T_attack gmath.Affine3f64,
+			v_attack Velocity,
+			buttons WeaponButtons,
+			info *UpdateParams) Recoil {
+			physgun, _ := world.GetEntity[WeaponPhysgun](weapon)
 
-func (physgun WeaponPhysgun) WeaponSubstep(
-	world *World,
-	weapon ecs.ID,
-	propIDs []ecs.ID,
-	shooter ecs.ID,
-	T gmath.Affine3f64,
-	v Velocity,
-	buttons WeaponButtons,
-	info *UpdateParams,
-) Recoil {
-	switch {
-	case !physgun.Holding && buttons&WeaponTrigger != 0:
-		var collector physgunRayQueryPipeline
-		collector.shooter = physics.BodyID(shooter.Index())
-		collector.hit.BodyID = 0xffffffff
+			holdingEntity := world.EntityExists(physgun.HeldEntity)
+			triggerHeld := buttons&WeaponTrigger != 0
 
-		world.physics.TraceRay(
-			physics.Ray{
-				Origin:    T.T,
-				Direction: T.M.Mulv(forward).Normalize(),
-				TMax:      1000,
-			},
-			&collector)
+			switch {
+			case !holdingEntity && triggerHeld:
+				var collector physgunRayQueryPipeline
+				collector.shooter = physics.BodyID(attacker.Index())
+				collector.hit.BodyID = 0xffffffff
 
-		if collector.hit.BodyID != 0xffffffff {
-			physgun.Holding = true
-			physgun.Object = world.Table.IDs().Index(int(collector.hit.BodyID))
-			physgun.Transform = T.Inv().Mul(world.GetGlobalTransform(physgun.Object))
-		}
+				world.physics.TraceRay(
+					physics.Ray{
+						Origin:    T_attack.T,
+						Direction: T_attack.M.Mulv(forward).Normalize(),
+						TMax:      1000,
+					},
+					&collector)
 
-		world.Entity.Set(weapon, physgun)
+				if collector.hit.BodyID != 0xffffffff {
+					world.EnqueueEntityUpdate(weapon,
+						func(world *World, id ecs.ID, _ *UpdateParams) {
+							physgun, _ := world.GetEntity[WeaponPhysgun](weapon)
+							// TODO: precompute all of these
+							physgun.HeldEntity = world.Table.IDs().Index(int(collector.hit.BodyID))
+							physgun.Transform = T_attack.Inv().Mul(world.GetGlobalTransform(physgun.HeldEntity))
+							world.Entity.Set(weapon, physgun)
+						})
+				}
 
-	case physgun.Holding && buttons&WeaponTrigger == 0:
-		physgun.Holding = false
+			case holdingEntity && triggerHeld:
+				// TODO: this doesn't work correctly when we're touching an object
+				// that's parented to something.
+				transform := T_attack.Mul(physgun.Transform)
 
-		world.Entity.Set(weapon, physgun)
+				world.EnqueueEntityUpdate(physgun.HeldEntity,
+					func(world *World, id ecs.ID, _ *UpdateParams) {
+						world.SetTransform(id, transform.TRS())
+						world.Velocity.Set(id, Velocity{})
+					})
 
-	case physgun.Holding:
-		// TODO: this doesn't work correctly when we're touching an object
-		// that's parented to something. We'll want a SetGlobalTransform but
-		// leave a note that it's intended to be debugging only or
-		// something.
-		transform := T.Mul(physgun.Transform)
+			case holdingEntity && !triggerHeld:
+				world.EnqueueEntityUpdate(weapon,
+					func(world *World, weapon ecs.ID, _ *UpdateParams) {
+						physgun, _ := world.GetEntity[WeaponPhysgun](weapon)
+						physgun.HeldEntity = ecs.NullID
+						world.Entity.Set(weapon, physgun)
+					})
+			}
 
-		world.EnqueueEntityUpdate(physgun.Object,
-			func(world *World, id ecs.ID, _ *UpdateParams) {
-				world.SetTransform(id, transform.TRS())
-				world.Velocity.Set(id, Velocity{})
-			})
+			return Recoil{}
+		},
 	}
-
-	return Recoil{}
 }
 
 type physgunRayQueryPipeline struct {
