@@ -63,6 +63,8 @@ func init() {
 			buttons WeaponButtons,
 			info *UpdateParams,
 		) Recoil {
+			io := IO{world, weapon}
+
 			weaponState, _ := world.GetEntity[WeaponGrenadeLauncher](weapon)
 
 			if buttons&WeaponTrigger == 0 {
@@ -74,7 +76,7 @@ func init() {
 			}
 
 			if !info.Speculating {
-				world.EnqueueGlobalUpdate(func(world *World, updateParams *UpdateParams) {
+				io.EnqueueGlobalUpdate(func(world *World, updateParams *UpdateParams) {
 					// TODO: don't use prefab here tbh
 					projectile := world.InstantinatePrefab(grenadeLauncherStats.Projectile, info)
 					// TODO: it would be nice if we could specify this bit without assuming ScriptState type
@@ -104,7 +106,7 @@ func init() {
 				})
 			}
 
-			world.EnqueueEntityUpdate(weapon,
+			io.EnqueueEntityUpdate(weapon,
 				func(world *World, id ecs.ID, updateParams *UpdateParams) {
 					weaponState.CycleEnds = world.Now.Add(grenadeLauncherStats.CycleDuration)
 					world.Entity.Set(weapon, weaponState)
@@ -113,7 +115,7 @@ func init() {
 			// Apply effects to the props; TODO: let's have scripts on the props
 			// instead and let props consult the state.
 			for _, id := range props {
-				world.EnqueueEntityUpdate(id,
+				io.EnqueueEntityUpdate(id,
 					func(world *World, id ecs.ID, updateParams *UpdateParams) {
 						// skelly := world.GetSkeleton(id)
 						// world.Pose.Set(id, animgraph.Pose{

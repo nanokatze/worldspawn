@@ -16,7 +16,9 @@ type distributionFunction func(gmath.Vec2f32) (gmath.Vec3f32, float32)
 // TODO: reformulate resolution in terms of something that doesn't require
 // adjustment along with the radius
 // (https://github.com/nanokatze/worldspawn/issues/152)
-func (world *World) radialImpact(
+func radialImpact(
+	world *World,
+	io *IO,
 	impact Impact,
 	T gmath.Affine3f64, // TODO: move this to be the first parameter?
 	df distributionFunction,
@@ -82,7 +84,7 @@ func (world *World) radialImpact(
 			Attacker: impact.Attacker,
 		}
 
-		world.EnqueueEntityUpdate(entity, impact.Apply)
+		io.EnqueueEntityUpdate(entity, impact.Apply)
 	}
 }
 

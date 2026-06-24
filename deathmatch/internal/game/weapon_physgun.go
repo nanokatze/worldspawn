@@ -26,6 +26,8 @@ func init() {
 			v_attack Velocity,
 			buttons WeaponButtons,
 			info *UpdateParams) Recoil {
+			io := IO{world, weapon}
+
 			physgun, _ := world.GetEntity[WeaponPhysgun](weapon)
 
 			holdingEntity := world.EntityExists(physgun.HeldEntity)
@@ -46,7 +48,7 @@ func init() {
 					&collector)
 
 				if collector.hit.BodyID != 0xffffffff {
-					world.EnqueueEntityUpdate(weapon,
+					io.EnqueueEntityUpdate(weapon,
 						func(world *World, id ecs.ID, _ *UpdateParams) {
 							physgun, _ := world.GetEntity[WeaponPhysgun](weapon)
 							// TODO: precompute all of these
@@ -61,14 +63,14 @@ func init() {
 				// that's parented to something.
 				transform := T_attack.Mul(physgun.Transform)
 
-				world.EnqueueEntityUpdate(physgun.HeldEntity,
+				io.EnqueueEntityUpdate(physgun.HeldEntity,
 					func(world *World, id ecs.ID, _ *UpdateParams) {
 						world.SetTransform(id, transform.TRS())
 						world.Velocity.Set(id, Velocity{})
 					})
 
 			case holdingEntity && !triggerHeld:
-				world.EnqueueEntityUpdate(weapon,
+				io.EnqueueEntityUpdate(weapon,
 					func(world *World, weapon ecs.ID, _ *UpdateParams) {
 						physgun, _ := world.GetEntity[WeaponPhysgun](weapon)
 						physgun.HeldEntity = ecs.NullID

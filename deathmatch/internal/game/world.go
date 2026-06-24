@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/fs"
 	"reflect"
-	"runtime"
 
 	"worldspawn/internal/animgraph"
 	"worldspawn/internal/ecs"
@@ -376,17 +375,6 @@ func (world *World) GetSkeleton(id ecs.ID) *animgraph.Skeleton {
 		return nil
 	}
 	return skeleton(skellyName)
-}
-
-// TODO: kill this in favor of IO
-func (world *World) EnqueueEntityUpdate(to ecs.ID, f func(world *World, id ecs.ID, updateParams *UpdateParams)) {
-	updates, _ := world.Updates.Get(to)
-	world.Updates.Set(to, append(updates, f))
-}
-
-// TODO: kill this in favor of IO
-func (world *World) EnqueueGlobalUpdate(f func(world *World, updateParams *UpdateParams)) {
-	world.globalUpdates = append(world.globalUpdates, f)
 }
 
 func (world *World) think(updateParams *UpdateParams) {

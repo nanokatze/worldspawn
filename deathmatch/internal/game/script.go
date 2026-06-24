@@ -7,22 +7,19 @@ import (
 	"worldspawn/internal/gmath"
 )
 
-/*
 type IO struct {
-	info   *UpdateParams
 	world  *World
-	entity ecs.ID
+	entity ecs.ID // TODO: rename to sender?
 }
 
-func (io *IO) UpdateEntity(to ecs.ID, f func(world *World, entity ecs.ID, info *UpdateParams)) {
+func (io *IO) EnqueueEntityUpdate(to ecs.ID, f func(world *World, entity ecs.ID, info *UpdateParams)) {
 	updates, _ := io.world.Updates.Get(to)
 	io.world.Updates.Set(to, append(updates, f))
 }
 
-func (io *IO) UpdateWorld(f func(world *World, info *UpdateParams)) {
-	world.globalUpdates = append(world.globalUpdates, f)
+func (io *IO) EnqueueGlobalUpdate(f func(world *World, info *UpdateParams)) {
+	io.world.globalUpdates = append(io.world.globalUpdates, f)
 }
-*/
 
 // TODO: replace world and id with some kind of object to enable tighter access
 // control?

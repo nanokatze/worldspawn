@@ -215,6 +215,8 @@ func init() {
 		},
 
 		Think: func(world *World, entity ecs.ID, info *UpdateParams) {
+			io := IO{world, entity}
+
 			// TODO: this is incredibly gross and ugly, FIXME
 			gladiator, _ := world.GetEntity[Gladiator](entity)
 
@@ -297,7 +299,7 @@ func init() {
 
 			velocity, _ := world.Velocity.Get(entity)
 
-			world.EnqueueEntityUpdate(gladiator.FirstPersonHands,
+			io.EnqueueEntityUpdate(gladiator.FirstPersonHands,
 				func(world *World, id ecs.ID, updateParams *UpdateParams) {
 					world.SetTransform(id,
 						gmath.TRS3f64{
@@ -308,7 +310,7 @@ func init() {
 						})
 				})
 
-			world.EnqueueEntityUpdate(gladiator.FirstPersonCamera,
+			io.EnqueueEntityUpdate(gladiator.FirstPersonCamera,
 				func(world *World, id ecs.ID, updateParams *UpdateParams) {
 					world.SetTransform(id,
 						gmath.TRS3f64{

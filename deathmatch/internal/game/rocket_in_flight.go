@@ -22,6 +22,8 @@ func init() {
 		Type: reflect.TypeFor[RocketInFlight](),
 
 		Think: func(world *World, grenade ecs.ID, info *UpdateParams) {
+			io := IO{world, grenade}
+
 			const fuse = 5000 * time.Millisecond
 
 			rocketState, _ := world.GetEntity[RocketInFlight](grenade)
@@ -29,7 +31,9 @@ func init() {
 				return
 			}
 
-			world.radialImpact(
+			radialImpact(
+				world,
+				&io,
 				Impact{
 					Attacker: rocketState.Attacker,
 					Type:     BlastImpactWithFragmentation,
@@ -40,7 +44,7 @@ func init() {
 				3,
 				4*math.Pi/500)
 
-			world.EnqueueEntityUpdate(grenade,
+			io.EnqueueEntityUpdate(grenade,
 				func(world *World, grenade ecs.ID, info *UpdateParams) {
 					T := world.GetTransform(grenade)
 					world.ClearEntity(grenade)
