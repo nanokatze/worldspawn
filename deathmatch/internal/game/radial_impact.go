@@ -24,6 +24,7 @@ func radialImpact(
 	df distributionFunction,
 	radius float32,
 	resolution float32,
+	queryFilters QueryFilters,
 ) {
 	spat := resolution / (4 * math.Pi)
 	nrays := math.Ceil(1.0 / float64(spat))

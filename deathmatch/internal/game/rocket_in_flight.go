@@ -42,7 +42,8 @@ func init() {
 				world.GetGlobalTransform(grenade),
 				sphericalExplosion,
 				3,
-				4*math.Pi/500)
+				4*math.Pi/500,
+				QueryFilters{})
 
 			io.EnqueueEntityUpdate(grenade,
 				func(world *World, grenade ecs.ID, info *UpdateParams) {

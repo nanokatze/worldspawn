@@ -35,24 +35,22 @@ func init() {
 
 			switch {
 			case !holdingEntity && triggerHeld:
-				var collector physgunRayQueryPipeline
-				collector.shooter = physics.BodyID(attacker.Index())
-				collector.hit.BodyID = 0xffffffff
-
-				world.physics.TraceRay(
+				rayHit := world.TraceRay(
 					physics.Ray{
 						Origin:    T_attack.T,
 						Direction: T_attack.M.Mulv(forward).Normalize(),
 						TMax:      1000,
 					},
-					&collector)
+					QueryFilters{
+						Entity: func(entity ecs.ID) bool { return entity != attacker },
+					})
 
-				if collector.hit.BodyID != 0xffffffff {
+				if rayHit.Entity != ecs.NullID {
 					io.EnqueueEntityUpdate(weapon,
 						func(world *World, id ecs.ID, _ *UpdateParams) {
 							physgun, _ := world.GetEntity[WeaponPhysgun](weapon)
 							// TODO: precompute all of these
-							physgun.HeldEntity = world.Table.IDs().Index(int(collector.hit.BodyID))
+							physgun.HeldEntity = rayHit.Entity
 							physgun.Transform = T_attack.Inv().Mul(world.GetGlobalTransform(physgun.HeldEntity))
 							world.Entity.Set(weapon, physgun)
 						})
@@ -81,18 +79,4 @@ func init() {
 			return Recoil{}
 		},
 	}
-}
-
-type physgunRayQueryPipeline struct {
-	shooter physics.BodyID
-	hit     physics.SceneRayHit
-}
-
-func (pipeline *physgunRayQueryPipeline) FilterBody(body physics.BodyID) bool {
-	return body != pipeline.shooter
-}
-
-func (pipeline *physgunRayQueryPipeline) Hit(hit physics.SceneRayHit) physics.QueryPipelineControl {
-	pipeline.hit = hit
-	return physics.AcceptHit
 }
