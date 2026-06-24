@@ -7,18 +7,31 @@ import (
 	"worldspawn/internal/gmath"
 )
 
+// TODO: go back to sort of the previous thing we had, where we'd use types to
+// identify scripts. If we allow loading scripts at runtime we'd just let stuff
+// register its own types I guess.
+
+// TODO: rename this
+// TODO: we can factor it out now (along with UpdateParams)
+// TODO: to allow for parallel enqueue we'll need mutexes too
 type IO struct {
-	world  *World
+	// TODO: IO doesn't need World, we should replace this with a collection of
+	// buffers to enqueue the update funcs into
+	// world   *World
+	updates       ecs.Column[[]func(world *World, entity ecs.ID, info *UpdateParams)]
+	globalUpdates *[]func(world *World, info *UpdateParams)
+
 	entity ecs.ID // TODO: rename to sender?
 }
 
+// TODO: shorter names
 func (io *IO) EnqueueEntityUpdate(to ecs.ID, f func(world *World, entity ecs.ID, info *UpdateParams)) {
-	updates, _ := io.world.Updates.Get(to)
-	io.world.Updates.Set(to, append(updates, f))
+	updates, _ := io.updates.Get(to)
+	io.updates.Set(to, append(updates, f))
 }
 
 func (io *IO) EnqueueGlobalUpdate(f func(world *World, info *UpdateParams)) {
-	io.world.globalUpdates = append(io.world.globalUpdates, f)
+	*io.globalUpdates = append(*io.globalUpdates, f)
 }
 
 // TODO: replace world and id with some kind of object to enable tighter access

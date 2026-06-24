@@ -28,7 +28,7 @@ func init() {
 		Type: reflect.TypeFor[GrenadeInFlight](),
 
 		Think: func(world *World, grenade ecs.ID, info *UpdateParams) {
-			io := IO{world, grenade}
+			io := IO{world.Updates, &world.globalUpdates, grenade}
 
 			const fuse = 1400 * time.Millisecond
 

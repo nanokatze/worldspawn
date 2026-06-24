@@ -63,7 +63,7 @@ func init() {
 			buttons WeaponButtons,
 			info *UpdateParams,
 		) Recoil {
-			io := IO{world, weapon}
+			io := IO{world.Updates, &world.globalUpdates, weapon}
 
 			weaponState, _ := world.GetEntity[WeaponGrenadeLauncher](weapon)
 

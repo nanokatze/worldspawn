@@ -26,7 +26,7 @@ func init() {
 			v_attack Velocity,
 			buttons WeaponButtons,
 			info *UpdateParams) Recoil {
-			io := IO{world, weapon}
+			io := IO{world.Updates, &world.globalUpdates, weapon}
 
 			physgun, _ := world.GetEntity[WeaponPhysgun](weapon)
 

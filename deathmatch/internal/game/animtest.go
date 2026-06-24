@@ -19,7 +19,7 @@ func init() {
 		Type: reflect.TypeFor[Animtest](),
 
 		Think: func(world *World, entity ecs.ID, info *UpdateParams) {
-			io := IO{world, entity}
+			io := IO{world.Updates, &world.globalUpdates, entity}
 
 			io.EnqueueEntityUpdate(entity,
 				func(world *World, entity ecs.ID, info *UpdateParams) {

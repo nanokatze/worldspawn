@@ -215,7 +215,9 @@ func init() {
 		},
 
 		Think: func(world *World, entity ecs.ID, info *UpdateParams) {
-			io := IO{world, entity}
+			// TODO: sort this out pls and make it obey Think rules, i.e. put all mutations into lambdas.
+
+			io := IO{world.Updates, &world.globalUpdates, entity}
 
 			// TODO: this is incredibly gross and ugly, FIXME
 			gladiator, _ := world.GetEntity[Gladiator](entity)
