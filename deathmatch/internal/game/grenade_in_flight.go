@@ -24,9 +24,7 @@ type GrenadeInFlight struct {
 func (GrenadeInFlight) entity() {}
 
 func init() {
-	scripts["grenade_in_flight"] = script{
-		Type: reflect.TypeFor[GrenadeInFlight](),
-
+	scripts[reflect.TypeFor[GrenadeInFlight]()] = script{
 		Think: func(world *World, grenade ecs.ID, info *UpdateParams) {
 			io := IO{world.Updates, &world.globalUpdates, grenade}
 
@@ -55,7 +53,7 @@ func init() {
 				func(world *World, grenade ecs.ID, info *UpdateParams) {
 					T := world.GetTransform(grenade)
 					world.ClearEntity(grenade)
-					world.SetScript(grenade, "delete_after")
+					world.Entity.Set(grenade, DeleteAfter{})
 					world.NextThink.Set(grenade, world.Now.Add(2*time.Second))
 					world.SetTransform(grenade, T)
 					world.SoundEffect.Set(grenade, SoundEmitter{

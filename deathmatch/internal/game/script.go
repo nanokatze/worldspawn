@@ -40,8 +40,6 @@ func (io *IO) EnqueueGlobalUpdate(f func(world *World, info *UpdateParams)) {
 // we could straightforwardly doublebuffer things.
 // TODO: rename to just script
 type script struct {
-	Type reflect.Type
-
 	Funcs map[string]any
 
 	// TODO: handle the state as well so that the functions don't have to poke
@@ -98,19 +96,10 @@ type script struct {
 		info *UpdateParams) Recoil
 }
 
-var scripts = map[string]script{}
-
-// TODO: we also need a way to SetScript and immediately initialize the state in
-// a convenient manner.
-func (world *World) SetScript(entity ecs.ID, filename string) {
-	world.Script.Set(entity, filename)
-	if scripts[filename].Type != nil {
-		world.Entity.Set(entity, reflect.Zero(scripts[filename].Type).Interface().(Entity))
-	}
-}
+var scripts = map[reflect.Type]script{}
 
 // TODO: return a pointer instead of struct as is?
 func (world *World) GetScriptFuncs(entity ecs.ID) script {
-	filename, _ := world.Script.Get(entity)
-	return scripts[filename]
+	typ, _ := world.Entity.Get(entity)
+	return scripts[reflect.TypeOf(typ)]
 }

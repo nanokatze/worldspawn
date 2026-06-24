@@ -114,9 +114,6 @@ func (dst *Columns) CopyEntities(id ecs.ID, src *Columns) {
 	if v, ok := src.Entity.Get(1); ok {
 		dst.Entity.Set(id, v)
 	}
-	if v, ok := src.Script.Get(1); ok {
-		dst.Script.Set(id, v)
-	}
 	if v, ok := src.TransformTR.Get(1); ok {
 		dst.TransformTR.Set(id, v)
 	}

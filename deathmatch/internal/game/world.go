@@ -80,14 +80,10 @@ type Columns struct {
 
 	// Entity programmability
 
-	NextThink ecs.Column[Time]
-
-	Script ecs.Column[string]
-
-	// TODO: rename to CustomState. Or Attributes. Or CustomAttributes. We also
-	// need to think a bit harder about how to represent this, a single any
-	// doesn't seem like enough.
+	// TODO: rename this pls
 	Entity ecs.Column[Entity]
+
+	NextThink ecs.Column[Time]
 
 	// TODO: this doesn't really need to be a column, this could perfectly
 	// feasibly be a plain array with a bitmap.
@@ -386,8 +382,8 @@ func (world *World) think(updateParams *UpdateParams) {
 
 	// Run thinkers
 
-	for id, scriptName := range ecs.All(&world.Script) {
-		script := scripts[scriptName]
+	for id, scriptName := range ecs.All(&world.Entity) {
+		script := scripts[reflect.TypeOf(scriptName)]
 		if script.Think == nil {
 			continue
 		}

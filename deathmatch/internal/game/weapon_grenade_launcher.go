@@ -2,6 +2,7 @@ package game
 
 import (
 	"math"
+	"reflect"
 	"time"
 
 	"worldspawn/internal/ecs"
@@ -32,7 +33,7 @@ type WeaponGrenadeLauncher struct {
 func (WeaponGrenadeLauncher) entity() {}
 
 func init() {
-	scripts["weapon_grenade_launcher"] = script{
+	scripts[reflect.TypeFor[WeaponGrenadeLauncher]()] = script{
 		WeaponHint: func(world *World, entity ecs.ID) WeaponHint {
 			return WeaponHint{
 				FirstPersonPropTRS: gmath.TRS3f64{

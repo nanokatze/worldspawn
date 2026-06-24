@@ -84,9 +84,7 @@ type Gladiator struct {
 func (Gladiator) entity() {}
 
 func init() {
-	scripts["gladiator"] = script{
-		Type: reflect.TypeFor[Gladiator](),
-
+	scripts[reflect.TypeFor[Gladiator]()] = script{
 		Input: func(world *World, id ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
 			gladiator, _ := world.GetEntity[Gladiator](id)
 			defer func() { world.Entity.Set(id, gladiator) }()
@@ -426,7 +424,6 @@ func (world *World) spawnGladiator(T gmath.TRS3f64, info *UpdateParams) ecs.ID {
 	world.VisibilityCondition.Set(hands, VisibilityCondition{Mask: 0b01, Camera: camera})
 	world.RenderingGeometry.Set(hands, "testcharacter4/geometries/Hands")
 
-	world.SetScript(gladiator, "gladiator")
 	s := Gladiator{
 		FirstPersonCamera: camera,
 		FirstPersonHands:  hands,
@@ -446,14 +443,14 @@ func (world *World) spawnGladiator(T gmath.TRS3f64, info *UpdateParams) ecs.ID {
 
 	{
 		weapon := world.CreateEntity(info)
-		world.SetScript(weapon, "weapon_grenade_launcher")
+		world.Entity.Set(weapon, WeaponGrenadeLauncher{})
 
 		world.GiveWeapon(gladiator, weapon)
 	}
 
 	{
 		weapon := world.CreateEntity(info)
-		world.SetScript(weapon, "weapon_physgun")
+		world.Entity.Set(weapon, WeaponPhysgun{})
 
 		world.GiveWeapon(gladiator, weapon)
 	}

@@ -15,9 +15,7 @@ type Animtest struct {
 func (Animtest) entity() {}
 
 func init() {
-	scripts["animtest"] = script{
-		Type: reflect.TypeFor[Animtest](),
-
+	scripts[reflect.TypeFor[Animtest]()] = script{
 		Think: func(world *World, entity ecs.ID, info *UpdateParams) {
 			io := IO{world.Updates, &world.globalUpdates, entity}
 

@@ -18,9 +18,7 @@ type RocketInFlight struct {
 func (RocketInFlight) entity() {}
 
 func init() {
-	scripts["rocket_in_flight"] = script{
-		Type: reflect.TypeFor[RocketInFlight](),
-
+	scripts[reflect.TypeFor[RocketInFlight]()] = script{
 		Think: func(world *World, grenade ecs.ID, info *UpdateParams) {
 			io := IO{world.Updates, &world.globalUpdates, grenade}
 
@@ -49,7 +47,7 @@ func init() {
 				func(world *World, grenade ecs.ID, info *UpdateParams) {
 					T := world.GetTransform(grenade)
 					world.ClearEntity(grenade)
-					world.SetScript(grenade, "delete_after")
+					world.Entity.Set(grenade, DeleteAfter{})
 					world.NextThink.Set(grenade, world.Now.Add(2*time.Second)) // TODO: should be long enough for sound to play
 					world.SetTransform(grenade, T)
 					world.SoundEffect.Set(grenade, SoundEmitter{

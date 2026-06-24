@@ -1,6 +1,8 @@
 package game
 
 import (
+	"reflect"
+
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/gmath"
 	"worldspawn/internal/physics"
@@ -16,7 +18,7 @@ func (WeaponPhysgun) entity() {}
 var _ Entity = WeaponPhysgun{}
 
 func init() {
-	scripts["weapon_physgun"] = script{
+	scripts[reflect.TypeFor[WeaponPhysgun]()] = script{
 		WeaponThink: func(
 			world *World,
 			weapon ecs.ID,
