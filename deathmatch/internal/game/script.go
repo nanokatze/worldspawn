@@ -94,6 +94,9 @@ type script struct {
 		v_attack Velocity,
 		buttons WeaponButtons,
 		info *UpdateParams) Recoil
+
+	// TODO: we might want to specify ammo type or at least mask?
+	Magazine_Pull func(world *World, entity ecs.ID, info *UpdateParams) bool
 }
 
 var scripts = map[reflect.Type]script{}

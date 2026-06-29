@@ -27,6 +27,8 @@ var grenadeLauncherStats = struct {
 
 // TODO: remove the "Weapon" prefix?
 type WeaponGrenadeLauncher struct {
+	// TODO: make things more interesting
+	Chambered bool
 	CycleEnds Time
 }
 
@@ -68,18 +70,36 @@ func init() {
 
 			weaponState, _ := world.GetEntity[WeaponGrenadeLauncher](weapon)
 
-			if buttons&WeaponTrigger == 0 {
-				return Recoil{}
-			}
-
 			if weaponState.CycleEnds.After(world.Now) {
 				return Recoil{}
 			}
 
+			if !weaponState.Chambered {
+				magazine := attacker
+
+				io.EnqueueEntityUpdate(magazine, func(world *World, mag ecs.ID, info *UpdateParams) {
+					io := IO{world.Updates, &world.globalUpdates, weapon}
+
+					if world.GetScriptFuncs(mag).Magazine_Pull(world, mag, info) {
+						io.EnqueueEntityUpdate(weapon,
+							func(world *World, weapon ecs.ID, info *UpdateParams) {
+								weaponState, _ := world.GetEntity[WeaponGrenadeLauncher](weapon)
+								weaponState.Chambered = true
+								world.Entity.Set(weapon, weaponState)
+							})
+					}
+				})
+				return Recoil{}
+			}
+
+			if buttons&WeaponTrigger == 0 {
+				return Recoil{}
+			}
+
 			if !info.Speculating {
-				io.EnqueueGlobalUpdate(func(world *World, updateParams *UpdateParams) {
+				io.EnqueueGlobalUpdate(func(world *World, info *UpdateParams) {
 					// TODO: don't use prefab here tbh
-					projectile := world.InstantinatePrefab(grenadeLauncherStats.Projectile, info)
+					projectile := world.CreateEntity(info)
 					// TODO: it would be nice if we could specify this bit without assuming ScriptState type
 					world.Entity.Set(projectile, GrenadeInFlight{
 						LaunchedAt: world.Now,
@@ -94,7 +114,7 @@ func init() {
 							TRS())
 					world.Velocity.Set(projectile,
 						Velocity{
-							Linear: v_attack.Linear.Add(T_attack.M.Mulv(gmath.Vec3f32{0, grenadeLauncherStats.MuzzleVelocity, 0})),
+							Linear: v_attack.Linear.Add(T_attack.M.Mulv(forward.Scale(grenadeLauncherStats.MuzzleVelocity))),
 						})
 					world.CollisionLayer.Set(projectile, CollisionLayerProjectiles)
 					world.CosmeticOffset.Set(projectile,
@@ -104,14 +124,11 @@ func init() {
 							// Ugh. TODO: think how we could make this not as gross.
 							Offset: T_attack.M.Mulv(gmath.Vec3f32{0.18, 0, -0.2}),
 						})
+					world.CollisionGeometry.Set(projectile, "Grenade") // TODO: we should model grenade prop to be something that's kinda 8-gon so that it stops rolling sooner
+					world.PhysicsMassOverride.Set(projectile, 0.1)
+					world.RenderingGeometry.Set(projectile, "weapons/grenade_launcher_grenade/geometries/Grenade")
 				})
 			}
-
-			io.EnqueueEntityUpdate(weapon,
-				func(world *World, id ecs.ID, updateParams *UpdateParams) {
-					weaponState.CycleEnds = world.Now.Add(grenadeLauncherStats.CycleDuration)
-					world.Entity.Set(weapon, weaponState)
-				})
 
 			// Apply effects to the props; TODO: let's have scripts on the props
 			// instead and let props consult the state.
@@ -136,6 +153,14 @@ func init() {
 						})
 					})
 			}
+
+			io.EnqueueEntityUpdate(weapon,
+				func(world *World, weapon ecs.ID, updateParams *UpdateParams) {
+					weaponState, _ := world.GetEntity[WeaponGrenadeLauncher](weapon)
+					weaponState.Chambered = false
+					weaponState.CycleEnds = world.Now.Add(grenadeLauncherStats.CycleDuration)
+					world.Entity.Set(weapon, weaponState)
+				})
 
 			// TODO: eschew rnd?
 			rnd := Rand(world.Now, weapon, T_attack)

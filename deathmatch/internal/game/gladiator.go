@@ -80,6 +80,8 @@ type Gladiator struct {
 	// TODO: put it into a proper struct
 	Inventory struct {
 		Slots [4]ecs.ID
+
+		Ammo [10]int8
 	}
 }
 
@@ -420,6 +422,16 @@ func init() {
 			gladiator.Vitals.NextBleed = world.Now
 			world.Entity.Set(id, gladiator)
 		},
+
+		Magazine_Pull: func(world *World, entity ecs.ID, info *UpdateParams) bool {
+			state, _ := world.GetEntity[Gladiator](entity)
+			if state.Inventory.Ammo[0] > 0 {
+				state.Inventory.Ammo[0]--
+				world.Entity.Set(entity, state)
+				return true
+			}
+			return false
+		},
 	}
 }
 
@@ -443,6 +455,7 @@ func (world *World) spawnGladiator(T gmath.TRS3f64, info *UpdateParams) ecs.ID {
 		FirstPersonHands:  hands,
 	}
 	s.Vitals.Health = 100
+	s.Inventory.Ammo[0] = 10
 	world.Entity.Set(gladiator, s)
 	world.SetTransform(gladiator, T)
 	world.Skeleton.Set(gladiator, "testcharacter4/skeletons/metarig")
