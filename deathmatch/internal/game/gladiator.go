@@ -6,7 +6,6 @@ import (
 	"slices"
 	"time"
 
-	"worldspawn/internal/animgraph"
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/gmath"
 	"worldspawn/internal/physics"
@@ -59,9 +58,12 @@ type Gladiator struct {
 		NextBleed Time
 	}
 
-	Steps float64
+	// TODO: factor out movement into its own struct? Yeah
+	Motion struct {
+		Steps float64
 
-	Supported bool
+		Supported bool
+	}
 
 	// FirstPersonCamera is always a descendant of the Character,
 	FirstPersonCamera ecs.ID
@@ -75,10 +77,10 @@ type Gladiator struct {
 	// The third person prop is always a descendant of Character.
 	ThirdPersonWeaponProp ecs.ID
 
-	Slots [4]ecs.ID
-
-	// TODO: make Inventory more abstract. What we really wanna do is just try
-	// to put items in there and take items in there.
+	// TODO: put it into a proper struct
+	Inventory struct {
+		Slots [4]ecs.ID
+	}
 }
 
 func (Gladiator) entity() {}
@@ -105,11 +107,11 @@ func init() {
 			case InputCmdReleaseButton:
 				gladiator.Input.HeldButtons &^= uint64(1) << cmd
 			case Slot:
-				if !(0 <= int(cmd) && int(cmd) < len(gladiator.Slots)) {
+				if !(0 <= int(cmd) && int(cmd) < len(gladiator.Inventory.Slots)) {
 					break
 				}
 
-				switchToWeapon = gladiator.Slots[cmd]
+				switchToWeapon = gladiator.Inventory.Slots[cmd]
 
 			default:
 				// TODO: we should not hit this with nil either
@@ -119,7 +121,7 @@ func init() {
 			}
 
 			if !world.EntityExists(gladiator.Weapon) && switchToWeapon == 0 {
-				for _, slot := range gladiator.Slots {
+				for _, slot := range gladiator.Inventory.Slots {
 					if slot != 0 {
 						switchToWeapon = slot
 						break
@@ -217,7 +219,6 @@ func init() {
 
 			io := IO{world.Updates, &world.globalUpdates, entity}
 
-			// TODO: this is incredibly gross and ugly, FIXME
 			gladiator, _ := world.GetEntity[Gladiator](entity)
 
 			var recoil Recoil
@@ -248,71 +249,80 @@ func init() {
 			gladiator.Input.LookDir[1] += recoil.Recoil[1]
 
 			// EXTREMELY YUCKY!!!!!!!!!!!!
-			{
-				skelly := world.GetSkeleton(entity)
+			/*
+				{
+					// TODO: interpolate between two poses instead
 
-				localTransforms := map[int]gmath.Affine3f32{}
-				localTransforms[skelly.JointByName("spine")] =
-					skelly.BindPoseInverse[skelly.JointByName("spine")].
-						Mul(gmath.TRS3f32{
-							R: gmath.Rot3AToB(gmath.Vec3f32{1, 0, 0}, gmath.Vec3f32{0, 1, 0}).
-								Pow(4 * gladiator.Input.LookDir[0]),
+					skelly := world.GetSkeleton(entity)
+
+					localTransforms := map[int]gmath.Affine3f32{}
+					localTransforms[skelly.JointByName("spine")] =
+						skelly.BindPoseInverse[skelly.JointByName("spine")].
+							Mul(gmath.TRS3f32{
+								R: gmath.Rot3AToB(gmath.Vec3f32{1, 0, 0}, gmath.Vec3f32{0, 1, 0}).
+									Pow(4 * gladiator.Input.LookDir[0]),
+								S: gmath.Mat3x3UOne[float32](),
+							}.Compose()).
+							Mul(skelly.BindPose[skelly.JointByName("spine")])
+					localTransforms[skelly.JointByName("spine.001")] =
+						gmath.TRS3f32{
+							R: gmath.Rot3AToB(gmath.Vec3f32{0, 0, 1}, gmath.Vec3f32{0, 1, 0}).
+								Pow(4 * gladiator.Input.LookDir[1]),
 							S: gmath.Mat3x3UOne[float32](),
-						}.Compose()).
-						Mul(skelly.BindPose[skelly.JointByName("spine")])
-				localTransforms[skelly.JointByName("spine.001")] =
-					gmath.TRS3f32{
-						R: gmath.Rot3AToB(gmath.Vec3f32{0, 0, 1}, gmath.Vec3f32{0, 1, 0}).
-							Pow(4 * gladiator.Input.LookDir[1]),
-						S: gmath.Mat3x3UOne[float32](),
-					}.Compose()
+						}.Compose()
 
-				pose := animgraph.Pose{
-					Bones: map[int]gmath.Affine3f32{},
-				}
-
-				// TODO: flooding would be more efficient
-				for bone := range skelly.JointNames {
-					A := gmath.Affine3One[float32]()
-
-					tmp := bone
-					for {
-						B, ok := localTransforms[tmp]
-						if !ok {
-							B = gmath.Affine3One[float32]()
-						}
-
-						A = skelly.ParentRelative[tmp].Mul(B).Mul(A)
-
-						parent := skelly.Parent[tmp]
-						if parent == -1 {
-							break
-						}
-						tmp = parent
+					pose := animgraph.Pose{
+						Bones: map[int]gmath.Affine3f32{},
 					}
 
-					pose.Bones[bone] = A.Mul(skelly.BindPoseInverse[bone])
-				}
+					// TODO: flooding would be more efficient
+					for bone := range skelly.JointNames {
+						A := gmath.Affine3One[float32]()
 
-				world.Pose.Set(entity, pose)
+						tmp := bone
+						for {
+							B, ok := localTransforms[tmp]
+							if !ok {
+								B = gmath.Affine3One[float32]()
+							}
+
+							A = skelly.ParentRelative[tmp].Mul(B).Mul(A)
+
+							parent := skelly.Parent[tmp]
+							if parent == -1 {
+								break
+							}
+							tmp = parent
+						}
+
+						pose.Bones[bone] = A.Mul(skelly.BindPoseInverse[bone])
+					}
+
+					io.EnqueueEntityUpdate(entity, func(world *World, entity ecs.ID, info *UpdateParams) {
+						world.Pose.Set(entity, pose)
+					})
+				}
+			*/
+
+			// TODO: redo sway animation
+			{
+				velocity, _ := world.Velocity.Get(entity)
+
+				io.EnqueueEntityUpdate(gladiator.FirstPersonHands,
+					func(world *World, hands ecs.ID, updateParams *UpdateParams) {
+						world.SetTransform(hands,
+							gmath.TRS3f64{
+								T: gmath.Vec3f64{0, 1, 0}.
+									Scale(math.Sin(float64(world.Now.Sub(Time{}))/1e9*6) * 0.03 * min(float64(velocity.Linear.Length()/6), 1)),
+								R: gmath.Rot3One(),
+								S: gmath.Mat3x3UOne[float32](),
+							})
+					})
 			}
 
-			velocity, _ := world.Velocity.Get(entity)
-
-			io.EnqueueEntityUpdate(gladiator.FirstPersonHands,
-				func(world *World, id ecs.ID, updateParams *UpdateParams) {
-					world.SetTransform(id,
-						gmath.TRS3f64{
-							T: gmath.Vec3f64{0, 1, 0}.
-								Scale(math.Sin(float64(world.Now.Sub(Time{}))/1e9*6) * 0.03 * min(float64(velocity.Linear.Length()/6), 1)),
-							R: gmath.Rot3One(),
-							S: gmath.Mat3x3UOne[float32](),
-						})
-				})
-
 			io.EnqueueEntityUpdate(gladiator.FirstPersonCamera,
-				func(world *World, id ecs.ID, updateParams *UpdateParams) {
-					world.SetTransform(id,
+				func(world *World, camera ecs.ID, updateParams *UpdateParams) {
+					world.SetTransform(camera,
 						gmath.TRS3f64{
 							T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
 							R: e01.Pow(4 * gladiator.Input.LookDir[0]).Mul(e12.Pow(4 * gladiator.Input.LookDir[1])),
@@ -320,71 +330,75 @@ func init() {
 						})
 				})
 
-			trs := world.GetTransform(entity)
+			io.EnqueueEntityUpdate(entity,
+				func(world *World, entity ecs.ID, info *UpdateParams) {
+					defer func() { world.Entity.Set(entity, gladiator) }()
 
-			rotation := trs.R.Mul(e01.Pow(4 * gladiator.Input.LookDir[0]))
+					velocity, _ := world.Velocity.Get(entity)
 
-			move := gladiator.Input.WalkVel
-			if lengthSqr := move.Dot(move); lengthSqr > 1 {
-				move = move.Scale(1 / float32(math.Sqrt(float64(lengthSqr))))
-			}
+					trs := world.GetTransform(entity)
 
-			localVel := rotation.Inverse().Rotate(velocity.Linear)
-			if gladiator.Supported {
-				localVel[0] = move[0] * gladiatorStats.WalkSpeed
-				localVel[1] = move[1] * gladiatorStats.WalkSpeed
-				if gladiator.Input.HeldButtons&(1<<ButtonJump) != 0 {
-					localVel[2] = 4
-				}
-			}
-			velocity.Linear = rotation.Rotate(localVel)
+					rotation := trs.R.Mul(e01.Pow(4 * gladiator.Input.LookDir[0]))
 
-			if !gladiator.Supported {
-				velocity.Linear = velocity.Linear.Add(world.Globals().Gravity.Scale(float32(durationToFloatSeconds(info.Δt))))
-			}
+					move := gladiator.Input.WalkVel
+					if lengthSqr := move.Dot(move); lengthSqr > 1 {
+						move = move.Scale(1 / float32(math.Sqrt(float64(lengthSqr))))
+					}
 
-			velocity.Linear = gladiator.asdasd(world, entity, velocity.Linear, info.Δt)
+					v_local := rotation.Inverse().Rotate(velocity.Linear)
+					if gladiator.Motion.Supported {
+						v_local[0] = move[0] * gladiatorStats.WalkSpeed
+						v_local[1] = move[1] * gladiatorStats.WalkSpeed
+						if gladiator.Input.HeldButtons&(1<<ButtonJump) != 0 {
+							v_local[2] = 4
+						}
+					}
+					velocity.Linear = rotation.Rotate(v_local)
+					if !gladiator.Motion.Supported {
+						velocity.Linear = velocity.Linear.Add(world.Globals().Gravity.Scale(float32(durationToFloatSeconds(info.Δt))))
+					}
+					velocity.Linear = gladiator.asdasd(world, entity, velocity.Linear, info.Δt)
 
-			if gladiator.Supported {
-				gladiator.Steps += float64(velocity.Linear.Length()) * durationToFloatSeconds(info.Δt)
-			}
-			if gladiator.Steps > 3 {
-				world.SoundEffect.Set(entity, SoundEmitter{
-					Effect:      "step.wav",
-					Attenuation: 1,
-					PlayTime:    world.Now,
+					if gladiator.Motion.Supported {
+						gladiator.Motion.Steps += float64(velocity.Linear.Length()) * durationToFloatSeconds(info.Δt)
+					}
+					if gladiator.Motion.Steps > 3 {
+						world.SoundEffect.Set(entity, SoundEmitter{
+							Effect:      "step.wav",
+							Attenuation: 1,
+							PlayTime:    world.Now,
+						})
+						gladiator.Motion.Steps = 0
+					}
+
+					for gladiator.Vitals.HealthToBleed > 0 && !gladiator.Vitals.NextBleed.After(world.Now) {
+						const bleedSpeedFactor = 0.1
+						const minBleedSpeed = 1.0
+
+						gladiator.Vitals.Health--
+						gladiator.Vitals.HealthToBleed--
+						gladiator.Vitals.NextBleed = gladiator.Vitals.NextBleed.
+							Add(time.Duration(1e9 / max(float64(gladiator.Vitals.HealthToBleed)*bleedSpeedFactor, minBleedSpeed)))
+					}
+
+					// TODO: we should probably enqueue the death so that it happens
+					// after all impacts. That way we can see how far we are below 0
+					// and therefore decide whether we want to spawn gibs or just
+					// drop a ragdoll.
+					if gladiator.Vitals.Health <= 0 {
+						info.Logger.Info("killing myself!!!", "id", entity)
+
+						// TODO: spawn ragdoll or gibs
+
+						// TODO: bump the death counter and also attribute kill and/or assist to
+						// other players. We'll need to keep a damage log for that (even if
+						// limited)
+
+						world.Delete.Set(entity, struct{}{})
+					}
+
+					world.Velocity.Set(entity, velocity)
 				})
-				gladiator.Steps = 0
-			}
-
-			for gladiator.Vitals.HealthToBleed > 0 && !gladiator.Vitals.NextBleed.After(world.Now) {
-				const bleedSpeedFactor = 0.1
-				const minBleedSpeed = 1.0
-
-				gladiator.Vitals.Health--
-				gladiator.Vitals.HealthToBleed--
-				gladiator.Vitals.NextBleed = gladiator.Vitals.NextBleed.
-					Add(time.Duration(1e9 / max(float64(gladiator.Vitals.HealthToBleed)*bleedSpeedFactor, minBleedSpeed)))
-			}
-
-			// TODO: we should probably enqueue the death so that it happens
-			// after all impacts. That way we can see how far we are below 0
-			// and therefore decide whether we want to spawn gibs or just
-			// drop a ragdoll.
-			if gladiator.Vitals.Health <= 0 {
-				info.Logger.Info("killing myself!!!", "id", entity)
-
-				// TODO: spawn ragdoll or gibs
-
-				// TODO: bump the death counter and also attribute kill and/or assist to
-				// other players. We'll need to keep a damage log for that (even if
-				// limited)
-
-				world.Delete.Set(entity, struct{}{})
-			}
-
-			world.Entity.Set(entity, gladiator)
-			world.Velocity.Set(entity, velocity)
 		},
 
 		Impact: func(world *World, id ecs.ID, impact Impact, info *UpdateParams) {
@@ -496,9 +510,9 @@ func (gladiator *Gladiator) asdasd(world *World, id ecs.ID, velocity gmath.Vec3f
 
 	var planes []gmath.Vec4f32
 
-	wasSupported := gladiator.Supported
+	wasSupported := gladiator.Motion.Supported
 
-	gladiator.Supported = false
+	gladiator.Motion.Supported = false
 
 	contactBuffer := gladiatorMovementQueryPipeline{
 		player: physics.BodyID(id.Index()),
@@ -531,9 +545,9 @@ func (gladiator *Gladiator) asdasd(world *World, id ecs.ID, velocity gmath.Vec3f
 			}
 		} else {
 			if !wasSupported {
-				gladiator.Steps = 3
+				gladiator.Motion.Steps = 3
 			}
-			gladiator.Supported = true
+			gladiator.Motion.Supported = true
 		}
 		planes = append(planes, gmath.Vec4f32{
 			normal[0],
@@ -567,11 +581,11 @@ func (gladiator *Gladiator) asdasd(world *World, id ecs.ID, velocity gmath.Vec3f
 	return velocity
 }
 
-// TODO: delete this and handle it entirely in the character's code
+// TODO: delete this
 func (world *World) GiveWeapon(id ecs.ID, weapon ecs.ID) {
 	char := mustOk(world.GetEntity[Gladiator](id))
-	freeSlot := slices.Index(char.Slots[:], 0)
-	char.Slots[freeSlot] = weapon
+	freeSlot := slices.Index(char.Inventory.Slots[:], 0)
+	char.Inventory.Slots[freeSlot] = weapon
 	world.Entity.Set(id, char)
 
 	world.SetParent(weapon, id)
