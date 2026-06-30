@@ -245,11 +245,6 @@ func init() {
 				recoil = world.GetScriptFuncs(gladiator.Weapon).Weapon_Think(world, gladiator.Weapon, []ecs.ID{gladiator.FirstPersonWeaponProp}, entity, T_attack, v_attack, buttons, info)
 			}
 
-			// TODO: apply some part of the recoil as viewpunch?
-			// TODO: make sure we don't overflow LookDir
-			gladiator.Input.LookDir[0] += recoil.Recoil[0]
-			gladiator.Input.LookDir[1] += recoil.Recoil[1]
-
 			// EXTREMELY YUCKY!!!!!!!!!!!!
 			/*
 				{
@@ -334,7 +329,13 @@ func init() {
 
 			io.EnqueueEntityUpdate(entity,
 				func(world *World, entity ecs.ID, info *UpdateParams) {
+					gladiator, _ := world.GetEntity[Gladiator](entity)
 					defer func() { world.Entity.Set(entity, gladiator) }()
+
+					// TODO: apply some part of the recoil as viewpunch?
+					// TODO: make sure we don't overflow LookDir
+					gladiator.Input.LookDir[0] += recoil.Recoil[0]
+					gladiator.Input.LookDir[1] += recoil.Recoil[1]
 
 					velocity, _ := world.Velocity.Get(entity)
 
