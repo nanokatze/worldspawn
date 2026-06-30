@@ -423,10 +423,10 @@ func init() {
 			world.Entity.Set(id, gladiator)
 		},
 
-		Magazine_Pull: func(world *World, entity ecs.ID, info *UpdateParams) bool {
+		Magazine_Pull: func(world *World, entity ecs.ID, ammoType AmmoType, info *UpdateParams) bool {
 			state, _ := world.GetEntity[Gladiator](entity)
-			if state.Inventory.Ammo[0] > 0 {
-				state.Inventory.Ammo[0]--
+			if state.Inventory.Ammo[ammoType] > 0 {
+				state.Inventory.Ammo[ammoType]--
 				world.Entity.Set(entity, state)
 				return true
 			}

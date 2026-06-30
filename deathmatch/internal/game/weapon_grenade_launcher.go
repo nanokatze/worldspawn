@@ -75,12 +75,10 @@ func init() {
 			}
 
 			if !weaponState.Chambered {
-				magazine := attacker
-
-				io.EnqueueEntityUpdate(magazine, func(world *World, mag ecs.ID, info *UpdateParams) {
+				io.EnqueueEntityUpdate(attacker, func(world *World, mag ecs.ID, info *UpdateParams) {
 					io := IO{world.Updates, &world.globalUpdates, weapon}
 
-					if world.GetScriptFuncs(mag).Magazine_Pull(world, mag, info) {
+					if world.GetScriptFuncs(mag).Magazine_Pull(world, mag, 0, info) {
 						io.EnqueueEntityUpdate(weapon,
 							func(world *World, weapon ecs.ID, info *UpdateParams) {
 								weaponState, _ := world.GetEntity[WeaponGrenadeLauncher](weapon)
