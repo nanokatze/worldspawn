@@ -534,7 +534,6 @@ func main() {
 
 	if true {
 		test := s.world.CreateEntity(info)
-		s.world.SetScript(test, "animtest")
 		s.world.Entity.Set(test, game.Animtest{"testcharacter4/animations/metarigAction"})
 		s.world.SetTransform(test, gmath.TRS3f64{
 			T: gmath.Vec3f64{0, -1, 0},
