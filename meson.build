@@ -17,13 +17,10 @@ cpp = find_program('cpp')
 go = find_program('go')
 go_env = environment()
 go_env.append('CC', cc.cmd_array()[0])
-go_env.append('GOEXPERIMENT', 'rangefunc')
 
 # Always use SDL from the environment
 
 math_dep = cc.find_library('m', required : false)
-
-vulkan_headers_dep = dependency('Vulkan-Headers')
 
 go_src_dir = meson.current_source_dir() # TODO: rename
 
