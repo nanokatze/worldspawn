@@ -64,14 +64,15 @@ var defaultConfig = func() *Config {
 	}
 
 	conf.Controls.KeyActions = map[sdl.Keycode]int{
-		sdl.K_W:     ActionSetMovementVelocityY,
-		sdl.K_D:     ActionSetMovementVelocityX,
-		sdl.K_SPACE: ActionJump,
-		sdl.K_LCTRL: ActionCrouch,
-		sdl.K_1:     ActionSlot0,
-		sdl.K_2:     ActionSlot1,
-		sdl.K_3:     ActionSlot2,
-		sdl.K_4:     ActionSlot3,
+		sdl.K_W:      ActionSetMovementVelocityY,
+		sdl.K_D:      ActionSetMovementVelocityX,
+		sdl.K_SPACE:  ActionJump,
+		sdl.K_LCTRL:  ActionCrouch,
+		sdl.K_LSHIFT: ActionDash,
+		sdl.K_1:      ActionSlot0,
+		sdl.K_2:      ActionSlot1,
+		sdl.K_3:      ActionSlot2,
+		sdl.K_4:      ActionSlot3,
 	}
 	conf.Controls.MouseButtonActions = map[sdl.MouseButton]int{
 		sdl.BUTTON_LEFT: ActionAttack,

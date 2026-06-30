@@ -11,6 +11,8 @@ type TimestampedInputCmd struct {
 	Cmd  InputCmd
 }
 
+// TODO: replace most input commands with a simple axis
+
 // TODO: we need two types of InputCmds: passthrough to Character, and
 // administrative things like Respawn, etc.
 type InputCmd any
@@ -24,6 +26,7 @@ const (
 	ButtonCrouch
 	ButtonAttack
 	ButtonReload
+	ButtonDash
 )
 
 // TODO: use SNORM for movement velocity and look direction?

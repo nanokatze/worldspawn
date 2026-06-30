@@ -18,6 +18,7 @@ const (
 	ActionCrouch
 	ActionAttack
 	ActionReload
+	ActionDash
 
 	ActionSlot0
 	ActionSlot1
@@ -47,7 +48,7 @@ func AppendAction(dst []game.TimestampedInputCmd, time game.Time, action int, va
 // TODO: with some extra effort we can make InputCmd values private
 func actionToInputCmd(action int, value float32) game.InputCmd {
 	switch action {
-	case ActionJump, ActionCrouch, ActionAttack, ActionReload:
+	case ActionJump, ActionCrouch, ActionAttack, ActionReload, ActionDash:
 		if value != 0 {
 			return game.InputCmdPressButton(action)
 		} else {
