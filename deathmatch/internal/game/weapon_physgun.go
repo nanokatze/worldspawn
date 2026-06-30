@@ -19,7 +19,7 @@ var _ Entity = WeaponPhysgun{}
 
 func init() {
 	scripts[reflect.TypeFor[WeaponPhysgun]()] = script{
-		WeaponThink: func(
+		Weapon_Think: func(
 			world *World,
 			weapon ecs.ID,
 			props []ecs.ID,

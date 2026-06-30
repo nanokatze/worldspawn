@@ -2,13 +2,15 @@ package game
 
 import "worldspawn/internal/gmath"
 
+type AmmoType int8
+
 // TODO: give this a better name pls
 type WeaponHint struct {
 	// TODO: this should choose the animation set basically. Or maybe we should
 	// split this into two
 	// Class string
 
-	FirstPersonPropTRS gmath.TRS3f64
+	FirstPersonPropTransform gmath.TRS3f64
 }
 
 type WeaponButtons uint64

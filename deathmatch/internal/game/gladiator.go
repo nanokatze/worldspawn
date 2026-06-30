@@ -155,20 +155,20 @@ func init() {
 						// Create the weapon props
 
 						script := world.GetScriptFuncs(switchToWeapon)
-						if script.WeaponCreateProp != nil {
+						if script.Weapon_CreateProp != nil {
 							var hint WeaponHint
-							if script.WeaponHint != nil {
-								hint = script.WeaponHint(world, switchToWeapon)
+							if script.Weapon_Hint != nil {
+								hint = script.Weapon_Hint(world, switchToWeapon, info)
 							}
 
-							gladiator.FirstPersonWeaponProp = script.WeaponCreateProp(world, switchToWeapon, info)
+							gladiator.FirstPersonWeaponProp = script.Weapon_CreateProp(world, switchToWeapon, info)
 							// TODO: parent it directly to the camera instead.
 							world.SetParent(gladiator.FirstPersonWeaponProp, gladiator.FirstPersonHands)
-							world.SetTransform(gladiator.FirstPersonWeaponProp, hint.FirstPersonPropTRS)
+							world.SetTransform(gladiator.FirstPersonWeaponProp, hint.FirstPersonPropTransform)
 							world.VisibilityCondition.Set(gladiator.FirstPersonWeaponProp,
 								VisibilityCondition{Mask: 0b01, Camera: gladiator.FirstPersonCamera})
 
-							gladiator.ThirdPersonWeaponProp = script.WeaponCreateProp(world, switchToWeapon, info)
+							gladiator.ThirdPersonWeaponProp = script.Weapon_CreateProp(world, switchToWeapon, info)
 							world.SetParent(gladiator.ThirdPersonWeaponProp, id)
 							world.ParentBone.Set(gladiator.ThirdPersonWeaponProp, "hand.R")
 							world.VisibilityCondition.Set(gladiator.ThirdPersonWeaponProp,
@@ -242,7 +242,7 @@ func init() {
 				// TODO: shooter id we pass should be that of player, actually. Maybe we
 				// should have a component to attribute kills and damage to something
 				// else.
-				recoil = world.GetScriptFuncs(gladiator.Weapon).WeaponThink(world, gladiator.Weapon, []ecs.ID{gladiator.FirstPersonWeaponProp}, entity, T_attack, v_attack, buttons, info)
+				recoil = world.GetScriptFuncs(gladiator.Weapon).Weapon_Think(world, gladiator.Weapon, []ecs.ID{gladiator.FirstPersonWeaponProp}, entity, T_attack, v_attack, buttons, info)
 			}
 
 			// TODO: apply some part of the recoil as viewpunch?

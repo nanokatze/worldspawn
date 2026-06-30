@@ -36,9 +36,9 @@ func (WeaponGrenadeLauncher) entity() {}
 
 func init() {
 	scripts[reflect.TypeFor[WeaponGrenadeLauncher]()] = script{
-		WeaponHint: func(world *World, entity ecs.ID) WeaponHint {
+		Weapon_Hint: func(world *World, entity ecs.ID, info *UpdateParams) WeaponHint {
 			return WeaponHint{
-				FirstPersonPropTRS: gmath.TRS3f64{
+				FirstPersonPropTransform: gmath.TRS3f64{
 					T: gmath.Vec3f64{0.18, 0.5, -0.2},
 					R: gmath.Rot3One(),
 					S: gmath.Mat3x3UOne[float32](),
@@ -46,7 +46,7 @@ func init() {
 			}
 		},
 
-		WeaponCreateProp: func(world *World, weapon ecs.ID, info *UpdateParams) ecs.ID {
+		Weapon_CreateProp: func(world *World, weapon ecs.ID, info *UpdateParams) ecs.ID {
 			root := world.CreateEntity(info)
 			world.Skeleton.Set(root, "weapons/grenade_launcher/skeletons/Armature")
 			world.RenderingGeometry.Set(root, "weapons/grenade_launcher/geometries/Grenade_Launcher")
@@ -56,7 +56,7 @@ func init() {
 			return root
 		},
 
-		WeaponThink: func(
+		Weapon_Think: func(
 			world *World,
 			weapon ecs.ID,
 			props []ecs.ID,

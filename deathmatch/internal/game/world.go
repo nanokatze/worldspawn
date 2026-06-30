@@ -1,9 +1,11 @@
 package game
 
 import (
+	"cmp"
 	"fmt"
 	"io/fs"
 	"reflect"
+	"slices"
 
 	"worldspawn/internal/animgraph"
 	"worldspawn/internal/ecs"
@@ -75,7 +77,8 @@ type Columns struct {
 	// lol. We'll need to think more about this.
 	Skeleton ecs.Column[string]
 
-	// TODO: this should just point to an animgraph script
+	// TODO: this should be a non-networked column that would be populated by
+	// the animation script
 	Pose ecs.Column[animgraph.Pose]
 
 	// Entity programmability
@@ -87,7 +90,8 @@ type Columns struct {
 
 	// TODO: this doesn't really need to be a column, this could perfectly
 	// feasibly be a plain array with a bitmap.
-	Updates ecs.Column[[]func(world *World, id ecs.ID, updateParams *UpdateParams)] `worldspawn:"transient"`
+	Updates  ecs.Column[[]updatef] `worldspawn:"transient"`
+	Updates2 ecs.Column[[]updatef] `worldspawn:"transient"`
 
 	// Entities marked for deletion
 	// TODO: doesn't really need to be a column either
@@ -106,7 +110,7 @@ type Columns struct {
 
 	// Motion
 
-	// Motion ecs.Column[MotionType]
+	// MotionType       ecs.Column[MotionType]
 	// MotionProperties ecs.Column[MotionProperties]
 
 	Velocity ecs.Column[Velocity]
@@ -124,7 +128,8 @@ type Columns struct {
 
 	// Other gameplay stuff
 
-	// Certain projectiles normally bounce off on impact
+	// Whether the fuse of certain projectiles should be set off when they
+	// collide with this entity.
 	ShouldSetOffFuseOnImpact ecs.Column[struct{}]
 
 	// Renderer
@@ -402,26 +407,50 @@ func (world *World) think(updateParams *UpdateParams) {
 	world.processUpdates(updateParams)
 }
 
-func (world *World) processUpdates(updateParams *UpdateParams) {
-	// TODO: double buffer messages so that messages can be sent during
-	// processing and process them until there's no more messages.
+func reuseslice[T any](s []T) []T {
+	clear(s)
+	s = s[:0]
+	return s
+}
 
+func (world *World) processUpdates(info *UpdateParams) {
 	// TODO: do we run global updates before or after deletion? What should be
 	// the order in general.
 
-	for id, updates := range ecs.All(&world.Updates) {
-		for _, f := range updates {
-			f(world, id, updateParams)
+	for pass := 0;; pass++ {
+		if pass > 1 {
+			info.Logger.Info("process updates", "pass", pass)
+		}
+
+		progress := false
+
+		world.Updates, world.Updates2 = world.Updates2, world.Updates
+
+		for id, updates := range ecs.All(&world.Updates2) {
+			slices.SortStableFunc(updates, func(a, b updatef) int { return cmp.Compare(a.from, b.from) })
+
+			for _, u := range updates {
+				u.f(world, id, info)
+				progress = true
+			}
+			// TODO: we can clear using reuseslice instead of doing a Clear later
+		}
+		world.Updates2.Clear()
+
+		for _, f := range world.globalUpdates {
+			f(world, info)
+		}
+		world.globalUpdates = reuseslice(world.globalUpdates)
+
+		// TODO: deleting entities now might be a little icky: an entity could
+		// send an update to another and then get deleted. That would be kinda
+		// bad.
+		world.deleteMarkedEntities()
+
+		if !progress {
+			break
 		}
 	}
-	world.Updates.Clear()
-
-	for _, f := range world.globalUpdates {
-		f(world, updateParams)
-	}
-	world.globalUpdates = world.globalUpdates[:0]
-
-	world.deleteMarkedEntities()
 }
 
 // TODO: rename to make it clear that we're deleting things already marked for

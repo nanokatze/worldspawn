@@ -40,7 +40,7 @@ type Impact struct {
 	Δv Velocity
 }
 
-// TODO: rename?
+// TODO: kill this in favor of enqueueImpact
 func (impact Impact) Apply(world *World, id ecs.ID, updateParams *UpdateParams) {
 	scriptFuncs := world.GetScriptFuncs(id)
 	if scriptFuncs.Impact != nil {
@@ -53,3 +53,9 @@ func (impact Impact) Apply(world *World, id ecs.ID, updateParams *UpdateParams) 
 		world.Velocity.Set(id, vel.Add(impact.Δv))
 	}
 }
+
+/*
+func enqueueImpact(io *IO, target ecs.ID, impact Impact) {
+
+}
+*/
