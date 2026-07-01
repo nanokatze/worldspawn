@@ -7,6 +7,7 @@ import "reflect"
 type Entity interface{ entity() }
 
 var EntityTypes = []reflect.Type{
+	reflect.TypeFor[AmmoPickup](),
 	reflect.TypeFor[Animtest](),
 	reflect.TypeFor[DeleteAfter](),
 	reflect.TypeFor[Gladiator](),

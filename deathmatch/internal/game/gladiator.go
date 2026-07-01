@@ -456,6 +456,7 @@ func (world *World) spawnGladiator(T gmath.TRS3f64, info *UpdateParams) ecs.ID {
 		FirstPersonHands:  hands,
 	}
 	s.Vitals.Health = 100
+	// TODO: define loadout somehow better so that ammo pickup knows what to do
 	s.Inventory.Ammo[0] = 10
 	world.Entity.Set(gladiator, s)
 	world.SetTransform(gladiator, T)

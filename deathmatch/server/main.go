@@ -542,17 +542,17 @@ func main() {
 		})
 		s.world.Skeleton.Set(test, "testcharacter4/skeletons/metarig")
 		s.world.RenderingGeometry.Set(test, "testcharacter4/geometries/TestCharacter4")
+	}
 
-		// test2 := s.scene.CreateEntity(info)
-		// s.scene.Entity.Set(test2, game.Testburger{BaseColor: [4]float32{0.8, 0.8, 0.8, 1}})
-		// s.scene.SetParent(test2, test)
-		// s.scene.ParentBone.Set(test2, "hand.L")
-		// s.scene.SetTransform(test2, gmath.TRS3f64{
-		// 	T: gmath.Vec3f64{0, 0.4, 0.1},
-		// 	R: gmath.Rot3One(),
-		// 	S: gmath.Mat3x3UOne[float32](),
-		// })
-		// s.scene.RenderingGeometry.Set(test2, "weapons/grenade_launcher/geometries/Grenade_Launcher")
+	if true {
+		test := s.world.CreateEntity(info)
+		s.world.Entity.Set(test, game.AmmoPickup{})
+		s.world.SetTransform(test, gmath.TRS3f64{
+			T: gmath.Vec3f64{0, -2, 0.5},
+			R: gmath.Rot3One(),
+			S: gmath.Mat3x3UOne[float32](),
+		})
+		s.world.RenderingGeometry.Set(test, "weapons/grenade_launcher/geometries/Grenade_Launcher") // TODO: replace it with a box
 	}
 
 	s.world.InstantinateCollections()
