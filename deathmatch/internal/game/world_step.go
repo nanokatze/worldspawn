@@ -37,8 +37,7 @@ func (world *World) Step(updateParams *UpdateParams) {
 		world.SoundEffect.Set(id, soundEffect)
 	}
 
-	// TODO: update physics shadow here so that the physics world doesn't
-	// include deleted entities.
+	world.deleteMarkedEntities()
 
 	// Clear transient columns
 	{

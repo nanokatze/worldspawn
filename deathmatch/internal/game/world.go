@@ -414,20 +414,15 @@ func reuseslice[T any](s []T) []T {
 }
 
 func (world *World) processUpdates(info *UpdateParams) {
-	// TODO: do we run global updates before or after deletion? What should be
-	// the order in general.
-
 	for pass := 0;; pass++ {
-		if pass > 1 {
-			info.Logger.Info("process updates", "pass", pass)
-		}
-
 		progress := false
 
 		world.Updates, world.Updates2 = world.Updates2, world.Updates
 
 		for id, updates := range ecs.All(&world.Updates2) {
 			slices.SortStableFunc(updates, func(a, b updatef) int { return cmp.Compare(a.from, b.from) })
+
+			// TODO: deterministically permute updates up to sender ID?
 
 			for _, u := range updates {
 				u.f(world, id, info)
@@ -442,11 +437,6 @@ func (world *World) processUpdates(info *UpdateParams) {
 		}
 		world.globalUpdates = reuseslice(world.globalUpdates)
 
-		// TODO: deleting entities now might be a little icky: an entity could
-		// send an update to another and then get deleted. That would be kinda
-		// bad.
-		world.deleteMarkedEntities()
-
 		if !progress {
 			break
 		}
@@ -456,11 +446,6 @@ func (world *World) processUpdates(info *UpdateParams) {
 // TODO: rename to make it clear that we're deleting things already marked for
 // deletion.
 func (world *World) deleteMarkedEntities() {
-	// TODO: would we benefit from (optionally) checking whether any entities
-	// have dangling references to other entities?
-
-	// TODO: delete entities too far off the map
-
 	// Propagate deletion from parents.
 	//
 	// TODO: make this less gross. We could do a probe whether there's any
