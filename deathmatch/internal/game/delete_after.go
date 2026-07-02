@@ -6,19 +6,17 @@ import (
 	"worldspawn/internal/ecs"
 )
 
+// TODO: rename to DeleteOnThink?
 type DeleteAfter struct{}
 
 func (DeleteAfter) entity() {}
 
 func init() {
-	// TODO: rename to delete_on_think?
 	scripts[reflect.TypeFor[DeleteAfter]()] = script{
-		Think: func(world *World, entity ecs.ID, _ *UpdateParams) {
-			io := IO{world.Updates, &world.globalUpdates, entity}
-
+		Think: func(_ *UpdateParams, world *World, entity ecs.ID, io IO) {
 			io.EnqueueEntityUpdate(entity,
-				func(world *World, entity ecs.ID, _ *UpdateParams) {
-					world.Delete.Set(entity, struct{}{})
+				func(_ *UpdateParams, entity ecs.ID, io IO) {
+					io.world.Delete.Set(entity, struct{}{})
 				})
 		},
 	}

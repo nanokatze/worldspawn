@@ -35,7 +35,7 @@ func (world *World) HandleInput(player ecs.ID, cmd TimestampedInputCmd, info *Up
 	playerState := mustOk(world.GetEntity[Player](player))
 	if world.EntityExists(playerState.ControlledCharacter) {
 		world.GetScriptFuncs(playerState.ControlledCharacter).
-			Input(world, playerState.ControlledCharacter, cmd, info)
+			Input(info, world, playerState.ControlledCharacter, cmd)
 	} else {
 		if !info.Speculating {
 			spawnPoint := world.findSpawnPoint()

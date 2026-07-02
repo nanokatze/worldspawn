@@ -19,46 +19,44 @@ func (RocketInFlight) entity() {}
 
 func init() {
 	scripts[reflect.TypeFor[RocketInFlight]()] = script{
-		Think: func(world *World, grenade ecs.ID, info *UpdateParams) {
-			io := IO{world.Updates, &world.globalUpdates, grenade}
-
+		Think: func(info *UpdateParams, world *World, grenade ecs.ID, io IO) {
 			const fuse = 5000 * time.Millisecond
 
-			rocketState, _ := world.GetEntity[RocketInFlight](grenade)
-			if rocketState.LaunchedAt.Add(fuse).After(world.Now) && !rocketState.ExplodeNow {
+			rocketState, _ := io.world.GetEntity[RocketInFlight](grenade)
+			if rocketState.LaunchedAt.Add(fuse).After(io.world.Now) && !rocketState.ExplodeNow {
 				return
 			}
 
 			radialImpact(
 				world,
-				&io,
 				Impact{
 					Attacker: rocketState.Attacker,
 					Type:     BlastImpactWithFragmentation,
 					Damage:   1200,
 				},
-				world.GetGlobalTransform(grenade),
+				io.world.GetGlobalTransform(grenade),
 				sphericalExplosion,
 				3,
 				4*math.Pi/500,
-				QueryFilters{})
+				QueryFilters{},
+				io)
 
 			io.EnqueueEntityUpdate(grenade,
-				func(world *World, grenade ecs.ID, info *UpdateParams) {
-					T := world.GetTransform(grenade)
-					world.ClearEntity(grenade)
-					world.Entity.Set(grenade, DeleteAfter{})
-					world.NextThink.Set(grenade, world.Now.Add(2*time.Second)) // TODO: should be long enough for sound to play
-					world.SetTransform(grenade, T)
-					world.SoundEffect.Set(grenade, SoundEmitter{
+				func(info *UpdateParams, grenade ecs.ID, io IO) {
+					T := io.world.GetTransform(grenade)
+					io.world.ClearEntity(grenade)
+					io.world.Entity.Set(grenade, DeleteAfter{})
+					io.world.NextThink.Set(grenade, io.world.Now.Add(2*time.Second)) // TODO: should be long enough for sound to play
+					io.world.SetTransform(grenade, T)
+					io.world.SoundEffect.Set(grenade, SoundEmitter{
 						Effect:      "explosion.wav",
 						Attenuation: 1,
-						PlayTime:    world.Now.Add(info.Δt),
+						PlayTime:    io.world.Now.Add(info.Δt),
 					})
 				})
 		},
 
-		ContactAdded: func(world *World, grenade, entity2 ecs.ID, _ *UpdateParams) {
+		ContactAdded: func(_ *UpdateParams, world *World, grenade, entity2 ecs.ID) {
 			rocketState, _ := world.GetEntity[RocketInFlight](grenade)
 			if entity2 == rocketState.Attacker {
 				// TODO: filter this in ShouldCollide. This should never be reached

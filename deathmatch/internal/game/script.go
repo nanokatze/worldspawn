@@ -7,7 +7,7 @@ import (
 	"worldspawn/internal/gmath"
 )
 
-// TODO: rename this
+// TODO: rename this or split into two (one for thinkers, one for mutators) and make an interface
 // TODO: we can factor it out now (along with UpdateParams)
 // TODO: to allow for parallel enqueue we'll need mutexes too
 // TODO: invalidate IO to capture uninentional capture, etc.
@@ -15,38 +15,27 @@ type IO struct {
 	// TODO: IO doesn't need World, we should replace this with a collection of
 	// buffers to enqueue the update funcs into
 	// world   *World
-	updates       ecs.Column[[]updatef]
-	globalUpdates *[]func(world *World, info *UpdateParams)
+	// updates       ecs.Column[[]updatef]
+	// globalUpdates *[]func(world *World, info *UpdateParams)
+	world *World
 
-	entity ecs.ID // TODO: rename to sender?
+	key ecs.ID // TODO: can be anything that's ordered. In fact probably in some cases we'll
 }
 
 type updatef struct {
-	from ecs.ID
-	f    func(world *World, id ecs.ID, info *UpdateParams)
+	key ecs.ID
+	f   func(info *UpdateParams, id ecs.ID, io IO)
 }
 
 // TODO: shorter names
-func (io *IO) EnqueueEntityUpdate(to ecs.ID, f func(world *World, entity ecs.ID, info *UpdateParams)) {
-	updates, _ := io.updates.Get(to)
-	io.updates.Set(to, append(updates, updatef{io.entity, f}))
+func (io IO) EnqueueEntityUpdate(to ecs.ID, f func(info *UpdateParams, entity ecs.ID, io IO)) {
+	updates, _ := io.world.Updates.Get(to)
+	io.world.Updates.Set(to, append(updates, updatef{io.key, f}))
 }
 
-func (io *IO) EnqueueGlobalUpdate(f func(world *World, info *UpdateParams)) {
-	*io.globalUpdates = append(*io.globalUpdates, f)
+func (io IO) EnqueueGlobalUpdate(f func(info *UpdateParams, world *World)) {
+	io.world.globalUpdates = append(io.world.globalUpdates, f)
 }
-
-// TODO: we need two variants of this: read-only one and read-write one.
-/*
-type Entity2 struct {
-	world *World
-	id    ecs.ID
-}
-
-func (e Entity2) SetTransform(transform gmath.TRS3f64) {
-	e.world.SetTransform(e.id, transform)
-}
-*/
 
 // TODO: replace world and id with some kind of object to enable tighter access
 // control?
@@ -61,14 +50,16 @@ type script struct {
 
 	// TODO: the following should be shadows of Funcs basically
 
-	// OutOfBounds func(world *World, entity ecs.ID, info *UpdateParams)
+	// OutOfBounds func(info *UpdateParams, world *World, entity ecs.ID)
+
+	// TODO: in Thinkers, we might want to swap the read-only world and the entity accessor (which we'll have in place of IDs)
 
 	// TODO: prefix this somehow, e.g. with Character. Also rename to HandleInput?
-	Input func(world *World, entity ecs.ID, cmd TimestampedInputCmd, info *UpdateParams)
+	Input func(info *UpdateParams, world *World, entity ecs.ID, cmd TimestampedInputCmd)
 
 	// Think may not perform any mutations, but may read states of entities,
 	// perform physics queries and enqueue updates.
-	Think func(world *World, entity ecs.ID, info *UpdateParams)
+	Think func(info *UpdateParams, world *World, entity ecs.ID, io IO)
 
 	// Physics
 
@@ -77,7 +68,7 @@ type script struct {
 	//
 	// TODO: naming
 	// TODO: pass JPH::CollideShapeResult
-	ShouldCollide func(world *World, entity1, entity2 ecs.ID, info *UpdateParams) int // TODO: return a enum that corresponds to JPH::ValidateResult
+	ShouldCollide func(info *UpdateParams, world *World, entity1, entity2 ecs.ID) int // TODO: return a enum that corresponds to JPH::ValidateResult
 
 	// Note that ContactAdded and ContactRemoved are not called
 	// deterministically, it's thus necessary to pay extra care so that the
@@ -86,21 +77,25 @@ type script struct {
 	// TODO: naming. NewContactPair sounds like a good replacement for
 	// ContactAdded but I'm not sure what to rename ContactRemoved to.
 	// TODO: inout parameter which lets the script edit the contact
-	ContactAdded   func(world *World, entity1, entity2 ecs.ID, info *UpdateParams)
-	ContactRemoved func(world *World, entity1, entity2 ecs.ID, info *UpdateParams)
+	// TODO: should this be thinker or mutator? I'm inclined towards the thinker...
+	ContactAdded   func(info *UpdateParams, world *World, entity1, entity2 ecs.ID)
+	ContactRemoved func(info *UpdateParams, world *World, entity1, entity2 ecs.ID)
 
 	// Impact may not perform any queries, but may mutate the entity.
-	Impact func(world *World, entity ecs.ID, impact Impact, info *UpdateParams)
+	Impact func(info *UpdateParams, entity ecs.ID, impact Impact, io IO)
 
 	// TODO: rename this, this is not a hint but provides some info which is the
 	// responsibility of the thing using the weapon to implement
-	Weapon_Hint func(world *World, weapon ecs.ID, info *UpdateParams) WeaponHint
+	// TODO: make this a read-only thingy?
+	Weapon_Hint func(info *UpdateParams, world *World, weapon ecs.ID) WeaponHint
 
-	Weapon_CreateProp func(world *World, weapon ecs.ID, info *UpdateParams) ecs.ID
+	// TODO: rethink how weapon props should work, again
+	Weapon_CreateProp func(info *UpdateParams, world *World, weapon ecs.ID) ecs.ID
 
 	// TODO: I think we need to split Weapon_Think into two, one subtick/Input
 	// thing and other the equivalent of Think basically.
 	Weapon_Think func(
+		info *UpdateParams,
 		world *World,
 		weapon ecs.ID,
 		props []ecs.ID,
@@ -108,11 +103,12 @@ type script struct {
 		T_attack gmath.Affine3f64,
 		v_attack Velocity,
 		buttons WeaponButtons,
-		info *UpdateParams) Recoil
+		io IO) Recoil
 
 	// TODO: we might want to specify ammo type or at least mask?
 	// TODO: allow pulling multiple rounds? ideally we'd specify min and max.
-	Magazine_Pull func(world *World, entity ecs.ID, ammoType AmmoType, info *UpdateParams) bool
+	// TODO: this should not have IO but a pure mutator
+	Magazine_Pull func(info *UpdateParams, entity ecs.ID, ammoType AmmoType, io IO) bool
 }
 
 var scripts = map[reflect.Type]script{}

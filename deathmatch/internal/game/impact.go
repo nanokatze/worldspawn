@@ -28,7 +28,6 @@ var impactForceFactor = map[ImpactType]float32{
 type Impact struct {
 	// character this should be attributed to
 	//
-	// TODO: rename to Attacker?
 	// TODO: we might need more attribution fields (weapon id for weapon name
 	// and icon, etc)
 	Attacker ecs.ID
@@ -41,16 +40,16 @@ type Impact struct {
 }
 
 // TODO: kill this in favor of enqueueImpact
-func (impact Impact) Apply(world *World, id ecs.ID, updateParams *UpdateParams) {
-	scriptFuncs := world.GetScriptFuncs(id)
+func (impact Impact) Apply(info *UpdateParams, id ecs.ID, io IO) {
+	scriptFuncs := io.world.GetScriptFuncs(id)
 	if scriptFuncs.Impact != nil {
-		scriptFuncs.Impact(world, id, impact, updateParams)
+		scriptFuncs.Impact(info, id, impact, io)
 	}
 
 	// TODO: only do this if Impact is not implemented and make entities
 	// implementing Impact do everything otherwise?
-	if vel, ok := world.Velocity.Get(id); ok {
-		world.Velocity.Set(id, vel.Add(impact.Δv))
+	if vel, ok := io.world.Velocity.Get(id); ok {
+		io.world.Velocity.Set(id, vel.Add(impact.Δv))
 	}
 }
 

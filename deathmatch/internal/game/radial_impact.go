@@ -15,16 +15,16 @@ type distributionFunction func(gmath.Vec2f32) (gmath.Vec3f32, float32)
 // TODO: allow for a little bit of extra linear distance falloff to model dissipation?
 // TODO: reformulate resolution in terms of something that doesn't require
 // adjustment along with the radius
-// (https://github.com/nanokatze/worldspawn/issues/152)
+// (https://github.com/nanokatze/worldspawn-deathmatch/issues/12)
 func radialImpact(
 	world *World,
-	io *IO,
-	impact Impact,
+	impact Impact, // TODO: flatten/inline the relevant fields instead of passing Impact
 	T gmath.Affine3f64, // TODO: move this to be the first parameter?
 	df distributionFunction,
 	radius float32,
 	resolution float32,
 	queryFilters QueryFilters,
+	io IO,
 ) {
 	spat := resolution / (4 * math.Pi)
 	nrays := math.Ceil(1.0 / float64(spat))

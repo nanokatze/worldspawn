@@ -36,7 +36,7 @@ func (WeaponGrenadeLauncher) entity() {}
 
 func init() {
 	scripts[reflect.TypeFor[WeaponGrenadeLauncher]()] = script{
-		Weapon_Hint: func(world *World, entity ecs.ID, info *UpdateParams) WeaponHint {
+		Weapon_Hint: func(info *UpdateParams, world *World, entity ecs.ID) WeaponHint {
 			return WeaponHint{
 				FirstPersonPropTransform: gmath.TRS3f64{
 					T: gmath.Vec3f64{0.18, 0.5, -0.2},
@@ -46,7 +46,7 @@ func init() {
 			}
 		},
 
-		Weapon_CreateProp: func(world *World, weapon ecs.ID, info *UpdateParams) ecs.ID {
+		Weapon_CreateProp: func(info *UpdateParams, world *World, weapon ecs.ID) ecs.ID {
 			root := world.CreateEntity(info)
 			world.Skeleton.Set(root, "weapons/grenade_launcher/skeletons/Armature")
 			world.RenderingGeometry.Set(root, "weapons/grenade_launcher/geometries/Grenade_Launcher")
@@ -57,6 +57,7 @@ func init() {
 		},
 
 		Weapon_Think: func(
+			info *UpdateParams,
 			world *World,
 			weapon ecs.ID,
 			props []ecs.ID,
@@ -64,10 +65,8 @@ func init() {
 			T_attack gmath.Affine3f64,
 			v_attack Velocity,
 			buttons WeaponButtons,
-			info *UpdateParams,
+			io IO,
 		) Recoil {
-			io := IO{world.Updates, &world.globalUpdates, weapon}
-
 			weaponState, _ := world.GetEntity[WeaponGrenadeLauncher](weapon)
 
 			if weaponState.CycleEnds.After(world.Now) {
@@ -75,15 +74,11 @@ func init() {
 			}
 
 			if !weaponState.Chambered {
-				io.EnqueueEntityUpdate(attacker, func(world *World, mag ecs.ID, info *UpdateParams) {
-					io := IO{world.Updates, &world.globalUpdates, mag}
-
-					if world.GetScriptFuncs(mag).Magazine_Pull(world, mag, 0, info) {
+				io.EnqueueEntityUpdate(attacker, func(info *UpdateParams, mag ecs.ID, io IO) {
+					if io.world.GetScriptFuncs(mag).Magazine_Pull(info, mag, 0, io) {
 						io.EnqueueEntityUpdate(weapon,
-							func(world *World, weapon ecs.ID, info *UpdateParams) {
-								weaponState, _ := world.GetEntity[WeaponGrenadeLauncher](weapon)
-								weaponState.Chambered = true
-								world.Entity.Set(weapon, weaponState)
+							func(info *UpdateParams, weapon ecs.ID, io IO) {
+								io.world.MutateEntity(weapon, func(v *WeaponGrenadeLauncher) { v.Chambered = true })
 							})
 					}
 				})
@@ -95,7 +90,7 @@ func init() {
 			}
 
 			if !info.Speculating {
-				io.EnqueueGlobalUpdate(func(world *World, info *UpdateParams) {
+				io.EnqueueGlobalUpdate(func(info *UpdateParams, world *World) {
 					// TODO: don't use prefab here tbh
 					projectile := world.CreateEntity(info)
 					// TODO: it would be nice if we could specify this bit without assuming ScriptState type
@@ -132,7 +127,7 @@ func init() {
 			// instead and let props consult the state.
 			for _, id := range props {
 				io.EnqueueEntityUpdate(id,
-					func(world *World, id ecs.ID, updateParams *UpdateParams) {
+					func(info *UpdateParams, id ecs.ID, io IO) {
 						// skelly := world.GetSkeleton(id)
 						// world.Pose.Set(id, animgraph.Pose{
 						// 	Bones: map[int]gmath.Affine3f32{
@@ -144,24 +139,24 @@ func init() {
 						// 	},
 						// })
 
-						world.SoundEffect.Set(id, SoundEmitter{
+						io.world.SoundEffect.Set(id, SoundEmitter{
 							Effect:      "weapons/grenade_launcher/fire.wav",
 							Attenuation: 1,
-							PlayTime:    world.Now, // + time.Duration(rng(w.Time, entityID, 0).Int63n(int64(1*time.Millisecond))),
+							PlayTime:    io.world.Now, // + time.Duration(rng(w.Time, entityID, 0).Int63n(int64(1*time.Millisecond))),
 						})
 					})
 			}
 
 			io.EnqueueEntityUpdate(weapon,
-				func(world *World, weapon ecs.ID, updateParams *UpdateParams) {
-					weaponState, _ := world.GetEntity[WeaponGrenadeLauncher](weapon)
-					weaponState.Chambered = false
-					weaponState.CycleEnds = world.Now.Add(grenadeLauncherStats.CycleDuration)
-					world.Entity.Set(weapon, weaponState)
+				func(info *UpdateParams, weapon ecs.ID, io IO) {
+					io.world.MutateEntity(weapon, func(v *WeaponGrenadeLauncher) {
+						v.Chambered = false
+						v.CycleEnds = io.world.Now.Add(grenadeLauncherStats.CycleDuration)
+					})
 				})
 
 			// TODO: eschew rnd?
-			rnd := Rand(world.Now, weapon, T_attack)
+			rnd := Rand(io.world.Now, weapon, T_attack)
 
 			θ := 0.1 * 2 * math.Pi * (rnd.Float64() - 0.5)
 			r := 0.02

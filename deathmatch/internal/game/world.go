@@ -171,7 +171,7 @@ type World struct {
 	Table *ecs.Table
 	Columns
 
-	globalUpdates []func(*World, *UpdateParams)
+	globalUpdates []func(*UpdateParams, *World)
 
 	physics *physics.System
 	// TODO: this should be folded into physicsSystem
@@ -248,6 +248,8 @@ func (world *World) Globals() WorldGlobals {
 	return globals
 }
 
+// TODO: kill all of these accessors and make them more contextual (e.g. hang onto IO or whatever)
+
 // TODO: rename this
 func (world *World) GetEntity[T Entity](id ecs.ID) (T, bool) {
 	entity, _ := world.Entity.Get(id)
@@ -256,6 +258,12 @@ func (world *World) GetEntity[T Entity](id ecs.ID) (T, bool) {
 		return *new(T), false
 	}
 	return entityT, true
+}
+
+func (world *World) MutateEntity[T Entity](id ecs.ID, f func(v *T)) {
+	v, _ := world.GetEntity[T](id)
+	f(&v)
+	world.Entity.Set(id, v)
 }
 
 func (world *World) GetParent(id ecs.ID) ecs.ID {
@@ -301,6 +309,8 @@ func (world *World) SetTransform(id ecs.ID, T gmath.TRS3f64) {
 	}
 }
 
+// TODO: make this a global thing that takes IO (this needs arbitrary scene read)
+//
 // TODO: if we encounter errors during hierarchy traversal we should restart
 // traversal with diagnostics collection and print the collected diagnostics
 // after using Scene.Logger.Error
@@ -399,7 +409,7 @@ func (world *World) think(updateParams *UpdateParams) {
 			continue
 		}
 
-		script.Think(world, id, updateParams)
+		script.Think(updateParams, world, id, IO{world, id})
 	}
 
 	// Process the enqueued updates
@@ -425,7 +435,7 @@ func (world *World) processUpdates(info *UpdateParams) {
 			// TODO: deterministically permute updates up to sender ID?
 
 			for _, u := range updates {
-				u.f(world, id, info)
+				u.f(info, id, IO{world, id})
 				progress = true
 			}
 			// TODO: we can clear using reuseslice instead of doing a Clear later
@@ -434,6 +444,7 @@ func (world *World) processUpdates(info *UpdateParams) {
 
 		for _, f := range world.globalUpdates {
 			f(world, info)
+			progress = true
 		}
 		world.globalUpdates = reuseslice(world.globalUpdates)
 

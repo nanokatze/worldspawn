@@ -20,6 +20,7 @@ var _ Entity = WeaponPhysgun{}
 func init() {
 	scripts[reflect.TypeFor[WeaponPhysgun]()] = script{
 		Weapon_Think: func(
+			info *UpdateParams,
 			world *World,
 			weapon ecs.ID,
 			props []ecs.ID,
@@ -27,9 +28,7 @@ func init() {
 			T_attack gmath.Affine3f64,
 			v_attack Velocity,
 			buttons WeaponButtons,
-			info *UpdateParams) Recoil {
-			io := IO{world.Updates, &world.globalUpdates, weapon}
-
+			io IO) Recoil {
 			physgun, _ := world.GetEntity[WeaponPhysgun](weapon)
 
 			holdingEntity := world.EntityExists(physgun.HeldEntity)
@@ -48,13 +47,14 @@ func init() {
 					})
 
 				if rayHit.Entity != ecs.NullID {
+					transform := T_attack.Inv().Mul(world.GetGlobalTransform(physgun.HeldEntity))
+
 					io.EnqueueEntityUpdate(weapon,
-						func(world *World, id ecs.ID, _ *UpdateParams) {
-							physgun, _ := world.GetEntity[WeaponPhysgun](weapon)
-							// TODO: precompute all of these
-							physgun.HeldEntity = rayHit.Entity
-							physgun.Transform = T_attack.Inv().Mul(world.GetGlobalTransform(physgun.HeldEntity))
-							world.Entity.Set(weapon, physgun)
+						func(_ *UpdateParams, weapon ecs.ID, io IO) {
+							io.world.MutateEntity(weapon, func(v *WeaponPhysgun) {
+								v.HeldEntity = rayHit.Entity
+								v.Transform = transform
+							})
 						})
 				}
 
@@ -64,17 +64,15 @@ func init() {
 				transform := T_attack.Mul(physgun.Transform)
 
 				io.EnqueueEntityUpdate(physgun.HeldEntity,
-					func(world *World, id ecs.ID, _ *UpdateParams) {
-						world.SetTransform(id, transform.TRS())
-						world.Velocity.Set(id, Velocity{})
+					func(_ *UpdateParams, id ecs.ID, io IO) {
+						io.world.SetTransform(id, transform.TRS())
+						io.world.Velocity.Set(id, Velocity{})
 					})
 
 			case holdingEntity && !triggerHeld:
 				io.EnqueueEntityUpdate(weapon,
-					func(world *World, weapon ecs.ID, _ *UpdateParams) {
-						physgun, _ := world.GetEntity[WeaponPhysgun](weapon)
-						physgun.HeldEntity = ecs.NullID
-						world.Entity.Set(weapon, physgun)
+					func(_ *UpdateParams, weapon ecs.ID, io IO) {
+						io.world.MutateEntity(weapon, func(v *WeaponPhysgun) { v.HeldEntity = ecs.NullID })
 					})
 			}
 

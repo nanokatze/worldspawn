@@ -16,16 +16,14 @@ func (Animtest) entity() {}
 
 func init() {
 	scripts[reflect.TypeFor[Animtest]()] = script{
-		Think: func(world *World, entity ecs.ID, info *UpdateParams) {
-			io := IO{world.Updates, &world.globalUpdates, entity}
-
+		Think: func(info *UpdateParams, world *World, entity ecs.ID, io IO) {
 			io.EnqueueEntityUpdate(entity,
-				func(world *World, entity ecs.ID, info *UpdateParams) {
-					animtest, _ := world.GetEntity[Animtest](entity)
+				func(info *UpdateParams, entity ecs.ID, io IO) {
+					animtest, _ := io.world.GetEntity[Animtest](entity)
 
 					animation := animation(animtest.Animation)
 
-					skelly := world.GetSkeleton(entity)
+					skelly := io.world.GetSkeleton(entity)
 
 					localTransforms := map[int]gmath.Affine3f32{}
 
@@ -41,7 +39,7 @@ func init() {
 						"forearm.L",
 						"hand.L",
 					} {
-						t := float64(world.Now.Sub(Time{})%1e9) / 1e9 * 30
+						t := float64(io.world.Now.Sub(Time{})%1e9) / 1e9 * 30
 
 						localTransforms[skelly.JointByName(bone)] =
 							gmath.TRS3f32{
@@ -82,7 +80,7 @@ func init() {
 						pose.Bones[bone] = A.Mul(skelly.BindPoseInverse[bone])
 					}
 
-					world.Pose.Set(entity, pose)
+					io.world.Pose.Set(entity, pose)
 				})
 		},
 	}

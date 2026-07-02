@@ -25,19 +25,16 @@ func (GrenadeInFlight) entity() {}
 
 func init() {
 	scripts[reflect.TypeFor[GrenadeInFlight]()] = script{
-		Think: func(world *World, grenade ecs.ID, info *UpdateParams) {
-			io := IO{world.Updates, &world.globalUpdates, grenade}
-
+		Think: func(info *UpdateParams, world *World, grenade ecs.ID, io IO) {
 			const fuse = 1400 * time.Millisecond
 
 			grenadeState, _ := world.GetEntity[GrenadeInFlight](grenade)
-			if grenadeState.LaunchedAt.Add(fuse).After(world.Now) && !grenadeState.ExplodeNow {
+			if grenadeState.LaunchedAt.Add(fuse).After(io.world.Now) && !grenadeState.ExplodeNow {
 				return
 			}
 
 			radialImpact(
 				world,
-				&io,
 				Impact{
 					Attacker: grenadeState.Attacker,
 					Type:     BlastImpactWithFragmentation,
@@ -47,24 +44,25 @@ func init() {
 				sphericalExplosion,
 				5,
 				4*math.Pi/500,
-				QueryFilters{})
+				QueryFilters{},
+				io)
 
 			io.EnqueueEntityUpdate(grenade,
-				func(world *World, grenade ecs.ID, info *UpdateParams) {
-					T := world.GetTransform(grenade)
-					world.ClearEntity(grenade)
-					world.Entity.Set(grenade, DeleteAfter{})
-					world.NextThink.Set(grenade, world.Now.Add(2*time.Second))
-					world.SetTransform(grenade, T)
-					world.SoundEffect.Set(grenade, SoundEmitter{
+				func(info *UpdateParams, grenade ecs.ID, io IO) {
+					T := io.world.GetTransform(grenade)
+					io.world.ClearEntity(grenade)
+					io.world.Entity.Set(grenade, DeleteAfter{})
+					io.world.NextThink.Set(grenade, io.world.Now.Add(2*time.Second))
+					io.world.SetTransform(grenade, T)
+					io.world.SoundEffect.Set(grenade, SoundEmitter{
 						Effect:      "explosion.wav",
 						Attenuation: 1,
-						PlayTime:    world.Now.Add(info.Δt),
+						PlayTime:    io.world.Now.Add(info.Δt),
 					})
 				})
 		},
 
-		ContactAdded: func(world *World, grenade, entity2 ecs.ID, info *UpdateParams) {
+		ContactAdded: func(info *UpdateParams, world *World, grenade, entity2 ecs.ID) {
 			grenadeState, _ := world.GetEntity[GrenadeInFlight](grenade)
 			if entity2 == grenadeState.Attacker {
 				// TODO: this should not be reachable, but for now it is. We
