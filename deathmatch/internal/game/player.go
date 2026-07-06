@@ -16,8 +16,6 @@ type Player struct {
 	}
 }
 
-func (Player) entity() {}
-
 // TODO: returning ecs.ID is kinda meh, ideally we'd return a pile of data that
 // can be fed straight into pathtracer
 // TODO: make this a method on the World? We need to think how to handle the

@@ -9,10 +9,8 @@ import (
 
 type AmmoPickup struct{}
 
-func (AmmoPickup) entity() {}
-
 func init() {
-	scripts[reflect.TypeFor[AmmoPickup]()] = script{
+	Scripts[reflect.TypeFor[AmmoPickup]()] = script{
 		Think: func(info *UpdateParams, world *World, entity ecs.ID, io IO) {
 			// TODO: we should implement this instead by spawning a pickup that
 			// then gets picked up by the player. When that entity gets picked

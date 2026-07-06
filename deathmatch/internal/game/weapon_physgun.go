@@ -13,12 +13,8 @@ type WeaponPhysgun struct {
 	Transform  gmath.Affine3f64
 }
 
-func (WeaponPhysgun) entity() {}
-
-var _ Entity = WeaponPhysgun{}
-
 func init() {
-	scripts[reflect.TypeFor[WeaponPhysgun]()] = script{
+	Scripts[reflect.TypeFor[WeaponPhysgun]()] = script{
 		Weapon_Think: func(
 			info *UpdateParams,
 			world *World,

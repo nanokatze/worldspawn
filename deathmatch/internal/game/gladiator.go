@@ -97,10 +97,8 @@ type Gladiator struct {
 	}
 }
 
-func (Gladiator) entity() {}
-
 func init() {
-	scripts[reflect.TypeFor[Gladiator]()] = script{
+	Scripts[reflect.TypeFor[Gladiator]()] = script{
 		Input: func(info *UpdateParams, world *World, id ecs.ID, cmd TimestampedInputCmd) {
 			gladiator, _ := world.GetEntity[Gladiator](id)
 			defer func() { world.Entity.Set(id, gladiator) }()

@@ -81,11 +81,12 @@ type script struct {
 	Magazine_Pull func(info *UpdateParams, entity Entity2, ammoType AmmoType, io IO) bool
 }
 
-var scripts = map[reflect.Type]script{}
+// Public only so that replication can load/store things. We'll eventually make this private.
+var Scripts = map[reflect.Type]script{}
 
 // TODO: return a pointer instead of struct as is?
 // TODO: provide a more convenient way to call functions
 func (world *World) GetScriptFuncs(entity ecs.ID) script {
 	typ, _ := world.Entity.Get(entity)
-	return scripts[reflect.TypeOf(typ)]
+	return Scripts[reflect.TypeOf(typ)]
 }

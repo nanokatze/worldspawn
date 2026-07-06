@@ -21,10 +21,8 @@ type GrenadeInFlight struct {
 	Attacker ecs.ID // who to attribute this damage to
 }
 
-func (GrenadeInFlight) entity() {}
-
 func init() {
-	scripts[reflect.TypeFor[GrenadeInFlight]()] = script{
+	Scripts[reflect.TypeFor[GrenadeInFlight]()] = script{
 		Think: func(info *UpdateParams, world *World, grenade ecs.ID, io IO) {
 			const fuse = 1400 * time.Millisecond
 

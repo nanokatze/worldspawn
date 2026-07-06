@@ -1,6 +1,7 @@
 package game
 
 import (
+	"reflect"
 	"slices"
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/gmath"
@@ -9,7 +10,9 @@ import (
 // TODO: rename to SpawnPoint
 type PlayerSpawn struct{}
 
-func (PlayerSpawn) entity() {}
+func init() {
+	Scripts[reflect.TypeFor[PlayerSpawn]()] = script{}
+}
 
 // TODO: we need to pass more data here to choose the spawn point
 // TODO: we should also perform collision queries to ensure free space

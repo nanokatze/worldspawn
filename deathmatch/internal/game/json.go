@@ -2,7 +2,6 @@ package game
 
 import (
 	"fmt"
-	"maps"
 	"math"
 	"reflect"
 	"strconv"
@@ -80,10 +79,42 @@ var JSONOptions = json.JoinOptions(
 		}),
 		json.UnmarshalFromFunc(float32JSONUnmarshaler),
 		json.UnmarshalFromFunc(float64JSONUnmarshaler),
-		json.UnmarshalFromFunc(InterfaceJSONUnmarshaler[Entity](
-			maps.Collect(func(yield func(reflect.Type, string) bool) {
-				for _, typ := range EntityTypes {
-					yield(typ, typ.Name())
+
+		json.UnmarshalFromFunc(func(dec *jsontext.Decoder, x *Entity) error {
+			if _, err := dec.ReadToken(); err != nil {
+				return err
+			}
+
+			tok, err := dec.ReadToken()
+			if err != nil {
+				return err
+			}
+			name := tok.String()
+
+			// This sucks, we should maintain a shadow map and only hit the slow
+			// path on miss
+			var t reflect.Type
+			for stateType := range Scripts {
+				if stateType.Name() == name {
+					t = stateType
+					break
 				}
-			}))),
+			}
+
+			if t == nil {
+				return fmt.Errorf("unknown entity type %s", name)
+			}
+
+			data := reflect.New(t)
+			if err := json.UnmarshalDecode(dec, data.Interface()); err != nil {
+				return err
+			}
+
+			if _, err := dec.ReadToken(); err != nil {
+				return err
+			}
+
+			*x, _ = reflect.TypeAssert[Entity](data.Elem())
+			return nil
+		}),
 	)))

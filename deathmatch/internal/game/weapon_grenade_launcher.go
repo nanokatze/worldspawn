@@ -10,12 +10,6 @@ import (
 	"worldspawn/internal/gmath"
 )
 
-type Testburger struct {
-	BaseColor [4]float32
-}
-
-func (Testburger) entity() {}
-
 var grenadeLauncherStats = struct {
 	Projectile     string
 	MuzzleVelocity float32
@@ -33,10 +27,14 @@ type WeaponGrenadeLauncher struct {
 	CycleEnds Time
 }
 
-func (WeaponGrenadeLauncher) entity() {}
+type Testburger struct {
+	BaseColor [4]float32
+}
 
 func init() {
-	scripts[reflect.TypeFor[WeaponGrenadeLauncher]()] = script{
+	Scripts[reflect.TypeFor[Testburger]()] = script{}
+
+	Scripts[reflect.TypeFor[WeaponGrenadeLauncher]()] = script{
 		Weapon_Hint: func(info *UpdateParams, world *World, entity ecs.ID) WeaponHint {
 			return WeaponHint{
 				FirstPersonPropTransform: gmath.TRS3f64{

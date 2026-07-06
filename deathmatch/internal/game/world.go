@@ -27,7 +27,9 @@ type WorldGlobals struct {
 	Gravity gmath.Vec3f32
 }
 
-func (WorldGlobals) entity() {}
+func init() {
+	Scripts[reflect.TypeFor[WorldGlobals]()] = script{}
+}
 
 type TR3f64 struct {
 	T gmath.Vec3f64

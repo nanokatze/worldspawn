@@ -4,10 +4,9 @@ import (
 	"reflect"
 )
 
-// TODO: kill Entity interface
+type Entity interface{}
 
-type Entity interface{ entity() }
-
+// TODO: kill this
 var EntityTypes = []reflect.Type{
 	reflect.TypeFor[AmmoPickup](),
 	reflect.TypeFor[Animtest](),

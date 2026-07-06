@@ -64,7 +64,7 @@ func (world *World) think(updateParams *UpdateParams) {
 	// Run thinkers
 
 	for id, scriptName := range ecs.All(&world.Entity) {
-		script := scripts[reflect.TypeOf(scriptName)]
+		script := Scripts[reflect.TypeOf(scriptName)]
 		if script.Think == nil {
 			continue
 		}

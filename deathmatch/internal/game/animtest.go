@@ -12,10 +12,8 @@ type Animtest struct {
 	Animation string
 }
 
-func (Animtest) entity() {}
-
 func init() {
-	scripts[reflect.TypeFor[Animtest]()] = script{
+	Scripts[reflect.TypeFor[Animtest]()] = script{
 		Think: func(info *UpdateParams, world *World, entity ecs.ID, io IO) {
 			io.EnqueueEntityUpdate(entity,
 				func(info *UpdateParams, entity Entity2, io IO) {
