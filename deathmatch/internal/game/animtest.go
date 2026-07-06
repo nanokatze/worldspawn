@@ -78,7 +78,7 @@ func init() {
 						pose.Bones[bone] = A.Mul(skelly.BindPoseInverse[bone])
 					}
 
-					entity.world.Pose.Set(entity.id, pose)
+					entity.SetPose(pose)
 				})
 		},
 	}

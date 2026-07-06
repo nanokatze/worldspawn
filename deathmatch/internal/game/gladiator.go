@@ -147,13 +147,13 @@ func init() {
 				if !info.Speculating {
 					gladiator.Weapon.Entity = ecs.NullID
 
-					if world.EntityExists(gladiator.Weapon.FirstPersonProp) {
-						world.Delete.Set(gladiator.Weapon.FirstPersonProp, struct{}{})
+					if world.EntityExists(gladiator.Weapon.ThirdPersonProp) {
+						world.GetEntity2(gladiator.Weapon.ThirdPersonProp).MarkForDeletion()
 					}
 					gladiator.Weapon.ThirdPersonProp = ecs.NullID
 
 					if world.EntityExists(gladiator.Weapon.FirstPersonProp) {
-						world.Delete.Set(gladiator.Weapon.FirstPersonProp, struct{}{})
+						world.GetEntity2(gladiator.Weapon.FirstPersonProp).MarkForDeletion()
 					}
 					gladiator.Weapon.FirstPersonProp = ecs.NullID
 
@@ -164,7 +164,7 @@ func init() {
 
 						// Create the weapon props
 
-						script := world.GetScriptFuncs(switchToWeapon)
+						script := world.GetEntity2(switchToWeapon).Script()
 						if script.Weapon_CreateProp != nil {
 							var hint WeaponHint
 							if script.Weapon_Hint != nil {

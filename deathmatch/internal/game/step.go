@@ -98,13 +98,13 @@ func (world *World) deleteMarkedEntities() {
 				return false
 			}
 
-			if _, delet := world.Delete.Get(id); delet {
+			if world.delete.Get(id.Index()) {
 				return true
 			}
 
 			delet := f(world.GetParent(id))
 			if delet {
-				world.Delete.Set(id, struct{}{})
+				world.delete.Set2(id.Index(), true)
 			}
 			return delet
 		}
@@ -115,10 +115,13 @@ func (world *World) deleteMarkedEntities() {
 	}
 
 	// Remove entities that were scheduled for removal
-	for id := range ecs.All(&world.Delete) {
+	for index := range world.delete.Ones() {
+		id := world.Table.IDs().Index(index)
+
 		if _, ok := world.physicsBodyExists.Get(id); ok {
-			world.physics.RemoveBody(physics.BodyID(id.Index()))
+			world.physics.RemoveBody(physics.BodyID(index))
 		}
 		world.Table.DeleteRow(id)
 	}
+	world.delete.Reset()
 }

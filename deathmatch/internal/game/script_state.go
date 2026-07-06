@@ -1,9 +1,8 @@
 package game
 
-import (
-	"reflect"
-)
+import "reflect"
 
+// TODO: rename to ScriptState
 type Entity interface{}
 
 // TODO: kill this
@@ -20,6 +19,5 @@ var EntityTypes = []reflect.Type{
 	reflect.TypeFor[TriggerKill](),
 	reflect.TypeFor[WeaponGrenadeLauncher](),
 	reflect.TypeFor[WeaponPhysgun](),
-	reflect.TypeFor[WeaponSniperRifle](),
 	reflect.TypeFor[WorldGlobals](),
 }

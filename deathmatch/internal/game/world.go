@@ -7,6 +7,7 @@ import (
 
 	"worldspawn/internal/animgraph"
 	"worldspawn/internal/ecs"
+	"worldspawn/internal/ecs/bitset"
 	"worldspawn/internal/gmath"
 	"worldspawn/internal/physics"
 )
@@ -16,26 +17,6 @@ var Data fs.FS
 
 // TODO: split this file up
 
-// TODO: kill this (again) and make it a thing on World directly. We need this
-// so that we can allow querying these values even in entity updates
-type WorldGlobals struct {
-	// TODO: replace it with sky material
-	Sky string
-
-	// TODO: create a separate "physics world" entity/component and move this
-	// stuff there
-	Gravity gmath.Vec3f32
-}
-
-func init() {
-	Scripts[reflect.TypeFor[WorldGlobals]()] = script{}
-}
-
-type TR3f64 struct {
-	T gmath.Vec3f64
-	R gmath.Rot3
-}
-
 // TODO: fold almost all scripty stuff into the same column? Although I guess
 // that's more up to how we wanna represent things for authoring etc. I'm not
 // sure it would make sense to fold animation graph script into the same column
@@ -43,31 +24,31 @@ type TR3f64 struct {
 
 // TODO: add a type for representing non-mutable lists and stuff?
 
-// TODO: certain columns could've perfectly feasibly been unique.Handle[string].
-// E.g. Skeleton, CollisionGeometry and RenderingGeometry.
-// TODO: get rid of transient columns altogether (for now), they should be
-// simpler structures at the root of World
 // TODO: instead of ecs.Columns, these should be any objects implementing an
 // interface with Get/Set/iter. We'll eventually replace ecs.Column with simpler
-// structures indexed by plain integers and get rid of ecs.Table, bringing
-// entity ID validation here.
-type Columns struct {
-	Name ecs.Column[string]
+// structures keyed by plain integer indices and get rid of ecs.Table, bringing
+// entity ID validation into GetEntity2/3 into.
 
+type Columns struct {
 	// Entity programmability
+
+	Name ecs.Column[unique.Handle[string]]
 
 	// TODO: rename this pls
 	Entity ecs.Column[Entity]
 
 	NextThink ecs.Column[Time]
 
-	// Entities marked for deletion
-	// TODO: doesn't really need to be a column either
-	Delete ecs.Column[struct{}] `worldspawn:"transient"`
-
 	// TODO: require that entities that we're do collision/physics for have no
 	// parent. Or maybe allow that somehow, e.g. by having children be joined
 	// with the collision geometry of the parent?
+
+	// Other gameplay stuff
+
+	// Whether the fuse of certain projectiles should be set off when they
+	// collide with this entity.
+	// TODO: could we generalize this?
+	ShouldSetOffFuseOnImpact ecs.Column[struct{}]
 
 	// Transform
 
@@ -125,12 +106,6 @@ type Columns struct {
 	// TODO: kill this column and handle it at prefab instantination
 	CollectionInstance ecs.Column[CollectionInstance]
 
-	// Other gameplay stuff
-
-	// Whether the fuse of certain projectiles should be set off when they
-	// collide with this entity.
-	ShouldSetOffFuseOnImpact ecs.Column[struct{}]
-
 	// Renderer
 
 	VisibilityCondition ecs.Column[VisibilityCondition]
@@ -149,19 +124,12 @@ type Columns struct {
 	// TODO: rethink sounds
 	SoundEffect      ecs.Column[SoundEmitter]
 	SoundEffectState ecs.Column[LoopedSound] // TODO: kill this column
-
-	// Misc
-
-	// Speculative object deadline
-	// TODO: rename
-	Speculation ecs.Column[Time] // TODO: do not network this
 }
 
 // TODO: make all of the internals private. We'll need to add infrastructure for
 // replication to World first.
 type World struct {
-	// TODO: could we move this to somewhere? Either way I would prefer if
-	// things would consult UpdateParams.Now rather than Scene.Params
+	// TODO: we could move it to be a WorldGlobals field I suppose
 	Now Time
 
 	NextID            ecs.ID
@@ -176,6 +144,14 @@ type World struct {
 	physics *physics.System
 	// TODO: this should be folded into physicsSystem
 	physicsBodyExists ecs.Column[struct{}]
+
+	// Deadlines of speculatively spawned entities.
+	//
+	// TODO: rename
+	speculation []Time
+
+	// Entities marked for deletion
+	delete bitset.Bitset
 }
 
 func NewWorld(n int) *World {
@@ -200,6 +176,10 @@ func NewWorld(n int) *World {
 		collisionLayerToBroadPhaseLayer[:],
 		collisionLayerRules)
 	world.physicsBodyExists.Init(world.Table)
+
+	world.speculation = make([]Time, n)
+
+	world.delete = bitset.Make(n)
 
 	// TODO: we should expose an OptimizeBroadPhase call on physicsSystem which
 	// we'll (optionally) call after loading the world and perhaps every so
@@ -246,12 +226,7 @@ func (world *World) DeleteEntityImmediately(id ecs.ID) {
 	world.Table.DeleteRow(id)
 }
 
-func (world *World) Globals() WorldGlobals {
-	globals, _ := world.GetEntity[WorldGlobals](1)
-	return globals
-}
-
-// TODO: kill all of these accessors and make them more contextual (e.g. hang onto IO or whatever)
+// TODO: kill all of these helpers
 
 // TODO: rename this
 func (world *World) GetEntity[T Entity](id ecs.ID) (T, bool) {
@@ -284,75 +259,6 @@ func (world *World) SetParent(id, parent ecs.ID) {
 	}
 }
 
-// TODO: if we encounter errors during hierarchy traversal we should restart
-// traversal with diagnostics collection and print the collected diagnostics
-// after using Scene.Logger.Error
-//
-// TODO: cycle detection
-//
-// TODO: replace T.Mul(A) with just A on the first iteration to optimize the
-// common case
-//
-// TODO: clean this up. Could Entity2 help here?
-func (world *World) GetGlobalTransform(id ecs.ID) gmath.Affine3f64 {
-	getEntityTransform := func(id ecs.ID) gmath.Affine3f64 {
-		tr, ok := world.TransformTR.Get(id)
-		if !ok {
-			return gmath.Affine3One[float64]()
-		}
-		s, ok := world.TransformS.Get(id)
-		if !ok {
-			s = gmath.Mat3x3UOne[float32]()
-		}
-		return gmath.TRS3f64{tr.T, tr.R, s}.Compose()
-	}
-
-	// TODO: make this a method on the scene?
-	getBoneTransform := func(id ecs.ID, bone unique.Handle[string]) gmath.Affine3f32 {
-		skelly := world.GetSkeleton(id)
-		if skelly == nil {
-			return gmath.Affine3One[float32]()
-		}
-		boneIndex := skelly.JointByName(bone.Value()) // TODO: this should natively use unique.Handle
-		if boneIndex == -1 {
-			return gmath.Affine3One[float32]()
-		}
-
-		pose, _ := world.Pose.Get(id)
-		boneTransform, ok := pose.Bones[boneIndex]
-		if !ok {
-			return skelly.BindPose[boneIndex]
-		}
-		return boneTransform.Mul(skelly.BindPose[boneIndex])
-	}
-
-	// TODO: don't hardcode the hierarchy depth bound
-	// TODO: actually maybe have a bloom filter/small hashmap to track cycles?
-	// It would be nice to avoid having a different behavior regardless of
-	// whether we have cycle detection on or not.
-	//
-	// NOTE: the hierarchy depth is bounded by no. of entries in the table
-
-	A := gmath.Affine3One[float64]()
-	for range 5000 {
-		A = getEntityTransform(id).Mul(A)
-
-		parent := world.GetParent(id)
-		if parent == 0 {
-			// TODO: ensure that parent to bone isn't set
-			break
-		}
-
-		if parentBone, parentedToBone := world.ParentBone.Get(id); parentedToBone {
-			A = getBoneTransform(parent, parentBone).Convert[float64]().Mul(A)
-		}
-
-		id = parent
-	}
-
-	return A
-}
-
 func (world *World) GetSkeleton(id ecs.ID) *animgraph.Skeleton {
 	skellyName, ok := world.Skeleton.Get(id)
 	if !ok {
@@ -365,9 +271,13 @@ func (world *World) GetSkeleton(id ecs.ID) *animgraph.Skeleton {
 // TODO: rename to just Entity when we rename the Entity column to something
 // more reasonable.
 func (world *World) GetEntity2(id ecs.ID) Entity2 {
-	return Entity2{world, id}
+	if world.EntityExists(id) {
+		return Entity2{world, id}
+	}
+	return Entity2{}
 }
 
+// TODO: kill this probs
 func (world *World) GetEntity3(id ecs.ID) (Entity2, bool) {
 	if world.EntityExists(id) {
 		return Entity2{world, id}, true
@@ -375,9 +285,10 @@ func (world *World) GetEntity3(id ecs.ID) (Entity2, bool) {
 	return Entity2{}, false
 }
 
-// Entity2 must not be stored in any structures and also not passed across entity update lambdas.
+// Entity2 must not be stored in any structures and also not passed across
+// update lambdas.
 //
-// TODO: rename to something else
+// TODO: rename to EntityPtr or something along those lines
 type Entity2 struct {
 	world *World
 	id    ecs.ID // TODO: replace with index
@@ -389,13 +300,22 @@ func (e Entity2) ID() ecs.ID { return e.id }
 func (e Entity2) Clear() { e.world.ClearEntity(e.id) }
 
 // TODO: replace with an easy to use thingy for calling functions?
-func (e Entity2) Script() script { return e.world.GetScriptFuncs(e.id) }
+// TODO: return a pointer instead of struct as is?
+func (e Entity2) Script() script {
+	typ, _ := e.world.Entity.Get(e.id)
+	return Scripts[reflect.TypeOf(typ)]
+}
 
 func (e Entity2) ScriptState() Entity { v, _ := e.world.Entity.Get(e.id); return v }
 
 func (e Entity2) SetScriptState(v Entity) { e.world.Entity.Set(e.id, v) }
 
 func (e Entity2) SetNextThink(v Time) { e.world.NextThink.Set(e.id, v) }
+
+// TODO: this is incorrect
+func (e Entity2) SetShouldSetOffFuseOnImpact(v bool) {
+	e.world.ShouldSetOffFuseOnImpact.Set(e.id, struct{}{})
+}
 
 func (e Entity2) SetParent(v ecs.ID) { e.world.SetParent(e.id, v) }
 
@@ -405,6 +325,7 @@ func (e Entity2) Transform() gmath.TRS3f64 {
 	// TODO: eventually change this to assume TransformTR and TransformS are set
 	// (if Transform is called). At most we could validate that R and S are
 	// valid.
+
 	tr, ok := e.world.TransformTR.Get(e.id)
 	if !ok {
 		tr = TR3f64{
@@ -412,10 +333,12 @@ func (e Entity2) Transform() gmath.TRS3f64 {
 			R: gmath.Rot3One(),
 		}
 	}
+
 	s, ok := e.world.TransformS.Get(e.id)
 	if !ok {
 		s = gmath.Mat3x3UOne[float32]()
 	}
+
 	return gmath.TRS3f64{tr.T, tr.R, s}
 }
 
@@ -426,25 +349,30 @@ func (e Entity2) SetTransform(v gmath.TRS3f64) {
 
 func (e Entity2) SetSkeleton(v unique.Handle[string]) { e.world.Skeleton.Set(e.id, v) }
 
+func (e Entity2) SetPose(v animgraph.Pose) { e.world.Pose.Set(e.id, v) }
+
 func (e Entity2) SetCollisionLayer(v CollisionLayer) { e.world.CollisionLayer.Set(e.id, v) }
 
-func (e Entity2) SetCollisionGeometry(v unique.Handle[string]) { e.world.CollisionGeometry.Set(e.id, v) }
+func (e Entity2) SetCollisionGeometry(v unique.Handle[string]) {
+	e.world.CollisionGeometry.Set(e.id, v)
+}
 
 func (e Entity2) SetPhysicsMassOverride(v float32) { e.world.PhysicsMassOverride.Set(e.id, v) }
-
-// TODO: this is 1) incorrect 2) should probably be generalized somehow
-func (e Entity2) SetShouldSetOffFuseOnImpact(v bool) { e.world.ShouldSetOffFuseOnImpact.Set(e.id, struct{}{}) }
 
 func (e Entity2) Velocity() Velocity { v, _ := e.world.Velocity.Get(e.id); return v }
 
 func (e Entity2) SetVelocity(v Velocity) { e.world.Velocity.Set(e.id, v) }
 
-func (e Entity2) SetVisibilityCondition(v VisibilityCondition) { e.world.VisibilityCondition.Set(e.id, v) }
+func (e Entity2) SetVisibilityCondition(v VisibilityCondition) {
+	e.world.VisibilityCondition.Set(e.id, v)
+}
 
 func (e Entity2) SetCosmeticOffset(v CosmeticOffset) { e.world.CosmeticOffset.Set(e.id, v) }
 
-func (e Entity2) SetRenderingGeometry(v unique.Handle[string]) { e.world.RenderingGeometry.Set(e.id, v) }
+func (e Entity2) SetRenderingGeometry(v unique.Handle[string]) {
+	e.world.RenderingGeometry.Set(e.id, v)
+}
 
 func (e Entity2) SetSoundEffect(v SoundEmitter) { e.world.SoundEffect.Set(e.id, v) }
 
-func (e Entity2) MarkForDeletion() { e.world.Delete.Set(e.id, struct{}{}) }
+func (e Entity2) MarkForDeletion() { e.world.delete.Set2(e.id.Index(), true) }

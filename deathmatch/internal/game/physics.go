@@ -172,21 +172,23 @@ func (world *World) physicsStep(updateParams *UpdateParams) {
 		// One or both entities in the contact event might've been removed
 		// before the last Update
 
-		if world.EntityExists(entityID1) && world.EntityExists(entityID2) {
+		entity1 := world.GetEntity2(entityID1)
+		entity2 := world.GetEntity2(entityID2)
+		if entity1 != (Entity2{}) && entity2 != (Entity2{}) {
 			switch ce.Type {
 			case 1:
-				if script := world.GetScriptFuncs(entityID1); script.ContactAdded != nil {
+				if script := entity1.Script(); script.ContactAdded != nil {
 					script.ContactAdded(updateParams, world, entityID1, entityID2)
 				}
-				if script := world.GetScriptFuncs(entityID2); script.ContactAdded != nil {
+				if script := entity2.Script(); script.ContactAdded != nil {
 					script.ContactAdded(updateParams, world, entityID2, entityID1)
 				}
 
 			case 2:
-				if script := world.GetScriptFuncs(entityID1); script.ContactRemoved != nil {
+				if script := entity1.Script(); script.ContactRemoved != nil {
 					script.ContactRemoved(updateParams, world, entityID1, entityID2)
 				}
-				if script := world.GetScriptFuncs(entityID2); script.ContactRemoved != nil {
+				if script := entity2.Script(); script.ContactRemoved != nil {
 					script.ContactRemoved(updateParams, world, entityID2, entityID1)
 				}
 			}

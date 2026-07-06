@@ -21,9 +21,6 @@ import (
 type IO struct {
 	// TODO: IO doesn't need World, we should replace this with a collection of
 	// buffers to enqueue the update funcs into
-	// world   *World
-	// updates       ecs.Column[[]updatef]
-	// globalUpdates *[]func(world *World, info *UpdateParams)
 	world *World
 
 	// TODO: can be anything that's ordered. In fact probably in some cases
@@ -47,6 +44,8 @@ func (io IO) EnqueueEntityUpdate(to ecs.ID, f func(info *UpdateParams, entity En
 	*updates = append(*updates, updatef{io.key, f})
 }
 
+// TODO: we could perhaps kill this and instead make things be enqueued for
+// entity 1 (worldspawn)?
 func (io IO) EnqueueGlobalUpdate(f func(info *UpdateParams, world *World)) {
 	io.world.globalUpdates = append(io.world.globalUpdates, f)
 }

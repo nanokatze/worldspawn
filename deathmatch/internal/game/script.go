@@ -83,10 +83,3 @@ type script struct {
 
 // Public only so that replication can load/store things. We'll eventually make this private.
 var Scripts = map[reflect.Type]script{}
-
-// TODO: return a pointer instead of struct as is?
-// TODO: provide a more convenient way to call functions
-func (world *World) GetScriptFuncs(entity ecs.ID) script {
-	typ, _ := world.Entity.Get(entity)
-	return Scripts[reflect.TypeOf(typ)]
-}
