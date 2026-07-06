@@ -9,6 +9,14 @@ import (
 	"worldspawn/internal/gmath"
 )
 
+// TODO: make it more general
+type VisibilityCondition struct {
+	Mask uint8
+	// TODO: replace with an arbitrary int64 id so we can have the same cameras
+	// share visibility sets? Or should this be a set of ids/ecs.IDs?
+	Camera ecs.ID
+}
+
 // TODO: make it more general and implement viewshake through this?
 type CosmeticOffset struct {
 	Alpha  float32
@@ -19,14 +27,6 @@ type CosmeticOffset struct {
 func (cosmeticOffset CosmeticOffset) Eval(now Time) gmath.Vec3f32 {
 	extinction := 1.0 / (1 + float64(cosmeticOffset.Alpha)*durationToFloatSeconds(max(now.Sub(cosmeticOffset.T0), 0)))
 	return cosmeticOffset.Offset.Scale(float32(extinction))
-}
-
-// TODO: make it more general
-type VisibilityCondition struct {
-	Mask uint8
-	// TODO: replace with an arbitrary int64 id so we can have the same cameras
-	// share visibility sets? Or should this be a set of ids/ecs.IDs?
-	Camera ecs.ID
 }
 
 type SoundEmitter struct {

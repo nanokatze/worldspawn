@@ -50,8 +50,8 @@ func init() {
 					transform := T_attack.Inv().Mul(world.GetGlobalTransform(physgun.HeldEntity))
 
 					io.EnqueueEntityUpdate(weapon,
-						func(_ *UpdateParams, weapon ecs.ID, io IO) {
-							io.world.MutateEntity(weapon, func(v *WeaponPhysgun) {
+						func(_ *UpdateParams, weapon Entity2, io IO) {
+							weapon.world.MutateEntity(weapon.id, func(v *WeaponPhysgun) {
 								v.HeldEntity = rayHit.Entity
 								v.Transform = transform
 							})
@@ -64,15 +64,15 @@ func init() {
 				transform := T_attack.Mul(physgun.Transform)
 
 				io.EnqueueEntityUpdate(physgun.HeldEntity,
-					func(_ *UpdateParams, id ecs.ID, io IO) {
-						io.world.SetTransform(id, transform.TRS())
-						io.world.Velocity.Set(id, Velocity{})
+					func(_ *UpdateParams, id Entity2, io IO) {
+						id.SetTransform(transform.TRS())
+						id.SetVelocity(Velocity{})
 					})
 
 			case holdingEntity && !triggerHeld:
 				io.EnqueueEntityUpdate(weapon,
-					func(_ *UpdateParams, weapon ecs.ID, io IO) {
-						io.world.MutateEntity(weapon, func(v *WeaponPhysgun) { v.HeldEntity = ecs.NullID })
+					func(_ *UpdateParams, weapon Entity2, io IO) {
+						weapon.world.MutateEntity(weapon.id, func(v *WeaponPhysgun) { v.HeldEntity = ecs.NullID })
 					})
 			}
 

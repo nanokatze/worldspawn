@@ -10,7 +10,7 @@ import (
 
 // TODO: rename to StepContext or something
 type UpdateParams struct {
-	// Now         Time // for substeps
+	// Now         Time // TODO: fill this out in world.Step for now
 	Δt          time.Duration
 	Speculating bool
 	Logger      *slog.Logger

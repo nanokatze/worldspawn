@@ -42,13 +42,13 @@ func init() {
 				io)
 
 			io.EnqueueEntityUpdate(grenade,
-				func(info *UpdateParams, grenade ecs.ID, io IO) {
-					T := io.world.GetTransform(grenade)
-					io.world.ClearEntity(grenade)
-					io.world.Entity.Set(grenade, DeleteAfter{})
-					io.world.NextThink.Set(grenade, io.world.Now.Add(2*time.Second)) // TODO: should be long enough for sound to play
-					io.world.SetTransform(grenade, T)
-					io.world.SoundEffect.Set(grenade, SoundEmitter{
+				func(info *UpdateParams, grenade Entity2, io IO) {
+					T := grenade.Transform()
+					grenade.Clear()
+					grenade.SetScriptState(DeleteAfter{})
+					grenade.SetNextThink(io.world.Now.Add(2 * time.Second)) // TODO: should be long enough for sound to play
+					grenade.SetTransform(T)
+					grenade.SetSoundEffect(SoundEmitter{
 						Effect:      "explosion.wav",
 						Attenuation: 1,
 						PlayTime:    io.world.Now.Add(info.Δt),

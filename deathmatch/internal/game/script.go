@@ -7,36 +7,6 @@ import (
 	"worldspawn/internal/gmath"
 )
 
-// TODO: rename this or split into two (one for thinkers, one for mutators) and make an interface
-// TODO: we can factor it out now (along with UpdateParams)
-// TODO: to allow for parallel enqueue we'll need mutexes too
-// TODO: invalidate IO to capture uninentional capture, etc.
-type IO struct {
-	// TODO: IO doesn't need World, we should replace this with a collection of
-	// buffers to enqueue the update funcs into
-	// world   *World
-	// updates       ecs.Column[[]updatef]
-	// globalUpdates *[]func(world *World, info *UpdateParams)
-	world *World
-
-	key ecs.ID // TODO: can be anything that's ordered. In fact probably in some cases we'll
-}
-
-type updatef struct {
-	key ecs.ID
-	f   func(info *UpdateParams, id ecs.ID, io IO)
-}
-
-// TODO: shorter names
-func (io IO) EnqueueEntityUpdate(to ecs.ID, f func(info *UpdateParams, entity ecs.ID, io IO)) {
-	updates, _ := io.world.Updates.Get(to)
-	io.world.Updates.Set(to, append(updates, updatef{io.key, f}))
-}
-
-func (io IO) EnqueueGlobalUpdate(f func(info *UpdateParams, world *World)) {
-	io.world.globalUpdates = append(io.world.globalUpdates, f)
-}
-
 // TODO: replace world and id with some kind of object to enable tighter access
 // control?
 // TODO: pass the object through which updates are enqueued explicitly. That way
@@ -82,7 +52,7 @@ type script struct {
 	ContactRemoved func(info *UpdateParams, world *World, entity1, entity2 ecs.ID)
 
 	// Impact may not perform any queries, but may mutate the entity.
-	Impact func(info *UpdateParams, entity ecs.ID, impact Impact, io IO)
+	Impact func(info *UpdateParams, entity Entity2, impact Impact, io IO)
 
 	// TODO: rename this, this is not a hint but provides some info which is the
 	// responsibility of the thing using the weapon to implement
@@ -108,7 +78,7 @@ type script struct {
 	// TODO: we might want to specify ammo type or at least mask?
 	// TODO: allow pulling multiple rounds? ideally we'd specify min and max.
 	// TODO: this should not have IO but a pure mutator
-	Magazine_Pull func(info *UpdateParams, entity ecs.ID, ammoType AmmoType, io IO) bool
+	Magazine_Pull func(info *UpdateParams, entity Entity2, ammoType AmmoType, io IO) bool
 }
 
 var scripts = map[reflect.Type]script{}

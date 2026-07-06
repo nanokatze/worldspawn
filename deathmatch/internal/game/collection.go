@@ -91,7 +91,7 @@ func prefab(filename string) *Columns {
 }
 
 func (world *World) InstantinatePrefab(filename string, info *UpdateParams) ecs.ID {
-	e := world.CreateEntity(info)
+	e := world.CreateEntity(info).id
 	world.CopyEntities(e, prefab(filename))
 	return e
 }

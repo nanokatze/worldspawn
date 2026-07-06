@@ -18,12 +18,12 @@ func init() {
 	scripts[reflect.TypeFor[Animtest]()] = script{
 		Think: func(info *UpdateParams, world *World, entity ecs.ID, io IO) {
 			io.EnqueueEntityUpdate(entity,
-				func(info *UpdateParams, entity ecs.ID, io IO) {
-					animtest, _ := io.world.GetEntity[Animtest](entity)
+				func(info *UpdateParams, entity Entity2, io IO) {
+					animtest, _ := entity.ScriptState().(Animtest)
 
 					animation := animation(animtest.Animation)
 
-					skelly := io.world.GetSkeleton(entity)
+					skelly := entity.world.GetSkeleton(entity.id)
 
 					localTransforms := map[int]gmath.Affine3f32{}
 
@@ -80,7 +80,7 @@ func init() {
 						pose.Bones[bone] = A.Mul(skelly.BindPoseInverse[bone])
 					}
 
-					io.world.Pose.Set(entity, pose)
+					entity.world.Pose.Set(entity.id, pose)
 				})
 		},
 	}

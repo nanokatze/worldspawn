@@ -26,14 +26,14 @@ func init() {
 
 					if T.T.Sub(playerT.T).Length() <= 1.1 {
 						io.EnqueueEntityUpdate(id,
-							func(info *UpdateParams, id ecs.ID, io IO) {
-								io.world.MutateEntity(id, func(v *Gladiator) { v.Inventory.Ammo[0] = 10 })
+							func(info *UpdateParams, entity Entity2, io IO) {
+								entity.world.MutateEntity(entity.id, func(v *Gladiator) { v.Inventory.Ammo[0] = 10 })
 								info.Logger.Info("resupplied the player", "id", id)
 							})
 
 						io.EnqueueEntityUpdate(entity,
-							func(info *UpdateParams, entity ecs.ID, io IO) {
-								io.world.NextThink.Set(entity, io.world.Now.Add(10*time.Second))
+							func(info *UpdateParams, entity Entity2, io IO) {
+								entity.world.NextThink.Set(entity.id, entity.world.Now.Add(10*time.Second))
 							})
 
 						break

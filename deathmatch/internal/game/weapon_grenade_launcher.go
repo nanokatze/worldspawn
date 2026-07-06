@@ -48,12 +48,12 @@ func init() {
 
 		Weapon_CreateProp: func(info *UpdateParams, world *World, weapon ecs.ID) ecs.ID {
 			root := world.CreateEntity(info)
-			world.Skeleton.Set(root, "weapons/grenade_launcher/skeletons/Armature")
-			world.RenderingGeometry.Set(root, "weapons/grenade_launcher/geometries/Grenade_Launcher")
-			world.Entity.Set(root, Testburger{
+			root.SetScriptState(Testburger{
 				BaseColor: [4]float32{1, 1, 1, 1}, // pretend it's a team color
 			})
-			return root
+			root.SetSkeleton("weapons/grenade_launcher/skeletons/Armature")
+			root.SetRenderingGeometry("weapons/grenade_launcher/geometries/Grenade_Launcher")
+			return root.id
 		},
 
 		Weapon_Think: func(
@@ -74,11 +74,11 @@ func init() {
 			}
 
 			if !weaponState.Chambered {
-				io.EnqueueEntityUpdate(attacker, func(info *UpdateParams, mag ecs.ID, io IO) {
-					if io.world.GetScriptFuncs(mag).Magazine_Pull(info, mag, 0, io) {
+				io.EnqueueEntityUpdate(attacker, func(info *UpdateParams, mag Entity2, io IO) {
+					if mag.Script().Magazine_Pull(info, mag, 0, io) {
 						io.EnqueueEntityUpdate(weapon,
-							func(info *UpdateParams, weapon ecs.ID, io IO) {
-								io.world.MutateEntity(weapon, func(v *WeaponGrenadeLauncher) { v.Chambered = true })
+							func(info *UpdateParams, weapon Entity2, io IO) {
+								weapon.world.MutateEntity(weapon.id, func(v *WeaponGrenadeLauncher) { v.Chambered = true })
 							})
 					}
 				})
@@ -94,32 +94,31 @@ func init() {
 					// TODO: don't use prefab here tbh
 					projectile := world.CreateEntity(info)
 					// TODO: it would be nice if we could specify this bit without assuming ScriptState type
-					world.Entity.Set(projectile, GrenadeInFlight{
+					projectile.SetScriptState(GrenadeInFlight{
 						LaunchedAt: world.Now,
 						Attacker:   attacker,
 					})
-					world.SetTransform(projectile,
+					projectile.SetTransform(
 						T_attack.
 							Mul(gmath.TRS3f64{
 								R: gmath.Rot3AToB(gmath.Vec3f32{0, 0, 1}, gmath.Vec3f32{0, 1, 0}),
 								S: gmath.Mat3x3UOne[float32](),
 							}.Compose()).
 							TRS())
-					world.Velocity.Set(projectile,
-						Velocity{
-							Linear: v_attack.Linear.Add(T_attack.M.Mulv(forward.Scale(grenadeLauncherStats.MuzzleVelocity))),
-						})
-					world.CollisionLayer.Set(projectile, CollisionLayerProjectiles)
-					world.CosmeticOffset.Set(projectile,
-						CosmeticOffset{
-							Alpha: 2,
-							T0:    world.Now,
-							// Ugh. TODO: think how we could make this not as gross.
-							Offset: T_attack.M.Mulv(gmath.Vec3f32{0.18, 0, -0.2}),
-						})
-					world.CollisionGeometry.Set(projectile, "Grenade") // TODO: we should model grenade prop to be something that's kinda 8-gon so that it stops rolling sooner
-					world.PhysicsMassOverride.Set(projectile, 0.1)
-					world.RenderingGeometry.Set(projectile, "weapons/grenade_launcher_grenade/geometries/Grenade")
+					projectile.SetVelocity(Velocity{
+						Linear: v_attack.Linear.Add(T_attack.M.Mulv(forward.Scale(grenadeLauncherStats.MuzzleVelocity))),
+					})
+					projectile.SetCollisionLayer(CollisionLayerProjectiles)
+					// TODO: we should model grenade prop to be something that's kinda 8-gon so that it stops rolling sooner
+					projectile.SetCollisionGeometry("Grenade")
+					projectile.SetPhysicsMassOverride(0.1)
+					projectile.SetCosmeticOffset(CosmeticOffset{
+						Alpha: 2,
+						T0:    world.Now,
+						// Ugh. TODO: think how we could make this not as gross.
+						Offset: T_attack.M.Mulv(gmath.Vec3f32{0.18, 0, -0.2}),
+					})
+					projectile.SetRenderingGeometry("weapons/grenade_launcher_grenade/geometries/Grenade")
 				})
 			}
 
@@ -127,9 +126,9 @@ func init() {
 			// instead and let props consult the state.
 			for _, id := range props {
 				io.EnqueueEntityUpdate(id,
-					func(info *UpdateParams, id ecs.ID, io IO) {
-						// skelly := world.GetSkeleton(id)
-						// world.Pose.Set(id, animgraph.Pose{
+					func(info *UpdateParams, prop Entity2, io IO) {
+						// skelly := world.GetSkeleton(prop)
+						// world.Pose.Set(prop, animgraph.Pose{
 						// 	Bones: map[int]gmath.Affine3f32{
 						// 		skelly.JointByName("Bolt"): gmath.TRS3f32{
 						// 			T: gmath.Vec3f32{0, -0.1 * Rand(world.Now, weaponID, "grenade launcher bolt position").Float32(), 0},
@@ -139,7 +138,7 @@ func init() {
 						// 	},
 						// })
 
-						io.world.SoundEffect.Set(id, SoundEmitter{
+						prop.SetSoundEffect(SoundEmitter{
 							Effect:      "weapons/grenade_launcher/fire.wav",
 							Attenuation: 1,
 							PlayTime:    io.world.Now, // + time.Duration(rng(w.Time, entityID, 0).Int63n(int64(1*time.Millisecond))),
@@ -148,8 +147,8 @@ func init() {
 			}
 
 			io.EnqueueEntityUpdate(weapon,
-				func(info *UpdateParams, weapon ecs.ID, io IO) {
-					io.world.MutateEntity(weapon, func(v *WeaponGrenadeLauncher) {
+				func(info *UpdateParams, weapon Entity2, io IO) {
+					weapon.world.MutateEntity(weapon.id, func(v *WeaponGrenadeLauncher) {
 						v.Chambered = false
 						v.CycleEnds = io.world.Now.Add(grenadeLauncherStats.CycleDuration)
 					})

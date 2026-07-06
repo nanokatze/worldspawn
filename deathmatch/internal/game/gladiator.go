@@ -70,6 +70,16 @@ type Gladiator struct {
 	// Always a descendant of Character.
 	FirstPersonHands ecs.ID
 
+	/*
+		Weapon struct {
+			Entity ecs.ID
+
+			FirstPersonProp ecs.ID
+			ThirdPersonProp ecs.ID
+		}
+	*/
+
+	// TODO: put these into a Weapon substruct
 	Weapon ecs.ID
 
 	// The first person prop is always a descendant of FirstPersonHands.
@@ -304,40 +314,38 @@ func init() {
 				velocity, _ := world.Velocity.Get(entity)
 
 				io.EnqueueEntityUpdate(gladiator.FirstPersonHands,
-					func(_ *UpdateParams, hands ecs.ID, io IO) {
-						io.world.SetTransform(hands,
-							gmath.TRS3f64{
-								T: gmath.Vec3f64{0, 1, 0}.
-									Scale(math.Sin(float64(io.world.Now.Sub(Time{}))/1e9*6) * 0.03 * min(float64(velocity.Linear.Length()/6), 1)),
-								R: gmath.Rot3One(),
-								S: gmath.Mat3x3UOne[float32](),
-							})
+					func(_ *UpdateParams, hands Entity2, io IO) {
+						hands.SetTransform(gmath.TRS3f64{
+							T: gmath.Vec3f64{0, 1, 0}.
+								Scale(math.Sin(float64(io.world.Now.Sub(Time{}))/1e9*6) * 0.03 * min(float64(velocity.Linear.Length()/6), 1)),
+							R: gmath.Rot3One(),
+							S: gmath.Mat3x3UOne[float32](),
+						})
 					})
 			}
 
 			io.EnqueueEntityUpdate(gladiator.FirstPersonCamera,
-				func(_ *UpdateParams, camera ecs.ID, io IO) {
-					io.world.SetTransform(camera,
-						gmath.TRS3f64{
-							T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
-							R: e01.Pow(4 * gladiator.Input.LookDir[0]).Mul(e12.Pow(4 * gladiator.Input.LookDir[1])),
-							S: gmath.Mat3x3UOne[float32](),
-						})
+				func(_ *UpdateParams, camera Entity2, io IO) {
+					camera.SetTransform(gmath.TRS3f64{
+						T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
+						R: e01.Pow(4 * gladiator.Input.LookDir[0]).Mul(e12.Pow(4 * gladiator.Input.LookDir[1])),
+						S: gmath.Mat3x3UOne[float32](),
+					})
 				})
 
 			io.EnqueueEntityUpdate(entity,
-				func(_ *UpdateParams, entity ecs.ID, io IO) {
-					gladiator, _ := io.world.GetEntity[Gladiator](entity)
-					defer func() { io.world.Entity.Set(entity, gladiator) }()
+				func(_ *UpdateParams, entity Entity2, io IO) {
+					gladiator, _ := entity.ScriptState().(Gladiator)
+					defer func() { entity.SetScriptState(gladiator) }()
 
 					// TODO: apply some part of the recoil as viewpunch?
 					// TODO: make sure we don't overflow LookDir
 					gladiator.Input.LookDir[0] += recoil.Recoil[0]
 					gladiator.Input.LookDir[1] += recoil.Recoil[1]
 
-					velocity, _ := io.world.Velocity.Get(entity)
+					velocity := entity.Velocity()
 
-					trs := io.world.GetTransform(entity)
+					trs := entity.Transform()
 
 					rotation := trs.R.Mul(e01.Pow(4 * gladiator.Input.LookDir[0]))
 
@@ -358,13 +366,13 @@ func init() {
 					if !gladiator.Motion.Supported {
 						velocity.Linear = velocity.Linear.Add(io.world.Globals().Gravity.Scale(float32(durationToFloatSeconds(info.Δt))))
 					}
-					velocity.Linear = gladiator.asdasd(io.world, entity, velocity.Linear, info.Δt)
+					velocity.Linear = gladiator.asdasd(io.world, entity.id, velocity.Linear, info.Δt)
 
 					if gladiator.Motion.Supported {
 						gladiator.Motion.Steps += float64(velocity.Linear.Length()) * durationToFloatSeconds(info.Δt)
 					}
 					if gladiator.Motion.Steps > 3 {
-						io.world.SoundEffect.Set(entity, SoundEmitter{
+						entity.SetSoundEffect(SoundEmitter{
 							Effect:      "step.wav",
 							Attenuation: 1,
 							PlayTime:    io.world.Now,
@@ -395,17 +403,17 @@ func init() {
 						// other players. We'll need to keep a damage log for that (even if
 						// limited)
 
-						io.world.Delete.Set(entity, struct{}{})
+						entity.MarkForDeletion()
 					}
 
-					io.world.Velocity.Set(entity, velocity)
+					entity.SetVelocity(velocity)
 				})
 		},
 
-		Impact: func(info *UpdateParams, id ecs.ID, impact Impact, io IO) {
+		Impact: func(info *UpdateParams, gladiator Entity2, impact Impact, io IO) {
 			// TODO: be verbose when computing the modifier
 			modifier := 1.0
-			if id == impact.Attacker {
+			if gladiator.id == impact.Attacker {
 				modifier /= 2
 			}
 
@@ -415,18 +423,18 @@ func init() {
 			directDamage := int32(math.Ceil(float64(modifiedDamage) * (1 - float64(impactBleedFactor[impact.Type]))))
 			bleeding := modifiedDamage - directDamage
 
-			io.world.MutateEntity(id, func(gladiator *Gladiator) {
-				gladiator.Vitals.Health -= directDamage
-				gladiator.Vitals.HealthToBleed += bleeding
-				gladiator.Vitals.NextBleed = io.world.Now
+			gladiator.world.MutateEntity(gladiator.id, func(state *Gladiator) {
+				state.Vitals.Health -= directDamage
+				state.Vitals.HealthToBleed += bleeding
+				state.Vitals.NextBleed = io.world.Now
 			})
 		},
 
-		Magazine_Pull: func(info *UpdateParams, entity ecs.ID, ammoType AmmoType, io IO) bool {
-			state, _ := io.world.GetEntity[Gladiator](entity)
+		Magazine_Pull: func(info *UpdateParams, entity Entity2, ammoType AmmoType, io IO) bool {
+			state, _ := entity.ScriptState().(Gladiator)
 			if state.Inventory.Ammo[ammoType] > 0 {
 				state.Inventory.Ammo[ammoType]--
-				io.world.Entity.Set(entity, state)
+				entity.world.Entity.Set(entity.id, state)
 				return true
 			}
 			return false
@@ -438,51 +446,51 @@ func init() {
 // as-is though. Or actually do pass it but keep it optional?
 func (world *World) spawnGladiator(T gmath.TRS3f64, info *UpdateParams) ecs.ID {
 	gladiator := world.CreateEntity(info)
+	gladiator.SetTransform(T)
+	gladiator.SetSkeleton("testcharacter4/skeletons/metarig")
+	gladiator.SetCollisionLayer(CollisionLayerMovingKinematic)
+	gladiator.SetCollisionGeometry("Gladiator")
+	gladiator.SetPhysicsMassOverride(100)
+	gladiator.SetShouldSetOffFuseOnImpact(true)
+	gladiator.SetRenderingGeometry("testcharacter4/geometries/TestCharacter4")
 
 	camera := world.CreateEntity(info)
-	world.SetParent(camera, gladiator)
+	camera.SetParent(gladiator.id)
+	gladiator.SetVisibilityCondition(VisibilityCondition{Mask: 0b10, Camera: camera.id})
 	// The transform will be set at the next simulation step.
 
 	hands := world.CreateEntity(info)
-	world.SetParent(hands, camera)
-	world.SetTransform(hands, gmath.TRS3One[float64]())
-	world.VisibilityCondition.Set(hands, VisibilityCondition{Mask: 0b01, Camera: camera})
-	world.RenderingGeometry.Set(hands, "testcharacter4/geometries/Hands")
+	hands.SetParent(camera.id)
+	hands.SetTransform(gmath.TRS3One[float64]())
+	hands.SetVisibilityCondition(VisibilityCondition{Mask: 0b01, Camera: camera.id})
+	hands.SetRenderingGeometry("testcharacter4/geometries/Hands")
 
 	s := Gladiator{
-		FirstPersonCamera: camera,
-		FirstPersonHands:  hands,
+		FirstPersonCamera: camera.id,
+		FirstPersonHands:  hands.id,
 	}
 	s.Vitals.Health = 100
 	// TODO: define loadout somehow better so that ammo pickup knows what to do
 	s.Inventory.Ammo[0] = 10
-	world.Entity.Set(gladiator, s)
-	world.SetTransform(gladiator, T)
-	world.Skeleton.Set(gladiator, "testcharacter4/skeletons/metarig")
-	world.CollisionGeometry.Set(gladiator, "Gladiator")
-	world.CollisionLayer.Set(gladiator, CollisionLayerMovingKinematic)
-	world.PhysicsMassOverride.Set(gladiator, 100)
-	world.ShouldSetOffFuseOnImpact.Set(gladiator, struct{}{})
-	world.VisibilityCondition.Set(gladiator, VisibilityCondition{Mask: 0b10, Camera: camera})
-	world.RenderingGeometry.Set(gladiator, "testcharacter4/geometries/TestCharacter4")
+	world.Entity.Set(gladiator.id, s)
 
 	// Give the gladiator some guns
 
 	{
 		weapon := world.CreateEntity(info)
-		world.Entity.Set(weapon, WeaponGrenadeLauncher{})
+		world.Entity.Set(weapon.id, WeaponGrenadeLauncher{})
 
-		world.GiveWeapon(gladiator, weapon)
+		world.GiveWeapon(gladiator.id, weapon.id)
 	}
 
 	{
 		weapon := world.CreateEntity(info)
-		world.Entity.Set(weapon, WeaponPhysgun{})
+		world.Entity.Set(weapon.id, WeaponPhysgun{})
 
-		world.GiveWeapon(gladiator, weapon)
+		world.GiveWeapon(gladiator.id, weapon.id)
 	}
 
-	return gladiator
+	return gladiator.id
 }
 
 func planeNormal(plane gmath.Vec4f32) gmath.Vec3f32 {

@@ -1,6 +1,8 @@
 package game
 
-import "reflect"
+import (
+	"reflect"
+)
 
 // TODO: kill Entity interface
 

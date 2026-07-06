@@ -40,17 +40,18 @@ type Impact struct {
 }
 
 // TODO: kill this in favor of enqueueImpact
-func (impact Impact) Apply(info *UpdateParams, id ecs.ID, io IO) {
-	scriptFuncs := io.world.GetScriptFuncs(id)
+func (impact Impact) Apply(info *UpdateParams, entity Entity2, io IO) {
+	scriptFuncs := entity.Script()
 	if scriptFuncs.Impact != nil {
-		scriptFuncs.Impact(info, id, impact, io)
+		scriptFuncs.Impact(info, entity, impact, io)
 	}
 
 	// TODO: only do this if Impact is not implemented and make entities
 	// implementing Impact do everything otherwise?
-	if vel, ok := io.world.Velocity.Get(id); ok {
-		io.world.Velocity.Set(id, vel.Add(impact.Δv))
-	}
+	// TODO: gate it behind a good check for if things are being actually
+	// simulated, e.g. Motion is Dynamic or some component for receiving
+	// velocity on a kinematic body is set.
+	entity.SetVelocity(entity.Velocity().Add(impact.Δv))
 }
 
 /*

@@ -51,7 +51,7 @@ func (world *World) HandleInput(player ecs.ID, cmd TimestampedInputCmd, info *Up
 // really need to poke this when new client joins. We could also rename Player
 // to Client or Connection or User or idk.
 func (world *World) SpawnPlayer(info *UpdateParams) ecs.ID {
-	player := world.CreateEntity(info)
+	player := world.CreateEntity(info).id
 	world.Entity.Set(player, Player{})
 	return player
 }

@@ -1,11 +1,9 @@
 package game
 
 import (
-	"cmp"
 	"fmt"
 	"io/fs"
 	"reflect"
-	"slices"
 
 	"worldspawn/internal/animgraph"
 	"worldspawn/internal/ecs"
@@ -44,11 +42,30 @@ type TR3f64 struct {
 // TODO: add a type for representing non-mutable lists and stuff?
 
 // TODO: certain columns could've perfectly feasibly been unique.Handle[string].
-// E.g. Script, CollisionGeometry and RenderingGeometry.
+// E.g. Skeleton, CollisionGeometry and RenderingGeometry.
 // TODO: get rid of transient columns altogether (for now), they should be
 // simpler structures at the root of World
+// TODO: instead of ecs.Columns, these should be any objects implementing an
+// interface with Get/Set/iter. We'll eventually replace ecs.Column with simpler
+// structures indexed by plain integers and get rid of ecs.Table, bringing
+// entity ID validation here.
 type Columns struct {
 	Name ecs.Column[string]
+
+	// Entity programmability
+
+	// TODO: rename this pls
+	Entity ecs.Column[Entity]
+
+	NextThink ecs.Column[Time]
+
+	// Entities marked for deletion
+	// TODO: doesn't really need to be a column either
+	Delete ecs.Column[struct{}] `worldspawn:"transient"`
+
+	// TODO: require that entities that we're do collision/physics for have no
+	// parent. Or maybe allow that somehow, e.g. by having children be joined
+	// with the collision geometry of the parent?
 
 	// Transform
 
@@ -68,9 +85,9 @@ type Columns struct {
 	//
 	// The scale and shearing part of the entity's parent-relative transform.
 	//
-	// It is possible for there to be an entry in TransformTR but not in
-	// TransformS, in which case no scaling or shearing is applied to the
-	// entity.
+	// It is possible for an entity to have a TransformTR but not TransformS, in
+	// which case no scaling or shearing is applied to the entity.
+	// TODO: we'll later hard-require TransformS to always be set to something valid.
 	TransformS ecs.Column[gmath.Mat3x3Uf32]
 
 	// TODO: make skeletons part of geometry? Ok actually wait which geometry
@@ -80,26 +97,6 @@ type Columns struct {
 	// TODO: this should be a non-networked column that would be populated by
 	// the animation script
 	Pose ecs.Column[animgraph.Pose]
-
-	// Entity programmability
-
-	// TODO: rename this pls
-	Entity ecs.Column[Entity]
-
-	NextThink ecs.Column[Time]
-
-	// TODO: this doesn't really need to be a column, this could perfectly
-	// feasibly be a plain array with a bitmap.
-	Updates  ecs.Column[[]updatef] `worldspawn:"transient"`
-	Updates2 ecs.Column[[]updatef] `worldspawn:"transient"`
-
-	// Entities marked for deletion
-	// TODO: doesn't really need to be a column either
-	Delete ecs.Column[struct{}] `worldspawn:"transient"`
-
-	// TODO: require that entities that we're do collision/physics for have no
-	// parent. Or maybe allow that somehow, e.g. by having children be joined
-	// with the collision geometry of the parent?
 
 	// Collision
 
@@ -171,7 +168,8 @@ type World struct {
 	Table *ecs.Table
 	Columns
 
-	globalUpdates []func(*UpdateParams, *World)
+	entityUpdates, entityUpdates2 [][]updatef
+	globalUpdates                 []func(*UpdateParams, *World)
 
 	physics *physics.System
 	// TODO: this should be folded into physicsSystem
@@ -189,6 +187,9 @@ func NewWorld(n int) *World {
 	for i := range columns.Type().NumField() {
 		columns.Field(i).Addr().Interface().(interface{ Init(*ecs.Table) }).Init(world.Table)
 	}
+
+	world.entityUpdates = make([][]updatef, n)
+	world.entityUpdates2 = make([][]updatef, n)
 
 	// TODO: pass contact listener. Or make it so that the contact listener is
 	// passed at call to Update.
@@ -210,20 +211,19 @@ func (world *World) Cap() int { return world.Table.IDs().Cap() }
 func (world *World) EntityExists(id ecs.ID) bool { return world.Table.IDs().Exists(id) }
 
 // TODO: make this private?
-// TODO: same as DeleteEntityImmediately, we probably should make a column for
-// creating entities so we can run a processing pass in parallel that then
-// spawns entities. Except this column would have to be of funcs.
-func (world *World) CreateEntity(info *UpdateParams) ecs.ID {
+// TODO: return ecs.ID. We could make CreateEntity take a lambda which will be
+// called with Entity2, but it should definitely return ecs.ID.
+func (world *World) CreateEntity(info *UpdateParams) Entity2 {
 	// TODO: don't hardcode index ranges
 
 	if info.Speculating {
 		id := world.Table.CreateRowAuto(900, 999, &world.NextIDSpeculative)
 		world.Speculation.Set(id, world.Now)
-		return id
+		return Entity2{world, id}
 	}
 
 	id := world.Table.CreateRowAuto(1, 899, &world.NextID)
-	return id
+	return Entity2{world, id}
 }
 
 // TODO: rename to ResetEntity?
@@ -388,6 +388,57 @@ func (world *World) GetSkeleton(id ecs.ID) *animgraph.Skeleton {
 	return skeleton(skellyName)
 }
 
+// Entity2 must not be stored in any structures and also not passed across entity update lambdas.
+//
+// TODO: rename to something else
+type Entity2 struct {
+	world *World
+	id    ecs.ID // TODO: replace with index
+}
+
+// TODO: rename to something nicer
+func (e Entity2) Clear() { e.world.ClearEntity(e.id) }
+
+// TODO: replace with an easy to use thingy for calling functions? Or just do Script() at least.
+func (e Entity2) Script() script { return e.world.GetScriptFuncs(e.id) }
+
+func (e Entity2) ScriptState() Entity { v, _ := e.world.Entity.Get(e.id); return v }
+
+func (e Entity2) SetScriptState(v Entity) { e.world.Entity.Set(e.id, v) }
+
+func (e Entity2) SetNextThink(v Time) { e.world.NextThink.Set(e.id, v) }
+
+func (e Entity2) SetParent(v ecs.ID) { e.world.SetParent(e.id, v) }
+
+func (e Entity2) Transform() gmath.TRS3f64 { return e.world.GetTransform(e.id) }
+
+func (e Entity2) SetTransform(v gmath.TRS3f64) { e.world.SetTransform(e.id, v) }
+
+func (e Entity2) SetSkeleton(v string) { e.world.Skeleton.Set(e.id, v) }
+
+func (e Entity2) SetCollisionLayer(v CollisionLayer) { e.world.CollisionLayer.Set(e.id, v) }
+
+func (e Entity2) SetCollisionGeometry(v string) { e.world.CollisionGeometry.Set(e.id, v) }
+
+func (e Entity2) SetPhysicsMassOverride(v float32) { e.world.PhysicsMassOverride.Set(e.id, v) }
+
+// TODO: this is 1) incorrect 2) should probably be generalized somehow
+func (e Entity2) SetShouldSetOffFuseOnImpact(v bool) { e.world.ShouldSetOffFuseOnImpact.Set(e.id, struct{}{}) }
+
+func (e Entity2) Velocity() Velocity { v, _ := e.world.Velocity.Get(e.id); return v }
+
+func (e Entity2) SetVelocity(v Velocity) { e.world.Velocity.Set(e.id, v) }
+
+func (e Entity2) SetVisibilityCondition(v VisibilityCondition) { e.world.VisibilityCondition.Set(e.id, v) }
+
+func (e Entity2) SetCosmeticOffset(v CosmeticOffset) { e.world.CosmeticOffset.Set(e.id, v) }
+
+func (e Entity2) SetRenderingGeometry(v string) { e.world.RenderingGeometry.Set(e.id, v) }
+
+func (e Entity2) SetSoundEffect(v SoundEmitter) { e.world.SoundEffect.Set(e.id, v) }
+
+func (e Entity2) MarkForDeletion() { e.world.Delete.Set(e.id, struct{}{}) }
+
 func (world *World) think(updateParams *UpdateParams) {
 	// TODO: optimize the pass over thinkers by having a shadow column
 
@@ -415,43 +466,6 @@ func (world *World) think(updateParams *UpdateParams) {
 	// Process the enqueued updates
 
 	world.processUpdates(updateParams)
-}
-
-func reuseslice[T any](s []T) []T {
-	clear(s)
-	s = s[:0]
-	return s
-}
-
-func (world *World) processUpdates(info *UpdateParams) {
-	for pass := 0;; pass++ {
-		progress := false
-
-		world.Updates, world.Updates2 = world.Updates2, world.Updates
-
-		for id, updates := range ecs.All(&world.Updates2) {
-			slices.SortStableFunc(updates, func(a, b updatef) int { return cmp.Compare(a.from, b.from) })
-
-			// TODO: deterministically permute updates up to sender ID?
-
-			for _, u := range updates {
-				u.f(info, id, IO{world, id})
-				progress = true
-			}
-			// TODO: we can clear using reuseslice instead of doing a Clear later
-		}
-		world.Updates2.Clear()
-
-		for _, f := range world.globalUpdates {
-			f(world, info)
-			progress = true
-		}
-		world.globalUpdates = reuseslice(world.globalUpdates)
-
-		if !progress {
-			break
-		}
-	}
 }
 
 // TODO: rename to make it clear that we're deleting things already marked for
