@@ -98,11 +98,11 @@ func (world *World) InstantinatePrefab(filename string, info *UpdateParams) ecs.
 
 // TODO: this should create the collection entities
 func (world *World) InstanceCollectionAt(id ecs.ID, prefabRef PrefabRef) {
-	T := world.GetTransform(id)
+	T := world.GetEntity2(id).Transform()
 
 	world.CopyEntities(id, prefab(prefabRef.Filename))
 	// TODO: actually compose these rather than override!
-	world.SetTransform(id, T)
+	world.GetEntity2(id).SetTransform(T)
 
 	// TODO: we also need to take velocity into account
 }

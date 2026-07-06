@@ -38,7 +38,7 @@ func (world *World) updatePhysicsShadow(updateParams *UpdateParams) {
 	}
 
 	for id, layer := range ecs.All(&world.CollisionLayer) {
-		trs := world.GetTransform(id)
+		tr, _ := world.TransformTR.Get(id)
 		// TODO: ensure trs.S is 1
 		velocity, _ := world.Velocity.Get(id)
 		_, sensor := world.CollisionSensor.Get(id)
@@ -72,8 +72,8 @@ func (world *World) updatePhysicsShadow(updateParams *UpdateParams) {
 			world.physics.AddBody(
 				bodyID,
 				shape2,
-				trs.T,
-				trs.R,
+				tr.T,
+				tr.R,
 				velocity.Linear,
 				velocity.Angular,
 				int(layer),
@@ -87,8 +87,8 @@ func (world *World) updatePhysicsShadow(updateParams *UpdateParams) {
 			world.physics.UpdateBody(
 				bodyID,
 				shape2,
-				trs.T,
-				trs.R,
+				tr.T,
+				tr.R,
 				velocity.Linear,
 				velocity.Angular,
 				int(layer),

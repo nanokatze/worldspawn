@@ -173,14 +173,17 @@ func init() {
 							}
 
 							gladiator.Weapon.FirstPersonProp = script.Weapon_CreateProp(info, world, switchToWeapon)
+							firstPersonProp := world.GetEntity2(gladiator.Weapon.FirstPersonProp)
 							// TODO: parent it directly to the camera instead.
-							world.SetParent(gladiator.Weapon.FirstPersonProp, gladiator.FirstPersonHands)
-							world.SetTransform(gladiator.Weapon.FirstPersonProp, hint.FirstPersonPropTransform)
-							world.VisibilityCondition.Set(gladiator.Weapon.FirstPersonProp,
+							firstPersonProp.SetParent(gladiator.FirstPersonHands)
+							firstPersonProp.SetTransform(hint.FirstPersonPropTransform)
+							firstPersonProp.SetVisibilityCondition(VisibilityCondition{Mask: 0b01, Camera: gladiator.FirstPersonCamera})
+
 							gladiator.Weapon.ThirdPersonProp = script.Weapon_CreateProp(info, world, switchToWeapon)
-							world.SetParent(gladiator.Weapon.ThirdPersonProp, id)
-							world.ParentBone.Set(gladiator.Weapon.ThirdPersonProp, "hand.R")
-							world.VisibilityCondition.Set(gladiator.Weapon.ThirdPersonProp,
+							thirdPersonProp := world.GetEntity2(gladiator.Weapon.ThirdPersonProp)
+							thirdPersonProp.SetParent(id)
+							thirdPersonProp.SetParentBone("hand.R")
+							thirdPersonProp.SetVisibilityCondition(VisibilityCondition{Mask: 0b10, Camera: gladiator.FirstPersonCamera})
 						}
 					}
 				}
@@ -216,8 +219,8 @@ func init() {
 			*/
 
 			// TODO: factor this out?
-			world.SetTransform(gladiator.FirstPersonCamera,
-				gmath.TRS3f64{
+			world.GetEntity2(gladiator.FirstPersonCamera).
+				SetTransform(gmath.TRS3f64{
 					T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
 					R: e01.Pow(4 * gladiator.Input.LookDir[0]).Mul(e12.Pow(4 * gladiator.Input.LookDir[1])),
 					S: gmath.Mat3x3UOne[float32](),
@@ -230,7 +233,7 @@ func init() {
 			gladiator, _ := world.GetEntity[Gladiator](entity)
 
 			var recoil Recoil
-			if world.EntityExists(gladiator.Weapon.Entity) {
+			if weapon, ok := world.GetEntity3(gladiator.Weapon.Entity); ok {
 				var buttons WeaponButtons
 				if gladiator.Input.HeldButtons&uint64(1<<ButtonAttack) != 0 {
 					buttons |= WeaponTrigger
@@ -245,7 +248,7 @@ func init() {
 
 				v_attack, _ := world.Velocity.Get(entity)
 
-				recoil = world.GetScriptFuncs(gladiator.Weapon.Entity).Weapon_Think(info, world, gladiator.Weapon.Entity, []ecs.ID{gladiator.Weapon.FirstPersonProp}, entity, T_attack, v_attack, buttons, io)
+				recoil = weapon.Script().Weapon_Think(info, world, weapon.id, []ecs.ID{gladiator.Weapon.FirstPersonProp}, entity, T_attack, v_attack, buttons, io)
 			}
 
 			// EXTREMELY YUCKY!!!!!!!!!!!!
@@ -520,7 +523,7 @@ func (a *gladiatorMovementQueryPipeline) Hit(x physics.SceneIntersection[physics
 }
 
 func (gladiator *Gladiator) asdasd(world *World, id ecs.ID, velocity gmath.Vec3f32, Δt time.Duration) gmath.Vec3f32 {
-	trs := world.GetTransform(id)
+	trs := world.GetEntity2(id).Transform()
 
 	up := gmath.Vec3f32{0, 0, 1}
 

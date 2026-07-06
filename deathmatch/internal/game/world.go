@@ -1,7 +1,6 @@
 package game
 
 import (
-	"fmt"
 	"io/fs"
 	"reflect"
 
@@ -213,6 +212,7 @@ func (world *World) EntityExists(id ecs.ID) bool { return world.Table.IDs().Exis
 // TODO: make this private?
 // TODO: return ecs.ID. We could make CreateEntity take a lambda which will be
 // called with Entity2, but it should definitely return ecs.ID.
+// TODO: set a bunch of things ootb like e.g. parent to 1
 func (world *World) CreateEntity(info *UpdateParams) Entity2 {
 	// TODO: don't hardcode index ranges
 
@@ -279,38 +279,8 @@ func (world *World) SetParent(id, parent ecs.ID) {
 		// this id. I.e. if this id isn't valid, we should crash.
 		world.Parent.Delete(id)
 	}
-
-	// children, _ := scene.Children.Load(parent)
-	// children
 }
 
-func (world *World) GetTransform(id ecs.ID) gmath.TRS3f64 {
-	tr, ok := world.TransformTR.Get(id)
-	if !ok {
-		// TODO: replace this panic with an oops-esque thing which can be just a
-		// warning or whatever if need be, or return error from GetTransform and
-		// have a helper on UpdateParams.
-		panic(fmt.Sprintf("transform queried but does not exist on an object id=%d", id))
-		return gmath.TRS3One[float64]()
-	}
-	s, ok := world.TransformS.Get(id)
-	if !ok {
-		s = gmath.Mat3x3UOne[float32]()
-	}
-	return gmath.TRS3f64{tr.T, tr.R, s}
-}
-
-func (world *World) SetTransform(id ecs.ID, T gmath.TRS3f64) {
-	world.TransformTR.Set(id, TR3f64{T.T, T.R})
-	if T.S != gmath.Mat3x3UOne[float32]() {
-		world.TransformS.Set(id, T.S)
-	} else {
-		world.TransformS.Delete(id)
-	}
-}
-
-// TODO: make this a global thing that takes IO (this needs arbitrary scene read)
-//
 // TODO: if we encounter errors during hierarchy traversal we should restart
 // traversal with diagnostics collection and print the collected diagnostics
 // after using Scene.Logger.Error
@@ -320,7 +290,7 @@ func (world *World) SetTransform(id ecs.ID, T gmath.TRS3f64) {
 // TODO: replace T.Mul(A) with just A on the first iteration to optimize the
 // common case
 //
-// TODO: clean up
+// TODO: clean this up. Could Entity2 help here?
 func (world *World) GetGlobalTransform(id ecs.ID) gmath.Affine3f64 {
 	getEntityTransform := func(id ecs.ID) gmath.Affine3f64 {
 		tr, ok := world.TransformTR.Get(id)
@@ -388,6 +358,20 @@ func (world *World) GetSkeleton(id ecs.ID) *animgraph.Skeleton {
 	return skeleton(skellyName)
 }
 
+// TODO: do validation here
+// TODO: rename to just Entity when we rename the Entity column to something
+// more reasonable.
+func (world *World) GetEntity2(id ecs.ID) Entity2 {
+	return Entity2{world, id}
+}
+
+func (world *World) GetEntity3(id ecs.ID) (Entity2, bool) {
+	if world.EntityExists(id) {
+		return Entity2{world, id}, true
+	}
+	return Entity2{}, false
+}
+
 // Entity2 must not be stored in any structures and also not passed across entity update lambdas.
 //
 // TODO: rename to something else
@@ -395,6 +379,8 @@ type Entity2 struct {
 	world *World
 	id    ecs.ID // TODO: replace with index
 }
+
+func (e Entity2) ID() ecs.ID { return e.id }
 
 // TODO: rename to something nicer
 func (e Entity2) Clear() { e.world.ClearEntity(e.id) }
@@ -410,9 +396,30 @@ func (e Entity2) SetNextThink(v Time) { e.world.NextThink.Set(e.id, v) }
 
 func (e Entity2) SetParent(v ecs.ID) { e.world.SetParent(e.id, v) }
 
-func (e Entity2) Transform() gmath.TRS3f64 { return e.world.GetTransform(e.id) }
+func (e Entity2) SetParentBone(v string) { e.world.ParentBone.Set(e.id, v) }
 
-func (e Entity2) SetTransform(v gmath.TRS3f64) { e.world.SetTransform(e.id, v) }
+func (e Entity2) Transform() gmath.TRS3f64 {
+	// TODO: eventually change this to assume TransformTR and TransformS are set
+	// (if Transform is called). At most we could validate that R and S are
+	// valid.
+	tr, ok := e.world.TransformTR.Get(e.id)
+	if !ok {
+		tr = TR3f64{
+			T: gmath.Vec3f64{},
+			R: gmath.Rot3One(),
+		}
+	}
+	s, ok := e.world.TransformS.Get(e.id)
+	if !ok {
+		s = gmath.Mat3x3UOne[float32]()
+	}
+	return gmath.TRS3f64{tr.T, tr.R, s}
+}
+
+func (e Entity2) SetTransform(v gmath.TRS3f64) {
+	e.world.TransformTR.Set(e.id, TR3f64{v.T, v.R})
+	e.world.TransformS.Set(e.id, v.S)
+}
 
 func (e Entity2) SetSkeleton(v string) { e.world.Skeleton.Set(e.id, v) }
 
