@@ -4,6 +4,7 @@ import (
 	"math"
 	"reflect"
 	"time"
+	"unique"
 
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/gmath"
@@ -51,8 +52,8 @@ func init() {
 			root.SetScriptState(Testburger{
 				BaseColor: [4]float32{1, 1, 1, 1}, // pretend it's a team color
 			})
-			root.SetSkeleton("weapons/grenade_launcher/skeletons/Armature")
-			root.SetRenderingGeometry("weapons/grenade_launcher/geometries/Grenade_Launcher")
+			root.SetSkeleton(unique.Make("weapons/grenade_launcher/skeletons/Armature"))
+			root.SetRenderingGeometry(unique.Make("weapons/grenade_launcher/geometries/Grenade_Launcher"))
 			return root.id
 		},
 
@@ -110,7 +111,7 @@ func init() {
 					})
 					projectile.SetCollisionLayer(CollisionLayerProjectiles)
 					// TODO: we should model grenade prop to be something that's kinda 8-gon so that it stops rolling sooner
-					projectile.SetCollisionGeometry("Grenade")
+					projectile.SetCollisionGeometry(unique.Make("Grenade"))
 					projectile.SetPhysicsMassOverride(0.1)
 					projectile.SetCosmeticOffset(CosmeticOffset{
 						Alpha: 2,
@@ -118,7 +119,7 @@ func init() {
 						// Ugh. TODO: think how we could make this not as gross.
 						Offset: T_attack.M.Mulv(gmath.Vec3f32{0.18, 0, -0.2}),
 					})
-					projectile.SetRenderingGeometry("weapons/grenade_launcher_grenade/geometries/Grenade")
+					projectile.SetRenderingGeometry(unique.Make("weapons/grenade_launcher_grenade/geometries/Grenade"))
 				})
 			}
 

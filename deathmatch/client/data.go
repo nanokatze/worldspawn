@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"sync"
+	"unique"
 	"unsafe"
 
 	"github.com/go-json-experiment/json"
@@ -34,7 +35,7 @@ import (
 
 var texturecache = make(map[string]*renderer.Texture)
 var materialcache = make(map[string]material)
-var modelcache = make(map[string]*fileBackedMesh)
+var modelcache = make(map[unique.Handle[string]]*fileBackedMesh)
 var soundcache = make(map[string][]float32)
 
 // TODO: should support streaming etc.
@@ -328,10 +329,10 @@ func loadmesh(filename string) *fileBackedMesh {
 	}
 }
 
-func getgeometry(geo string) *fileBackedMesh {
+func getgeometry(geo unique.Handle[string]) *fileBackedMesh {
 	m, ok := modelcache[geo]
 	if !ok {
-		m = loadmesh(geo)
+		m = loadmesh(geo.Value())
 		modelcache[geo] = m
 	}
 	return m

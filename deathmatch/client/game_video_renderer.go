@@ -184,7 +184,7 @@ func (re *gameVideoRenderer) Tick(world *game.World, playerID ecs.ID, t0, t1 gam
 			if parentBone, parentedToBone := world.ParentBone.Get(id); parentedToBone {
 				pose, _ := world.Pose.Get(parent)
 				skelly := world.GetSkeleton(parent)
-				parentBoneIndex := skelly.JointByName(parentBone)
+				parentBoneIndex := skelly.JointByName(parentBone.Value())
 				hmm, ok := pose.Bones[parentBoneIndex]
 				if !ok {
 					hmm = gmath.Affine3One[float32]()

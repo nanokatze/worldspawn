@@ -13,6 +13,7 @@ import (
 	"reflect"
 	"sync"
 	"time"
+	"unique"
 
 	"github.com/go-json-experiment/json"
 
@@ -534,25 +535,25 @@ func main() {
 
 	if true {
 		test := s.world.CreateEntity(info)
-		s.world.Entity.Set(test, game.Animtest{"testcharacter4/animations/metarigAction"})
-		s.world.SetTransform(test, gmath.TRS3f64{
+		test.SetScriptState(game.Animtest{"testcharacter4/animations/metarigAction"})
+		test.SetTransform(gmath.TRS3f64{
 			T: gmath.Vec3f64{0, -1, 0},
 			R: gmath.Rot3One(),
 			S: gmath.Mat3x3UOne[float32](),
 		})
-		s.world.Skeleton.Set(test, "testcharacter4/skeletons/metarig")
-		s.world.RenderingGeometry.Set(test, "testcharacter4/geometries/TestCharacter4")
+		test.SetSkeleton(unique.Make("testcharacter4/skeletons/metarig"))
+		test.SetRenderingGeometry(unique.Make("testcharacter4/geometries/TestCharacter4"))
 	}
 
 	if true {
 		test := s.world.CreateEntity(info)
-		s.world.Entity.Set(test, game.AmmoPickup{})
-		s.world.SetTransform(test, gmath.TRS3f64{
+		test.SetScriptState(game.AmmoPickup{})
+		test.SetTransform(gmath.TRS3f64{
 			T: gmath.Vec3f64{0, -2, 0.5},
 			R: gmath.Rot3One(),
 			S: gmath.Mat3x3UOne[float32](),
 		})
-		s.world.RenderingGeometry.Set(test, "weapons/grenade_launcher/geometries/Grenade_Launcher") // TODO: replace it with a box
+		test.SetRenderingGeometry(unique.Make("weapons/grenade_launcher/geometries/Grenade_Launcher")) // TODO: replace it with a box
 	}
 
 	s.world.InstantinateCollections()

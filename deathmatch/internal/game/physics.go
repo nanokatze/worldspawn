@@ -110,7 +110,7 @@ func getShape(world *World, id ecs.ID) *physics.Shape {
 	// HACK: our gross way out of not having geonodes, see
 	// https://github.com/nanokatze/worldspawn-private/issues/45
 	var shape geometryPacked
-	switch geom {
+	switch geom.Value() {
 	case "Grenade":
 		shape = packGeometry(_Geometry{
 			Rotation: gmath.Rot3One(),
@@ -132,7 +132,7 @@ func getShape(world *World, id ecs.ID) *physics.Shape {
 		})
 
 	default:
-		shape = packGeometry(_Geometry{Kind: geometryFileBacked, Filename: geom})
+		shape = packGeometry(_Geometry{Kind: geometryFileBacked, Filename: geom.Value()})
 	}
 
 	var shape2 *physics.Shape

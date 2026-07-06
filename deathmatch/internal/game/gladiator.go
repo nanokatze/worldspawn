@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"slices"
 	"time"
+	"unique"
 
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/gmath"
@@ -182,7 +183,8 @@ func init() {
 							gladiator.Weapon.ThirdPersonProp = script.Weapon_CreateProp(info, world, switchToWeapon)
 							thirdPersonProp := world.GetEntity2(gladiator.Weapon.ThirdPersonProp)
 							thirdPersonProp.SetParent(id)
-							thirdPersonProp.SetParentBone("hand.R")
+							thirdPersonProp.SetParentBone(unique.Make("hand.R"))
+							thirdPersonProp.SetTransform(gmath.TRS3One[float64]())
 							thirdPersonProp.SetVisibilityCondition(VisibilityCondition{Mask: 0b10, Camera: gladiator.FirstPersonCamera})
 						}
 					}
@@ -445,12 +447,12 @@ func init() {
 func (world *World) spawnGladiator(T gmath.TRS3f64, info *UpdateParams) ecs.ID {
 	gladiator := world.CreateEntity(info)
 	gladiator.SetTransform(T)
-	gladiator.SetSkeleton("testcharacter4/skeletons/metarig")
+	gladiator.SetSkeleton(unique.Make("testcharacter4/skeletons/metarig"))
 	gladiator.SetCollisionLayer(CollisionLayerMovingKinematic)
-	gladiator.SetCollisionGeometry("Gladiator")
+	gladiator.SetCollisionGeometry(unique.Make("Gladiator"))
 	gladiator.SetPhysicsMassOverride(100)
 	gladiator.SetShouldSetOffFuseOnImpact(true)
-	gladiator.SetRenderingGeometry("testcharacter4/geometries/TestCharacter4")
+	gladiator.SetRenderingGeometry(unique.Make("testcharacter4/geometries/TestCharacter4"))
 
 	camera := world.CreateEntity(info)
 	camera.SetParent(gladiator.id)
@@ -461,7 +463,7 @@ func (world *World) spawnGladiator(T gmath.TRS3f64, info *UpdateParams) ecs.ID {
 	hands.SetParent(camera.id)
 	hands.SetTransform(gmath.TRS3One[float64]())
 	hands.SetVisibilityCondition(VisibilityCondition{Mask: 0b01, Camera: camera.id})
-	hands.SetRenderingGeometry("testcharacter4/geometries/Hands")
+	hands.SetRenderingGeometry(unique.Make("testcharacter4/geometries/Hands"))
 
 	s := Gladiator{
 		FirstPersonCamera: camera.id,

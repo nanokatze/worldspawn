@@ -3,6 +3,7 @@ package game
 import (
 	"io/fs"
 	"reflect"
+	"unique"
 
 	"worldspawn/internal/animgraph"
 	"worldspawn/internal/ecs"
@@ -72,7 +73,7 @@ type Columns struct {
 	// parent entity.
 	Parent ecs.Column[ecs.ID]
 	// The bone in the parent's skeleton that transforms this entity.
-	ParentBone ecs.Column[string]
+	ParentBone ecs.Column[unique.Handle[string]]
 	// Do not access this column directly; use {Get,Set}Transform or
 	// GetGlobalTransform instead.
 	//
@@ -91,7 +92,7 @@ type Columns struct {
 
 	// TODO: make skeletons part of geometry? Ok actually wait which geometry
 	// lol. We'll need to think more about this.
-	Skeleton ecs.Column[string]
+	Skeleton ecs.Column[unique.Handle[string]]
 
 	// TODO: this should be a non-networked column that would be populated by
 	// the animation script
@@ -100,7 +101,7 @@ type Columns struct {
 	// Collision
 
 	CollisionLayer    ecs.Column[CollisionLayer]
-	CollisionGeometry ecs.Column[string]
+	CollisionGeometry ecs.Column[unique.Handle[string]]
 
 	CollisionSensor ecs.Column[struct{}]
 
@@ -134,7 +135,7 @@ type Columns struct {
 
 	CosmeticOffset ecs.Column[CosmeticOffset]
 
-	RenderingGeometry ecs.Column[string]
+	RenderingGeometry ecs.Column[unique.Handle[string]]
 
 	// TODO: so the way we'll probably go about sounds is by having 2 networked
 	// columns and one shadow column. The shadow column will feed the actual
@@ -305,12 +306,12 @@ func (world *World) GetGlobalTransform(id ecs.ID) gmath.Affine3f64 {
 	}
 
 	// TODO: make this a method on the scene?
-	getBoneTransform := func(id ecs.ID, bone string) gmath.Affine3f32 {
+	getBoneTransform := func(id ecs.ID, bone unique.Handle[string]) gmath.Affine3f32 {
 		skelly := world.GetSkeleton(id)
 		if skelly == nil {
 			return gmath.Affine3One[float32]()
 		}
-		boneIndex := skelly.JointByName(bone)
+		boneIndex := skelly.JointByName(bone.Value()) // TODO: this should natively use unique.Handle
 		if boneIndex == -1 {
 			return gmath.Affine3One[float32]()
 		}
@@ -396,7 +397,7 @@ func (e Entity2) SetNextThink(v Time) { e.world.NextThink.Set(e.id, v) }
 
 func (e Entity2) SetParent(v ecs.ID) { e.world.SetParent(e.id, v) }
 
-func (e Entity2) SetParentBone(v string) { e.world.ParentBone.Set(e.id, v) }
+func (e Entity2) SetParentBone(v unique.Handle[string]) { e.world.ParentBone.Set(e.id, v) }
 
 func (e Entity2) Transform() gmath.TRS3f64 {
 	// TODO: eventually change this to assume TransformTR and TransformS are set
@@ -421,11 +422,11 @@ func (e Entity2) SetTransform(v gmath.TRS3f64) {
 	e.world.TransformS.Set(e.id, v.S)
 }
 
-func (e Entity2) SetSkeleton(v string) { e.world.Skeleton.Set(e.id, v) }
+func (e Entity2) SetSkeleton(v unique.Handle[string]) { e.world.Skeleton.Set(e.id, v) }
 
 func (e Entity2) SetCollisionLayer(v CollisionLayer) { e.world.CollisionLayer.Set(e.id, v) }
 
-func (e Entity2) SetCollisionGeometry(v string) { e.world.CollisionGeometry.Set(e.id, v) }
+func (e Entity2) SetCollisionGeometry(v unique.Handle[string]) { e.world.CollisionGeometry.Set(e.id, v) }
 
 func (e Entity2) SetPhysicsMassOverride(v float32) { e.world.PhysicsMassOverride.Set(e.id, v) }
 
@@ -440,7 +441,7 @@ func (e Entity2) SetVisibilityCondition(v VisibilityCondition) { e.world.Visibil
 
 func (e Entity2) SetCosmeticOffset(v CosmeticOffset) { e.world.CosmeticOffset.Set(e.id, v) }
 
-func (e Entity2) SetRenderingGeometry(v string) { e.world.RenderingGeometry.Set(e.id, v) }
+func (e Entity2) SetRenderingGeometry(v unique.Handle[string]) { e.world.RenderingGeometry.Set(e.id, v) }
 
 func (e Entity2) SetSoundEffect(v SoundEmitter) { e.world.SoundEffect.Set(e.id, v) }
 

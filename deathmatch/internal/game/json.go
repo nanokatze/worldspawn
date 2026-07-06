@@ -6,6 +6,7 @@ import (
 	"math"
 	"reflect"
 	"strconv"
+	"unique"
 
 	"github.com/go-json-experiment/json"
 	"github.com/go-json-experiment/json/jsontext"
@@ -69,6 +70,14 @@ var JSONOptions = json.JoinOptions(
 		json.MarshalToFunc(float64JSONMarshaler),
 	)),
 	json.WithUnmarshalers(json.JoinUnmarshalers(
+		json.UnmarshalFromFunc(func(dec *jsontext.Decoder, v *unique.Handle[string]) error {
+			var tmp string
+			if err := json.UnmarshalDecode(dec, &tmp); err != nil {
+				return nil
+			}
+			*v = unique.Make(tmp)
+			return nil
+		}),
 		json.UnmarshalFromFunc(float32JSONUnmarshaler),
 		json.UnmarshalFromFunc(float64JSONUnmarshaler),
 		json.UnmarshalFromFunc(InterfaceJSONUnmarshaler[Entity](

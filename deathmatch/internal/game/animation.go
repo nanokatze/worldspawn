@@ -4,6 +4,7 @@ import (
 	"maps"
 	"slices"
 	"sync"
+	"unique"
 
 	"github.com/go-json-experiment/json"
 
@@ -44,12 +45,12 @@ func loadAnimation(filename string) (*animgraph.Animation, error) {
 
 var skeletonCache sync.Map
 
-func skeleton(filename string) *animgraph.Skeleton {
+func skeleton(filename unique.Handle[string]) *animgraph.Skeleton {
 	if m, ok := skeletonCache.Load(filename); ok {
 		return m.(*animgraph.Skeleton)
 	}
 
-	m, err := loadSkeleton(filename)
+	m, err := loadSkeleton(filename.Value())
 	if err != nil {
 		panic(err)
 	}
