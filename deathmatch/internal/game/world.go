@@ -399,7 +399,7 @@ type Entity2 struct {
 // TODO: rename to something nicer
 func (e Entity2) Clear() { e.world.ClearEntity(e.id) }
 
-// TODO: replace with an easy to use thingy for calling functions? Or just do Script() at least.
+// TODO: replace with an easy to use thingy for calling functions?
 func (e Entity2) Script() script { return e.world.GetScriptFuncs(e.id) }
 
 func (e Entity2) ScriptState() Entity { v, _ := e.world.Entity.Get(e.id); return v }
@@ -438,72 +438,3 @@ func (e Entity2) SetRenderingGeometry(v string) { e.world.RenderingGeometry.Set(
 func (e Entity2) SetSoundEffect(v SoundEmitter) { e.world.SoundEffect.Set(e.id, v) }
 
 func (e Entity2) MarkForDeletion() { e.world.Delete.Set(e.id, struct{}{}) }
-
-func (world *World) think(updateParams *UpdateParams) {
-	// TODO: optimize the pass over thinkers by having a shadow column
-
-	// Update systems which are allowed to be queried from Think
-
-	world.updatePhysicsShadow(updateParams)
-
-	// Run thinkers
-
-	for id, scriptName := range ecs.All(&world.Entity) {
-		script := scripts[reflect.TypeOf(scriptName)]
-		if script.Think == nil {
-			continue
-		}
-
-		// TODO: we'll want a timer wheel of sorts to make this fast
-		nextThink, _ := world.NextThink.Get(id)
-		if world.Now.Before(nextThink) {
-			continue
-		}
-
-		script.Think(updateParams, world, id, IO{world, id})
-	}
-
-	// Process the enqueued updates
-
-	world.processUpdates(updateParams)
-}
-
-// TODO: rename to make it clear that we're deleting things already marked for
-// deletion.
-func (world *World) deleteMarkedEntities() {
-	// Propagate deletion from parents.
-	//
-	// TODO: make this less gross. We could do a probe whether there's any
-	// deletions at all right now.
-	{
-		var f func(id ecs.ID) bool
-		// TODO: we could also rotate this
-		f = func(id ecs.ID) bool {
-			if id == 0 {
-				return false
-			}
-
-			if _, delet := world.Delete.Get(id); delet {
-				return true
-			}
-
-			delet := f(world.GetParent(id))
-			if delet {
-				world.Delete.Set(id, struct{}{})
-			}
-			return delet
-		}
-
-		for id := range ecs.All(&world.Parent) {
-			f(id)
-		}
-	}
-
-	// Remove entities that were scheduled for removal
-	for id := range ecs.All(&world.Delete) {
-		if _, ok := world.physicsBodyExists.Get(id); ok {
-			world.physics.RemoveBody(physics.BodyID(id.Index()))
-		}
-		world.Table.DeleteRow(id)
-	}
-}
