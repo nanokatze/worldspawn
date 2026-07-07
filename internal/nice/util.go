@@ -4,9 +4,28 @@ import (
 	"fmt"
 	"maps"
 	"reflect"
+	"unique"
 )
 
-func InterfaceArshaler[T any](types ...reflect.Type) Arshalers {
+func MakeUniqueHandleArshaler[T comparable]() Arshalers {
+	return MakeArshaler(
+		func(enc *Encoder, v *unique.Handle[T]) error {
+			tmp := v.Value()
+			return MarshalEncode(enc, &tmp)
+		},
+		func(dec *Decoder, v *unique.Handle[T]) error {
+			var tmp T
+			if err := UnmarshalDecode(dec, &tmp); err != nil {
+				return err
+			}
+			*v = unique.Make(tmp)
+			return nil
+		},
+	)
+}
+
+// TODO: kill this
+func MakeInterfaceArshaler[T any](types ...reflect.Type) Arshalers {
 	m := maps.Collect(func(yield func(reflect.Type, uint64) bool) {
 		for idx, typ := range types {
 			yield(typ, uint64(idx))
