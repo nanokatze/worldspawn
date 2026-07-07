@@ -12,6 +12,8 @@ func lessthan(a, b gmath.Vec3f64) bool {
 	return a[0] < b[0] && a[1] < b[1] && a[2] < b[2]
 }
 
+// TODO: we'll probably want to use physics engine in some way with infinite
+// plane shapes.
 func (world *World) handleOutOfBoundsEntities(info *UpdateParams) {
 	// TODO: specify the bounds on SceneGlobals or something
 	bounds := [2]gmath.Vec3f64{

@@ -153,13 +153,14 @@ func (world *World) physicsStep(updateParams *UpdateParams) {
 
 	for _, bodyID := range world.physics.ActiveBodies() {
 		entityID := ecs.ID(bodyID) // BUG: this is not correct anymore because the generations do not match!!!
+		entity := world.GetEntity2(entityID)
 
 		pos, rot, linVel, angVel := world.physics.WritebackBody(bodyID)
 
-		world.TransformTR.Set(entityID, TR3f64{T: pos, R: rot})
+		entity.SetTranslationAndRotation(TR3f64{T: pos, R: rot})
 
 		// TODO: don't store velocity back for kinematic bodies
-		world.Velocity.Set(entityID, Velocity{Linear: linVel, Angular: angVel})
+		entity.SetVelocity(Velocity{Linear: linVel, Angular: angVel})
 	}
 
 	for _, ce := range world.physics.ContactEvents() {

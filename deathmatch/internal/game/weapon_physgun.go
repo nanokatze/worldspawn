@@ -51,7 +51,7 @@ func init() {
 
 					io.EnqueueEntityUpdate(weapon,
 						func(_ *UpdateParams, weapon Entity2, io IO) {
-							weapon.world.MutateEntity(weapon.id, func(v *WeaponPhysgun) {
+							weapon.UpdateScriptState(func(v *WeaponPhysgun) {
 								v.HeldEntity = rayHit.Entity
 								v.Transform = transform
 							})
@@ -72,7 +72,7 @@ func init() {
 			case holdingEntity && !triggerHeld:
 				io.EnqueueEntityUpdate(weapon,
 					func(_ *UpdateParams, weapon Entity2, io IO) {
-						weapon.world.MutateEntity(weapon.id, func(v *WeaponPhysgun) { v.HeldEntity = ecs.NullID })
+						weapon.UpdateScriptState(func(v *WeaponPhysgun) { v.HeldEntity = ecs.NullID })
 					})
 			}
 

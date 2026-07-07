@@ -46,7 +46,7 @@ type Gladiator struct {
 
 		HeldButtons uint64
 
-		WeaponSlot int8
+		Slot int8
 	}
 
 	Vitals struct {
@@ -118,7 +118,7 @@ func init() {
 			case InputCmdReleaseButton:
 				gladiator.Input.HeldButtons &^= uint64(1) << cmd
 			case Slot:
-				gladiator.WeaponSlot = int8(cmd)
+				gladiator.Input.Slot = int8(cmd)
 
 			default:
 				// TODO: we should not hit this with nil either
@@ -129,7 +129,7 @@ func init() {
 
 			// TODO: autoselect the gun here
 
-			switchToWeaponID := gladiator.Inventory.Slots[gladiator.WeaponSlot] // TODO: be safe with the values WeaponSlot might have
+			switchToWeaponID := gladiator.Inventory.Slots[gladiator.Input.Slot] // TODO: be safe with the values Slot might have
 
 			// TODO: make weapon switching predicted
 			if !info.Speculating && gladiator.HeldWeapon.Entity != switchToWeaponID {
@@ -377,7 +377,7 @@ func init() {
 			directDamage := int32(math.Ceil(float64(modifiedDamage) * (1 - float64(impactBleedFactor[impact.Type]))))
 			bleeding := modifiedDamage - directDamage
 
-			gladiator.world.MutateEntity(gladiator.id, func(state *Gladiator) {
+			gladiator.UpdateScriptState(func(state *Gladiator) {
 				state.Vitals.Health -= directDamage
 				state.Vitals.HealthToBleed += bleeding
 				state.Vitals.NextBleed = io.world.Now

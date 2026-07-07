@@ -12,10 +12,8 @@ import (
 	"worldspawn/internal/physics"
 )
 
-// TODO: actually indeed stick it onto Scene or pass it through UpdateInfo
+// TODO: stick it into World or pass it through UpdateInfo
 var Data fs.FS
-
-// TODO: split this file up
 
 // TODO: fold almost all scripty stuff into the same column? Although I guess
 // that's more up to how we wanna represent things for authoring etc. I'm not
@@ -62,6 +60,7 @@ type Columns struct {
 	//
 	// The translation and rotation parts of the entity's parent-relative
 	// transform.
+	// TODO: rename to TranslationAndRotation
 	TransformTR ecs.Column[TR3f64]
 	// Do not access this column directly; use {Get,Set}Transform and
 	// GetGlobalTransform instead.
@@ -71,6 +70,7 @@ type Columns struct {
 	// It is possible for an entity to have a TransformTR but not TransformS, in
 	// which case no scaling or shearing is applied to the entity.
 	// TODO: we'll later hard-require TransformS to always be set to something valid.
+	// TODO: rename to ScalingAndShearing
 	TransformS ecs.Column[gmath.Mat3x3Uf32]
 
 	// TODO: make skeletons part of geometry? Ok actually wait which geometry
@@ -124,10 +124,16 @@ type Columns struct {
 	// TODO: rethink sounds
 	SoundEffect      ecs.Column[SoundEmitter]
 	SoundEffectState ecs.Column[LoopedSound] // TODO: kill this column
+
+	// Deadlines of speculatively spawned entities.
+	//
+	// TODO: rename
+	Speculation ecs.Column[Time]
 }
 
 // TODO: make all of the internals private. We'll need to add infrastructure for
 // replication to World first.
+// TODO: I'm really tempted to stick logger onto World atp
 type World struct {
 	// TODO: we could move it to be a WorldGlobals field I suppose
 	Now Time
@@ -145,12 +151,8 @@ type World struct {
 	// TODO: this should be folded into physicsSystem
 	physicsBodyExists ecs.Column[struct{}]
 
-	// Deadlines of speculatively spawned entities.
-	//
-	// TODO: rename
-	speculation []Time
-
 	// Entities marked for deletion
+	// TODO: move this into Entities
 	delete bitset.Bitset
 }
 
@@ -171,19 +173,16 @@ func NewWorld(n int) *World {
 
 	// TODO: pass contact listener. Or make it so that the contact listener is
 	// passed at call to Update.
+	// TODO: we should expose an OptimizeBroadPhase call on physicsSystem which
+	// we'll (optionally) call after loading the world and perhaps every so
+	// often
 	world.physics = physics.NewSystem(
 		int(numCollisionLayers),
 		collisionLayerToBroadPhaseLayer[:],
 		collisionLayerRules)
 	world.physicsBodyExists.Init(world.Table)
 
-	world.speculation = make([]Time, n)
-
 	world.delete = bitset.Make(n)
-
-	// TODO: we should expose an OptimizeBroadPhase call on physicsSystem which
-	// we'll (optionally) call after loading the world and perhaps every so
-	// often
 
 	return world
 }
@@ -191,9 +190,6 @@ func NewWorld(n int) *World {
 func (world *World) Cap() int { return world.Table.IDs().Cap() }
 
 // TODO: make this private?
-// TODO: return ecs.ID. We could make CreateEntity take a lambda which will be
-// called with Entity2, but it should definitely return ecs.ID.
-// TODO: set a bunch of things ootb like e.g. parent to 1
 func (world *World) CreateEntity(info *UpdateParams) Entity2 {
 	// TODO: don't hardcode index ranges
 
@@ -205,14 +201,6 @@ func (world *World) CreateEntity(info *UpdateParams) Entity2 {
 
 	id := world.Table.CreateRowAuto(1, 899, &world.NextID)
 	return Entity2{world, id}
-}
-
-// TODO: rename to ResetEntity?
-func (world *World) ClearEntity(id ecs.ID) {
-	if _, ok := world.physicsBodyExists.Get(id); ok {
-		world.physics.RemoveBody(physics.BodyID(id.Index()))
-	}
-	world.Table.ClearRow(id)
 }
 
 // This is used by client networking to remove entities.
@@ -234,12 +222,6 @@ func (world *World) GetEntity[T Entity](id ecs.ID) (T, bool) {
 		return *new(T), false
 	}
 	return entityT, true
-}
-
-func (world *World) MutateEntity[T Entity](id ecs.ID, f func(v *T)) {
-	v, _ := world.GetEntity[T](id)
-	f(&v)
-	world.Entity.Set(id, v)
 }
 
 func (world *World) GetParent(id ecs.ID) ecs.ID {
@@ -289,17 +271,33 @@ func (e Entity2) ID() ecs.ID { return e.id }
 func (e Entity2) Valid() bool { return e.id != 0 }
 
 // TODO: rename to something nicer
-func (e Entity2) Clear() { e.world.ClearEntity(e.id) }
+func (e Entity2) Clear() {
+	if _, ok := e.world.physicsBodyExists.Get(e.id); ok {
+		// We have to do this because ClearRow unsets the bit in
+		// physicsBodyExists, so we end up with an orphan physics body.
+		e.world.physics.RemoveBody(physics.BodyID(e.id.Index()))
+	}
+	e.world.Table.ClearRow(e.id)
+}
 
-// TODO: replace with an easy to use thingy for calling functions?
+// TODO: replace with an easy to use thingy for checking whether an entity's
+// script satisfies some interface, and stuff for calling that interface?
 // TODO: return a pointer instead of struct as is?
 func (e Entity2) Script() script {
 	return Scripts[reflect.TypeOf(e.world.Entity.Load(e.id.Index()))]
 }
 
+// TODO: the zoo of script state stuff really kinda pmo
+
 func (e Entity2) ScriptState() Entity { return e.world.Entity.Load(e.id.Index()) }
 
 func (e Entity2) SetScriptState(v Entity) { e.world.Entity.Store(e.id.Index(), v) }
+
+func (e Entity2) UpdateScriptState[T Entity](f func(v *T)) {
+	v := e.world.Entity.Load(e.id.Index()).(T)
+	f(&v)
+	e.world.Entity.Store(e.id.Index(), v)
+}
 
 func (e Entity2) SetNextThink(v Time) { e.world.NextThink.Store(e.id.Index(), v) }
 
@@ -313,30 +311,21 @@ func (e Entity2) SetParent(v ecs.ID) { e.world.SetParent(e.id, v) }
 func (e Entity2) SetParentBone(v unique.Handle[string]) { e.world.ParentBone.Store(e.id.Index(), v) }
 
 func (e Entity2) Transform() gmath.TRS3f64 {
-	// TODO: eventually change this to assume TransformTR and TransformS are set
-	// (if Transform is called). At most we could validate that R and S are
-	// valid.
+	// TODO: validate that the transform is invertible? We might wanna ban non-invertible transforms
 
 	tr := e.world.TransformTR.Load(e.id.Index())
-	// if !ok {
-	// 	tr = TR3f64{
-	// 		T: gmath.Vec3f64{},
-	// 		R: gmath.Rot3One(),
-	// 	}
-	// }
-
 	s := e.world.TransformS.Load(e.id.Index())
-	// if !ok {
-	// 	s = gmath.Mat3x3UOne[float32]()
-	// }
-
 	return gmath.TRS3f64{tr.T, tr.R, s}
 }
 
 func (e Entity2) SetTransform(v gmath.TRS3f64) {
+	// TODO: validate the transform
+
 	e.world.TransformTR.Store(e.id.Index(), TR3f64{v.T, v.R})
 	e.world.TransformS.Store(e.id.Index(), v.S)
 }
+
+func (e Entity2) SetTranslationAndRotation(v TR3f64) { e.world.TransformTR.Store(e.id.Index(), v) }
 
 func (e Entity2) SetSkeleton(v unique.Handle[string]) { e.world.Skeleton.Store(e.id.Index(), v) }
 

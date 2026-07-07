@@ -25,7 +25,7 @@ func init() {
 					if T.T.Sub(playerT.T).Length() <= 1.1 {
 						io.EnqueueEntityUpdate(id,
 							func(info *UpdateParams, entity Entity2, io IO) {
-								entity.world.MutateEntity(entity.id, func(v *Gladiator) { v.Inventory.Ammo[0] = 10 })
+								entity.UpdateScriptState(func(v *Gladiator) { v.Inventory.Ammo[0] = 10 })
 								info.Logger.Info("resupplied the player", "id", id)
 							})
 

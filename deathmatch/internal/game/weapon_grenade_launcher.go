@@ -72,12 +72,14 @@ func init() {
 				return Recoil{}
 			}
 
+			// TODO: move this state transition into the normal Think. We'll
+			// need to be able to hold onto the player to pull ammo off them.
 			if !weaponState.Chambered {
 				io.EnqueueEntityUpdate(attacker, func(info *UpdateParams, mag Entity2, io IO) {
 					if mag.Script().Magazine_Pull(info, mag, 0, io) {
 						io.EnqueueEntityUpdate(weapon,
 							func(info *UpdateParams, weapon Entity2, io IO) {
-								weapon.world.MutateEntity(weapon.id, func(v *WeaponGrenadeLauncher) { v.Chambered = true })
+								weapon.UpdateScriptState(func(v *WeaponGrenadeLauncher) { v.Chambered = true })
 							})
 					}
 				})
@@ -147,7 +149,7 @@ func init() {
 
 			io.EnqueueEntityUpdate(weapon,
 				func(info *UpdateParams, weapon Entity2, io IO) {
-					weapon.world.MutateEntity(weapon.id, func(v *WeaponGrenadeLauncher) {
+					weapon.UpdateScriptState(func(v *WeaponGrenadeLauncher) {
 						v.Chambered = false
 						v.CycleEnds = io.world.Now.Add(grenadeLauncherStats.CycleDuration)
 					})

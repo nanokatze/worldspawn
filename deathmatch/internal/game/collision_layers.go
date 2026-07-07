@@ -4,6 +4,8 @@ import "worldspawn/internal/physics"
 
 type CollisionLayer uint8
 
+// TODO: change numbering to be from 0 in preparation to switching to a plain
+// slice (with fast iter over non-zeros) for CollisionLayer
 const (
 	CollisionLayerNonMoving CollisionLayer = iota
 	CollisionLayerMoving

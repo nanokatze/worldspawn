@@ -25,6 +25,7 @@ type script struct {
 	// TODO: in Thinkers, we might want to swap the read-only world and the entity accessor (which we'll have in place of IDs)
 
 	// TODO: prefix this somehow, e.g. with Character. Also rename to HandleInput?
+	// TODO: allow this to return error, in which case the server would drop the player?
 	Input func(info *UpdateParams, world *World, entity ecs.ID, cmd TimestampedInputCmd)
 
 	// Think may not perform any mutations, but may read states of entities,
