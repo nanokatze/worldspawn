@@ -15,6 +15,10 @@ type WeaponPhysgun struct {
 
 func init() {
 	Scripts[reflect.TypeFor[WeaponPhysgun]()] = script{
+		Weapon_Hint: func(info *UpdateParams, world *World, weapon ecs.ID) WeaponHint {
+			return WeaponHint{}
+		},
+
 		Weapon_Think: func(
 			info *UpdateParams,
 			world *World,
@@ -27,7 +31,7 @@ func init() {
 			io IO) Recoil {
 			physgun, _ := world.GetEntity[WeaponPhysgun](weapon)
 
-			holdingEntity := world.EntityExists(physgun.HeldEntity)
+			holdingEntity := world.GetEntity2(physgun.HeldEntity).Valid()
 			triggerHeld := buttons&WeaponTrigger != 0
 
 			switch {
@@ -43,7 +47,7 @@ func init() {
 					})
 
 				if rayHit.Entity != ecs.NullID {
-					transform := T_attack.Inv().Mul(world.GetGlobalTransform(physgun.HeldEntity))
+					transform := T_attack.Inv().Mul(world.GetGlobalTransform(rayHit.Entity))
 
 					io.EnqueueEntityUpdate(weapon,
 						func(_ *UpdateParams, weapon Entity2, io IO) {
