@@ -1,6 +1,6 @@
 package ecs
 
-import "worldspawn/internal/ecs/internal/bitset"
+import "worldspawn/internal/ecs/bitset"
 
 type IDs struct {
 	used bitset.Bitset

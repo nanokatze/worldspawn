@@ -294,77 +294,76 @@ func (e Entity2) Clear() { e.world.ClearEntity(e.id) }
 // TODO: replace with an easy to use thingy for calling functions?
 // TODO: return a pointer instead of struct as is?
 func (e Entity2) Script() script {
-	typ, _ := e.world.Entity.Get(e.id)
-	return Scripts[reflect.TypeOf(typ)]
+	return Scripts[reflect.TypeOf(e.world.Entity.Load(e.id.Index()))]
 }
 
-func (e Entity2) ScriptState() Entity { v, _ := e.world.Entity.Get(e.id); return v }
+func (e Entity2) ScriptState() Entity { return e.world.Entity.Load(e.id.Index()) }
 
-func (e Entity2) SetScriptState(v Entity) { e.world.Entity.Set(e.id, v) }
+func (e Entity2) SetScriptState(v Entity) { e.world.Entity.Store(e.id.Index(), v) }
 
-func (e Entity2) SetNextThink(v Time) { e.world.NextThink.Set(e.id, v) }
+func (e Entity2) SetNextThink(v Time) { e.world.NextThink.Store(e.id.Index(), v) }
 
 // TODO: this is incorrect
 func (e Entity2) SetShouldSetOffFuseOnImpact(v bool) {
-	e.world.ShouldSetOffFuseOnImpact.Set(e.id, struct{}{})
+	e.world.ShouldSetOffFuseOnImpact.Store(e.id.Index(), struct{}{})
 }
 
 func (e Entity2) SetParent(v ecs.ID) { e.world.SetParent(e.id, v) }
 
-func (e Entity2) SetParentBone(v unique.Handle[string]) { e.world.ParentBone.Set(e.id, v) }
+func (e Entity2) SetParentBone(v unique.Handle[string]) { e.world.ParentBone.Store(e.id.Index(), v) }
 
 func (e Entity2) Transform() gmath.TRS3f64 {
 	// TODO: eventually change this to assume TransformTR and TransformS are set
 	// (if Transform is called). At most we could validate that R and S are
 	// valid.
 
-	tr, ok := e.world.TransformTR.Get(e.id)
-	if !ok {
-		tr = TR3f64{
-			T: gmath.Vec3f64{},
-			R: gmath.Rot3One(),
-		}
-	}
+	tr := e.world.TransformTR.Load(e.id.Index())
+	// if !ok {
+	// 	tr = TR3f64{
+	// 		T: gmath.Vec3f64{},
+	// 		R: gmath.Rot3One(),
+	// 	}
+	// }
 
-	s, ok := e.world.TransformS.Get(e.id)
-	if !ok {
-		s = gmath.Mat3x3UOne[float32]()
-	}
+	s := e.world.TransformS.Load(e.id.Index())
+	// if !ok {
+	// 	s = gmath.Mat3x3UOne[float32]()
+	// }
 
 	return gmath.TRS3f64{tr.T, tr.R, s}
 }
 
 func (e Entity2) SetTransform(v gmath.TRS3f64) {
-	e.world.TransformTR.Set(e.id, TR3f64{v.T, v.R})
-	e.world.TransformS.Set(e.id, v.S)
+	e.world.TransformTR.Store(e.id.Index(), TR3f64{v.T, v.R})
+	e.world.TransformS.Store(e.id.Index(), v.S)
 }
 
-func (e Entity2) SetSkeleton(v unique.Handle[string]) { e.world.Skeleton.Set(e.id, v) }
+func (e Entity2) SetSkeleton(v unique.Handle[string]) { e.world.Skeleton.Store(e.id.Index(), v) }
 
-func (e Entity2) SetPose(v animgraph.Pose) { e.world.Pose.Set(e.id, v) }
+func (e Entity2) SetPose(v animgraph.Pose) { e.world.Pose.Store(e.id.Index(), v) }
 
-func (e Entity2) SetCollisionLayer(v CollisionLayer) { e.world.CollisionLayer.Set(e.id, v) }
+func (e Entity2) SetCollisionLayer(v CollisionLayer) { e.world.CollisionLayer.Store(e.id.Index(), v) }
 
 func (e Entity2) SetCollisionGeometry(v unique.Handle[string]) {
-	e.world.CollisionGeometry.Set(e.id, v)
+	e.world.CollisionGeometry.Store(e.id.Index(), v)
 }
 
-func (e Entity2) SetPhysicsMassOverride(v float32) { e.world.PhysicsMassOverride.Set(e.id, v) }
+func (e Entity2) SetPhysicsMassOverride(v float32) { e.world.PhysicsMassOverride.Store(e.id.Index(), v) }
 
-func (e Entity2) Velocity() Velocity { v, _ := e.world.Velocity.Get(e.id); return v }
+func (e Entity2) Velocity() Velocity { return e.world.Velocity.Load(e.id.Index()) }
 
-func (e Entity2) SetVelocity(v Velocity) { e.world.Velocity.Set(e.id, v) }
+func (e Entity2) SetVelocity(v Velocity) { e.world.Velocity.Store(e.id.Index(), v) }
 
 func (e Entity2) SetVisibilityCondition(v VisibilityCondition) {
-	e.world.VisibilityCondition.Set(e.id, v)
+	e.world.VisibilityCondition.Store(e.id.Index(), v)
 }
 
-func (e Entity2) SetCosmeticOffset(v CosmeticOffset) { e.world.CosmeticOffset.Set(e.id, v) }
+func (e Entity2) SetCosmeticOffset(v CosmeticOffset) { e.world.CosmeticOffset.Store(e.id.Index(), v) }
 
 func (e Entity2) SetRenderingGeometry(v unique.Handle[string]) {
-	e.world.RenderingGeometry.Set(e.id, v)
+	e.world.RenderingGeometry.Store(e.id.Index(), v)
 }
 
-func (e Entity2) SetSoundEffect(v SoundEmitter) { e.world.SoundEffect.Set(e.id, v) }
+func (e Entity2) SetSoundEffect(v SoundEmitter) { e.world.SoundEffect.Store(e.id.Index(), v) }
 
-func (e Entity2) MarkForDeletion() { e.world.delete.Set2(e.id.Index(), true) }
+func (e Entity2) MarkForDeletion() { e.world.delete.Store(e.id.Index(), true) }

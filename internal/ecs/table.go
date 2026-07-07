@@ -1,8 +1,6 @@
 package ecs
 
-import (
-	"worldspawn/internal/ecs/internal/bitset"
-)
+import "worldspawn/internal/ecs/bitset"
 
 // TODO: factor out used and gens into its own object?
 type Table struct {

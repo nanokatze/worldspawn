@@ -3,9 +3,14 @@ package bitset
 import (
 	"math/bits"
 	"sync/atomic"
+	"unsafe"
 )
 
+const wordBits = int(unsafe.Sizeof(*new(word))) * 8
+
 type word uint64
+
+// TODO: abstract word further?
 
 func trailingZerosWord(x word) int {
 	return bits.TrailingZeros64(uint64(x))

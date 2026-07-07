@@ -98,13 +98,13 @@ func (world *World) deleteMarkedEntities() {
 				return false
 			}
 
-			if world.delete.Get(id.Index()) {
+			if world.delete.Load(id.Index()) {
 				return true
 			}
 
 			delet := f(world.GetParent(id))
 			if delet {
-				world.delete.Set2(id.Index(), true)
+				world.delete.Store(id.Index(), true)
 			}
 			return delet
 		}

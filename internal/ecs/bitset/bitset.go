@@ -1,4 +1,4 @@
-package bitset
+package bitset // TODO: rename this to containers and move it to worldspawn/internal/
 
 import (
 	"fmt"
@@ -16,7 +16,6 @@ func (e boundsError) Error() string {
 }
 
 const (
-	wordBits = 64
 	ctr0Bits = 32 * wordBits
 )
 
@@ -30,6 +29,8 @@ type Bitset struct {
 
 	len int
 }
+
+// TODO: add append api so that it can be used as an actual []bool?
 
 func Make(len int) Bitset {
 	return Bitset{
@@ -46,7 +47,10 @@ func Copy(dst, src Bitset) {
 	copy(dst.ctrs0, src.ctrs0)
 }
 
-func (bs Bitset) Test(i int) bool {
+// TODO: kill this
+func (bs Bitset) Test(i int) bool { return bs.Load(i) }
+
+func (bs Bitset) Load(i int) bool {
 	if i < 0 || bs.len <= i {
 		panic(boundsError{x: i, y: bs.len})
 	}
@@ -58,9 +62,30 @@ func (bs Bitset) Test(i int) bool {
 	return atomicLoadWord(&bs.words[i/wordBits])&mask != 0
 }
 
-// func (bs BitSet) FindAndSet()
+func (bs Bitset) Store(i int, v bool) {
+	if i < 0 || i >= bs.len {
+		panic(boundsError{x: i, y: bs.len})
+	}
+
+	mask := word(1) << (i % wordBits)
+
+	if v {
+		old := atomicOrWord(&bs.words[i/wordBits], mask)
+		if old == 0 {
+			// The word went from zero to non-zero, increment the counter.
+			atomic.AddUint32(&bs.ctrs0[i/ctr0Bits], 1)
+		}
+	} else {
+		old := atomicAndWord(&bs.words[i/wordBits], ^mask)
+		if old == mask {
+			// The word went from non-zero to now zero, decrement the counter.
+			atomic.AddUint32(&bs.ctrs0[i/ctr0Bits], ^uint32(0))
+		}
+	}
+}
 
 // Set sets the bit i and returns the old value.
+// TODO: kill in favor of Store
 func (bs Bitset) Set(i int) bool {
 	if i < 0 || i >= bs.len {
 		panic(boundsError{x: i, y: bs.len})
@@ -77,6 +102,7 @@ func (bs Bitset) Set(i int) bool {
 }
 
 // Unset unsets the bit i and returns the old value.
+// TODO: kill in favor of Store
 func (bs Bitset) Unset(i int) bool {
 	if i < 0 || bs.len <= i {
 		panic(boundsError{x: i, y: bs.len})
@@ -92,6 +118,7 @@ func (bs Bitset) Unset(i int) bool {
 	return old&mask != 0
 }
 
+// TODO: rename to Clear
 func (bs Bitset) Reset() {
 	// TODO: could be made faster on sparse bitsets by checking the counters
 
@@ -99,8 +126,11 @@ func (bs Bitset) Reset() {
 	clear(bs.ctrs0)
 }
 
-// TODO: add a Clear(v bool) method?
+// TODO: add a Clear( bool) method?
 
+func (bs Bitset) Ones() iter.Seq[int] { return And(bs) }
+
+// TODO: kill And
 // And returns an iterator over elements present in all bss.
 func And(bss ...Bitset) iter.Seq[int] {
 	return func(yield func(int) bool) {
@@ -147,8 +177,4 @@ func And(bss ...Bitset) iter.Seq[int] {
 			}
 		}
 	}
-}
-
-func divRoundUp(x, y int) int {
-	return (x + y - 1) / y
 }

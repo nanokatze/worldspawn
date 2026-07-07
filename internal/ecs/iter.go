@@ -3,7 +3,7 @@ package ecs
 import (
 	"iter"
 
-	"worldspawn/internal/ecs/internal/bitset"
+	"worldspawn/internal/ecs/bitset"
 )
 
 // TODO: see if probing is worth it

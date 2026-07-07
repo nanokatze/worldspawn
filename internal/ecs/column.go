@@ -8,7 +8,7 @@ import (
 	"github.com/go-json-experiment/json"
 	"github.com/go-json-experiment/json/jsontext"
 
-	"worldspawn/internal/ecs/internal/bitset"
+	"worldspawn/internal/ecs/bitset"
 )
 
 type Column[T any] struct {
@@ -26,6 +26,13 @@ func (c *Column[T]) Init(table *Table) {
 	c.valid = bitset.Make(table.IDs().Cap())
 	c.data = make([]T, table.IDs().Cap())
 	table.columns = append(table.columns, c.Reflect())
+}
+
+func (c *Column[T]) Load(i int) T { return c.data[i] }
+
+func (c *Column[T]) Store(i int, v T) {
+	c.data[i] = v
+	c.valid.Store(i, true)
 }
 
 func (c *Column[T]) Get(id ID) (T, bool) {
