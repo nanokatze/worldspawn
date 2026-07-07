@@ -45,6 +45,8 @@ type Gladiator struct {
 		WalkVel gmath.Vec2f32
 
 		HeldButtons uint64
+
+		WeaponSlot int8
 	}
 
 	Vitals struct {
@@ -72,21 +74,20 @@ type Gladiator struct {
 	// Always a descendant of Character.
 	FirstPersonHands ecs.ID
 
-	Weapon struct {
+	HeldWeapon struct {
 		Entity ecs.ID
 
 		// TODO: should we have a prop per weapon all the time? Or create them
 		// when we switch to the weapon. Having props all the time would be
 		// kinda bad.
 
-		// The first person prop is always a descendant of FirstPersonHands.
+		// The first person prop (0) is always a descendant of FirstPersonHands.
+		// The third person prop (1) is always a descendant of Gladiator.
 		//
+		// TODO: define a enum instead of writing indices out manually
 		// TODO: it should be parented to camera instead of hands. We'll use IK
 		// to position hands where we need things to be.
-		FirstPersonProp ecs.ID
-
-		// The third person prop is always a descendant of Gladiator.
-		ThirdPersonProp ecs.ID
+		Props [2]ecs.ID
 	}
 
 	// TODO: put it into a proper struct
@@ -103,8 +104,6 @@ func init() {
 			gladiator, _ := world.GetEntity[Gladiator](id)
 			defer func() { world.Entity.Set(id, gladiator) }()
 
-			var switchToWeapon ecs.ID
-
 			switch cmd := cmd.Cmd.(type) {
 			case InputCmdDLookXY:
 				gladiator.Input.LookDir[0] = float32(math.Mod(float64(gladiator.Input.LookDir[0]-float32(cmd)), 1))
@@ -119,11 +118,7 @@ func init() {
 			case InputCmdReleaseButton:
 				gladiator.Input.HeldButtons &^= uint64(1) << cmd
 			case Slot:
-				if !(0 <= int(cmd) && int(cmd) < len(gladiator.Inventory.Slots)) {
-					break
-				}
-
-				switchToWeapon = gladiator.Inventory.Slots[cmd]
+				gladiator.WeaponSlot = int8(cmd)
 
 			default:
 				// TODO: we should not hit this with nil either
@@ -132,91 +127,52 @@ func init() {
 				}
 			}
 
-			if !world.EntityExists(gladiator.Weapon.Entity) && switchToWeapon == 0 {
-				for _, slot := range gladiator.Inventory.Slots {
-					if slot != 0 {
-						switchToWeapon = slot
-						break
+			// TODO: autoselect the gun here
+
+			switchToWeaponID := gladiator.Inventory.Slots[gladiator.WeaponSlot] // TODO: be safe with the values WeaponSlot might have
+
+			// TODO: make weapon switching predicted
+			if !info.Speculating && gladiator.HeldWeapon.Entity != switchToWeaponID {
+				for _, propID := range gladiator.HeldWeapon.Props {
+					if prop := world.GetEntity2(propID); prop.Valid() {
+						prop.MarkForDeletion()
 					}
 				}
-			}
+				clear(gladiator.HeldWeapon.Props[:])
 
-			// TODO: rewrite this
-			if world.EntityExists(switchToWeapon) && gladiator.Weapon.Entity != switchToWeapon {
-				// TODO: make weapon switching predicted
-				if !info.Speculating {
-					gladiator.Weapon.Entity = ecs.NullID
+				// Now we can switch the weapons
 
-					if world.EntityExists(gladiator.Weapon.ThirdPersonProp) {
-						world.GetEntity2(gladiator.Weapon.ThirdPersonProp).MarkForDeletion()
-					}
-					gladiator.Weapon.ThirdPersonProp = ecs.NullID
+				gladiator.HeldWeapon.Entity = switchToWeaponID
 
-					if world.EntityExists(gladiator.Weapon.FirstPersonProp) {
-						world.GetEntity2(gladiator.Weapon.FirstPersonProp).MarkForDeletion()
-					}
-					gladiator.Weapon.FirstPersonProp = ecs.NullID
+				if newWeapon := world.GetEntity2(gladiator.HeldWeapon.Entity); newWeapon.Valid() {
+					// We've switched to the new weapon, create the new weapon props
 
-					// Now we can switch the weapons
+					script := newWeapon.Script()
+					if script.Weapon_CreateProp != nil {
+						hint := script.Weapon_Hint(info, world, newWeapon.ID())
 
-					if world.EntityExists(switchToWeapon) {
-						gladiator.Weapon.Entity = switchToWeapon
+						for i := range 2 {
+							gladiator.HeldWeapon.Props[i] = script.Weapon_CreateProp(info, world, newWeapon.ID())
 
-						// Create the weapon props
+							prop := world.GetEntity2(gladiator.HeldWeapon.Props[i])
 
-						script := world.GetEntity2(switchToWeapon).Script()
-						if script.Weapon_CreateProp != nil {
-							var hint WeaponHint
-							if script.Weapon_Hint != nil {
-								hint = script.Weapon_Hint(info, world, switchToWeapon)
+							switch i {
+							case 0:
+								// TODO: parent it directly to the camera instead.
+								prop.SetParent(gladiator.FirstPersonHands)
+								prop.SetTransform(hint.FirstPersonPropTransform)
+								prop.SetVisibilityCondition(VisibilityCondition{Mask: 0b01, Camera: gladiator.FirstPersonCamera})
+
+							case 1:
+								prop.SetParent(id)
+								prop.SetParentBone(unique.Make("hand.R"))
+								prop.SetTransform(gmath.TRS3One[float64]())
+								prop.SetVisibilityCondition(VisibilityCondition{Mask: 0b10, Camera: gladiator.FirstPersonCamera})
 							}
-
-							gladiator.Weapon.FirstPersonProp = script.Weapon_CreateProp(info, world, switchToWeapon)
-							firstPersonProp := world.GetEntity2(gladiator.Weapon.FirstPersonProp)
-							// TODO: parent it directly to the camera instead.
-							firstPersonProp.SetParent(gladiator.FirstPersonHands)
-							firstPersonProp.SetTransform(hint.FirstPersonPropTransform)
-							firstPersonProp.SetVisibilityCondition(VisibilityCondition{Mask: 0b01, Camera: gladiator.FirstPersonCamera})
-
-							gladiator.Weapon.ThirdPersonProp = script.Weapon_CreateProp(info, world, switchToWeapon)
-							thirdPersonProp := world.GetEntity2(gladiator.Weapon.ThirdPersonProp)
-							thirdPersonProp.SetParent(id)
-							thirdPersonProp.SetParentBone(unique.Make("hand.R"))
-							thirdPersonProp.SetTransform(gmath.TRS3One[float64]())
-							thirdPersonProp.SetVisibilityCondition(VisibilityCondition{Mask: 0b10, Camera: gladiator.FirstPersonCamera})
 						}
 					}
 				}
 			}
-
-			// TODO: under some conditions we should autoselect a gun for the player
-
-			/*
-				if world.EntityExists(gladiator.Weapon) {
-					var buttons WeaponButtons
-					if gladiator.Input.HeldButtons&uint64(1<<ButtonAttack) != 0 {
-						buttons |= WeaponTrigger
-					}
-
-					T_attack := world.GetGlobalTransform(id).
-						Mul(gmath.TRS3f64{
-							T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
-							R: e01.Pow(4 * gladiator.Input.LookDir[0]).Mul(e12.Pow(4 * gladiator.Input.LookDir[1])),
-							S: gmath.Mat3x3UOne[float32](),
-						}.Compose())
-
-					v_attack, _ := world.Velocity.Get(id)
-
-					// TODO: shooter id we pass should be that of player, actually. Maybe we
-					// should have a component to attribute kills and damage to something
-					// else.
-					stepResult := world.GetScriptFuncs(gladiator.Weapon).WeaponUpdate(world, gladiator.Weapon, []ecs.ID{gladiator.FirstPersonWeaponProp}, id, T_attack, v_attack, buttons, info)
-					// TODO: apply some part of the recoil as viewpunch?
-					// TODO: make sure we don't overflow LookDir
-					gladiator.Input.LookDir[0] += stepResult.Recoil[0]
-					gladiator.Input.LookDir[1] += stepResult.Recoil[1]
-				}
-			*/
 
 			// TODO: factor this out?
 			world.GetEntity2(gladiator.FirstPersonCamera).
@@ -233,7 +189,7 @@ func init() {
 			gladiator, _ := world.GetEntity[Gladiator](entity)
 
 			var recoil Recoil
-			if weapon, ok := world.GetEntity3(gladiator.Weapon.Entity); ok {
+			if weapon := world.GetEntity2(gladiator.HeldWeapon.Entity); weapon.Valid() {
 				var buttons WeaponButtons
 				if gladiator.Input.HeldButtons&uint64(1<<ButtonAttack) != 0 {
 					buttons |= WeaponTrigger
@@ -248,7 +204,7 @@ func init() {
 
 				v_attack, _ := world.Velocity.Get(entity)
 
-				recoil = weapon.Script().Weapon_Think(info, world, weapon.id, []ecs.ID{gladiator.Weapon.FirstPersonProp}, entity, T_attack, v_attack, buttons, io)
+				recoil = weapon.Script().Weapon_Think(info, world, weapon.id, gladiator.HeldWeapon.Props[:], entity, T_attack, v_attack, buttons, io)
 			}
 
 			// EXTREMELY YUCKY!!!!!!!!!!!!
