@@ -174,7 +174,7 @@ func (world *World) physicsStep(updateParams *UpdateParams) {
 
 		entity1 := world.GetEntity2(entityID1)
 		entity2 := world.GetEntity2(entityID2)
-		if entity1 != (Entity2{}) && entity2 != (Entity2{}) {
+		if entity1.Valid() && entity2.Valid() {
 			switch ce.Type {
 			case 1:
 				if script := entity1.Script(); script.ContactAdded != nil {

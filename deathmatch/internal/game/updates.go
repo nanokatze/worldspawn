@@ -36,8 +36,7 @@ type updatef struct {
 
 // TODO: shorter names
 func (io IO) EnqueueEntityUpdate(to ecs.ID, f func(info *UpdateParams, entity Entity2, io IO)) {
-	// TODO: we should do EntityExists that returns an index
-	if !io.world.EntityExists(to) {
+	if !io.world.GetEntity2(to).Valid() {
 		panic("uh oh")
 	}
 	updates := &io.world.entityUpdates[to.Index()]

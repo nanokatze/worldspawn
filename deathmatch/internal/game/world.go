@@ -190,8 +190,6 @@ func NewWorld(n int) *World {
 
 func (world *World) Cap() int { return world.Table.IDs().Cap() }
 
-func (world *World) EntityExists(id ecs.ID) bool { return world.Table.IDs().Exists(id) }
-
 // TODO: make this private?
 // TODO: return ecs.ID. We could make CreateEntity take a lambda which will be
 // called with Entity2, but it should definitely return ecs.ID.
@@ -271,18 +269,10 @@ func (world *World) GetSkeleton(id ecs.ID) *animgraph.Skeleton {
 // TODO: rename to just Entity when we rename the Entity column to something
 // more reasonable.
 func (world *World) GetEntity2(id ecs.ID) Entity2 {
-	if world.EntityExists(id) {
+	if world.Table.IDs().Exists(id) {
 		return Entity2{world, id}
 	}
 	return Entity2{}
-}
-
-// TODO: kill this probs
-func (world *World) GetEntity3(id ecs.ID) (Entity2, bool) {
-	if world.EntityExists(id) {
-		return Entity2{world, id}, true
-	}
-	return Entity2{}, false
 }
 
 // Entity2 must not be stored in any structures and also not passed across
@@ -295,6 +285,8 @@ type Entity2 struct {
 }
 
 func (e Entity2) ID() ecs.ID { return e.id }
+
+func (e Entity2) Valid() bool { return e.id != 0 }
 
 // TODO: rename to something nicer
 func (e Entity2) Clear() { e.world.ClearEntity(e.id) }

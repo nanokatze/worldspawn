@@ -31,7 +31,7 @@ func (player Player) Camera(world *World) ecs.ID {
 
 func (world *World) HandleInput(playerID ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
 	playerState := mustOk(world.GetEntity[Player](playerID))
-	if pawn := world.GetEntity2(playerState.Pawn); pawn != (Entity2{}) {
+	if pawn := world.GetEntity2(playerState.Pawn); pawn.Valid() {
 		pawn.Script().Input(info, world, pawn.ID(), cmd)
 	} else {
 		if !info.Speculating {
