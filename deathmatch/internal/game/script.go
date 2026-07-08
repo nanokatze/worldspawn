@@ -7,11 +7,7 @@ import (
 	"worldspawn/internal/gmath"
 )
 
-// TODO: replace world and id with some kind of object to enable tighter access
-// control?
-// TODO: pass the object through which updates are enqueued explicitly. That way
-// we could straightforwardly doublebuffer things.
-// TODO: rename to just script
+// TODO: switch over more funcs to use Entity2?
 type script struct {
 	Funcs map[string]any
 
@@ -60,8 +56,7 @@ type script struct {
 	// TODO: make this a read-only thingy?
 	Weapon_Hint func(info *UpdateParams, world *World, weapon ecs.ID) WeaponHint
 
-	// TODO: rethink how weapon props should work, again
-	Weapon_CreateProp func(info *UpdateParams, world *World, weapon ecs.ID) ecs.ID
+	Weapon_CreateProp func(info *UpdateParams, world *World, weapon ecs.ID) Entity2
 
 	// TODO: I think we need to split Weapon_Think into two, one subtick/Input
 	// thing and other the equivalent of Think basically.

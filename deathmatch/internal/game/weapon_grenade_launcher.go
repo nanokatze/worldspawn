@@ -45,14 +45,14 @@ func init() {
 			}
 		},
 
-		Weapon_CreateProp: func(info *UpdateParams, world *World, weapon ecs.ID) ecs.ID {
+		Weapon_CreateProp: func(info *UpdateParams, world *World, weapon ecs.ID) Entity2 {
 			root := world.CreateEntity(info)
 			root.SetScriptState(Testburger{
 				BaseColor: [4]float32{1, 1, 1, 1}, // pretend it's a team color
 			})
 			root.SetSkeleton(unique.Make("weapons/grenade_launcher/skeletons/Armature"))
 			root.SetRenderingGeometry(unique.Make("weapons/grenade_launcher/geometries/Grenade_Launcher"))
-			return root.id
+			return root
 		},
 
 		Weapon_Think: func(

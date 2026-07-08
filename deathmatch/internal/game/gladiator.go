@@ -152,9 +152,7 @@ func init() {
 						hint := script.Weapon_Hint(info, world, newWeapon.ID())
 
 						for i := range 2 {
-							gladiator.HeldWeapon.Props[i] = script.Weapon_CreateProp(info, world, newWeapon.ID())
-
-							prop := world.GetEntity2(gladiator.HeldWeapon.Props[i])
+							prop := script.Weapon_CreateProp(info, world, newWeapon.ID())
 
 							switch i {
 							case 0:
@@ -169,6 +167,8 @@ func init() {
 								prop.SetTransform(gmath.TRS3One[float64]())
 								prop.SetVisibilityCondition(VisibilityCondition{Mask: 0b10, Camera: gladiator.FirstPersonCamera})
 							}
+
+							gladiator.HeldWeapon.Props[i] = prop.ID()
 						}
 					}
 				}
