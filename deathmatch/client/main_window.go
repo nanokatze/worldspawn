@@ -35,8 +35,8 @@ type mainWindow struct {
 	redrawJQ       gpu.JobQueue
 	swapchain      *wsi.Swapchain
 	swapchainImage *gpu.Image
-	videoRenderer  gameVideoRenderer
-	audioRenderer  gameAudioRenderer
+	videoRenderer  gameRendererVideo
+	audioRenderer  gameRendererAudio
 }
 
 func (w *mainWindow) Run() {

@@ -13,17 +13,17 @@ import (
 
 // Unlike video renderer, audio renderer is tied to ticks
 
-type gameAudioRenderer struct {
+type gameRendererAudio struct {
 	scene *spatialaudio.Scene
 }
 
-func (re *gameAudioRenderer) Reset(n int) {
+func (re *gameRendererAudio) Reset(n int) {
 	re.scene = spatialaudio.NewScene(n)
 }
 
 // TODO: factor shrinker/stretcher out into apostprocess or something
 
-func (re *gameAudioRenderer) Tick(world *game.World, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration) {
+func (re *gameRendererAudio) Tick(world *game.World, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration) {
 	fpsCharacter, _ := world.GetEntity[game.Player](playerID)
 
 	camera := fpsCharacter.Camera(world)
@@ -80,4 +80,4 @@ func (re *gameAudioRenderer) Tick(world *game.World, playerID ecs.ID, t0, t1 gam
 	au().Write(unsafe.Slice((*byte)(unsafe.Pointer(unsafe.SliceData(tmp2))), len(tmp2)*4))
 }
 
-func (re *gameAudioRenderer) Subtick(world *game.World, playerID ecs.ID) {}
+func (re *gameRendererAudio) Subtick(world *game.World, playerID ecs.ID) {}

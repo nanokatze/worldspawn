@@ -18,13 +18,14 @@ import (
 
 // TODO: rename the objects in here
 
-// TODO: could we replace this with an arbitrary widget tree pretty pls?
+// TODO: replace this with a widget tree (encoded sequentially like gio's ops,
+// for efficiency)
 type hudState struct {
 	Health int32
 	Bleed  int32
 }
 
-type gameVideoRenderer struct {
+type gameRendererVideo struct {
 	n int
 
 	// TODO: instead of generation, look at whether T_0 + velocity * dt is
@@ -52,7 +53,7 @@ type gameVideoRenderer struct {
 	hudState           hudState
 }
 
-func (re *gameVideoRenderer) Reset(n int) {
+func (re *gameRendererVideo) Reset(n int) {
 	// NOTE: this is called concurrently with Redraw. Keep that in mind when
 	// implementing this function.
 }
@@ -113,7 +114,7 @@ type timeMapping struct {
 
 // TODO: remove this in favor of merging updates at commitUpdate time. I.e.
 // we'll start off with a clean update every time.
-func (re *gameVideoRenderer) beginUpdate() *sceneUpdate {
+func (re *gameRendererVideo) beginUpdate() *sceneUpdate {
 	if re.stagingUpdate == nil {
 		// TODO: pool this stuff
 		return newSceneDirty(re.n)
@@ -124,14 +125,14 @@ func (re *gameVideoRenderer) beginUpdate() *sceneUpdate {
 }
 
 // TODO: rename to enqueueUpdate?
-func (re *gameVideoRenderer) commitUpdate(update *sceneUpdate) {
+func (re *gameRendererVideo) commitUpdate(update *sceneUpdate) {
 	select {
 	case re.updates <- update:
 	default:
 	}
 }
 
-func (re *gameVideoRenderer) Tick(world *game.World, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration) {
+func (re *gameRendererVideo) Tick(world *game.World, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration) {
 	// TODO: pass the bits that interest us explicitly
 	conf := config.Load()
 
@@ -144,7 +145,7 @@ func (re *gameVideoRenderer) Tick(world *game.World, playerID ecs.ID, t0, t1 gam
 
 	{
 		update.hudState = hudState{}
-		if gladiator, ok := world.GetEntity[game.Gladiator](fpsCharacter.ControlledCharacter); ok {
+		if gladiator, ok := world.GetEntity[game.Gladiator](fpsCharacter.Pawn); ok {
 			update.hudState.Health = gladiator.Vitals.Health
 			update.hudState.Bleed = gladiator.Vitals.HealthToBleed
 		}
@@ -266,7 +267,7 @@ func (re *gameVideoRenderer) Tick(world *game.World, playerID ecs.ID, t0, t1 gam
 	}
 }
 
-func (re *gameVideoRenderer) Subtick(world *game.World, playerID ecs.ID) {
+func (re *gameRendererVideo) Subtick(world *game.World, playerID ecs.ID) {
 	// TODO: this will need to enqueue an update and not modify any fields directly!
 
 	// re.stuffMu.Lock()
@@ -300,7 +301,7 @@ var worldspawnToRenderer = gmath.Mat4x4f32{
 	0, 0, 0, 1,
 }
 
-func (re *gameVideoRenderer) Redraw(jq *gpu.JobQueue, dst *gpu.Image, sdlNow uint64) {
+func (re *gameRendererVideo) Redraw(jq *gpu.JobQueue, dst *gpu.Image, sdlNow uint64) {
 	conf := config.Load()
 
 	select {
