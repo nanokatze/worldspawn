@@ -12,6 +12,10 @@ type TR3f64 struct {
 	R gmath.Rot3
 }
 
+func (world *World) GetGlobalTransform2(entity Entity2) gmath.Affine3f64 {
+	return world.GetGlobalTransform(entity.ID())
+}
+
 // TODO: if we encounter errors during hierarchy traversal we should restart
 // traversal with diagnostics collection and print the collected diagnostics
 // after using Scene.Logger.Error
@@ -22,6 +26,7 @@ type TR3f64 struct {
 // common case
 //
 // TODO: clean this up. Could Entity2 help here?
+// TODO: remove this in favor of GetGlobalTransform2
 func (world *World) GetGlobalTransform(id ecs.ID) gmath.Affine3f64 {
 	getEntityTransform := func(id ecs.ID) gmath.Affine3f64 {
 		tr, ok := world.TransformTR.Get(id)
