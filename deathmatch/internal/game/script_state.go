@@ -10,6 +10,7 @@ var EntityTypes = []reflect.Type{
 	reflect.TypeFor[AmmoPickup](),
 	reflect.TypeFor[Animtest](),
 	reflect.TypeFor[DeleteAfter](),
+	reflect.TypeFor[ExplosiveBarrel](),
 	reflect.TypeFor[Gladiator](),
 	reflect.TypeFor[GrenadeInFlight](),
 	reflect.TypeFor[PlayerSpawn](),
