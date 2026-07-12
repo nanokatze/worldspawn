@@ -376,11 +376,12 @@ func init() {
 			directDamage := int32(math.Ceil(float64(modifiedDamage) * (1 - float64(impactBleedFactor[impact.Type]))))
 			bleeding := modifiedDamage - directDamage
 
-			gladiator.UpdateScriptState(func(state *Gladiator) {
-				state.Vitals.Health -= directDamage
-				state.Vitals.HealthToBleed += bleeding
-				state.Vitals.NextBleed = io.world.Now
-			})
+			state := gladiator.ScriptState().(Gladiator)
+			defer func() { gladiator.SetScriptState(state) }()
+
+			state.Vitals.Health -= directDamage
+			state.Vitals.HealthToBleed += bleeding
+			state.Vitals.NextBleed = io.world.Now
 		},
 
 		Magazine_Pull: func(info *UpdateParams, entity Entity2, ammoType AmmoType, io IO) bool {
@@ -425,20 +426,28 @@ func (world *World) spawnGladiator(T gmath.TRS3f64, info *UpdateParams) ecs.ID {
 	s.Vitals.Health = 100
 	// TODO: define loadout somehow better so that ammo pickup knows what to do
 	s.Inventory.Ammo[0] = 10
-	world.Entity.Set(gladiator.id, s)
+	s.Inventory.Ammo[1] = 100
+	gladiator.SetScriptState(s)
 
 	// Give the gladiator some guns
 
 	{
 		weapon := world.CreateEntity(info)
-		world.Entity.Set(weapon.id, WeaponGrenadeLauncher{})
+		weapon.SetScriptState(WeaponGrenadeLauncher{})
 
 		world.GiveWeapon(gladiator.id, weapon.id)
 	}
 
 	{
 		weapon := world.CreateEntity(info)
-		world.Entity.Set(weapon.id, WeaponPhysgun{})
+		weapon.SetScriptState(WeaponAssaultRifle{})
+
+		world.GiveWeapon(gladiator.id, weapon.id)
+	}
+
+	{
+		weapon := world.CreateEntity(info)
+		weapon.SetScriptState(WeaponPhysgun{})
 
 		world.GiveWeapon(gladiator.id, weapon.id)
 	}

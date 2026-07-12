@@ -79,7 +79,10 @@ func init() {
 					if mag.Script().Magazine_Pull(info, mag, 0, io) {
 						io.EnqueueEntityUpdate(weapon,
 							func(info *UpdateParams, weapon Entity2, io IO) {
-								weapon.UpdateScriptState(func(v *WeaponGrenadeLauncher) { v.Chambered = true })
+								state := weapon.ScriptState().(WeaponGrenadeLauncher)
+								defer func() { weapon.SetScriptState(state) }()
+
+								state.Chambered = true
 							})
 					}
 				})
@@ -149,10 +152,11 @@ func init() {
 
 			io.EnqueueEntityUpdate(weapon,
 				func(info *UpdateParams, weapon Entity2, io IO) {
-					weapon.UpdateScriptState(func(v *WeaponGrenadeLauncher) {
-						v.Chambered = false
-						v.CycleEnds = io.world.Now.Add(grenadeLauncherStats.CycleDuration)
-					})
+					state := weapon.ScriptState().(WeaponGrenadeLauncher)
+					defer func() { weapon.SetScriptState(state) }()
+
+					state.Chambered = false
+					state.CycleEnds = io.world.Now.Add(grenadeLauncherStats.CycleDuration)
 				})
 
 			// TODO: eschew rnd?

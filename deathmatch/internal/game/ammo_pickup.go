@@ -25,8 +25,13 @@ func init() {
 					if T.T.Sub(playerT.T).Length() <= 1.1 {
 						io.EnqueueEntityUpdate(id,
 							func(info *UpdateParams, entity Entity2, io IO) {
-								entity.UpdateScriptState(func(v *Gladiator) { v.Inventory.Ammo[0] = 10 })
-								info.Logger.Info("resupplied the player", "id", id)
+								state := entity.ScriptState().(Gladiator)
+								defer func() { entity.SetScriptState(state) }()
+
+								state.Inventory.Ammo[0] = 10
+								state.Inventory.Ammo[1] = 100
+
+								info.Logger.Info("resupplied the player", "id", entity.ID())
 							})
 
 						io.EnqueueEntityUpdate(entity.ID(),
