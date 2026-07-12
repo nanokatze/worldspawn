@@ -17,6 +17,7 @@ var EntityTypes = []reflect.Type{
 	reflect.TypeFor[RocketInFlight](),
 	reflect.TypeFor[Testburger](),
 	reflect.TypeFor[TriggerKill](),
+	reflect.TypeFor[WeaponAssaultRifle](),
 	reflect.TypeFor[WeaponGrenadeLauncher](),
 	reflect.TypeFor[WeaponPhysgun](),
 	reflect.TypeFor[WorldGlobals](),
