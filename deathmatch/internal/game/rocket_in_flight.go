@@ -25,8 +25,7 @@ func init() {
 				return
 			}
 
-			radialImpact(
-				world,
+			world.radialImpact(
 				Impact{
 					Attacker: rocketState.Attacker,
 					Type:     BlastImpactWithFragmentation,
@@ -36,7 +35,9 @@ func init() {
 				sphericalExplosion,
 				3,
 				4*math.Pi/500,
-				QueryFilters{},
+				QueryFilters{
+					Entity: func(id ecs.ID) bool { return id != rocket.ID() },
+				},
 				io)
 
 			io.EnqueueEntityUpdate(grenade,

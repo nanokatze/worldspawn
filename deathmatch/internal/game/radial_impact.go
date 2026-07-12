@@ -3,6 +3,7 @@ package game
 import (
 	"math"
 
+	"worldspawn/internal/ecs"
 	"worldspawn/internal/gmath"
 	"worldspawn/internal/physics"
 )
@@ -16,8 +17,8 @@ type distributionFunction func(gmath.Vec2f32) (gmath.Vec3f32, float32)
 // TODO: reformulate resolution in terms of something that doesn't require
 // adjustment along with the radius
 // (https://github.com/nanokatze/worldspawn-deathmatch/issues/12)
-func radialImpact(
-	world *World,
+// TODO: we should have a separate Explosion struct which will describe some things that Impact does (but not all)
+func (world *World) radialImpact(
 	impact Impact, // TODO: flatten/inline the relevant fields instead of passing Impact
 	T gmath.Affine3f64, // TODO: move this to be the first parameter?
 	df distributionFunction,
@@ -35,74 +36,47 @@ func radialImpact(
 
 	// TODO: outline tracing into its own function
 
-	var collector explosionHitCollector
-
 	type result struct {
 		dvel Velocity
 		dmg  float32
 	}
 
-	results := make(map[physics.BodyID]result)
+	results := make(map[ecs.ID]result)
 
 	for u := range fibonacciLattice(int64(nrays)) {
 		d, pdf := df(u)
 
 		d = T.M.Mulv(d)
 
-		collector.closestHit = physics.SceneRayHit{
-			BodyID: 0xffffffff,
-			Geometry: physics.RayHit{
-				T: float32(math.Inf(1)),
-			},
-		}
-
-		world.physics.TraceRay(
+		rayHit := world.TraceRay(
 			physics.Ray{
 				Origin:    T.T,
 				Direction: d.Normalize(),
 				TMax:      radius,
 			},
-			&collector)
-		if collector.closestHit.BodyID == 0xffffffff {
+			queryFilters)
+		if rayHit.Entity == ecs.NullID {
 			continue
 		}
 
 		dmg := pdf * spat
 
-		tmp := results[collector.closestHit.BodyID]
+		tmp := results[rayHit.Entity]
 		tmp.dvel = tmp.dvel.Add(Velocity{Linear: d}.Scale(dmg))
 		tmp.dmg += dmg
-		results[collector.closestHit.BodyID] = tmp
+		results[rayHit.Entity] = tmp
 	}
 
-	for body, result := range results {
-		entity := world.Table.IDs().Index(int(body))
-
+	for entityID, result := range results {
 		impact := Impact{
+			Attacker: impact.Attacker,
 			Type:     impact.Type,
 			Δv:       result.dvel.Scale(impactForceFactor[impact.Type] * float32(impact.Damage)),
 			Damage:   int32(result.dmg * float32(impact.Damage)),
-			Attacker: impact.Attacker,
 		}
 
-		io.EnqueueEntityUpdate(entity, impact.Apply)
+		io.EnqueueEntityUpdate(entityID, impact.Apply)
 	}
-}
-
-type explosionHitCollector struct {
-	closestHit physics.SceneRayHit
-}
-
-func (collector *explosionHitCollector) FilterLayer(layer int) bool {
-	// TODO: we really should do a bitmap tbh
-	return layer == int(CollisionLayerNonMoving) ||
-		layer == int(CollisionLayerMoving) ||
-		layer == int(CollisionLayerMovingKinematic)
-}
-
-func (collector *explosionHitCollector) Hit(hit physics.SceneRayHit) physics.QueryPipelineControl {
-	collector.closestHit = hit
-	return physics.AcceptHit
 }
 
 func sphericalExplosion(u gmath.Vec2f32) (gmath.Vec3f32, float32) { return sampleSphere(u), 1 }
