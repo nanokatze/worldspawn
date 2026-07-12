@@ -14,6 +14,7 @@ type RayHit struct {
 
 // TODO: make this opaque and do functional config instead
 type QueryFilters struct {
+	// Should use Entity2
 	Entity func(ecs.ID) bool
 }
 
