@@ -75,7 +75,7 @@ func (world *World) think(updateParams *UpdateParams) {
 			continue
 		}
 
-		script.Think(updateParams, world, id, IO{world, id})
+		script.Think(updateParams, world, Entity2{world, id}, IO{world, id})
 	}
 
 	// Process the enqueued updates

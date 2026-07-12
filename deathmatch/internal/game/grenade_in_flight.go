@@ -23,10 +23,10 @@ type GrenadeInFlight struct {
 
 func init() {
 	Scripts[reflect.TypeFor[GrenadeInFlight]()] = script{
-		Think: func(info *UpdateParams, world *World, grenade ecs.ID, io IO) {
+		Think: func(info *UpdateParams, world *World, grenade Entity2, io IO) {
 			const fuse = 1400 * time.Millisecond
 
-			grenadeState, _ := world.GetEntity[GrenadeInFlight](grenade)
+			grenadeState := grenade.ScriptState().(GrenadeInFlight)
 			if grenadeState.LaunchedAt.Add(fuse).After(io.world.Now) && !grenadeState.ExplodeNow {
 				return
 			}
@@ -37,7 +37,7 @@ func init() {
 					Type:     BlastImpactWithFragmentation,
 					Damage:   1500,
 				},
-				world.GetGlobalTransform(grenade),
+				world.GetGlobalTransform2(grenade),
 				sphericalExplosion,
 				5,
 				4*math.Pi/500,
@@ -46,7 +46,8 @@ func init() {
 				},
 				io)
 
-			io.EnqueueEntityUpdate(grenade,
+			// TODO: create a new entity instead?
+			io.EnqueueEntityUpdate(grenade.ID(),
 				func(info *UpdateParams, grenade Entity2, io IO) {
 					T := grenade.Transform()
 					grenade.Clear()

@@ -4,7 +4,6 @@ import (
 	"reflect"
 
 	"worldspawn/internal/animgraph"
-	"worldspawn/internal/ecs"
 	"worldspawn/internal/gmath"
 )
 
@@ -14,8 +13,8 @@ type Animtest struct {
 
 func init() {
 	Scripts[reflect.TypeFor[Animtest]()] = script{
-		Think: func(info *UpdateParams, world *World, entity ecs.ID, io IO) {
-			io.EnqueueEntityUpdate(entity,
+		Think: func(info *UpdateParams, world *World, entity Entity2, io IO) {
+			io.EnqueueEntityUpdate(entity.ID(),
 				func(info *UpdateParams, entity Entity2, io IO) {
 					animtest, _ := entity.ScriptState().(Animtest)
 

@@ -183,10 +183,10 @@ func init() {
 				})
 		},
 
-		Think: func(info *UpdateParams, world *World, entity ecs.ID, io IO) {
+		Think: func(info *UpdateParams, world *World, entity Entity2, io IO) {
 			// TODO: sort this out pls and make it obey Think rules, i.e. put all mutations into lambdas.
 
-			gladiator, _ := world.GetEntity[Gladiator](entity)
+			gladiator := entity.ScriptState().(Gladiator)
 
 			var recoil Recoil
 			if weapon := world.GetEntity2(gladiator.HeldWeapon.Entity); weapon.Valid() {
@@ -195,16 +195,15 @@ func init() {
 					buttons |= WeaponTrigger
 				}
 
-				T_attack := world.GetGlobalTransform(entity).
+				T_attack := world.GetGlobalTransform2(entity).
 					Mul(gmath.TRS3f64{
 						T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
 						R: e01.Pow(4 * gladiator.Input.LookDir[0]).Mul(e12.Pow(4 * gladiator.Input.LookDir[1])),
 						S: gmath.Mat3x3UOne[float32](),
 					}.Compose())
+				v_attack := entity.Velocity()
 
-				v_attack, _ := world.Velocity.Get(entity)
-
-				recoil = weapon.Script().Weapon_Think(info, world, weapon.id, gladiator.HeldWeapon.Props[:], entity, T_attack, v_attack, buttons, io)
+				recoil = weapon.Script().Weapon_Think(info, world, weapon.id, gladiator.HeldWeapon.Props[:], entity.ID(), T_attack, v_attack, buttons, io)
 			}
 
 			// EXTREMELY YUCKY!!!!!!!!!!!!
@@ -265,7 +264,7 @@ func init() {
 
 			// TODO: redo sway animation
 			{
-				velocity, _ := world.Velocity.Get(entity)
+				velocity := entity.Velocity()
 
 				io.EnqueueEntityUpdate(gladiator.FirstPersonHands,
 					func(_ *UpdateParams, hands Entity2, io IO) {
@@ -287,7 +286,7 @@ func init() {
 					})
 				})
 
-			io.EnqueueEntityUpdate(entity,
+			io.EnqueueEntityUpdate(entity.ID(),
 				func(_ *UpdateParams, entity Entity2, io IO) {
 					gladiator, _ := entity.ScriptState().(Gladiator)
 					defer func() { entity.SetScriptState(gladiator) }()

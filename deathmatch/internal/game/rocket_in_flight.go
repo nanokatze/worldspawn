@@ -17,10 +17,10 @@ type RocketInFlight struct {
 
 func init() {
 	Scripts[reflect.TypeFor[RocketInFlight]()] = script{
-		Think: func(info *UpdateParams, world *World, grenade ecs.ID, io IO) {
+		Think: func(info *UpdateParams, world *World, rocket Entity2, io IO) {
 			const fuse = 5000 * time.Millisecond
 
-			rocketState, _ := io.world.GetEntity[RocketInFlight](grenade)
+			rocketState := rocket.ScriptState().(RocketInFlight)
 			if rocketState.LaunchedAt.Add(fuse).After(io.world.Now) && !rocketState.ExplodeNow {
 				return
 			}
@@ -31,7 +31,7 @@ func init() {
 					Type:     BlastImpactWithFragmentation,
 					Damage:   1200,
 				},
-				io.world.GetGlobalTransform(grenade),
+				io.world.GetGlobalTransform2(rocket),
 				sphericalExplosion,
 				3,
 				4*math.Pi/500,
@@ -40,7 +40,7 @@ func init() {
 				},
 				io)
 
-			io.EnqueueEntityUpdate(grenade,
+			io.EnqueueEntityUpdate(rocket.ID(),
 				func(info *UpdateParams, grenade Entity2, io IO) {
 					T := grenade.Transform()
 					grenade.Clear()
