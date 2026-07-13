@@ -36,7 +36,7 @@ func init() {
 
 						io.EnqueueEntityUpdate(entity.ID(),
 							func(info *UpdateParams, entity Entity2, io IO) {
-								entity.world.NextThink.Set(entity.id, entity.world.Now.Add(10*time.Second))
+								entity.SetNextThink(entity.world.Now.Add(10 * time.Second))
 							})
 
 						break
