@@ -31,7 +31,7 @@ func init() {
 				return
 			}
 
-			world.radialImpact(
+			world.explosion(
 				Impact{
 					Attacker: grenadeState.Attacker,
 					Type:     BlastImpactWithFragmentation,

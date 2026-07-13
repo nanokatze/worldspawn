@@ -18,7 +18,7 @@ type distributionFunction func(gmath.Vec2f32) (gmath.Vec3f32, float32)
 // adjustment along with the radius
 // (https://github.com/nanokatze/worldspawn-deathmatch/issues/12)
 // TODO: we should have a separate Explosion struct which will describe some things that Impact does (but not all)
-func (world *World) radialImpact(
+func (world *World) explosion(
 	impact Impact, // TODO: flatten/inline the relevant fields instead of passing Impact
 	T gmath.Affine3f64, // TODO: move this to be the first parameter?
 	df distributionFunction,

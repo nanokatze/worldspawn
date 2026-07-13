@@ -25,7 +25,7 @@ func init() {
 				return
 			}
 
-			world.radialImpact(
+			world.explosion(
 				Impact{
 					Attacker: rocketState.Attacker,
 					Type:     BlastImpactWithFragmentation,
