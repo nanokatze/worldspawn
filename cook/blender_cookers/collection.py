@@ -91,6 +91,11 @@ def cook_objects_into(context, xform, collection, cooked_scene):
             if 'CollisionGeometry' not in values:
                 values['CollisionGeometry'] = geometry
 
+        # HACK HACK HACK: remove this once the game doesn't distinguish between
+        # RenderingGeometry set or not set, but just uses zeros instead.
+        if values.get('RenderingGeometry') == '':
+            del values['RenderingGeometry']
+
         if obj.instance_collection is not None:
             values['CollectionInstance'] = {
                 'Filename': context.path_for_datablock(obj.instance_collection),
