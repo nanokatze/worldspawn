@@ -174,10 +174,13 @@ func (s *Server) serveConn(conn *quic.Conn, logger *slog.Logger) error {
 			s.mu.Lock()
 			defer s.mu.Unlock()
 
-			// TODO: don't kill Character here
-			player, _ := s.world.GetEntity[game.Player](u.player)
-			s.world.Delete.Set(player.ControlledCharacter, struct{}{})
-			s.world.Delete.Set(u.player, struct{}{})
+			player := s.world.GetEntity2(u.player)
+			// TODO: we could leave the player around for a while (e.g. until
+			// round end) in expectation that they rejoin, to keep their score
+			// around. We could delete/kill the pawn if need be.
+			player.MarkForDeletion()
+			// TODO: we could leave the pawn to be possessed by a bot
+			s.world.GetEntity2(player.ScriptState().(game.Player).Pawn).MarkForDeletion()
 		}()
 	}
 
