@@ -77,9 +77,7 @@ type Columns struct {
 	// lol. We'll need to think more about this.
 	Skeleton ecs.Column[unique.Handle[string]]
 
-	// TODO: this should be a non-networked column that would be populated by
-	// the animation script
-	Pose ecs.Column[animgraph.Pose]
+	// Pose ecs.Column[animgraph.Pose]
 
 	// Collision
 
@@ -147,6 +145,8 @@ type World struct {
 	entityUpdates, entityUpdates2 [][]updatef
 	globalUpdates                 []func(*UpdateParams, *World)
 
+	Pose ecs.Column[animgraph.Pose]
+
 	physics *physics.System
 	// TODO: this should be folded into physicsSystem
 	physicsBodyExists ecs.Column[struct{}]
@@ -170,6 +170,8 @@ func NewWorld(n int) *World {
 
 	world.entityUpdates = make([][]updatef, n)
 	world.entityUpdates2 = make([][]updatef, n)
+
+	world.Pose.Init(world.Table)
 
 	// TODO: pass contact listener. Or make it so that the contact listener is
 	// passed at call to Update.
