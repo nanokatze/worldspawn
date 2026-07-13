@@ -178,7 +178,7 @@ func (re *gameRendererVideo) Tick(world *game.World, playerID ecs.ID, t0, t1 gam
 			}
 
 			if parentBone, parentedToBone := world.ParentBone.Get(id); parentedToBone {
-				pose, _ := world.Pose.Get(parent)
+				pose := world.Entities.Pose[parent.Index()]
 				skelly := world.GetSkeleton(parent)
 				parentBoneIndex := skelly.JointByName(parentBone.Value())
 				hmm, ok := pose.Bones[parentBoneIndex]
@@ -226,7 +226,7 @@ func (re *gameRendererVideo) Tick(world *game.World, playerID ecs.ID, t0, t1 gam
 
 			geometry := getgeometry(renderingGeometry)
 
-			pose, _ := world.Pose.Get(id)
+			pose := world.Entities.Pose[id.Index()]
 
 			update.geoNodes[i] = geoNodes{
 				src:    geometry,

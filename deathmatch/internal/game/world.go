@@ -142,10 +142,12 @@ type World struct {
 	Table *ecs.Table
 	Columns
 
+	Entities struct {
+		Pose []animgraph.Pose
+	}
+
 	entityUpdates, entityUpdates2 [][]updatef
 	globalUpdates                 []func(*UpdateParams, *World)
-
-	Pose ecs.Column[animgraph.Pose]
 
 	physics *physics.System
 	// TODO: this should be folded into physicsSystem
@@ -168,10 +170,10 @@ func NewWorld(n int) *World {
 		columns.Field(i).Addr().Interface().(interface{ Init(*ecs.Table) }).Init(world.Table)
 	}
 
+	world.Entities.Pose = make([]animgraph.Pose, n)
+
 	world.entityUpdates = make([][]updatef, n)
 	world.entityUpdates2 = make([][]updatef, n)
-
-	world.Pose.Init(world.Table)
 
 	// TODO: pass contact listener. Or make it so that the contact listener is
 	// passed at call to Update.
@@ -206,8 +208,8 @@ func (world *World) CreateEntity(info *UpdateParams) Entity2 {
 }
 
 // This is used by client networking to remove entities.
-// TODO: kill
 func (world *World) DeleteEntityImmediately(id ecs.ID) {
+	world.Entities.Pose[id.Index()] = animgraph.Pose{}
 	if _, ok := world.physicsBodyExists.Get(id); ok {
 		world.physics.RemoveBody(physics.BodyID(id.Index()))
 	}
@@ -331,7 +333,8 @@ func (e Entity2) SetTranslationAndRotation(v TR3f64) { e.world.TransformTR.Store
 
 func (e Entity2) SetSkeleton(v unique.Handle[string]) { e.world.Skeleton.Store(e.id.Index(), v) }
 
-func (e Entity2) SetPose(v animgraph.Pose) { e.world.Pose.Store(e.id.Index(), v) }
+// Note that pose is not replicated
+func (e Entity2) SetPose(v animgraph.Pose) { e.world.Entities.Pose[e.id.Index()] = v }
 
 func (e Entity2) SetCollisionLayer(v CollisionLayer) { e.world.CollisionLayer.Store(e.id.Index(), v) }
 

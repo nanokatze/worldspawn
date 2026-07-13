@@ -51,7 +51,7 @@ func (world *World) GetGlobalTransform(id ecs.ID) gmath.Affine3f64 {
 			return gmath.Affine3One[float32]()
 		}
 
-		pose, _ := world.Pose.Get(id)
+		pose := world.Entities.Pose[id.Index()]
 		boneTransform, ok := pose.Bones[boneIndex]
 		if !ok {
 			return skelly.BindPose[boneIndex]

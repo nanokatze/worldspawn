@@ -118,10 +118,7 @@ func (world *World) deleteMarkedEntities() {
 	for index := range world.delete.Ones() {
 		id := world.Table.IDs().Index(index)
 
-		if _, ok := world.physicsBodyExists.Get(id); ok {
-			world.physics.RemoveBody(physics.BodyID(index))
-		}
-		world.Table.DeleteRow(id)
+		world.DeleteEntityImmediately(id)
 	}
 	world.delete.Reset()
 }
