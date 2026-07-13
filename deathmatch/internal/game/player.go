@@ -18,15 +18,57 @@ type Player struct {
 
 // TODO: returning ecs.ID is kinda meh, ideally we'd return a pile of data that
 // can be fed straight into pathtracer
-// TODO: make this a method on the World? We need to think how to handle the
-// case when Camera is independent of player input (e.g. when we're flying along
-// some track.) In that case, the client should not set T0 and T1 to whatever value we return
-func (player Player) Camera(world *World) ecs.ID {
-	char, ok := world.GetEntity[Gladiator](player.Pawn)
+// TODO: We need to think how to handle the case when Camera is independent of
+// player input (e.g. when we're flying along some track.) In that case, the
+// client should not set T0 and T1 to whatever value we return
+func (world *World) Camera(playerID ecs.ID) ecs.ID {
+	// TODO: it should really poke the script Camera func probably
+
+	player := world.GetEntity2(playerID)
+	if !player.Valid() {
+		return 0
+	}
+	playerState, ok := player.ScriptState().(Player)
 	if !ok {
 		return 0
 	}
-	return char.FirstPersonCamera
+
+	pawn := world.GetEntity2(playerState.Pawn)
+	if !pawn.Valid() {
+		return 0
+	}
+	pawnState, ok := pawn.ScriptState().(Gladiator) // TODO: could we just poke a script function on the entity?
+	if !ok {
+		return 0
+	}
+
+	return pawnState.FirstPersonCamera
+}
+
+// TODO: think of a good way to implement HUD and the GUI. I suppose what we
+// could do is have a pile of entities that would have a Script func that would
+// spit out ops into gio-esque ops sequence.
+func (world *World) Overlay(playerID ecs.ID, health, bleed *int32) {
+	player := world.GetEntity2(playerID)
+	if !player.Valid() {
+		return
+	}
+	playerState, ok := player.ScriptState().(Player)
+	if !ok {
+		return
+	}
+
+	pawn := world.GetEntity2(playerState.Pawn)
+	if !pawn.Valid() {
+		return
+	}
+	pawnState, ok := pawn.ScriptState().(Gladiator) // TODO: could we just poke a script function on the entity?
+	if !ok {
+		return
+	}
+
+	*health = pawnState.Vitals.Health
+	*bleed = pawnState.Vitals.HealthToBleed
 }
 
 func (world *World) HandleInput(playerID ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {

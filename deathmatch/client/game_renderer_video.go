@@ -139,16 +139,11 @@ func (re *gameRendererVideo) Tick(world *game.World, playerID ecs.ID, t0, t1 gam
 	update := re.beginUpdate()
 	defer re.commitUpdate(update)
 
-	fpsCharacter, _ := world.GetEntity[game.Player](playerID)
-
-	camera := fpsCharacter.Camera(world)
+	camera := world.Camera(playerID)
 
 	{
 		update.hudState = hudState{}
-		if gladiator, ok := world.GetEntity[game.Gladiator](fpsCharacter.Pawn); ok {
-			update.hudState.Health = gladiator.Vitals.Health
-			update.hudState.Bleed = gladiator.Vitals.HealthToBleed
-		}
+		world.Overlay(playerID, &update.hudState.Health, &update.hudState.Bleed)
 
 		for i := range update.parent {
 			update.parent[i] = -1
