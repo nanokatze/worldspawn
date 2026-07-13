@@ -27,9 +27,14 @@ func init() {
 			T := world.GetGlobalTransform2(entity)
 
 			if barrel.Health <= 0 {
+				attacker := barrel.Attacker
+				if !world.GetEntity2(attacker).Valid() {
+					attacker = entity.ID()
+				}
+
 				world.explosion(
 					Impact{
-						Attacker: entity.ID(),                  // TODO: we'll want to track who shot/punted us
+						Attacker: attacker,
 						Type:     BlastImpactWithFragmentation, // TODO: we should specify impact type and damage on the barrel itself I think
 						Damage:   1500,
 					},
