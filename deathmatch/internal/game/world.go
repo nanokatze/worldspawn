@@ -133,7 +133,7 @@ type Columns struct {
 // replication to World first.
 // TODO: I'm really tempted to stick logger onto World atp
 type World struct {
-	// TODO: we could move it to be a WorldGlobals field I suppose
+	// TODO: don't use this, use info.Now instead
 	Now Time
 
 	NextID            ecs.ID

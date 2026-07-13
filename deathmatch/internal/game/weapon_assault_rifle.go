@@ -49,7 +49,7 @@ func init() {
 		) Recoil {
 			weaponState, _ := world.GetEntity[WeaponAssaultRifle](weapon)
 
-			if weaponState.CycleEnds.After(world.Now) {
+			if weaponState.CycleEnds.After(info.Now) {
 				return Recoil{}
 			}
 
@@ -144,7 +144,7 @@ func init() {
 						prop.SetSoundEffect(SoundEmitter{
 							Effect:      "weapons/grenade_launcher/fire.wav",
 							Attenuation: 1,
-							PlayTime:    io.world.Now, // + time.Duration(rng(w.Time, entityID, 0).Int63n(int64(1*time.Millisecond))),
+							PlayTime:    info.Now, // + time.Duration(rng(w.Time, entityID, 0).Int63n(int64(1*time.Millisecond))),
 						})
 					})
 			}
@@ -155,7 +155,7 @@ func init() {
 					defer func() { weapon.SetScriptState(state) }()
 
 					state.Chambered = false
-					state.CycleEnds = io.world.Now.Add(time.Second / 10)
+					state.CycleEnds = info.Now.Add(time.Second / 10)
 				})
 
 			return Recoil{}

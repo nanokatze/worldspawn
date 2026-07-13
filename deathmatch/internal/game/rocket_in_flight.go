@@ -21,7 +21,7 @@ func init() {
 			const fuse = 5000 * time.Millisecond
 
 			state := rocket.ScriptState().(RocketInFlight)
-			if state.LaunchedAt.Add(fuse).After(io.world.Now) && !state.ExplodeNow {
+			if state.LaunchedAt.Add(fuse).After(info.Now) && !state.ExplodeNow {
 				return
 			}
 
@@ -31,7 +31,7 @@ func init() {
 					Type:     BlastImpactWithFragmentation,
 					Damage:   1200,
 				},
-				io.world.GetGlobalTransform2(rocket),
+				world.GetGlobalTransform2(rocket),
 				sphericalExplosion,
 				3,
 				4*math.Pi/500,
@@ -45,12 +45,12 @@ func init() {
 					T := grenade.Transform()
 					grenade.Clear()
 					grenade.SetScriptState(DeleteAfter{})
-					grenade.SetNextThink(io.world.Now.Add(2 * time.Second)) // TODO: should be long enough for sound to play
+					grenade.SetNextThink(info.Now.Add(2 * time.Second)) // TODO: should be long enough for sound to play
 					grenade.SetTransform(T)
 					grenade.SetSoundEffect(SoundEmitter{
 						Effect:      "explosion.wav",
 						Attenuation: 1,
-						PlayTime:    io.world.Now.Add(info.Δt),
+						PlayTime:    info.Now.Add(info.Δt),
 					})
 				})
 		},

@@ -54,12 +54,12 @@ func init() {
 						T := entity.Transform()
 						entity.Clear()
 						entity.SetScriptState(DeleteAfter{})
-						entity.SetNextThink(io.world.Now.Add(2 * time.Second)) // TODO: should be long enough for sound to play
+						entity.SetNextThink(info.Now.Add(2 * time.Second)) // TODO: should be long enough for sound to play
 						entity.SetTransform(T)
 						entity.SetSoundEffect(SoundEmitter{
 							Effect:      "explosion.wav",
 							Attenuation: 1,
-							PlayTime:    io.world.Now.Add(info.Δt),
+							PlayTime:    info.Now.Add(info.Δt),
 						})
 					})
 			}

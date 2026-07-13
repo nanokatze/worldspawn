@@ -270,7 +270,7 @@ func init() {
 					func(_ *UpdateParams, hands Entity2, io IO) {
 						hands.SetTransform(gmath.TRS3f64{
 							T: gmath.Vec3f64{0, 1, 0}.
-								Scale(math.Sin(float64(io.world.Now.Sub(Time{}))/1e9*6) * 0.03 * min(float64(velocity.Linear.Length()/6), 1)),
+								Scale(math.Sin(float64(info.Now.Sub(Time{}))/1e9*6) * 0.03 * min(float64(velocity.Linear.Length()/6), 1)),
 							R: gmath.Rot3One(),
 							S: gmath.Mat3x3UOne[float32](),
 						})
@@ -287,7 +287,7 @@ func init() {
 				})
 
 			io.EnqueueEntityUpdate(gladiator.ID(),
-				func(_ *UpdateParams, entity Entity2, io IO) {
+				func(info *UpdateParams, entity Entity2, io IO) {
 					gladiator := entity.ScriptState().(Gladiator)
 					defer func() { entity.SetScriptState(gladiator) }()
 
@@ -317,7 +317,7 @@ func init() {
 					}
 					velocity.Linear = rotation.Rotate(v_local)
 					if !gladiator.Motion.Supported {
-						velocity.Linear = velocity.Linear.Add(io.world.Globals().Gravity.Scale(float32(durationToFloatSeconds(info.Δt))))
+						velocity.Linear = velocity.Linear.Add(info.Gravity.Scale(float32(durationToFloatSeconds(info.Δt))))
 					}
 					velocity.Linear = gladiator.asdasd(io.world, entity.ID(), velocity.Linear, info.Δt)
 
@@ -328,12 +328,12 @@ func init() {
 						entity.SetSoundEffect(SoundEmitter{
 							Effect:      "step.wav",
 							Attenuation: 1,
-							PlayTime:    io.world.Now,
+							PlayTime:    info.Now,
 						})
 						gladiator.Motion.Steps = 0
 					}
 
-					for gladiator.Vitals.HealthToBleed > 0 && !gladiator.Vitals.NextBleed.After(io.world.Now) {
+					for gladiator.Vitals.HealthToBleed > 0 && !gladiator.Vitals.NextBleed.After(info.Now) {
 						const bleedSpeedFactor = 0.1
 						const minBleedSpeed = 1.0
 
@@ -381,7 +381,7 @@ func init() {
 
 			state.Vitals.Health -= directDamage
 			state.Vitals.HealthToBleed += bleeding
-			state.Vitals.NextBleed = io.world.Now
+			state.Vitals.NextBleed = info.Now
 		},
 
 		Magazine_Pull: func(info *UpdateParams, entity Entity2, ammoType AmmoType, io IO) bool {

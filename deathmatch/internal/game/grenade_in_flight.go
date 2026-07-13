@@ -27,7 +27,7 @@ func init() {
 			const fuse = 1400 * time.Millisecond
 
 			state := grenade.ScriptState().(GrenadeInFlight)
-			if state.LaunchedAt.Add(fuse).After(io.world.Now) && !state.ExplodeNow {
+			if state.LaunchedAt.Add(fuse).After(info.Now) && !state.ExplodeNow {
 				return
 			}
 
@@ -52,12 +52,12 @@ func init() {
 					T := grenade.Transform()
 					grenade.Clear()
 					grenade.SetScriptState(DeleteAfter{})
-					grenade.SetNextThink(io.world.Now.Add(2 * time.Second))
+					grenade.SetNextThink(info.Now.Add(2 * time.Second))
 					grenade.SetTransform(T)
 					grenade.SetSoundEffect(SoundEmitter{
 						Effect:      "explosion.wav",
 						Attenuation: 1,
-						PlayTime:    io.world.Now.Add(info.Δt),
+						PlayTime:    info.Now.Add(info.Δt),
 					})
 				})
 		},

@@ -36,7 +36,7 @@ func init() {
 						"forearm.L",
 						"hand.L",
 					} {
-						t := float64(io.world.Now.Sub(Time{})%1e9) / 1e9 * 30
+						t := float64(info.Now.Sub(Time{})%1e9) / 1e9 * 30
 
 						localTransforms[skelly.JointByName(bone)] =
 							gmath.TRS3f32{

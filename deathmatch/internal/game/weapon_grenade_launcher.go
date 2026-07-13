@@ -68,7 +68,7 @@ func init() {
 		) Recoil {
 			weaponState, _ := world.GetEntity[WeaponGrenadeLauncher](weapon)
 
-			if weaponState.CycleEnds.After(world.Now) {
+			if weaponState.CycleEnds.After(info.Now) {
 				return Recoil{}
 			}
 
@@ -99,7 +99,7 @@ func init() {
 					// TODO: it would be nice if we could specify this bit without assuming ScriptState type
 					projectile.SetScriptState(GrenadeInFlight{
 						Attacker:   attacker,
-						LaunchedAt: world.Now,
+						LaunchedAt: info.Now,
 					})
 					projectile.SetTransform(
 						T_attack.
@@ -117,7 +117,7 @@ func init() {
 					projectile.SetPhysicsMassOverride(0.1)
 					projectile.SetCosmeticOffset(CosmeticOffset{
 						Alpha: 2,
-						T0:    world.Now,
+						T0:    info.Now,
 						// Ugh. TODO: think how we could make this not as gross.
 						Offset: T_attack.M.Mulv(gmath.Vec3f32{0.18, 0, -0.2}),
 					})
@@ -134,7 +134,7 @@ func init() {
 						// world.Pose.Set(prop, animgraph.Pose{
 						// 	Bones: map[int]gmath.Affine3f32{
 						// 		skelly.JointByName("Bolt"): gmath.TRS3f32{
-						// 			T: gmath.Vec3f32{0, -0.1 * Rand(world.Now, weaponID, "grenade launcher bolt position").Float32(), 0},
+						// 			T: gmath.Vec3f32{0, -0.1 * Rand(info.Now, weaponID, "grenade launcher bolt position").Float32(), 0},
 						// 			R: gmath.Rot3One(),
 						// 			S: gmath.Mat3x3UOne[float32](),
 						// 		}.Compose(),
@@ -144,7 +144,7 @@ func init() {
 						prop.SetSoundEffect(SoundEmitter{
 							Effect:      "weapons/grenade_launcher/fire.wav",
 							Attenuation: 1,
-							PlayTime:    io.world.Now, // + time.Duration(rng(w.Time, entityID, 0).Int63n(int64(1*time.Millisecond))),
+							PlayTime:    info.Now, // + time.Duration(rng(w.Time, entityID, 0).Int63n(int64(1*time.Millisecond))),
 						})
 					})
 			}
@@ -155,11 +155,11 @@ func init() {
 					defer func() { weapon.SetScriptState(state) }()
 
 					state.Chambered = false
-					state.CycleEnds = io.world.Now.Add(grenadeLauncherStats.CycleDuration)
+					state.CycleEnds = info.Now.Add(grenadeLauncherStats.CycleDuration)
 				})
 
 			// TODO: eschew rnd?
-			rnd := Rand(io.world.Now, weapon, T_attack)
+			rnd := Rand(info.Now, weapon, T_attack)
 
 			θ := 0.1 * 2 * math.Pi * (rnd.Float64() - 0.5)
 			r := 0.02

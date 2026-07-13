@@ -12,7 +12,7 @@ type UpdateParams struct {
 	Δt          time.Duration
 	Speculating bool
 
-	Globals WorldGlobals
+	WorldGlobals
 }
 
 // TODO: do not accept updateParams here but raw Δt and flags. We should
@@ -20,7 +20,8 @@ type UpdateParams struct {
 func (world *World) Step(updateParams UpdateParams) {
 	world.Now = world.Now.Add(updateParams.Δt)
 
-	updateParams.Globals = world.Globals()
+	updateParams.WorldGlobals = world.GetEntity2(1).ScriptState().(WorldGlobals)
+	updateParams.Now = world.Now
 
 	world.think(&updateParams)
 
@@ -36,7 +37,7 @@ func (world *World) Step(updateParams UpdateParams) {
 
 		soundEffect.Effect = a.Sound
 		soundEffect.Attenuation = a.Attenuation
-		soundEffect.PlayTime = world.Now
+		soundEffect.PlayTime = updateParams.Now
 		world.SoundEffect.Set(id, soundEffect)
 	}
 
@@ -73,7 +74,7 @@ func (world *World) think(updateParams *UpdateParams) {
 
 		// TODO: we'll want a timer wheel of sorts to make this fast
 		nextThink, _ := world.NextThink.Get(id)
-		if world.Now.Before(nextThink) {
+		if updateParams.Now.Before(nextThink) {
 			continue
 		}
 
