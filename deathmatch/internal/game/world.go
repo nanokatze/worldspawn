@@ -366,3 +366,5 @@ func (e Entity2) SetRenderingGeometry(v unique.Handle[string]) {
 func (e Entity2) SetSoundEffect(v SoundEmitter) { e.world.SoundEffect.Store(e.id.Index(), v) }
 
 func (e Entity2) MarkForDeletion() { e.world.delete.Store(e.id.Index(), true) }
+
+func (e Entity2) Logger() *slog.Logger { return e.world.logger.With("id", e.ID()) }
