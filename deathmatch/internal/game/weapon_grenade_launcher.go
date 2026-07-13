@@ -94,13 +94,12 @@ func init() {
 			}
 
 			if !info.Speculating {
-				io.EnqueueGlobalUpdate(func(info *UpdateParams, world *World) {
+				io.EnqueueCreateEntity(func(info *UpdateParams, projectile Entity2, io IO) {
 					// TODO: don't use prefab here tbh
-					projectile := world.CreateEntity(info)
 					// TODO: it would be nice if we could specify this bit without assuming ScriptState type
 					projectile.SetScriptState(GrenadeInFlight{
-						LaunchedAt: world.Now,
 						Attacker:   attacker,
+						LaunchedAt: world.Now,
 					})
 					projectile.SetTransform(
 						T_attack.

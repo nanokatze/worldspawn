@@ -15,10 +15,10 @@ import (
 // energy transfer, we could switch back to using physics engine for contacts.
 
 type GrenadeInFlight struct {
-	LaunchedAt Time // when the fuse was ignited
-	ExplodeNow bool // whether we should explode ASAP
+	Attacker   ecs.ID // who to attribute the damage to
+	LaunchedAt Time   // when the fuse was ignited
 
-	Attacker ecs.ID // who to attribute this damage to
+	ExplodeNow bool // whether we should explode now
 }
 
 func init() {
@@ -26,14 +26,14 @@ func init() {
 		Think: func(info *UpdateParams, world *World, grenade Entity2, io IO) {
 			const fuse = 1400 * time.Millisecond
 
-			grenadeState := grenade.ScriptState().(GrenadeInFlight)
-			if grenadeState.LaunchedAt.Add(fuse).After(io.world.Now) && !grenadeState.ExplodeNow {
+			state := grenade.ScriptState().(GrenadeInFlight)
+			if state.LaunchedAt.Add(fuse).After(io.world.Now) && !state.ExplodeNow {
 				return
 			}
 
 			world.explosion(
 				Impact{
-					Attacker: grenadeState.Attacker,
+					Attacker: state.Attacker,
 					Type:     BlastImpactWithFragmentation,
 					Damage:   1500,
 				},
@@ -63,8 +63,8 @@ func init() {
 		},
 
 		ContactAdded: func(info *UpdateParams, world *World, grenade, entity2 ecs.ID) {
-			grenadeState, _ := world.GetEntity[GrenadeInFlight](grenade)
-			if entity2 == grenadeState.Attacker {
+			state, _ := world.GetEntity[GrenadeInFlight](grenade)
+			if entity2 == state.Attacker {
 				// TODO: this should not be reachable, but for now it is. We
 				// should ignore this contact in ShouldCollide.
 				return
@@ -75,8 +75,8 @@ func init() {
 			}
 
 			if _, ok := world.ShouldSetOffFuseOnImpact.Get(entity2); ok {
-				grenadeState.ExplodeNow = true
-				world.Entity.Set(grenade, grenadeState)
+				state.ExplodeNow = true
+				world.Entity.Set(grenade, state)
 			}
 		},
 	}

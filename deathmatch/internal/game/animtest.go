@@ -16,11 +16,11 @@ func init() {
 		Think: func(info *UpdateParams, world *World, entity Entity2, io IO) {
 			io.EnqueueEntityUpdate(entity.ID(),
 				func(info *UpdateParams, entity Entity2, io IO) {
-					animtest, _ := entity.ScriptState().(Animtest)
+					animtest := entity.ScriptState().(Animtest)
 
 					animation := animation(animtest.Animation)
 
-					skelly := entity.world.GetSkeleton(entity.id)
+					skelly := entity.world.GetSkeleton(entity.ID())
 
 					localTransforms := map[int]gmath.Affine3f32{}
 

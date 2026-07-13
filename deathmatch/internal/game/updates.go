@@ -43,8 +43,16 @@ func (io IO) EnqueueEntityUpdate(to ecs.ID, f func(info *UpdateParams, entity En
 	*updates = append(*updates, updatef{io.key, f})
 }
 
-// TODO: we could perhaps kill this and instead make things be enqueued for
-// entity 1 (worldspawn)?
+func (io IO) EnqueueCreateEntity(f func(info *UpdateParams, entity Entity2, io IO)) {
+	io.EnqueueGlobalUpdate(func(info *UpdateParams, world *World) {
+		entity := world.CreateEntity(info)
+		f(info, entity, IO{world, entity.id})
+	})
+}
+
+// TODO: kill this and move all globals into Worldspawn? We first would need to
+// figure out how to deal with stuff like e.g. rules and stuff being set on
+// Worldspawn.
 func (io IO) EnqueueGlobalUpdate(f func(info *UpdateParams, world *World)) {
 	io.world.globalUpdates = append(io.world.globalUpdates, f)
 }

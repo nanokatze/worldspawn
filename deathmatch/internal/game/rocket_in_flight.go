@@ -9,10 +9,10 @@ import (
 )
 
 type RocketInFlight struct {
-	LaunchedAt Time // when the fuse was ignited
-	ExplodeNow bool // whether we should explode ASAP
+	Attacker   ecs.ID // who to attribute this damage to
+	LaunchedAt Time   // when the fuse was ignited
 
-	Attacker ecs.ID // who to attribute this damage to
+	ExplodeNow bool // whether we should explode now
 }
 
 func init() {
@@ -20,14 +20,14 @@ func init() {
 		Think: func(info *UpdateParams, world *World, rocket Entity2, io IO) {
 			const fuse = 5000 * time.Millisecond
 
-			rocketState := rocket.ScriptState().(RocketInFlight)
-			if rocketState.LaunchedAt.Add(fuse).After(io.world.Now) && !rocketState.ExplodeNow {
+			state := rocket.ScriptState().(RocketInFlight)
+			if state.LaunchedAt.Add(fuse).After(io.world.Now) && !state.ExplodeNow {
 				return
 			}
 
 			world.explosion(
 				Impact{
-					Attacker: rocketState.Attacker,
+					Attacker: state.Attacker,
 					Type:     BlastImpactWithFragmentation,
 					Damage:   1200,
 				},
@@ -56,14 +56,14 @@ func init() {
 		},
 
 		ContactAdded: func(_ *UpdateParams, world *World, grenade, entity2 ecs.ID) {
-			rocketState, _ := world.GetEntity[RocketInFlight](grenade)
-			if entity2 == rocketState.Attacker {
+			state, _ := world.GetEntity[RocketInFlight](grenade)
+			if entity2 == state.Attacker {
 				// TODO: filter this in ShouldCollide. This should never be reached
 				return
 			}
+			defer func() { world.Entity.Set(grenade, state) }()
 
-			rocketState.ExplodeNow = true
-			world.Entity.Set(grenade, rocketState)
+			state.ExplodeNow = true
 		},
 	}
 }

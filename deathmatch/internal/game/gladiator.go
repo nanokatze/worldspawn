@@ -183,27 +183,27 @@ func init() {
 				})
 		},
 
-		Think: func(info *UpdateParams, world *World, entity Entity2, io IO) {
+		Think: func(info *UpdateParams, world *World, gladiator Entity2, io IO) {
 			// TODO: sort this out pls and make it obey Think rules, i.e. put all mutations into lambdas.
 
-			gladiator := entity.ScriptState().(Gladiator)
+			state := gladiator.ScriptState().(Gladiator)
 
 			var recoil Recoil
-			if weapon := world.GetEntity2(gladiator.HeldWeapon.Entity); weapon.Valid() {
+			if weapon := world.GetEntity2(state.HeldWeapon.Entity); weapon.Valid() {
 				var buttons WeaponButtons
-				if gladiator.Input.HeldButtons&uint64(1<<ButtonAttack) != 0 {
+				if state.Input.HeldButtons&uint64(1<<ButtonAttack) != 0 {
 					buttons |= WeaponTrigger
 				}
 
-				T_attack := world.GetGlobalTransform2(entity).
+				T_attack := world.GetGlobalTransform2(gladiator).
 					Mul(gmath.TRS3f64{
 						T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
-						R: e01.Pow(4 * gladiator.Input.LookDir[0]).Mul(e12.Pow(4 * gladiator.Input.LookDir[1])),
+						R: e01.Pow(4 * state.Input.LookDir[0]).Mul(e12.Pow(4 * state.Input.LookDir[1])),
 						S: gmath.Mat3x3UOne[float32](),
 					}.Compose())
-				v_attack := entity.Velocity()
+				v_attack := gladiator.Velocity()
 
-				recoil = weapon.Script().Weapon_Think(info, world, weapon.id, gladiator.HeldWeapon.Props[:], entity.ID(), T_attack, v_attack, buttons, io)
+				recoil = weapon.Script().Weapon_Think(info, world, weapon.ID(), state.HeldWeapon.Props[:], gladiator.ID(), T_attack, v_attack, buttons, io)
 			}
 
 			// EXTREMELY YUCKY!!!!!!!!!!!!
@@ -264,9 +264,9 @@ func init() {
 
 			// TODO: redo sway animation
 			{
-				velocity := entity.Velocity()
+				velocity := gladiator.Velocity()
 
-				io.EnqueueEntityUpdate(gladiator.FirstPersonHands,
+				io.EnqueueEntityUpdate(state.FirstPersonHands,
 					func(_ *UpdateParams, hands Entity2, io IO) {
 						hands.SetTransform(gmath.TRS3f64{
 							T: gmath.Vec3f64{0, 1, 0}.
@@ -277,18 +277,18 @@ func init() {
 					})
 			}
 
-			io.EnqueueEntityUpdate(gladiator.FirstPersonCamera,
+			io.EnqueueEntityUpdate(state.FirstPersonCamera,
 				func(_ *UpdateParams, camera Entity2, io IO) {
 					camera.SetTransform(gmath.TRS3f64{
 						T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
-						R: e01.Pow(4 * gladiator.Input.LookDir[0]).Mul(e12.Pow(4 * gladiator.Input.LookDir[1])),
+						R: e01.Pow(4 * state.Input.LookDir[0]).Mul(e12.Pow(4 * state.Input.LookDir[1])),
 						S: gmath.Mat3x3UOne[float32](),
 					})
 				})
 
-			io.EnqueueEntityUpdate(entity.ID(),
+			io.EnqueueEntityUpdate(gladiator.ID(),
 				func(_ *UpdateParams, entity Entity2, io IO) {
-					gladiator, _ := entity.ScriptState().(Gladiator)
+					gladiator := entity.ScriptState().(Gladiator)
 					defer func() { entity.SetScriptState(gladiator) }()
 
 					// TODO: apply some part of the recoil as viewpunch?
@@ -319,7 +319,7 @@ func init() {
 					if !gladiator.Motion.Supported {
 						velocity.Linear = velocity.Linear.Add(io.world.Globals().Gravity.Scale(float32(durationToFloatSeconds(info.Δt))))
 					}
-					velocity.Linear = gladiator.asdasd(io.world, entity.id, velocity.Linear, info.Δt)
+					velocity.Linear = gladiator.asdasd(io.world, entity.ID(), velocity.Linear, info.Δt)
 
 					if gladiator.Motion.Supported {
 						gladiator.Motion.Steps += float64(velocity.Linear.Length()) * durationToFloatSeconds(info.Δt)
@@ -366,7 +366,7 @@ func init() {
 		Impact: func(info *UpdateParams, gladiator Entity2, impact Impact, io IO) {
 			// TODO: be verbose when computing the modifier
 			modifier := 1.0
-			if gladiator.id == impact.Attacker {
+			if gladiator.ID() == impact.Attacker {
 				modifier /= 2
 			}
 
@@ -385,13 +385,14 @@ func init() {
 		},
 
 		Magazine_Pull: func(info *UpdateParams, entity Entity2, ammoType AmmoType, io IO) bool {
-			state, _ := entity.ScriptState().(Gladiator)
-			if state.Inventory.Ammo[ammoType] > 0 {
-				state.Inventory.Ammo[ammoType]--
-				entity.world.Entity.Set(entity.id, state)
-				return true
+			state := entity.ScriptState().(Gladiator)
+			if state.Inventory.Ammo[ammoType] <= 0 {
+				return false
 			}
-			return false
+			defer func() { entity.SetScriptState(state) }()
+
+			state.Inventory.Ammo[ammoType]--
+			return true
 		},
 	}
 }
@@ -409,19 +410,19 @@ func (world *World) spawnGladiator(T gmath.TRS3f64, info *UpdateParams) ecs.ID {
 	gladiator.SetRenderingGeometry(unique.Make("testcharacter4/geometries/TestCharacter4"))
 
 	camera := world.CreateEntity(info)
-	camera.SetParent(gladiator.id)
-	gladiator.SetVisibilityCondition(VisibilityCondition{Mask: 0b10, Camera: camera.id})
-	// The transform will be set at the next simulation step.
+	camera.SetParent(gladiator.ID())
+	gladiator.SetVisibilityCondition(VisibilityCondition{Mask: 0b10, Camera: camera.ID()})
+	// The transform will be set at the next tick.
 
 	hands := world.CreateEntity(info)
-	hands.SetParent(camera.id)
+	hands.SetParent(camera.ID())
 	hands.SetTransform(gmath.TRS3One[float64]())
-	hands.SetVisibilityCondition(VisibilityCondition{Mask: 0b01, Camera: camera.id})
+	hands.SetVisibilityCondition(VisibilityCondition{Mask: 0b01, Camera: camera.ID()})
 	hands.SetRenderingGeometry(unique.Make("testcharacter4/geometries/Hands"))
 
 	s := Gladiator{
-		FirstPersonCamera: camera.id,
-		FirstPersonHands:  hands.id,
+		FirstPersonCamera: camera.ID(),
+		FirstPersonHands:  hands.ID(),
 	}
 	s.Vitals.Health = 100
 	// TODO: define loadout somehow better so that ammo pickup knows what to do
@@ -430,29 +431,31 @@ func (world *World) spawnGladiator(T gmath.TRS3f64, info *UpdateParams) ecs.ID {
 	gladiator.SetScriptState(s)
 
 	// Give the gladiator some guns
+	//
+	// TODO: this should depend on
 
 	{
 		weapon := world.CreateEntity(info)
 		weapon.SetScriptState(WeaponGrenadeLauncher{})
 
-		world.GiveWeapon(gladiator.id, weapon.id)
+		world.GiveWeapon(gladiator.ID(), weapon.ID())
 	}
 
 	{
 		weapon := world.CreateEntity(info)
 		weapon.SetScriptState(WeaponAssaultRifle{})
 
-		world.GiveWeapon(gladiator.id, weapon.id)
+		world.GiveWeapon(gladiator.ID(), weapon.ID())
 	}
 
 	{
 		weapon := world.CreateEntity(info)
 		weapon.SetScriptState(WeaponPhysgun{})
 
-		world.GiveWeapon(gladiator.id, weapon.id)
+		world.GiveWeapon(gladiator.ID(), weapon.ID())
 	}
 
-	return gladiator.id
+	return gladiator.ID()
 }
 
 func planeNormal(plane gmath.Vec4f32) gmath.Vec3f32 {
