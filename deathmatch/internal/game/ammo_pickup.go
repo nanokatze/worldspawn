@@ -31,7 +31,7 @@ func init() {
 								state.Inventory.Ammo[0] = 10
 								state.Inventory.Ammo[1] = 100
 
-								info.Logger.Info("resupplied the player", "id", entity.ID())
+								world.logger.Info("resupplied the player", "id", entity.ID())
 							})
 
 						io.EnqueueEntityUpdate(entity.ID(),

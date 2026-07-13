@@ -1,30 +1,32 @@
 package game
 
 import (
-	"log/slog"
 	"reflect"
 	"time"
 
 	"worldspawn/internal/ecs"
-	"worldspawn/internal/physics"
 )
 
 // TODO: rename to StepContext or something
 type UpdateParams struct {
-	// Now         Time // TODO: fill this out in world.Step for now
 	Δt          time.Duration
 	Speculating bool
-	Logger      *slog.Logger
+
+	Globals WorldGlobals
 }
 
-func (world *World) Step(updateParams *UpdateParams) {
+// TODO: do not accept updateParams here but raw Δt and flags. We should
+// construct UpdateParams ourselves
+func (world *World) Step(updateParams UpdateParams) {
 	world.Now = world.Now.Add(updateParams.Δt)
 
-	world.think(updateParams)
+	updateParams.Globals = world.Globals()
 
-	world.physicsStep(updateParams)
+	world.think(&updateParams)
 
-	world.handleOutOfBoundsEntities(updateParams)
+	world.physicsStep(&updateParams)
+
+	world.handleOutOfBoundsEntities(&updateParams)
 
 	for id, a := range ecs.All(&world.SoundEffectState) {
 		soundEffect, _ := world.SoundEffect.Get(id)
@@ -83,8 +85,9 @@ func (world *World) think(updateParams *UpdateParams) {
 	world.processUpdates(updateParams)
 }
 
-// TODO: rename to make it clear that we're deleting things already marked for
-// deletion.
+// TODO: make it public so that client replication code can use this? Client
+// replication code still needs World.DeleteEntityImmediately. I guess it could
+// also do whatever surgery it needs.
 func (world *World) deleteMarkedEntities() {
 	// Propagate deletion from parents.
 	//

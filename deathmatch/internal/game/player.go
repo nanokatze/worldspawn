@@ -71,6 +71,8 @@ func (world *World) Overlay(playerID ecs.ID, health, bleed *int32) {
 	*bleed = pawnState.Vitals.HealthToBleed
 }
 
+// TODO: this should not take UpdateParams *at all* I think. Actually we still
+// need flags, but not Δt.
 func (world *World) HandleInput(playerID ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
 	playerState := mustOk(world.GetEntity[Player](playerID))
 	if pawn := world.GetEntity2(playerState.Pawn); pawn.Valid() {
@@ -78,7 +80,7 @@ func (world *World) HandleInput(playerID ecs.ID, cmd TimestampedInputCmd, info *
 	} else {
 		if !info.Speculating {
 			spawnPoint := world.findSpawnPoint()
-			info.Logger.Info("spawn", "player", playerID, "T", spawnPoint)
+			world.logger.Info("spawn", "player", playerID, "T", spawnPoint)
 
 			playerState.Pawn = world.spawnGladiator(spawnPoint, info)
 			world.Entity.Set(playerID, playerState)

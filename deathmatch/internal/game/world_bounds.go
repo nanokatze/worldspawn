@@ -42,7 +42,7 @@ func (world *World) handleOutOfBoundsEntities(info *UpdateParams) {
 			continue
 		}
 
-		info.Logger.Warn("entity out of bounds", "id", id, "T", tr.T)
+		world.logger.Warn("entity out of bounds", "id", id, "T", tr.T)
 
 		// TODO: check if the entity's script implements OutOfBounds and
 		// poke that instead of this thing.

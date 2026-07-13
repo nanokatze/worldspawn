@@ -156,6 +156,8 @@ type World struct {
 	// Entities marked for deletion
 	// TODO: move this into Entities
 	delete bitset.Bitset
+
+	logger *slog.Logger
 }
 
 func NewWorld(n int) *World {
@@ -187,6 +189,9 @@ func NewWorld(n int) *World {
 	world.physicsBodyExists.Init(world.Table)
 
 	world.delete = bitset.Make(n)
+
+	// TODO: the user should pass this
+	world.logger = slog.Default()
 
 	return world
 }
