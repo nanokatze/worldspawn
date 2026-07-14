@@ -30,7 +30,7 @@ type Impact struct {
 	//
 	// TODO: we might need more attribution fields (weapon id for weapon name
 	// and icon, etc)
-	Attacker ecs.ID
+	Attacker ecs.ID // TODO: should this be Entity2?
 
 	Type ImpactType
 

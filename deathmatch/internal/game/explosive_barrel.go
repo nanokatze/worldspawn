@@ -23,18 +23,18 @@ func init() {
 			// TODO: we should do a SetNextThink to forever and have Impact
 			// SetNextThink asap otherwise
 
-			barrel := entity.ScriptState().(ExplosiveBarrel)
+			state := entity.ScriptState().(ExplosiveBarrel)
 			T := world.GetGlobalTransform2(entity)
 
-			if barrel.Health <= 0 {
-				attacker := barrel.Attacker
-				if !world.GetEntity2(attacker).Valid() {
-					attacker = entity.ID()
+			if state.Health <= 0 {
+				attacker := world.GetEntity2(state.Attacker)
+				if !attacker.Valid() {
+					attacker = entity
 				}
 
 				world.explosion(
 					Impact{
-						Attacker: attacker,
+						Attacker: attacker.ID(),
 						Type:     BlastImpactWithFragmentation, // TODO: we should specify impact type and damage on the barrel itself I think
 						Damage:   1500,
 					},
@@ -67,11 +67,11 @@ func init() {
 		Impact: func(info *UpdateParams, entity Entity2, impact Impact, io IO) {
 			// TODO: verify impact preconditions here
 
-			barrel := entity.ScriptState().(ExplosiveBarrel)
-			defer func() { entity.SetScriptState(barrel) }()
+			state := entity.ScriptState().(ExplosiveBarrel)
+			defer func() { entity.SetScriptState(state) }()
 
-			barrel.Attacker = impact.Attacker
-			barrel.Health -= impact.Damage
+			state.Attacker = impact.Attacker
+			state.Health -= impact.Damage
 		},
 	}
 }
