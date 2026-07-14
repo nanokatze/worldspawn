@@ -277,78 +277,82 @@ func init() {
 					})
 			}
 
-			io.EnqueueEntityUpdate(state.FirstPersonCamera,
-				func(_ *UpdateParams, camera Entity2, io IO) {
-					camera.SetTransform(gmath.TRS3f64{
-						T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
-						R: e01.Pow(4 * state.Input.LookDir[0]).Mul(e12.Pow(4 * state.Input.LookDir[1])),
-						S: gmath.Mat3x3UOne[float32](),
+			{
+				camera := world.GetEntity2(state.FirstPersonCamera)
+
+				io.EnqueueEntityUpdate(camera.ID(),
+					func(_ *UpdateParams, camera Entity2, io IO) {
+						camera.SetTransform(gmath.TRS3f64{
+							T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
+							R: e01.Pow(4 * state.Input.LookDir[0]).Mul(e12.Pow(4 * state.Input.LookDir[1])),
+							S: gmath.Mat3x3UOne[float32](),
+						})
 					})
-				})
+			}
 
 			io.EnqueueEntityUpdate(gladiator.ID(),
-				func(info *UpdateParams, entity Entity2, io IO) {
-					gladiator := entity.ScriptState().(Gladiator)
-					defer func() { entity.SetScriptState(gladiator) }()
+				func(info *UpdateParams, gladiator Entity2, io IO) {
+					state := gladiator.ScriptState().(Gladiator)
+					defer func() { gladiator.SetScriptState(state) }()
 
 					// TODO: apply some part of the recoil as viewpunch?
 					// TODO: make sure we don't overflow LookDir
-					gladiator.Input.LookDir[0] += recoil.Recoil[0]
-					gladiator.Input.LookDir[1] += recoil.Recoil[1]
+					state.Input.LookDir[0] += recoil.Recoil[0]
+					state.Input.LookDir[1] += recoil.Recoil[1]
 
-					velocity := entity.Velocity()
+					velocity := gladiator.Velocity()
 
-					trs := entity.Transform()
+					trs := gladiator.Transform()
 
-					rotation := trs.R.Mul(e01.Pow(4 * gladiator.Input.LookDir[0]))
+					rotation := trs.R.Mul(e01.Pow(4 * state.Input.LookDir[0]))
 
-					move := gladiator.Input.WalkVel
+					move := state.Input.WalkVel
 					if lengthSqr := move.Dot(move); lengthSqr > 1 {
 						move = move.Scale(1 / float32(math.Sqrt(float64(lengthSqr))))
 					}
 
 					v_local := rotation.Inverse().Rotate(velocity.Linear)
-					if gladiator.Motion.Supported {
+					if state.Motion.Supported {
 						v_local[0] = move[0] * gladiatorStats.WalkSpeed
 						v_local[1] = move[1] * gladiatorStats.WalkSpeed
-						if gladiator.Input.HeldButtons&(1<<ButtonJump) != 0 {
+						if state.Input.HeldButtons&(1<<ButtonJump) != 0 {
 							v_local[2] = 4
 						}
 					}
 					velocity.Linear = rotation.Rotate(v_local)
-					if !gladiator.Motion.Supported {
+					if !state.Motion.Supported {
 						velocity.Linear = velocity.Linear.Add(info.Gravity.Scale(float32(durationToFloatSeconds(info.Δt))))
 					}
-					velocity.Linear = gladiator.asdasd(io.world, entity.ID(), velocity.Linear, info.Δt)
+					velocity.Linear = state.asdasd(io.world, gladiator.ID(), velocity.Linear, info.Δt)
 
-					if gladiator.Motion.Supported {
-						gladiator.Motion.Steps += float64(velocity.Linear.Length()) * durationToFloatSeconds(info.Δt)
+					if state.Motion.Supported {
+						state.Motion.Steps += float64(velocity.Linear.Length()) * durationToFloatSeconds(info.Δt)
 					}
-					if gladiator.Motion.Steps > 3 {
-						entity.SetSoundEffect(SoundEmitter{
+					if state.Motion.Steps > 3 {
+						gladiator.SetSoundEffect(SoundEmitter{
 							Effect:      "step.wav",
 							Attenuation: 1,
 							PlayTime:    info.Now,
 						})
-						gladiator.Motion.Steps = 0
+						state.Motion.Steps = 0
 					}
 
-					for gladiator.Vitals.HealthToBleed > 0 && !gladiator.Vitals.NextBleed.After(info.Now) {
+					for state.Vitals.HealthToBleed > 0 && !state.Vitals.NextBleed.After(info.Now) {
 						const bleedSpeedFactor = 0.1
 						const minBleedSpeed = 1.0
 
-						gladiator.Vitals.Health--
-						gladiator.Vitals.HealthToBleed--
-						gladiator.Vitals.NextBleed = gladiator.Vitals.NextBleed.
-							Add(time.Duration(1e9 / max(float64(gladiator.Vitals.HealthToBleed)*bleedSpeedFactor, minBleedSpeed)))
+						state.Vitals.Health--
+						state.Vitals.HealthToBleed--
+						state.Vitals.NextBleed = state.Vitals.NextBleed.
+							Add(time.Duration(1e9 / max(float64(state.Vitals.HealthToBleed)*bleedSpeedFactor, minBleedSpeed)))
 					}
 
 					// TODO: we should probably enqueue the death so that it happens
 					// after all impacts. That way we can see how far we are below 0
 					// and therefore decide whether we want to spawn gibs or just
 					// drop a ragdoll.
-					if gladiator.Vitals.Health <= 0 {
-						entity.Logger().Info("killing myself!!!")
+					if state.Vitals.Health <= 0 {
+						gladiator.Logger().Info("killing myself!!!")
 
 						// TODO: spawn ragdoll or gibs
 
@@ -356,10 +360,10 @@ func init() {
 						// other players. We'll need to keep a damage log for that (even if
 						// limited)
 
-						entity.MarkForDeletion()
+						gladiator.MarkForDeletion()
 					}
 
-					entity.SetVelocity(velocity)
+					gladiator.SetVelocity(velocity)
 				})
 		},
 

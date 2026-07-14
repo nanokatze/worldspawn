@@ -41,13 +41,13 @@ func init() {
 				io)
 
 			io.EnqueueEntityUpdate(rocket.ID(),
-				func(info *UpdateParams, grenade Entity2, io IO) {
-					T := grenade.Transform()
-					grenade.Clear()
-					grenade.SetScriptState(DeleteAfter{})
-					grenade.SetNextThink(info.Now.Add(2 * time.Second)) // TODO: should be long enough for sound to play
-					grenade.SetTransform(T)
-					grenade.SetSoundEffect(SoundEmitter{
+				func(info *UpdateParams, rocket Entity2, io IO) {
+					T := rocket.Transform()
+					rocket.Clear()
+					rocket.SetScriptState(DeleteAfter{})
+					rocket.SetNextThink(info.Now.Add(2 * time.Second)) // TODO: should be long enough for sound to play
+					rocket.SetTransform(T)
+					rocket.SetSoundEffect(SoundEmitter{
 						Effect:      "explosion.wav",
 						Attenuation: 1,
 						PlayTime:    info.Now.Add(info.Δt),
