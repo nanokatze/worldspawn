@@ -49,7 +49,7 @@ func init() {
 				if rayHit.Entity != ecs.NullID {
 					transform := T_attack.Inv().Mul(world.GetGlobalTransform(rayHit.Entity))
 
-					io.EnqueueEntityUpdate(weapon.ID(),
+					io.EnqueueEntityUpdate(weapon,
 						func(_ *UpdateParams, weapon Entity2, io IO) {
 							state := weapon.ScriptState().(WeaponPhysgun)
 							defer func() { weapon.SetScriptState(state) }()
@@ -64,14 +64,14 @@ func init() {
 				// that's parented to something.
 				transform := T_attack.Mul(state.Transform)
 
-				io.EnqueueEntityUpdate(state.HeldEntity,
+				io.EnqueueEntityUpdate(world.GetEntity2(state.HeldEntity),
 					func(_ *UpdateParams, entity Entity2, io IO) {
 						entity.SetTransform(transform.TRS())
 						entity.SetVelocity(Velocity{})
 					})
 
 			case holdingEntity && !triggerHeld:
-				io.EnqueueEntityUpdate(weapon.ID(),
+				io.EnqueueEntityUpdate(weapon,
 					func(_ *UpdateParams, weapon Entity2, io IO) {
 						state := weapon.ScriptState().(WeaponPhysgun)
 						defer func() { weapon.SetScriptState(state) }()

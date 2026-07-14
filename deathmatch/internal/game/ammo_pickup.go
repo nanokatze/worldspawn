@@ -20,10 +20,11 @@ func init() {
 
 			for id, state := range ecs.All(&io.world.Entity) {
 				if _, ok := state.(Gladiator); ok {
+					player := world.GetEntity2(id)
 					playerT := io.world.GetGlobalTransform(id)
 
 					if T.T.Sub(playerT.T).Length() <= 1.1 {
-						io.EnqueueEntityUpdate(id,
+						io.EnqueueEntityUpdate(player,
 							func(info *UpdateParams, player Entity2, io IO) {
 								state := player.ScriptState().(Gladiator)
 								defer func() { player.SetScriptState(state) }()
@@ -34,7 +35,7 @@ func init() {
 								entity.Logger().Info("resupplied", "player", player.ID())
 							})
 
-						io.EnqueueEntityUpdate(entity.ID(),
+						io.EnqueueEntityUpdate(entity,
 							func(info *UpdateParams, entity Entity2, io IO) {
 								entity.SetNextThink(info.Now.Add(10 * time.Second))
 							})

@@ -40,7 +40,7 @@ func init() {
 				},
 				io)
 
-			io.EnqueueEntityUpdate(rocket.ID(),
+			io.EnqueueEntityUpdate(rocket,
 				func(info *UpdateParams, rocket Entity2, io IO) {
 					T := rocket.Transform()
 					rocket.Clear()

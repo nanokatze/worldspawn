@@ -75,10 +75,10 @@ func init() {
 			// TODO: move this state transition into the normal Think. We'll
 			// need to be able to hold onto the player to pull ammo off them.
 			if !state.Chambered {
-				io.EnqueueEntityUpdate(attacker.ID(),
+				io.EnqueueEntityUpdate(attacker,
 					func(info *UpdateParams, mag Entity2, io IO) {
 						if mag.Script().Magazine_Pull(info, mag, 0, io) {
-							io.EnqueueEntityUpdate(weapon.ID(),
+							io.EnqueueEntityUpdate(weapon,
 								func(info *UpdateParams, weapon Entity2, io IO) {
 									state := weapon.ScriptState().(WeaponGrenadeLauncher)
 									defer func() { weapon.SetScriptState(state) }()
@@ -129,7 +129,7 @@ func init() {
 			// Apply effects to the props; TODO: let's have scripts on the props
 			// instead and let props consult the state.
 			for _, id := range weaponProps {
-				io.EnqueueEntityUpdate(id,
+				io.EnqueueEntityUpdate(world.GetEntity2(id),
 					func(info *UpdateParams, prop Entity2, io IO) {
 						// skelly := world.GetSkeleton(prop)
 						// world.Pose.Set(prop, animgraph.Pose{
@@ -150,7 +150,7 @@ func init() {
 					})
 			}
 
-			io.EnqueueEntityUpdate(weapon.ID(),
+			io.EnqueueEntityUpdate(weapon,
 				func(info *UpdateParams, weapon Entity2, io IO) {
 					state := weapon.ScriptState().(WeaponGrenadeLauncher)
 					defer func() { weapon.SetScriptState(state) }()

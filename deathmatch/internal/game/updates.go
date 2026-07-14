@@ -35,11 +35,8 @@ type updatef struct {
 }
 
 // TODO: shorter names
-func (io IO) EnqueueEntityUpdate(to ecs.ID, f func(info *UpdateParams, entity Entity2, io IO)) {
-	if !io.world.GetEntity2(to).Valid() {
-		panic("uh oh")
-	}
-	updates := &io.world.entityUpdates[to.Index()]
+func (io IO) EnqueueEntityUpdate(to Entity2, f func(info *UpdateParams, entity Entity2, io IO)) {
+	updates := &io.world.entityUpdates[to.id.Index()]
 	*updates = append(*updates, updatef{io.key, f})
 }
 

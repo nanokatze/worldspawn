@@ -75,7 +75,7 @@ func (world *World) explosion(
 			Damage:   int32(result.dmg * float32(impact.Damage)),
 		}
 
-		io.EnqueueEntityUpdate(entityID, impact.Apply)
+		io.EnqueueEntityUpdate(world.GetEntity2(entityID), impact.Apply)
 	}
 }
 

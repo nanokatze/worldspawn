@@ -47,7 +47,7 @@ func init() {
 				io)
 
 			// TODO: create a new entity instead?
-			io.EnqueueEntityUpdate(grenade.ID(),
+			io.EnqueueEntityUpdate(grenade,
 				func(info *UpdateParams, grenade Entity2, io IO) {
 					T := grenade.Transform()
 					grenade.Clear()
