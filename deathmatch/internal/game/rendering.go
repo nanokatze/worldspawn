@@ -3,6 +3,7 @@ package game
 import (
 	"io"
 	"log"
+	"unique"
 
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/fuckwwise/wav"
@@ -80,3 +81,15 @@ func (a *LoopedSound) Init() {
 
 	a.LengthInSamples = off / int64(wr.Channels()*siz)
 }
+
+func (e Entity2) SetVisibilityCondition(v VisibilityCondition) {
+	e.world.VisibilityCondition.Store(e.id.Index(), v)
+}
+
+func (e Entity2) SetCosmeticOffset(v CosmeticOffset) { e.world.CosmeticOffset.Store(e.id.Index(), v) }
+
+func (e Entity2) SetRenderingGeometry(v unique.Handle[string]) {
+	e.world.RenderingGeometry.Store(e.id.Index(), v)
+}
+
+func (e Entity2) SetSoundEffect(v SoundEmitter) { e.world.SoundEffect.Store(e.id.Index(), v) }

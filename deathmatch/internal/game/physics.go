@@ -27,7 +27,13 @@ func (a Velocity) Scale(λ float32) Velocity {
 	}
 }
 
+func (e Entity2) Velocity() Velocity { return e.world.Velocity.Load(e.id.Index()) }
+
+func (e Entity2) SetVelocity(v Velocity) { e.world.Velocity.Store(e.id.Index(), v) }
+
 // Always run this before performing physics queries!!!
+//
+// TODO: move out of this file kinda? I'm thinking into step.go
 func (world *World) updatePhysicsShadow(updateParams *UpdateParams) {
 	// TODO: remove bodies when we delete entities!!!!!!!!
 	for id := range ecs.All(&world.physicsBodyExists) {

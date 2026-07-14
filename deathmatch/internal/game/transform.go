@@ -12,6 +12,27 @@ type TR3f64 struct {
 	R gmath.Rot3
 }
 
+func (e Entity2) SetParent(v ecs.ID) { e.world.SetParent(e.id, v) }
+
+func (e Entity2) SetParentBone(v unique.Handle[string]) { e.world.ParentBone.Store(e.id.Index(), v) }
+
+func (e Entity2) Transform() gmath.TRS3f64 {
+	// TODO: validate that the transform is invertible? We might wanna ban non-invertible transforms
+
+	tr := e.world.TransformTR.Load(e.id.Index())
+	s := e.world.TransformS.Load(e.id.Index())
+	return gmath.TRS3f64{tr.T, tr.R, s}
+}
+
+func (e Entity2) SetTransform(v gmath.TRS3f64) {
+	// TODO: validate the transform
+
+	e.world.TransformTR.Store(e.id.Index(), TR3f64{v.T, v.R})
+	e.world.TransformS.Store(e.id.Index(), v.S)
+}
+
+func (e Entity2) SetTranslationAndRotation(v TR3f64) { e.world.TransformTR.Store(e.id.Index(), v) }
+
 func (world *World) GetGlobalTransform2(entity Entity2) gmath.Affine3f64 {
 	return world.GetGlobalTransform(entity.ID())
 }

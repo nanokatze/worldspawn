@@ -296,45 +296,20 @@ func (e Entity2) Script() script {
 	return Scripts[reflect.TypeOf(e.world.Entity.Load(e.id.Index()))]
 }
 
-// TODO: the zoo of script state stuff really kinda pmo
-
 func (e Entity2) ScriptState() Entity { return e.world.Entity.Load(e.id.Index()) }
 
 func (e Entity2) SetScriptState(v Entity) { e.world.Entity.Store(e.id.Index(), v) }
 
-func (e Entity2) UpdateScriptState[T Entity](f func(v *T)) {
-	v := e.world.Entity.Load(e.id.Index()).(T)
-	f(&v)
-	e.world.Entity.Store(e.id.Index(), v)
-}
-
 func (e Entity2) SetNextThink(v Time) { e.world.NextThink.Store(e.id.Index(), v) }
 
-// TODO: this is incorrect
 func (e Entity2) SetShouldSetOffFuseOnImpact(v bool) {
-	e.world.ShouldSetOffFuseOnImpact.Store(e.id.Index(), struct{}{})
+	// TODO: raaah just have it be a plain bitset already!
+	if v {
+		e.world.ShouldSetOffFuseOnImpact.Store(e.id.Index(), struct{}{})
+	} else {
+		e.world.ShouldSetOffFuseOnImpact.Delete(e.id)
+	}
 }
-
-func (e Entity2) SetParent(v ecs.ID) { e.world.SetParent(e.id, v) }
-
-func (e Entity2) SetParentBone(v unique.Handle[string]) { e.world.ParentBone.Store(e.id.Index(), v) }
-
-func (e Entity2) Transform() gmath.TRS3f64 {
-	// TODO: validate that the transform is invertible? We might wanna ban non-invertible transforms
-
-	tr := e.world.TransformTR.Load(e.id.Index())
-	s := e.world.TransformS.Load(e.id.Index())
-	return gmath.TRS3f64{tr.T, tr.R, s}
-}
-
-func (e Entity2) SetTransform(v gmath.TRS3f64) {
-	// TODO: validate the transform
-
-	e.world.TransformTR.Store(e.id.Index(), TR3f64{v.T, v.R})
-	e.world.TransformS.Store(e.id.Index(), v.S)
-}
-
-func (e Entity2) SetTranslationAndRotation(v TR3f64) { e.world.TransformTR.Store(e.id.Index(), v) }
 
 func (e Entity2) SetSkeleton(v unique.Handle[string]) { e.world.Skeleton.Store(e.id.Index(), v) }
 
@@ -347,23 +322,9 @@ func (e Entity2) SetCollisionGeometry(v unique.Handle[string]) {
 	e.world.CollisionGeometry.Store(e.id.Index(), v)
 }
 
-func (e Entity2) SetPhysicsMassOverride(v float32) { e.world.PhysicsMassOverride.Store(e.id.Index(), v) }
-
-func (e Entity2) Velocity() Velocity { return e.world.Velocity.Load(e.id.Index()) }
-
-func (e Entity2) SetVelocity(v Velocity) { e.world.Velocity.Store(e.id.Index(), v) }
-
-func (e Entity2) SetVisibilityCondition(v VisibilityCondition) {
-	e.world.VisibilityCondition.Store(e.id.Index(), v)
+func (e Entity2) SetPhysicsMassOverride(v float32) {
+	e.world.PhysicsMassOverride.Store(e.id.Index(), v)
 }
-
-func (e Entity2) SetCosmeticOffset(v CosmeticOffset) { e.world.CosmeticOffset.Store(e.id.Index(), v) }
-
-func (e Entity2) SetRenderingGeometry(v unique.Handle[string]) {
-	e.world.RenderingGeometry.Store(e.id.Index(), v)
-}
-
-func (e Entity2) SetSoundEffect(v SoundEmitter) { e.world.SoundEffect.Store(e.id.Index(), v) }
 
 func (e Entity2) MarkForDeletion() { e.world.delete.Store(e.id.Index(), true) }
 
