@@ -58,34 +58,35 @@ func init() {
 		Weapon_Think: func(
 			info *UpdateParams,
 			world *World,
-			weapon ecs.ID,
-			props []ecs.ID,
-			attacker ecs.ID,
+			weapon Entity2,
+			weaponProps []ecs.ID,
+			attacker Entity2,
 			T_attack gmath.Affine3f64,
 			v_attack Velocity,
 			buttons WeaponButtons,
 			io IO,
 		) Recoil {
-			weaponState, _ := world.GetEntity[WeaponGrenadeLauncher](weapon)
+			state := weapon.ScriptState().(WeaponGrenadeLauncher)
 
-			if weaponState.CycleEnds.After(info.Now) {
+			if state.CycleEnds.After(info.Now) {
 				return Recoil{}
 			}
 
 			// TODO: move this state transition into the normal Think. We'll
 			// need to be able to hold onto the player to pull ammo off them.
-			if !weaponState.Chambered {
-				io.EnqueueEntityUpdate(attacker, func(info *UpdateParams, mag Entity2, io IO) {
-					if mag.Script().Magazine_Pull(info, mag, 0, io) {
-						io.EnqueueEntityUpdate(weapon,
-							func(info *UpdateParams, weapon Entity2, io IO) {
-								state := weapon.ScriptState().(WeaponGrenadeLauncher)
-								defer func() { weapon.SetScriptState(state) }()
+			if !state.Chambered {
+				io.EnqueueEntityUpdate(attacker.ID(),
+					func(info *UpdateParams, mag Entity2, io IO) {
+						if mag.Script().Magazine_Pull(info, mag, 0, io) {
+							io.EnqueueEntityUpdate(weapon.ID(),
+								func(info *UpdateParams, weapon Entity2, io IO) {
+									state := weapon.ScriptState().(WeaponGrenadeLauncher)
+									defer func() { weapon.SetScriptState(state) }()
 
-								state.Chambered = true
-							})
-					}
-				})
+									state.Chambered = true
+								})
+						}
+					})
 				return Recoil{}
 			}
 
@@ -98,7 +99,7 @@ func init() {
 					// TODO: don't use prefab here tbh
 					// TODO: it would be nice if we could specify this bit without assuming ScriptState type
 					projectile.SetScriptState(GrenadeInFlight{
-						Attacker:   attacker,
+						Attacker:   attacker.ID(),
 						LaunchedAt: info.Now,
 					})
 					projectile.SetTransform(
@@ -127,7 +128,7 @@ func init() {
 
 			// Apply effects to the props; TODO: let's have scripts on the props
 			// instead and let props consult the state.
-			for _, id := range props {
+			for _, id := range weaponProps {
 				io.EnqueueEntityUpdate(id,
 					func(info *UpdateParams, prop Entity2, io IO) {
 						// skelly := world.GetSkeleton(prop)
@@ -149,7 +150,7 @@ func init() {
 					})
 			}
 
-			io.EnqueueEntityUpdate(weapon,
+			io.EnqueueEntityUpdate(weapon.ID(),
 				func(info *UpdateParams, weapon Entity2, io IO) {
 					state := weapon.ScriptState().(WeaponGrenadeLauncher)
 					defer func() { weapon.SetScriptState(state) }()
@@ -159,7 +160,7 @@ func init() {
 				})
 
 			// TODO: eschew rnd?
-			rnd := Rand(info.Now, weapon, T_attack)
+			rnd := Rand(info.Now, weapon.ID(), T_attack)
 
 			θ := 0.1 * 2 * math.Pi * (rnd.Float64() - 0.5)
 			r := 0.02

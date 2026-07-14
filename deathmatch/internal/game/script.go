@@ -61,9 +61,9 @@ type script struct {
 	Weapon_Think func(
 		info *UpdateParams,
 		world *World,
-		weapon ecs.ID,
-		props []ecs.ID,
-		attacker ecs.ID,
+		weapon Entity2,
+		weaponProps []ecs.ID, // TODO: should be Entity2 too
+		attacker Entity2,
 		T_attack gmath.Affine3f64,
 		v_attack Velocity,
 		buttons WeaponButtons,

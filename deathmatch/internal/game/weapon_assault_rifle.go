@@ -39,27 +39,27 @@ func init() {
 		Weapon_Think: func(
 			info *UpdateParams,
 			world *World,
-			weapon ecs.ID,
-			props []ecs.ID,
-			attacker ecs.ID,
+			weapon Entity2,
+			weaponProps []ecs.ID,
+			attacker Entity2,
 			T_attack gmath.Affine3f64,
 			v_attack Velocity,
 			buttons WeaponButtons,
 			io IO,
 		) Recoil {
-			weaponState, _ := world.GetEntity[WeaponAssaultRifle](weapon)
+			state := weapon.ScriptState().(WeaponAssaultRifle)
 
-			if weaponState.CycleEnds.After(info.Now) {
+			if state.CycleEnds.After(info.Now) {
 				return Recoil{}
 			}
 
 			// TODO: move this state transition into the normal Think. We'll
 			// need to be able to hold onto the player to pull ammo off them.
-			if !weaponState.Chambered {
-				io.EnqueueEntityUpdate(attacker,
+			if !state.Chambered {
+				io.EnqueueEntityUpdate(attacker.ID(),
 					func(info *UpdateParams, mag Entity2, io IO) {
 						if mag.Script().Magazine_Pull(info, mag, 1, io) {
-							io.EnqueueEntityUpdate(weapon,
+							io.EnqueueEntityUpdate(weapon.ID(),
 								func(info *UpdateParams, weapon Entity2, io IO) {
 									state := weapon.ScriptState().(WeaponAssaultRifle)
 									defer func() { weapon.SetScriptState(state) }()
@@ -83,12 +83,12 @@ func init() {
 						TMax:      1000,
 					},
 					QueryFilters{
-						Entity: func(entity ecs.ID) bool { return entity != attacker },
+						Entity: func(entity ecs.ID) bool { return entity != attacker.ID() },
 					})
 
 				if rayHit.Entity != ecs.NullID {
 					// TODO: fill-in Δv
-					io.EnqueueEntityUpdate(rayHit.Entity, Impact{Attacker: attacker, Type: BulletImpact, Damage: 7}.Apply)
+					io.EnqueueEntityUpdate(rayHit.Entity, Impact{Attacker: attacker.ID(), Type: BulletImpact, Damage: 7}.Apply)
 				}
 
 				/*
@@ -127,7 +127,7 @@ func init() {
 
 			// Apply effects to the props; TODO: let's have scripts on the props
 			// instead and let props consult the state.
-			for _, id := range props {
+			for _, id := range weaponProps {
 				io.EnqueueEntityUpdate(id,
 					func(info *UpdateParams, prop Entity2, io IO) {
 						// skelly := world.GetSkeleton(prop)
@@ -149,7 +149,7 @@ func init() {
 					})
 			}
 
-			io.EnqueueEntityUpdate(weapon,
+			io.EnqueueEntityUpdate(weapon.ID(),
 				func(info *UpdateParams, weapon Entity2, io IO) {
 					state := weapon.ScriptState().(WeaponAssaultRifle)
 					defer func() { weapon.SetScriptState(state) }()

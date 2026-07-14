@@ -22,16 +22,16 @@ func init() {
 		Weapon_Think: func(
 			info *UpdateParams,
 			world *World,
-			weapon ecs.ID,
-			props []ecs.ID,
-			attacker ecs.ID,
+			weapon Entity2,
+			weaponProps []ecs.ID,
+			attacker Entity2,
 			T_attack gmath.Affine3f64,
 			v_attack Velocity,
 			buttons WeaponButtons,
 			io IO) Recoil {
-			physgun, _ := world.GetEntity[WeaponPhysgun](weapon)
+			state := weapon.ScriptState().(WeaponPhysgun)
 
-			holdingEntity := world.GetEntity2(physgun.HeldEntity).Valid()
+			holdingEntity := world.GetEntity2(state.HeldEntity).Valid()
 			triggerHeld := buttons&WeaponTrigger != 0
 
 			switch {
@@ -43,13 +43,13 @@ func init() {
 						TMax:      1000,
 					},
 					QueryFilters{
-						Entity: func(entity ecs.ID) bool { return entity != attacker },
+						Entity: func(entity ecs.ID) bool { return entity != attacker.ID() },
 					})
 
 				if rayHit.Entity != ecs.NullID {
 					transform := T_attack.Inv().Mul(world.GetGlobalTransform(rayHit.Entity))
 
-					io.EnqueueEntityUpdate(weapon,
+					io.EnqueueEntityUpdate(weapon.ID(),
 						func(_ *UpdateParams, weapon Entity2, io IO) {
 							state := weapon.ScriptState().(WeaponPhysgun)
 							defer func() { weapon.SetScriptState(state) }()
@@ -62,16 +62,16 @@ func init() {
 			case holdingEntity && triggerHeld:
 				// TODO: this doesn't work correctly when we're touching an object
 				// that's parented to something.
-				transform := T_attack.Mul(physgun.Transform)
+				transform := T_attack.Mul(state.Transform)
 
-				io.EnqueueEntityUpdate(physgun.HeldEntity,
-					func(_ *UpdateParams, id Entity2, io IO) {
-						id.SetTransform(transform.TRS())
-						id.SetVelocity(Velocity{})
+				io.EnqueueEntityUpdate(state.HeldEntity,
+					func(_ *UpdateParams, entity Entity2, io IO) {
+						entity.SetTransform(transform.TRS())
+						entity.SetVelocity(Velocity{})
 					})
 
 			case holdingEntity && !triggerHeld:
-				io.EnqueueEntityUpdate(weapon,
+				io.EnqueueEntityUpdate(weapon.ID(),
 					func(_ *UpdateParams, weapon Entity2, io IO) {
 						state := weapon.ScriptState().(WeaponPhysgun)
 						defer func() { weapon.SetScriptState(state) }()

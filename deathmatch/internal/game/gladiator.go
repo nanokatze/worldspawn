@@ -203,7 +203,7 @@ func init() {
 					}.Compose())
 				v_attack := gladiator.Velocity()
 
-				recoil = weapon.Script().Weapon_Think(info, world, weapon.ID(), state.HeldWeapon.Props[:], gladiator.ID(), T_attack, v_attack, buttons, io)
+				recoil = weapon.Script().Weapon_Think(info, world, weapon, state.HeldWeapon.Props[:], gladiator, T_attack, v_attack, buttons, io)
 			}
 
 			// EXTREMELY YUCKY!!!!!!!!!!!!
