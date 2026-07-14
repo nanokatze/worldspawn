@@ -23,7 +23,7 @@ func (re *gameRendererAudio) Reset(n int) {
 
 // TODO: factor shrinker/stretcher out into apostprocess or something
 
-func (re *gameRendererAudio) Tick(world *game.World, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration) {
+func (re *gameRendererAudio) Update(world *game.World, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration) {
 	camera := world.Camera(playerID)
 
 	cameraTransform := world.GetGlobalTransform(camera)
@@ -78,4 +78,4 @@ func (re *gameRendererAudio) Tick(world *game.World, playerID ecs.ID, t0, t1 gam
 	au().Write(unsafe.Slice((*byte)(unsafe.Pointer(unsafe.SliceData(tmp2))), len(tmp2)*4))
 }
 
-func (re *gameRendererAudio) Subtick(world *game.World, playerID ecs.ID) {}
+func (re *gameRendererAudio) UpdateSubtick(world *game.World, playerID ecs.ID) {}

@@ -132,7 +132,7 @@ func (re *gameRendererVideo) commitUpdate(update *sceneUpdate) {
 	}
 }
 
-func (re *gameRendererVideo) Tick(world *game.World, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration) {
+func (re *gameRendererVideo) Update(world *game.World, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration) {
 	// TODO: pass the bits that interest us explicitly
 	conf := config.Load()
 
@@ -262,7 +262,7 @@ func (re *gameRendererVideo) Tick(world *game.World, playerID ecs.ID, t0, t1 gam
 	}
 }
 
-func (re *gameRendererVideo) Subtick(world *game.World, playerID ecs.ID) {
+func (re *gameRendererVideo) UpdateSubtick(world *game.World, playerID ecs.ID) {
 	// TODO: this will need to enqueue an update and not modify any fields directly!
 
 	// re.stuffMu.Lock()

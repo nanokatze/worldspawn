@@ -15,14 +15,14 @@ func (multi multiRenderer) Reset(n int) {
 	}
 }
 
-func (multi multiRenderer) Tick(world *game.World, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration) {
+func (multi multiRenderer) Update(world *game.World, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration) {
 	for _, re := range multi {
-		re.Tick(world, playerID, t0, t1, frameDuration)
+		re.Update(world, playerID, t0, t1, frameDuration)
 	}
 }
 
-func (multi multiRenderer) Subtick(world *game.World, playerID ecs.ID) {
+func (multi multiRenderer) UpdateSubtick(world *game.World, playerID ecs.ID) {
 	for _, re := range multi {
-		re.Subtick(world, playerID)
+		re.UpdateSubtick(world, playerID)
 	}
 }

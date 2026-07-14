@@ -27,8 +27,8 @@ import (
 type Renderer interface {
 	// TODO: rename to Update
 	Reset(n int)
-	Tick(world *game.World, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration)
-	Subtick(world *game.World, playerID ecs.ID)
+	Update(world *game.World, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration)
+	UpdateSubtick(world *game.World, playerID ecs.ID)
 }
 
 type Client struct {
@@ -286,7 +286,7 @@ func (s *Client) HandleInput(cmds []game.TimestampedInputCmd) {
 	for _, cmd := range cmds {
 		s.world.HandleInput(s.player, cmd, &game.UpdateParams{Δt: s.tickPeriod, Speculating: true})
 	}
-	s.renderer.Subtick(s.world, s.player)
+	s.renderer.UpdateSubtick(s.world, s.player)
 }
 
 func (s *Client) tick(Δt time.Duration) {
@@ -309,7 +309,7 @@ func (s *Client) tick(Δt time.Duration) {
 
 	t0 := s.world.Now
 	s.world.Step(game.UpdateParams{Δt: Δt, Speculating: true})
-	s.renderer.Tick(s.world, s.player, t0, s.world.Now, Δt)
+	s.renderer.Update(s.world, s.player, t0, s.world.Now, Δt)
 }
 
 // TODO: remove this func in favor of the caller just using nice directly?
