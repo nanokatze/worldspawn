@@ -1,15 +1,13 @@
 package main
 
 import (
-	"math"
 	"reflect"
 	"sync"
 	"time"
 
 	"worldspawn/deathmatch/internal/game"
+	"worldspawn/deathmatch/internal/hud"
 	"worldspawn/gpu"
-	"worldspawn/gpu/image/draw"
-	"worldspawn/gpu/vk"
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/gmath"
 	"worldspawn/internal/renderer"
@@ -50,7 +48,7 @@ type gameRendererVideo struct {
 	scene2             *sceneUpdate
 	gsdata             []gsdata
 	scene              *renderer.Scene
-	hudState           hudState
+	hudState           hud.State
 }
 
 func (re *gameRendererVideo) Reset(n int) {
@@ -61,7 +59,9 @@ func (re *gameRendererVideo) Reset(n int) {
 type sceneUpdate struct {
 	tm timeMapping
 
-	hudState hudState
+	// TODO: this doesn't really need to be here, I think? We can just update it
+	// directly (but it would have to be mutex protected.)
+	hudState hud.State
 
 	camera          renderer.Camera
 	cameraTransform int
@@ -142,8 +142,7 @@ func (re *gameRendererVideo) Update(world *game.World, playerID ecs.ID, t0, t1 g
 	camera := world.Camera(playerID)
 
 	{
-		update.hudState = hudState{}
-		world.Overlay(playerID, &update.hudState.Health, &update.hudState.Bleed)
+		update.hudState.Update(world, playerID)
 
 		for i := range update.parent {
 			update.parent[i] = -1
@@ -353,64 +352,21 @@ func (re *gameRendererVideo) Redraw(jq *gpu.JobQueue, dst *gpu.Image, sdlNow uin
 	}
 
 	re.scene.EnqueueUpdateAccel(jq)
-
-	film := renderer.Film{
-		Extent: [2]int(dst.Extent()),
-		Color:  dst,
-	}
-
-	quality := renderer.Quality{
-		MaxBounces:               conf.Quality.MaxBounces,
-		RussianRouletteThreshold: conf.Quality.RussianRouletteThreshold,
-	}
-
-	re.scene.EnqueueRender(jq, film, &camera, cameraTransform, re.frameNumber, &quality)
-
-	// TODO: please actually draw like a well-adjusted person
-
-	pass := draw.Begin(jq,
-		&draw.Config{
-			ColorAttachments: []draw.Attachment{
-				{
-					Image:  dst,
-					LoadOp: vk.ATTACHMENT_LOAD_OP_CLEAR,
-					ClearValue: [4]uint32{
-						math.Float32bits(0.2),
-						math.Float32bits(0),
-						math.Float32bits(0),
-						math.Float32bits(1),
-					},
-				},
-			},
-			RenderArea: vk.Rect2D{
-				Offset: vk.Offset2D{X: 128, Y: 128},
-				Extent: vk.Extent2D{Width: 1000, Height: 32},
-			},
-			LayerCount: 1,
+	re.scene.EnqueueRender(
+		jq,
+		renderer.Film{
+			Extent: [2]int(dst.Extent()),
+			Color:  dst,
+		},
+		&camera,
+		cameraTransform,
+		re.frameNumber,
+		&renderer.Quality{
+			MaxBounces:               conf.Quality.MaxBounces,
+			RussianRouletteThreshold: conf.Quality.RussianRouletteThreshold,
 		})
-	pass.End()
 
-	pass2 := draw.Begin(jq,
-		&draw.Config{
-			ColorAttachments: []draw.Attachment{
-				{
-					Image:  dst,
-					LoadOp: vk.ATTACHMENT_LOAD_OP_CLEAR,
-					ClearValue: [4]uint32{
-						math.Float32bits(1),
-						math.Float32bits(0),
-						math.Float32bits(0),
-						math.Float32bits(1),
-					},
-				},
-			},
-			RenderArea: vk.Rect2D{
-				Offset: vk.Offset2D{X: 128, Y: 128},
-				Extent: vk.Extent2D{Width: uint32(10 * max(re.hudState.Health, 0)), Height: 32},
-			},
-			LayerCount: 1,
-		})
-	pass2.End()
+	re.hudState.Draw(jq, dst)
 
 	re.frameNumber++
 }
