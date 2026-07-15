@@ -1,19 +1,36 @@
 package game
 
 import (
+	"reflect"
+
 	"worldspawn/internal/ecs"
 )
 
 type Player struct {
-	Pawn ecs.ID
+	ID string
+
+	Loadout struct{}
 
 	Score struct {
 		Kills  int32
 		Deaths int32
 	}
 
-	Loadout struct {
-	}
+	Pawn ecs.ID
+}
+
+func init() {
+	Scripts[reflect.TypeFor[Player]()] = script{}
+}
+
+// TODO: should be called something like CreatePlayer or something. We only
+// really need to poke this when new client joins. We could also rename Player
+// to Client or Connection or User or idk.
+// TODO: see if we can somehow defer things with updates, so that as much stuff is kept in parallel
+func (world *World) SpawnPlayer(info *UpdateParams) ecs.ID {
+	player := world.CreateEntity(info)
+	player.SetScriptState(Player{})
+	return player.ID()
 }
 
 // TODO: returning ecs.ID is kinda meh, ideally we'd return a pile of data that
@@ -21,9 +38,9 @@ type Player struct {
 // TODO: We need to think how to handle the case when Camera is independent of
 // player input (e.g. when we're flying along some track.) In that case, the
 // client should not set T0 and T1 to whatever value we return
+// TODO: delegate this stuff to script somehow? So that it would work like
+// HandleInput.
 func (world *World) Camera(playerID ecs.ID) ecs.ID {
-	// TODO: it should really poke the script Camera func probably
-
 	player := world.GetEntity2(playerID)
 	if !player.Valid() {
 		return 0
@@ -45,32 +62,6 @@ func (world *World) Camera(playerID ecs.ID) ecs.ID {
 	return pawnState.FirstPersonCamera
 }
 
-// TODO: think of a good way to implement HUD and the GUI. I suppose what we
-// could do is have a pile of entities that would have a Script func that would
-// spit out ops into gio-esque ops sequence.
-func (world *World) Overlay(playerID ecs.ID, health, bleed *int32) {
-	player := world.GetEntity2(playerID)
-	if !player.Valid() {
-		return
-	}
-	playerState, ok := player.ScriptState().(Player)
-	if !ok {
-		return
-	}
-
-	pawn := world.GetEntity2(playerState.Pawn)
-	if !pawn.Valid() {
-		return
-	}
-	pawnState, ok := pawn.ScriptState().(Gladiator) // TODO: could we just poke a script function on the entity?
-	if !ok {
-		return
-	}
-
-	*health = pawnState.Vitals.Health
-	*bleed = pawnState.Vitals.HealthToBleed
-}
-
 // TODO: this should not take UpdateParams *at all* I think. Actually we still
 // need flags, but not Δt.
 func (world *World) HandleInput(playerID ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
@@ -86,13 +77,4 @@ func (world *World) HandleInput(playerID ecs.ID, cmd TimestampedInputCmd, info *
 			world.Entity.Set(playerID, playerState)
 		}
 	}
-}
-
-// TODO: should be called something like CreatePlayer or something. We only
-// really need to poke this when new client joins. We could also rename Player
-// to Client or Connection or User or idk.
-func (world *World) SpawnPlayer(info *UpdateParams) ecs.ID {
-	player := world.CreateEntity(info)
-	player.SetScriptState(Player{})
-	return player.ID()
 }
