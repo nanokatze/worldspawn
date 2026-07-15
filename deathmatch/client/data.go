@@ -17,7 +17,7 @@ import (
 
 	"worldspawn/deathmatch/internal/game"
 	"worldspawn/gpu"
-	"worldspawn/gpu/imageio/ktx2"
+	"worldspawn/gpu/image/ktx2"
 	"worldspawn/gpu/vk"
 	"worldspawn/internal/compiler"
 	"worldspawn/internal/compiler/core"
