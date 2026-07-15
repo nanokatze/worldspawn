@@ -102,13 +102,13 @@ func (world *World) deleteMarkedEntities() {
 				return false
 			}
 
-			if world.delete.Load(id.Index()) {
+			if world.Entities.delete.Load(id.Index()) {
 				return true
 			}
 
 			delet := f(world.GetParent(id))
 			if delet {
-				world.delete.Store(id.Index(), true)
+				world.Entities.delete.Store(id.Index(), true)
 			}
 			return delet
 		}
@@ -119,10 +119,10 @@ func (world *World) deleteMarkedEntities() {
 	}
 
 	// Remove entities that were scheduled for removal
-	for index := range world.delete.Ones() {
+	for index := range world.Entities.delete.Ones() {
 		id := world.Table.IDs().Index(index)
 
 		world.DeleteEntityImmediately(id)
 	}
-	world.delete.Reset()
+	world.Entities.delete.Reset()
 }

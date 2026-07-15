@@ -145,6 +145,9 @@ type World struct {
 
 	Entities struct {
 		Pose []animgraph.Pose
+
+		// Entities marked for deletion
+		delete bitset.Bitset
 	}
 
 	entityUpdates, entityUpdates2 [][]updatef
@@ -153,10 +156,6 @@ type World struct {
 	physics *physics.System
 	// TODO: this should be folded into physicsSystem
 	physicsBodyExists ecs.Column[struct{}]
-
-	// Entities marked for deletion
-	// TODO: move this into Entities
-	delete bitset.Bitset
 
 	logger *slog.Logger
 }
@@ -189,7 +188,7 @@ func NewWorld(n int) *World {
 		collisionLayerRules)
 	world.physicsBodyExists.Init(world.Table)
 
-	world.delete = bitset.Make(n)
+	world.Entities.delete = bitset.Make(n)
 
 	// TODO: the user should pass this
 	world.logger = slog.Default()
@@ -329,6 +328,6 @@ func (e Entity2) SetPhysicsMassOverride(v float32) {
 	e.world.PhysicsMassOverride.Store(e.id.Index(), v)
 }
 
-func (e Entity2) MarkForDeletion() { e.world.delete.Store(e.id.Index(), true) }
+func (e Entity2) MarkForDeletion() { e.world.Entities.delete.Store(e.id.Index(), true) }
 
 func (e Entity2) Logger() *slog.Logger { return e.world.logger.With("id", e.ID()) }
