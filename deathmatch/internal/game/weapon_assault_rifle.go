@@ -98,39 +98,6 @@ func init() {
 
 					io.EnqueueEntityUpdate(world.GetEntity2(rayHit.Entity), impact.Apply)
 				}
-
-				/*
-					io.EnqueueGlobalUpdate(func(info *UpdateParams, world *World) {
-						// TODO: don't use prefab here tbh
-						projectile := world.CreateEntity(info)
-						// TODO: it would be nice if we could specify this bit without assuming ScriptState type
-						projectile.SetScriptState(GrenadeInFlight{
-							LaunchedAt: world.Now,
-							Attacker:   attacker,
-						})
-						projectile.SetTransform(
-							T_attack.
-								Mul(gmath.TRS3f64{
-									R: gmath.Rot3AToB(gmath.Vec3f32{0, 0, 1}, gmath.Vec3f32{0, 1, 0}),
-									S: gmath.Mat3x3UOne[float32](),
-								}.Compose()).
-								TRS())
-						projectile.SetVelocity(Velocity{
-							Linear: v_attack.Linear.Add(T_attack.M.Mulv(forward.Scale(grenadeLauncherStats.MuzzleVelocity))),
-						})
-						projectile.SetCollisionLayer(CollisionLayerProjectiles)
-						// TODO: we should model grenade prop to be something that's kinda 8-gon so that it stops rolling sooner
-						projectile.SetCollisionGeometry(unique.Make("Grenade"))
-						projectile.SetPhysicsMassOverride(0.1)
-						projectile.SetCosmeticOffset(CosmeticOffset{
-							Alpha: 2,
-							T0:    world.Now,
-							// Ugh. TODO: think how we could make this not as gross.
-							Offset: T_attack.M.Mulv(gmath.Vec3f32{0.18, 0, -0.2}),
-						})
-						projectile.SetRenderingGeometry(unique.Make("weapons/grenade_launcher_grenade/geometries/Grenade"))
-					})
-				*/
 			}
 
 			// Apply effects to the props; TODO: let's have scripts on the props

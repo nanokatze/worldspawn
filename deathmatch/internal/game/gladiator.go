@@ -152,6 +152,9 @@ func init() {
 						hint := script.Weapon_Hint(info, world, newWeapon.ID())
 
 						for i := range 2 {
+							// TODO: let's try to reformulate this in terms of
+							// EnqueueEntityCreate.
+
 							prop := script.Weapon_CreateProp(info, world, newWeapon.ID())
 
 							switch i {

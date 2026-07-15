@@ -200,6 +200,8 @@ func NewWorld(n int) *World {
 func (world *World) Cap() int { return world.Table.IDs().Cap() }
 
 // TODO: make this private?
+// TODO: kill this in favor of EnqueueCreateEntity? We might need some thinking
+// for the external users (the server) and also how to handle prefabs.
 func (world *World) CreateEntity(info *UpdateParams) Entity2 {
 	// TODO: don't hardcode index ranges
 
