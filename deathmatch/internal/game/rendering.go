@@ -6,8 +6,8 @@ import (
 	"unique"
 
 	"worldspawn/internal/ecs"
-	"worldspawn/internal/fuckwwise/wav"
 	"worldspawn/internal/gmath"
+	"worldspawn/internal/loaders/wav"
 )
 
 // TODO: make it more general

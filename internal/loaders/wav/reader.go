@@ -8,7 +8,7 @@ import (
 	"math"
 	"strconv"
 
-	"worldspawn/internal/fuckwwise/wav/internal/riff"
+	"worldspawn/internal/loaders/wav/internal/riff"
 )
 
 type redundantChunkError [4]byte

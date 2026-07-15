@@ -10,7 +10,7 @@ import (
 	"math"
 	"unsafe"
 
-	"worldspawn/internal/fuckwwise/opus"
+	"worldspawn/internal/loaders/opus"
 )
 
 var ErrBadHeader = errors.New("invalid Ogg Opus header")
