@@ -372,7 +372,7 @@ func init() {
 		Impact: func(info *UpdateParams, gladiator Entity2, impact Impact, io IO) {
 			// TODO: be verbose when computing the modifier
 			modifier := 1.0
-			if gladiator.ID() == impact.Attacker {
+			if gladiator == impact.Attacker {
 				modifier /= 2
 			}
 

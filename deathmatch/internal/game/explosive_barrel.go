@@ -29,12 +29,14 @@ func init() {
 			if state.Health <= 0 {
 				attacker := world.GetEntity2(state.Attacker)
 				if !attacker.Valid() {
+					// If there's nobody using us, report ourselves as the
+					// attacker.
 					attacker = entity
 				}
 
 				world.explosion(
 					Impact{
-						Attacker: attacker.ID(),
+						Attacker: attacker,
 						Type:     BlastImpactWithFragmentation, // TODO: we should specify impact type and damage on the barrel itself I think
 						Damage:   1500,
 					},
@@ -70,7 +72,7 @@ func init() {
 			state := entity.ScriptState().(ExplosiveBarrel)
 			defer func() { entity.SetScriptState(state) }()
 
-			state.Attacker = impact.Attacker
+			state.Attacker = impact.Attacker.ID()
 			state.Health -= impact.Damage
 		},
 	}

@@ -1,7 +1,5 @@
 package game
 
-import "worldspawn/internal/ecs"
-
 type ImpactType int
 
 // TODO: it would be nice if we could register these at runtime somehow.
@@ -30,7 +28,9 @@ type Impact struct {
 	//
 	// TODO: we might need more attribution fields (weapon id for weapon name
 	// and icon, etc)
-	Attacker ecs.ID // TODO: should this be Entity2?
+	Attacker Entity2
+
+	// TODO: we also need to communicate something for the damage/kill icon
 
 	Type ImpactType
 

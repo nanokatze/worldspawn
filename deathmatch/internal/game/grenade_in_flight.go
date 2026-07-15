@@ -33,7 +33,7 @@ func init() {
 
 			world.explosion(
 				Impact{
-					Attacker: state.Attacker,
+					Attacker: world.GetEntity2(state.Attacker),
 					Type:     BlastImpactWithFragmentation,
 					Damage:   1500,
 				},

@@ -87,8 +87,16 @@ func init() {
 					})
 
 				if rayHit.Entity != ecs.NullID {
-					// TODO: fill-in Δv
-					io.EnqueueEntityUpdate(world.GetEntity2(rayHit.Entity), Impact{Attacker: attacker.ID(), Type: BulletImpact, Damage: 7}.Apply)
+					impact := Impact{
+						Attacker: attacker,
+						Type:     BulletImpact,
+						Damage:   7,
+						Δv: Velocity{
+							Linear: T_attack.M.Mulv(forward).Normalize().Scale(1),
+						},
+					}
+
+					io.EnqueueEntityUpdate(world.GetEntity2(rayHit.Entity), impact.Apply)
 				}
 
 				/*
