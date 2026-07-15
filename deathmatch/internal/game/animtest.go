@@ -2,6 +2,7 @@ package game
 
 import (
 	"reflect"
+	"unique"
 
 	"worldspawn/internal/animgraph"
 	"worldspawn/internal/gmath"
@@ -38,7 +39,7 @@ func init() {
 					} {
 						t := float64(info.Now.Sub(Time{})%1e9) / 1e9 * 30
 
-						localTransforms[skelly.JointByName(bone)] =
+						localTransforms[skelly.JointByName(unique.Make(bone))] =
 							gmath.TRS3f32{
 								R: gmath.Rot3{
 									animation.Channels["pose.bones[\""+bone+"\"].rotation_quaternion[1]"].Sample(t),

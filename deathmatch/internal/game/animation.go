@@ -82,12 +82,20 @@ func loadSkeleton(filename string) (*animgraph.Skeleton, error) {
 
 	var skeleton animgraph.Skeleton
 
-	skeleton.JointNames = bones
-	skeleton.JointByName_ = bonesInv
+	skeleton.JointNames = slices.Collect(func(yield func(unique.Handle[string]) bool) {
+		for _, bone := range bones {
+			yield(unique.Make(bone))
+		}
+	})
+	skeleton.JointByName_ = maps.Collect(func(yield func(unique.Handle[string], int) bool) {
+		for bone, index := range bonesInv {
+			yield(unique.Make(bone), index)
+		}
+	})
 
 	skeleton.Parent = slices.Collect(func(yield func(int) bool) {
 		for _, bone := range bones {
-			parent, hasParent := skeleton.JointByName_[tmp.Parent[bone]]
+			parent, hasParent := skeleton.JointByName_[unique.Make(tmp.Parent[bone])]
 			if !hasParent {
 				parent = -1
 			}

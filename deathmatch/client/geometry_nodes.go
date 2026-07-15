@@ -44,7 +44,7 @@ func (gs *geoNodes) Outputs(data *gsdata) (*renderer.Geometry, gpu.BLAS) {
 		if gs.src == nil {
 			return nil, gpu.BLAS{}
 		}
-		return &gs.src.ggeometry, gs.src.gaccel
+		return &gs.src.geometry, gs.src.accel
 	}
 	return data.geometry, data.accel
 }
@@ -54,7 +54,7 @@ func (gs *geoNodes) EnqueueEvaluate(jq *gpu.JobQueue, data *gsdata) {
 		return
 	}
 
-	rest := gs.src.ggeometry
+	rest := gs.src.geometry
 
 	restPositions := gs.src.attrs[renderer.AttributePosition].(gpu.Slice[[3]float32])
 
@@ -72,7 +72,7 @@ func (gs *geoNodes) EnqueueEvaluate(jq *gpu.JobQueue, data *gsdata) {
 	skinned := new(renderer.Geometry)
 	skinned.AttributeBuffers = slices.Clone(rest.AttributeBuffers)
 	skinned.AttributeBuffers[renderer.AttributePosition] = skinnedPositions
-	skinned.Parts = slices.Clone(gs.src.ggeometry.Parts)
+	skinned.Parts = slices.Clone(gs.src.geometry.Parts)
 	data.geometry = skinned
 
 	if gpu.SliceLen(data.pose) < len(gs.src.joints) {

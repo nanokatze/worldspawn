@@ -67,7 +67,7 @@ func (world *World) GetGlobalTransform(id ecs.ID) gmath.Affine3f64 {
 		if skelly == nil {
 			return gmath.Affine3One[float32]()
 		}
-		boneIndex := skelly.JointByName(bone.Value()) // TODO: this should natively use unique.Handle
+		boneIndex := skelly.JointByName(bone)
 		if boneIndex == -1 {
 			return gmath.Affine3One[float32]()
 		}

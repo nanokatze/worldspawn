@@ -179,7 +179,7 @@ func (re *gameRendererVideo) Update(world *game.World, playerID ecs.ID, t0, t1 g
 			if parentBone, parentedToBone := world.ParentBone.Get(id); parentedToBone {
 				pose := world.Entities.Pose[parent.Index()]
 				skelly := world.GetSkeleton(parent)
-				parentBoneIndex := skelly.JointByName(parentBone.Value())
+				parentBoneIndex := skelly.JointByName(parentBone)
 				hmm, ok := pose.Bones[parentBoneIndex]
 				if !ok {
 					hmm = gmath.Affine3One[float32]()

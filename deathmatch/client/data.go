@@ -9,6 +9,7 @@ import (
 	"math"
 	"os"
 	"path"
+	"slices"
 	"sync"
 	"unique"
 	"unsafe"
@@ -192,7 +193,7 @@ type fileBackedMesh struct {
 
 	attrs []any
 
-	joints []string
+	joints []unique.Handle[string]
 
 	jointsPerVertex int
 
@@ -200,8 +201,8 @@ type fileBackedMesh struct {
 
 	materials []string
 
-	ggeometry renderer.Geometry
-	gaccel    gpu.BLAS
+	geometry renderer.Geometry
+	accel    gpu.BLAS
 }
 
 // TODO: equip AttributeBuffer with size so we don't have to pull in vertex count
@@ -300,18 +301,18 @@ func loadmesh(filename string) *fileBackedMesh {
 		}
 	}
 
-	ggeometry := renderer.Geometry{}
-	ggeometry.AttributeBuffers = attrs
-	ggeometry.Parts = make([]renderer.GeometryPart, len(header2.MaterialIndexRanges))
+	geometry := renderer.Geometry{}
+	geometry.AttributeBuffers = attrs
+	geometry.Parts = make([]renderer.GeometryPart, len(header2.MaterialIndexRanges))
 
 	materials := make([]string, len(header2.MaterialIndexRanges)) // TODO: eventually it would be nice if we could just directly use header2.Materials
 	for materialIndex, range_ := range header2.MaterialIndexRanges {
 		materials[materialIndex] = header2.Materials[range_.MaterialIndex]
-		part := &ggeometry.Parts[materialIndex]
+		part := &geometry.Parts[materialIndex]
 		part.IndexBuffer = indexBuffer.Slice(3*int(range_.First), 3*(int(range_.First)+int(range_.Count)))
 	}
 
-	accelConfig := ggeometry.AccelConfig()
+	accelConfig := geometry.AccelConfig()
 	accel := gpu.NewBLAS(accelConfig.CalcSizes().Accel)
 
 	jq := new(gpu.JobQueue)
@@ -319,13 +320,17 @@ func loadmesh(filename string) *fileBackedMesh {
 	gpu.WaitForIdle(jq)
 
 	return &fileBackedMesh{
-		materials:       materials,
-		attrs:           attrs,
-		joints:          header2.Joints,
+		materials: materials,
+		attrs:     attrs,
+		joints: slices.Collect(func(yield func(unique.Handle[string]) bool) {
+			for _, j := range header2.Joints {
+				yield(unique.Make(j))
+			}
+		}),
 		jointsPerVertex: int(header2.MaxInfluencesPerVertex),
 		jointWeights:    jointWeights,
-		ggeometry:       ggeometry,
-		gaccel:          accel,
+		geometry:        geometry,
+		accel:           accel,
 	}
 }
 
