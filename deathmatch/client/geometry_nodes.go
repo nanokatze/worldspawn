@@ -92,13 +92,13 @@ func (gs *geoNodes) EnqueueEvaluate(jq *gpu.JobQueue, data *gsdata) {
 
 	accelConfig := skinned.AccelConfig()
 	accelSizes := accelConfig.CalcSizes()
-	if gpu.Accel(data.accel).Size() < accelSizes.Accel {
+	if data.accel.Size() < accelSizes.Accel {
 		println("allocating accel", accelSizes.Accel)
-		data.accel = gpu.BLAS(gpu.NewAccel(accelSizes.Accel))
+		data.accel = gpu.NewBLAS(accelSizes.Accel)
 	}
 
 	// TODO: we need to run this every frame, interpolating stuff.
 	geometry.EnqueueSkinMesh(jq, skinnedPositions, restPositions, gs.src.jointWeights, gs.src.jointsPerVertex, data.pose)
 
-	accelConfig.EnqueueBuild(jq, gpu.Accel(data.accel))
+	data.accel.EnqueueBuild(jq, accelConfig)
 }

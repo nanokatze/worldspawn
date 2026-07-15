@@ -133,7 +133,7 @@ func NewScene(n int, maxPartsPerMesh int) *Scene {
 		sbt:                     gpu.MakeShaderBindingTable(raygenRecord, gpu.Slice[struct{}]{}, gpu.Slice[struct{}]{}, gpu.Slice[struct{}]{}),
 		materialArgs:            materialArgs,
 		accelData:               accelData,
-		accel:                   gpu.TLAS(gpu.NewTopLevelAccel(n)),
+		accel:                   gpu.NewTLAS(n),
 		lightAccel: lightAccel{
 			emissiveInstances: lightAccelData,
 		},
@@ -198,13 +198,14 @@ func (scene *Scene) SetInstanceGeometry(i int, mask uint8, geometry *Geometry, a
 }
 
 func (scene *Scene) EnqueueUpdateAccel(jq *gpu.JobQueue) {
-	(&gpu.AccelBuildConfig{
-		Type: vk.ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
-		Inputs: []gpu.AccelBuildInput{
-			&gpu.AccelBuildInputInstances{
-				Instances:     gpu.SliceData(scene.accelData),
-				InstanceCount: uint32(gpu.SliceLen(scene.accelData)),
+	scene.accel.EnqueueBuild(jq,
+		&gpu.AccelBuildConfig{
+			Type: vk.ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
+			Inputs: []gpu.AccelBuildInput{
+				&gpu.AccelBuildInputInstances{
+					Instances:     gpu.SliceData(scene.accelData),
+					InstanceCount: uint32(gpu.SliceLen(scene.accelData)),
+				},
 			},
-		},
-	}).EnqueueBuild(jq, gpu.Accel(scene.accel))
+		})
 }

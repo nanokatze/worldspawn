@@ -7,7 +7,7 @@ import (
 	"worldspawn/gpu/vk"
 )
 
-// TODO: make this private and replace with strongly typed wrappers (BLAS, TLAS)
+// TODO: make this private
 type Accel struct {
 	data UnsafePointer
 	size int
@@ -15,9 +15,18 @@ type Accel struct {
 
 func (accel Accel) Size() int { return accel.size }
 
-type BLAS Accel
+type BLAS struct {
+	blas struct{}
+	Accel
+}
 
-// TODO: rename to AccelGeometry?
+func NewBLAS(size int) BLAS {
+	return BLAS{
+		Accel: NewAccel(size),
+	}
+}
+
+// TODO: rename to BLASGeometry or BLASBuildInput?
 type AccelBuildInput interface {
 	vkAccelerationStructureGeometry(geometry *vk.AccelerationStructureGeometryKHR, primitiveCount *uint32)
 }
@@ -148,6 +157,7 @@ func (config *AccelBuildConfig) CalcSizes() AccelSizes {
 }
 
 // TODO: NewAccelAt and helpers that take build configs
+// TODO: make this private
 func NewAccel(size int) Accel {
 	return Accel{
 		data: UnsafePointer(SliceData(MakeSliceUncached[byte](size))),
@@ -155,28 +165,15 @@ func NewAccel(size int) Accel {
 	}
 }
 
-// TODO: rename to NewAccelTopLevel?
-func NewTopLevelAccel(maxInstances int) Accel {
-	config := &AccelBuildConfig{
-		Type: vk.ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
-		Inputs: []AccelBuildInput{
-			&AccelBuildInputInstances{
-				InstanceCount: uint32(maxInstances),
-			},
-		},
-	}
-	return NewAccel(config.CalcSizes().Accel)
-}
-
-// TODO: change it to not use a pointer receiver?
-func (config *AccelBuildConfig) EnqueueBuild(jq *JobQueue, accel Accel) {
+// TODO: accept scratch explicitly as a byte slice or something similar
+func (blas *BLAS) EnqueueBuild(jq *JobQueue, config *AccelBuildConfig) {
 	sizes := config.CalcSizes()
-	if sizes.Accel > accel.size {
+	if sizes.Accel > blas.Size() {
 		panic("bad")
 	}
 	scratch := UnsafePointer(SliceData(MakeSliceUncached[byte](sizes.BuildScratch)))
 	defer jq.Cleanup(func() { Free(scratch) })
-	EnqueueAccelBuild(jq, accel.data, accel.size, config, scratch)
+	EnqueueAccelBuild(jq, blas.data, blas.size, config, scratch)
 }
 
 type accelBuildJob struct {

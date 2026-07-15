@@ -312,10 +312,10 @@ func loadmesh(filename string) *fileBackedMesh {
 	}
 
 	accelConfig := ggeometry.AccelConfig()
-	accel := gpu.BLAS(gpu.NewAccel(accelConfig.CalcSizes().Accel))
+	accel := gpu.NewBLAS(accelConfig.CalcSizes().Accel)
 
 	jq := new(gpu.JobQueue)
-	accelConfig.EnqueueBuild(jq, gpu.Accel(accel))
+	accel.EnqueueBuild(jq, accelConfig)
 	gpu.WaitForIdle(jq)
 
 	return &fileBackedMesh{
