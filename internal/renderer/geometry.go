@@ -47,7 +47,7 @@ func (m *Geometry) AccelConfig() *gpu.AccelBuildConfig {
 
 	accelBuildInputs := make([]gpu.AccelBuildInput, len(m.Parts))
 	for i, part := range m.Parts {
-		accelBuildInputs[i] = &gpu.AccelBuildInputTriangles{
+		accelBuildInputs[i] = &gpu.BLASBuildInputTriangles{
 			VertexFormat:  vk.FORMAT_R32G32B32_SFLOAT,
 			VertexBuffer:  gpu.UnsafePointer(gpu.SliceData(positions)),
 			VertexCount:   gpu.SliceLen(positions),

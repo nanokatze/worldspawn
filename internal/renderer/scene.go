@@ -78,7 +78,7 @@ type Scene struct {
 
 	materialArgs gpu.Slice[materialParams]
 
-	accelData gpu.Slice[gpu.AccelInstance]
+	accelData gpu.Slice[gpu.BLASInstance]
 
 	accel gpu.TLAS
 
@@ -96,7 +96,7 @@ type Scene struct {
 	sbt      gpu.ShaderBindingTable
 
 	materialParamsHost []materialParams
-	accelInstancesHost []gpu.AccelInstance
+	accelInstancesHost []gpu.BLASInstance
 }
 
 /*
@@ -114,7 +114,7 @@ func NewScene(n int, maxPartsPerMesh int) *Scene {
 	materialArgs := gpu.MakeSliceUncached[materialParams](n * maxPartsPerMesh)
 	clear(materialArgs.Value())
 
-	accelData := gpu.MakeSliceUncached[gpu.AccelInstance](n)
+	accelData := gpu.MakeSliceUncached[gpu.BLASInstance](n)
 	clear(accelData.Value())
 
 	lightAccelData := gpu.MakeSliceUncached[emissiveInstance](n)
@@ -133,7 +133,16 @@ func NewScene(n int, maxPartsPerMesh int) *Scene {
 		sbt:                     gpu.MakeShaderBindingTable(raygenRecord, gpu.Slice[struct{}]{}, gpu.Slice[struct{}]{}, gpu.Slice[struct{}]{}),
 		materialArgs:            materialArgs,
 		accelData:               accelData,
-		accel:                   gpu.NewTLAS(n),
+		accel: gpu.NewTLAS(
+			(&gpu.AccelBuildConfig{
+				Type: vk.ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
+				Inputs: []gpu.AccelBuildInput{
+					&gpu.TLASBuildInputInstances{
+						Instances:     gpu.SliceData(accelData),
+						InstanceCount: uint32(gpu.SliceLen(accelData)),
+					},
+				},
+			}).CalcSizes().Accel),
 		lightAccel: lightAccel{
 			emissiveInstances: lightAccelData,
 		},
@@ -170,7 +179,7 @@ func (scene *Scene) SetInstanceTransform(i int, x [3][4]float32) {
 // TODO: this should only exist on the device/in the shader
 func (scene *Scene) SetInstanceGeometry(i int, mask uint8, geometry *Geometry, accel gpu.BLAS, materials []*InterpretedMaterial, materialArgs [][256]byte) {
 	// TODO: this really begs for a func vararg constructor tbh.
-	var accelInstance gpu.AccelInstance
+	var accelInstance gpu.BLASInstance
 	accelInstance.InstanceIDAndMask = pack24_8(0, uint32(mask))
 	accelInstance.SBTOffsetAndFlags = pack24_8(uint32(i*scene.maxMaterialsPerInstance), 0)
 	accelInstance.SetAccel(accel)
@@ -202,7 +211,7 @@ func (scene *Scene) EnqueueUpdateAccel(jq *gpu.JobQueue) {
 		&gpu.AccelBuildConfig{
 			Type: vk.ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
 			Inputs: []gpu.AccelBuildInput{
-				&gpu.AccelBuildInputInstances{
+				&gpu.TLASBuildInputInstances{
 					Instances:     gpu.SliceData(scene.accelData),
 					InstanceCount: uint32(gpu.SliceLen(scene.accelData)),
 				},

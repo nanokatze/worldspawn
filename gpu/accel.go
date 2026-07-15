@@ -7,26 +7,24 @@ import (
 	"worldspawn/gpu/vk"
 )
 
+// TODO: make build configs type-specific.
+
 // TODO: make this private
-type Accel struct {
+type accel struct {
 	data UnsafePointer
 	size int
 }
 
-func (accel Accel) Size() int { return accel.size }
-
-type BLAS struct {
-	blas struct{}
-	Accel
-}
-
-func NewBLAS(size int) BLAS {
-	return BLAS{
-		Accel: NewAccel(size),
+// TODO: newAccelAt
+func newAccel(size int) accel {
+	return accel{
+		data: UnsafePointer(SliceData(MakeSliceUncached[byte](size))),
+		size: size,
 	}
 }
 
-// TODO: rename to BLASGeometry or BLASBuildInput?
+func (accel accel) Size() int { return accel.size }
+
 type AccelBuildInput interface {
 	vkAccelerationStructureGeometry(geometry *vk.AccelerationStructureGeometryKHR, primitiveCount *uint32)
 }
@@ -34,7 +32,7 @@ type AccelBuildInput interface {
 // TODO: could we make VertexBuffer part somehow less annoying? E.g. with some
 // kind of slice. Ok we can't use a slice here but we could provide a Set method
 // (or Set methods) or a constructor. Or idk.
-type AccelBuildInputTriangles struct {
+type BLASBuildInputTriangles struct {
 	VertexFormat  vk.Format
 	VertexBuffer  UnsafePointer // ignored by AccelBuildConfig.CalcSizes
 	VertexCount   int
@@ -45,7 +43,7 @@ type AccelBuildInputTriangles struct {
 	Transform     Pointer[[3][4]float32] // checked for nil by AccelBuildConfig.CalcSizes
 }
 
-func (triangles *AccelBuildInputTriangles) vkAccelerationStructureGeometry(geometry *vk.AccelerationStructureGeometryKHR, primitiveCount *uint32) {
+func (triangles *BLASBuildInputTriangles) vkAccelerationStructureGeometry(geometry *vk.AccelerationStructureGeometryKHR, primitiveCount *uint32) {
 	*geometry = vk.AccelerationStructureGeometryKHR{
 		SType:        vk.STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
 		GeometryType: vk.GEOMETRY_TYPE_TRIANGLES_KHR,
@@ -68,12 +66,12 @@ func (triangles *AccelBuildInputTriangles) vkAccelerationStructureGeometry(geome
 // What we could do instead is make the fields here private and cook up
 // constructors that take Slice and an ordinary int, or something of that kind,
 // basically.
-type AccelBuildInputInstances struct {
-	Instances     Pointer[AccelInstance] // ignored by AccelBuildConfig.CalcSizes
+type TLASBuildInputInstances struct {
+	Instances     Pointer[BLASInstance] // ignored by AccelBuildConfig.CalcSizes
 	InstanceCount uint32
 }
 
-func (instances *AccelBuildInputInstances) vkAccelerationStructureGeometry(geometry *vk.AccelerationStructureGeometryKHR, primitiveCount *uint32) {
+func (instances *TLASBuildInputInstances) vkAccelerationStructureGeometry(geometry *vk.AccelerationStructureGeometryKHR, primitiveCount *uint32) {
 	*geometry = vk.AccelerationStructureGeometryKHR{
 		SType:        vk.STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
 		GeometryType: vk.GEOMETRY_TYPE_INSTANCES_KHR,
@@ -87,12 +85,12 @@ func (instances *AccelBuildInputInstances) vkAccelerationStructureGeometry(geome
 	*primitiveCount = instances.InstanceCount
 }
 
-type AccelBuildInputInstancePointers struct {
-	Instances     Pointer[Pointer[AccelInstance]] // ignored by AccelBuildConfig.CalcSizes
+type TLASBuildInputInstancePointers struct {
+	Instances     Pointer[Pointer[BLASInstance]] // ignored by AccelBuildConfig.CalcSizes
 	InstanceCount uint32
 }
 
-func (instancePointers *AccelBuildInputInstancePointers) vkAccelerationStructureGeometry(geometry *vk.AccelerationStructureGeometryKHR, primitiveCount *uint32) {
+func (instancePointers *TLASBuildInputInstancePointers) vkAccelerationStructureGeometry(geometry *vk.AccelerationStructureGeometryKHR, primitiveCount *uint32) {
 	*geometry = vk.AccelerationStructureGeometryKHR{
 		SType:        vk.STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
 		GeometryType: vk.GEOMETRY_TYPE_INSTANCES_KHR,
@@ -156,51 +154,12 @@ func (config *AccelBuildConfig) CalcSizes() AccelSizes {
 	}
 }
 
-// TODO: NewAccelAt and helpers that take build configs
-// TODO: make this private
-func NewAccel(size int) Accel {
-	return Accel{
-		data: UnsafePointer(SliceData(MakeSliceUncached[byte](size))),
-		size: size,
-	}
-}
-
-// TODO: accept scratch explicitly as a byte slice or something similar
-func (blas *BLAS) EnqueueBuild(jq *JobQueue, config *AccelBuildConfig) {
-	sizes := config.CalcSizes()
-	if sizes.Accel > blas.Size() {
-		panic("bad")
-	}
-	scratch := UnsafePointer(SliceData(MakeSliceUncached[byte](sizes.BuildScratch)))
-	defer jq.Cleanup(func() { Free(scratch) })
-	EnqueueAccelBuild(jq, blas.data, blas.size, config, scratch)
-}
-
 type accelBuildJob struct {
-	dst           UnsafePointer
-	dstSize       int
+	dst           accel
 	asType        vk.AccelerationStructureTypeKHR
 	vkGeometries  []vk.AccelerationStructureGeometryKHR
 	vkBuildRanges []vk.AccelerationStructureBuildRangeInfoKHR
 	scratch       UnsafePointer
-}
-
-// TODO: hide from public
-func EnqueueAccelBuild(jq *JobQueue, dst UnsafePointer, dstSize int, config *AccelBuildConfig, scratch UnsafePointer) {
-	vkGeometries := make([]vk.AccelerationStructureGeometryKHR, len(config.Inputs))
-	vkBuildRanges := make([]vk.AccelerationStructureBuildRangeInfoKHR, len(config.Inputs))
-	for i, input := range config.Inputs {
-		input.vkAccelerationStructureGeometry(&vkGeometries[i], &vkBuildRanges[i].PrimitiveCount)
-	}
-
-	jq.Enqueue(&accelBuildJob{
-		dst:           dst,
-		dstSize:       dstSize,
-		asType:        config.Type,
-		vkGeometries:  vkGeometries,
-		vkBuildRanges: vkBuildRanges,
-		scratch:       scratch,
-	})
 }
 
 func (*accelBuildJob) Info() JobInfo {
@@ -210,7 +169,7 @@ func (*accelBuildJob) Info() JobInfo {
 }
 
 func (job *accelBuildJob) Exec(q *DeviceQueue) {
-	dstAS := newVkAccelerationStructureAt(job.dst, job.dstSize)
+	dst := newVkAccelerationStructureAt(job.dst)
 
 	q.Commands(func(cb vk.CommandBuffer) {
 		var pinner runtime.Pinner
@@ -226,11 +185,12 @@ func (job *accelBuildJob) Exec(q *DeviceQueue) {
 
 		vkFns.CmdBuildAccelerationStructuresKHR(
 			cb,
-			1, &vk.AccelerationStructureBuildGeometryInfoKHR{
+			1,
+			&vk.AccelerationStructureBuildGeometryInfoKHR{
 				SType:                    vk.STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
 				Type:                     job.asType,
 				Mode:                     vk.BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
-				DstAccelerationStructure: dstAS,
+				DstAccelerationStructure: dst,
 				GeometryCount:            uint32(len(job.vkGeometries)),
 				PGeometries:              unsafe.SliceData(job.vkGeometries),
 				ScratchData:              vk.DeviceOrHostAddressKHR(job.scratch),
@@ -239,27 +199,27 @@ func (job *accelBuildJob) Exec(q *DeviceQueue) {
 	})
 
 	if true {
-		q.Cleanup(func() { vkFns.DestroyAccelerationStructureKHR(device, dstAS, nil) })
+		q.Cleanup(func() { vkFns.DestroyAccelerationStructureKHR(device, dst, nil) })
 	}
 }
 
-func newVkAccelerationStructureAt(address UnsafePointer, size int) vk.AccelerationStructureKHR {
+func newVkAccelerationStructureAt(accel accel) vk.AccelerationStructureKHR {
 	// !!!Massive API abuse ahead!!!
 
-	if size == 0 {
+	if accel.size == 0 {
 		panic("size must not be 0")
 	}
 
 	// TODO: we could probably replace size with the remaining buffer size.
 
-	buffer, offset := BufferAndOffset(address)
+	buffer, offset := BufferAndOffset(accel.data)
 
 	var as vk.AccelerationStructureKHR
 	must(vkFns.CreateAccelerationStructureKHR(device, &vk.AccelerationStructureCreateInfoKHR{
 		SType:  vk.STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
 		Buffer: buffer,
 		Offset: offset,
-		Size:   vk.DeviceSize(size),
+		Size:   vk.DeviceSize(accel.size),
 		Type:   vk.ACCELERATION_STRUCTURE_TYPE_GENERIC_KHR,
 	}, nil, &as))
 
@@ -267,7 +227,7 @@ func newVkAccelerationStructureAt(address UnsafePointer, size int) vk.Accelerati
 		SType:                 vk.STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
 		AccelerationStructure: as,
 	})
-	if asAddr != vk.DeviceAddress(address) {
+	if asAddr != vk.DeviceAddress(accel.data) {
 		panic("as addr does not match the addr as was created at")
 	}
 
