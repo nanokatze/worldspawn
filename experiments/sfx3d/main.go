@@ -17,9 +17,9 @@ import (
 	"worldspawn/gpu/image/draw"
 	"worldspawn/gpu/vk"
 	"worldspawn/gpu/wsi"
-	"worldspawn/internal/fuckwwise/opusfile"
 	"worldspawn/internal/gmath"
-	"worldspawn/internal/grenderer"
+	"worldspawn/internal/loaders/opusfile"
+	"worldspawn/internal/renderer"
 	"worldspawn/internal/sdl"
 )
 
@@ -32,7 +32,7 @@ func byteslice[T any](s []T) []byte {
 }
 
 type mymesh struct {
-	gmesh  *grenderer.Geometry
+	gmesh  *renderer.Geometry
 	gaccel gpu.BLAS
 }
 
@@ -40,21 +40,21 @@ var getmesh = sync.OnceValue(func() *mymesh {
 	verts := gpu.MakeSliceUncached[[3]float32](len(room) / (4 * 3))
 	copy(byteslice(verts.Value()), room)
 
-	mesh := new(grenderer.Geometry)
+	mesh := new(renderer.Geometry)
 	mesh.AttributeBuffers = []any{
-		grenderer.AttributePosition: verts,
+		renderer.AttributePosition: verts,
 	}
-	mesh.Parts = []grenderer.GeometryPart{
+	mesh.Parts = []renderer.GeometryPart{
 		{
-			IndexBuffer: grenderer.IndexBufferIdentity(3 * gpu.SliceLen(verts)),
+			IndexBuffer: renderer.IndexBufferIdentity(3 * gpu.SliceLen(verts)),
 		},
 	}
 
 	accelConfig := mesh.AccelConfig()
-	accel := gpu.BLAS(gpu.NewAccel(accelConfig.CalcSizes().Accel))
+	accel := gpu.NewBLAS(accelConfig.CalcSizes().Accel)
 
 	jq := new(gpu.JobQueue)
-	accelConfig.EnqueueBuild(jq, gpu.Accel(accel))
+	accel.EnqueueBuild(jq, accelConfig)
 	gpu.WaitForIdle(jq)
 
 	return &mymesh{
@@ -156,8 +156,8 @@ func main() {
 
 	mesh := getmesh()
 
-	tlasInstances := gpu.MakeSliceUncached[gpu.AccelInstance](1)
-	var tmp gpu.AccelInstance
+	tlasInstances := gpu.MakeSliceUncached[gpu.BLASInstance](1)
+	var tmp gpu.BLASInstance
 	tmp.InstanceIDAndMask = 0xff << 24
 	tmp.Transform = [3][4]float32{
 		{1, 0, 0, 0},
@@ -167,19 +167,19 @@ func main() {
 	tmp.SetAccel(mesh.gaccel)
 	tlasInstances.Value()[0] = tmp
 
-	tlasConfig := gpu.AccelBuildConfig{
+	tlasConfig := &gpu.AccelBuildConfig{
 		Type: vk.ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
 		Inputs: []gpu.AccelBuildInput{
-			&gpu.AccelBuildInputInstances{
+			&gpu.TLASBuildInputInstances{
 				Instances:     gpu.SliceData(tlasInstances),
 				InstanceCount: uint32(gpu.SliceLen(tlasInstances)),
 			},
 		},
 	}
-	tlas := gpu.NewAccel(tlasConfig.CalcSizes().Accel)
+	tlas := gpu.NewTLAS(tlasConfig.CalcSizes().Accel)
 
 	jq := new(gpu.JobQueue)
-	tlasConfig.EnqueueBuild(jq, tlas)
+	tlas.EnqueueBuild(jq, tlasConfig)
 	gpu.WaitForIdle(jq)
 
 	var inputMu sync.Mutex
@@ -213,7 +213,7 @@ func main() {
 		pipe, sbt := tracePipeline()
 
 		push := struct {
-			TLAS       gpu.Accel
+			TLAS       gpu.TLAS
 			PathStates gpu.Pointer[Path]
 		}{
 			TLAS:       tlas,
@@ -327,8 +327,8 @@ func main() {
 
 		camera := gmath.TRS3f32{
 			T: move,
-			R: gmath.Rot3InPlane(gmath.Plane3f32{0, 0, -1}, float32(look[0])).
-				Mul(gmath.Rot3InPlane(gmath.Plane3f32{-1, 0, 0}, float32(look[1]))),
+			R: gmath.Rot3AToB(gmath.Vec3f32{0, 1, 0}, gmath.Vec3f32{1, 0, 0}).Pow(float32(look[0])).
+				Mul(gmath.Rot3AToB(gmath.Vec3f32{0, 0, 1}, gmath.Vec3f32{0, 1, 0}).Pow(float32(look[1]))),
 			S: gmath.Mat3x3UOne[float32](),
 		}
 		if _, ok := heldKeys[sdl.K_W]; ok {
@@ -361,13 +361,13 @@ func main() {
 		push := struct {
 			ProjInv gmath.Mat4x4f32
 			ViewInv gmath.Mat4x4f32
-			TLAS    gpu.Accel
-			Output  gpu.ImageDescriptors
+			TLAS    gpu.TLAS
+			Output  gpu.ImageDescriptor
 		}{
 			ProjInv: proj.Inverse(),
 			ViewInv: viewInverse,
 			TLAS:    tlas,
-			Output:  swapchainImage.Descriptors(),
+			Output:  swapchainImage.Descriptor(),
 		}
 		gpu.EnqueueTraceRays(jq, swapchainImage.Extent(), pipe, sbt, &push)
 
