@@ -13,14 +13,6 @@ import (
 	"worldspawn/internal/gmath"
 )
 
-type Quality struct {
-	_ structs.HostLayout
-
-	MaxBounces int32
-
-	RussianRouletteThreshold int32
-}
-
 // TODO: make Scene, Camera and Film interfaces eventually?
 
 // TODO: rename to just Camera with all fields private and provide constructors
