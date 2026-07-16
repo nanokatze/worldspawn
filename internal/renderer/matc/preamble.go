@@ -8,31 +8,26 @@ import (
 	"worldspawn/internal/renderer/internal/material"
 )
 
-type Attributes interface {
-	// GeometryAttribute(name string) int
-
-	// TODO: this should also provide a way to output strings (for texture
-	// descriptors)
-	UniformAttribute(name string, out *[4]float32) bool
-}
-
-// TODO: make this opaque?
 type Preamble struct {
-	f func(dst []byte, attrs Attributes)
+	// TODO: make this cacheable/serializable
+	f func(dst []byte, getattr func(name string, out *[4]float32))
 }
 
 // TODO: pass ParamStructLayout to the preamble rather than during preamble
 // compilation?
+// TODO: think about built-in attributes like position, etc?
+// TODO: scene attributes?
+// TODO: speed this up
+// TODO: we could change out to be a AttributeDescriptor interface that accepts
+// any, then the user's job becomes simply figuring out the reflect.Value
 func CompilePreamble(params ParamsTuple, preamble []string) Preamble {
 	preamble = slices.Clone(preamble)
 	return Preamble{
-		f: func(dst []byte, attrs Attributes) {
+		f: func(dst []byte, getattr func(name string, out *[4]float32)) {
 			dst2 := reflect.NewAt(params.typ, unsafe.Pointer(unsafe.SliceData(dst))).Elem()
 			for i, f := range preamble {
-				var v [4]float32
-				if !attrs.UniformAttribute(f, &v) {
-					v = [4]float32{}
-				}
+				v := [4]float32{0, 0, 0, 1}
+				getattr(f, &v)
 				p := dst2.Field(i).Addr().Interface().(*material.AttributeDescriptor)
 				*p = material.UniformAttribute(v)
 			}
@@ -40,9 +35,11 @@ func CompilePreamble(params ParamsTuple, preamble []string) Preamble {
 	}
 }
 
-func (preamble Preamble) Call(dst []byte, attrs Attributes) {
+// TODO: we could change getattr to return reflect.Value and then we'd decide
+// how to pack it ourselves.
+func (preamble Preamble) Pack(dst []byte, getattr func(name string, out *[4]float32)) {
 	if preamble.f == nil {
 		return
 	}
-	preamble.f(dst, attrs)
+	preamble.f(dst, getattr)
 }

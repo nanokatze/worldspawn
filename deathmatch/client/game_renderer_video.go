@@ -240,7 +240,13 @@ func (re *gameRendererVideo) Update(world *game.World, playerID ecs.ID, t0, t1 g
 			for j := range update.materials[i] {
 				material := getmaterial(geometry.materials[j])
 				update.materials[i][j] = material.material
-				material.preamble.Call(update.materialArgs[i][j][:], &attributeGetter{world, id})
+				material.preamble.Pack(update.materialArgs[i][j][:],
+					func(name string, out *[4]float32) {
+						state := world.GetEntity2(id).ScriptState()
+						if state != nil {
+							*out = getv(reflect.ValueOf(state).FieldByName(name))
+						}
+					})
 			}
 		}
 
@@ -369,20 +375,6 @@ func (re *gameRendererVideo) Redraw(jq *gpu.JobQueue, dst *gpu.Image, sdlNow uin
 	re.hudState.Draw(jq, dst)
 
 	re.frameNumber++
-}
-
-type attributeGetter struct {
-	world  *game.World
-	entity ecs.ID
-}
-
-func (getter *attributeGetter) UniformAttribute(name string, out *[4]float32) bool {
-	objectData, ok := getter.world.Entity.Get(getter.entity)
-	if !ok {
-		return false
-	}
-	*out = getv(reflect.ValueOf(objectData).FieldByName(name))
-	return true
 }
 
 func getv(v reflect.Value) [4]float32 {
