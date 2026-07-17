@@ -246,17 +246,15 @@ func (w *mainWindow) resize(size [2]int) {
 	w.swapchain = wsi.NewSwapchain(&wsi.SwapchainConfig{
 		Window:     w.sdlWindow,
 		ColorSpace: vk.COLOR_SPACE_SRGB_NONLINEAR_KHR,
-		Format:     vk.FORMAT_R8G8B8A8_SRGB,
-		Extent:     size,
-		ImageOptions: []gpu.ImageOption{
-			gpu.WithUsage(vk.IMAGE_USAGE_COLOR_ATTACHMENT_BIT),
-		},
+		ImageConfig: gpu.MakeImageConfig(vk.FORMAT_R8G8B8A8_SRGB, size[:]).
+			WithUsage(vk.IMAGE_USAGE_COLOR_ATTACHMENT_BIT),
 		OldSwapchain: w.swapchain,
 	})
 
-	w.swapchainImage = gpu.NewImage(vk.FORMAT_R8G8B8A8_UNORM, size[:2],
-		gpu.WithUsage(vk.IMAGE_USAGE_STORAGE_BIT),
-		gpu.WithUsage(vk.IMAGE_USAGE_COLOR_ATTACHMENT_BIT))
+	w.swapchainImage = gpu.NewImage(
+		gpu.MakeImageConfig(vk.FORMAT_R8G8B8A8_UNORM, size[:2]).
+			WithUsage(vk.IMAGE_USAGE_STORAGE_BIT).
+			WithUsage(vk.IMAGE_USAGE_COLOR_ATTACHMENT_BIT))
 
 	// Redraw a single frame at this size.
 	w.redrawLocked()

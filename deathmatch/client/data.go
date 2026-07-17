@@ -59,12 +59,7 @@ func texture(filename string) *renderer.Texture {
 		conf := d.Config()
 
 		t = new(renderer.Texture)
-		t.Image = gpu.NewImage(
-			vk.Format(conf.Format),
-			conf.Extent[:conf.Dim],
-			gpu.WithLayers(conf.Layers),
-			gpu.WithMips(conf.Mips),
-			gpu.WithUsage(vk.IMAGE_USAGE_SAMPLED_BIT))
+		t.Image = gpu.NewImage(conf.ImageConfig.WithUsage(vk.IMAGE_USAGE_SAMPLED_BIT))
 		if conf.Cube {
 			t.Image = t.Image.SubImage(gpu.ViewAs(gpu.ImageDimCube))
 		}

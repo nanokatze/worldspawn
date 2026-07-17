@@ -15,12 +15,10 @@ import (
 func Bloom(jq *gpu.JobQueue, dst, src *gpu.Image) {
 	extent := [2]int(src.Extent())
 	tmp := gpu.NewImage(
-		vk.FORMAT_E5B9G9R9_UFLOAT_PACK32,
-		extent[:],
-		gpu.WithMips(7), // TODO: compute it from something?
-		gpu.WithUsage(vk.IMAGE_USAGE_STORAGE_BIT),
-		gpu.WithUsage(vk.IMAGE_USAGE_SAMPLED_BIT),
-	)
+		gpu.MakeImageConfig(vk.FORMAT_E5B9G9R9_UFLOAT_PACK32, extent[:]).
+			WithMips(7). // TODO: compute it from something?
+			WithUsage(vk.IMAGE_USAGE_STORAGE_BIT).
+			WithUsage(vk.IMAGE_USAGE_SAMPLED_BIT))
 	defer jq.Cleanup(tmp.Destroy)
 
 	tmpMips := make([]*gpu.Image, tmp.Mips())

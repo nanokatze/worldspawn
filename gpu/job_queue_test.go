@@ -29,8 +29,8 @@ func BenchmarkRoundTrip(b *testing.B) {
 func TestFramesInFlight(t *testing.T) {
 	t.SkipNow()
 
-	A := NewImage(vk.FORMAT_R32_UINT, []int{4096, 4096}, WithLayers(40))
-	B := NewImage(vk.FORMAT_R32_UINT, []int{4096, 4096}, WithLayers(40))
+	A := NewImage(MakeImageConfig(vk.FORMAT_R32_UINT, []int{4096, 4096}).WithLayers(40))
+	B := NewImage(MakeImageConfig(vk.FORMAT_R32_UINT, []int{4096, 4096}).WithLayers(40))
 
 	type fif struct {
 		wg WaitGroup

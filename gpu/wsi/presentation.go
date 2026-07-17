@@ -29,9 +29,7 @@ type Swapchain struct {
 type SwapchainConfig struct {
 	Window       *sdl.Window
 	ColorSpace   vk.ColorSpaceKHR
-	Format       vk.Format
-	Extent       [2]int
-	ImageOptions []gpu.ImageOption
+	ImageConfig  gpu.ImageConfig
 	OldSwapchain *Swapchain
 }
 
@@ -123,7 +121,7 @@ func (swapchain *Swapchain) reconfigure(config *SwapchainConfig) *Swapchain {
 	// TODO: properly choose minImageCount, or let the user do it
 	minImageCount := uint32(4)
 
-	imgConf := gpu.JoinImageOptions(config.Format, config.Extent[:], config.ImageOptions...)
+	imgConf := config.ImageConfig
 
 	allQueueFamilies := slices.Collect(func(yield func(uint32) bool) {
 		for family := range ones32(gpu.QueueFamilies(0)) {
@@ -140,9 +138,9 @@ func (swapchain *Swapchain) reconfigure(config *SwapchainConfig) *Swapchain {
 		// Flags:                 vk.SwapchainCreateFlagsKHR(vk.SWAPCHAIN_CREATE_DEFERRED_MEMORY_ALLOCATION_BIT_EXT),
 		Surface:               swapchain.vkSurface,
 		MinImageCount:         minImageCount,
-		ImageFormat:           config.Format,
+		ImageFormat:           imgConf.Format,
 		ImageColorSpace:       config.ColorSpace,
-		ImageExtent:           vk.Extent2D{Width: uint32(config.Extent[0]), Height: uint32(config.Extent[1])},
+		ImageExtent:           vk.Extent2D{Width: uint32(imgConf.Extent[0]), Height: uint32(imgConf.Extent[1])},
 		ImageArrayLayers:      uint32(imgConf.Layers),
 		ImageUsage:            imgConf.Usages,
 		ImageSharingMode:      vk.SHARING_MODE_CONCURRENT,
@@ -166,7 +164,7 @@ func (swapchain *Swapchain) reconfigure(config *SwapchainConfig) *Swapchain {
 
 	images := make([]*gpu.Image, len(vkImages))
 	for i, vkImage := range vkImages {
-		images[i] = gpu.NewImageFromVkImage(vkImage, config.Format, config.Extent[:], config.ImageOptions...)
+		images[i] = gpu.NewImageFromVkImage(vkImage, imgConf)
 	}
 
 	return &Swapchain{

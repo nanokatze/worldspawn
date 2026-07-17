@@ -6,6 +6,7 @@ import (
 	"math"
 
 	"worldspawn/gpu"
+	"worldspawn/gpu/vk"
 )
 
 type fileHeader struct {
@@ -66,12 +67,8 @@ func NewDecoder(r io.ReaderAt) (*Decoder, error) {
 }
 
 type Config struct {
-	Dim    int
-	Cube   bool
-	Format uint32
-	Extent [3]int
-	Layers int
-	Mips   int
+	gpu.ImageConfig
+	Cube bool
 }
 
 func (d *Decoder) Config() Config {
@@ -94,7 +91,7 @@ func (d *Decoder) Config() Config {
 	return Config{
 		Dim:    dim,
 		Cube:   d.header.FaceCount == 6,
-		Format: d.header.VkFormat,
+		Format: vk.Format(d.header.VkFormat),
 		Extent: extent,
 		Layers: max(int(d.header.LayerCount), 1) * int(d.header.FaceCount),
 		Mips:   len(d.mips),

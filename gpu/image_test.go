@@ -10,7 +10,8 @@ import (
 func TestImageExtent(t *testing.T) {
 	// TODO: introduce WithCompleteMipChain()?
 
-	img := NewImage(vk.FORMAT_BC7_SRGB_BLOCK, []int{15, 15}, WithMips(completeMipChainLength(15, 15, 1)))
+	img := NewImage(MakeImageConfig(vk.FORMAT_BC7_SRGB_BLOCK, []int{15, 15}).
+		WithMips(completeMipChainLength(15, 15, 1)))
 	defer img.Destroy()
 
 	for i := range 4 {
@@ -21,10 +22,10 @@ func TestImageExtent(t *testing.T) {
 }
 
 func TestImageCopy1(t *testing.T) {
-	a := NewImage(vk.FORMAT_BC7_UNORM_BLOCK, []int{4, 4})
+	a := NewImage(MakeImageConfig(vk.FORMAT_BC7_UNORM_BLOCK, []int{4, 4}))
 	defer a.Destroy()
 
-	b := NewImage(vk.FORMAT_R32G32B32A32_UINT, []int{1, 1})
+	b := NewImage(MakeImageConfig(vk.FORMAT_R32G32B32A32_UINT, []int{1, 1}))
 	defer b.Destroy()
 
 	var jq JobQueue
@@ -38,10 +39,10 @@ func TestImageCopy1(t *testing.T) {
 }
 
 func TestImageCopy3(t *testing.T) {
-	a := NewImage(vk.FORMAT_BC7_UNORM_BLOCK, []int{3, 3})
+	a := NewImage(MakeImageConfig(vk.FORMAT_BC7_UNORM_BLOCK, []int{3, 3}))
 	defer a.Destroy()
 
-	b := NewImage(vk.FORMAT_BC7_UNORM_BLOCK, []int{4, 4})
+	b := NewImage(MakeImageConfig(vk.FORMAT_BC7_UNORM_BLOCK, []int{4, 4}))
 	defer b.Destroy()
 
 	var jq JobQueue
@@ -55,7 +56,7 @@ func TestImageCopy3(t *testing.T) {
 }
 
 func TestImageCopy2(t *testing.T) {
-	img := NewImage(vk.FORMAT_BC7_UNORM_BLOCK, []int{6, 6})
+	img := NewImage(MakeImageConfig(vk.FORMAT_BC7_UNORM_BLOCK, []int{6, 6}))
 	defer img.Destroy()
 
 	img2 := img.SubImage(Reinterpret(vk.FORMAT_R32G32B32A32_UINT))
