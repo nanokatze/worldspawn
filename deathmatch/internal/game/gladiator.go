@@ -517,7 +517,7 @@ func (gladiator *Gladiator) asdasd(world *World, id ecs.ID, velocity gmath.Vec3f
 			Pos:                   trs.T,
 			Rot:                   trs.R,
 			Scale:                 gmath.Vec3Ones[float32](),
-			Shape:                 getShape(world, id),
+			Shape:                 getShape(Entity2{world, id}),
 			MovementDirection:     velocity.Normalize(),
 			MaxSeparationDistance: 0.1,
 		},

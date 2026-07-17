@@ -56,7 +56,7 @@ func (world *World) updatePhysicsShadow(updateParams *UpdateParams) {
 			gravityFactor = 1
 		}
 
-		shape2 := getShape(world, id)
+		shape2 := getShape(Entity2{world, id})
 
 		mass, overrideMass := world.PhysicsMassOverride.Get(id)
 		if !overrideMass {
@@ -107,48 +107,54 @@ func (world *World) updatePhysicsShadow(updateParams *UpdateParams) {
 	}
 }
 
-func getShape(world *World, id ecs.ID) *physics.Shape {
-	layer, _ := world.CollisionLayer.Get(id)
-	geom, _ := world.CollisionGeometry.Get(id)
+// TODO: procedural shape functions should use a more limited interface than
+// Entity2 directly. On the other hand, I'm not so sure how we would allow these
+// functions to perform collision queries and such then.
+var proceduralShapes = map[string]func(entity Entity2) shape{
+	"Grenade": func(entity Entity2) shape {
+		return getShape2(sphere{
+			Radius: 0.0568,
+		})
+	},
+	"Gladiator": func(entity Entity2) shape {
+		return getShape2(transformedShape{
+			Translation: gmath.Vec3f32{0, 0, 1.9 / 2}, // TODO: read standing height off entity
+			Rotation:    gmath.Rot3One(),
+
+			Shape: getShape2(cylinder{
+				Radius: 0.4,
+				Height: 1.9,
+			}),
+		})
+	},
+}
+
+func getShape(entity Entity2) *physics.Shape {
+	// TOOD: introduce proper accessors for these?
+	layer := entity.world.CollisionLayer.Load(entity.id.Index())
+	geometry := entity.world.CollisionGeometry.Load(entity.id.Index())
 
 	motionType2 := collisionLayerMotionType[layer]
 
 	// HACK: our gross way out of not having geonodes, see
 	// https://github.com/nanokatze/worldspawn-private/issues/45
-	var shape geometryPacked
-	switch geom.Value() {
-	case "Grenade":
-		shape = packGeometry(_Geometry{
-			Rotation: gmath.Rot3One(),
-			Scale:    gmath.Vec3Ones[float32](),
-
-			Kind:       geometrySphere,
-			HalfExtent: gmath.Vec3f32{0.0568, 0.0568, 0.0568},
-		})
-
-	case "Gladiator":
-		shape = packGeometry(_Geometry{
-			Translation: gmath.Vec3f32{0, 0, 1.9 / 2}, // TODO: read standing height off Entity
-			Rotation:    gmath.Rot3One(),
-			Scale:       gmath.Vec3Ones[float32](),
-
-			Kind:         geometryCylinder,
-			HalfExtent:   gmath.Vec3f32{1, 1, 0}.Scale(0.4).Add(gmath.Vec3f32{0, 0, 1.9 / 2}),
-			ConvexRadius: 0.0,
-		})
-
-	default:
-		shape = packGeometry(_Geometry{Kind: geometryFileBacked, Filename: geom.Value()})
-	}
-
-	var shape2 *physics.Shape
-	if motionType2 == 0 {
-		shape2 = getConcaveShape(shape)
+	//
+	// TODO: this should probably be handled in getShape2 directly. In the
+	// future we'll allow any file-backed geometry to be procedural (and not
+	// just the top level). We'll have to make caching work in such a way that
+	// procedural bits are re-evaluated all the time, but the constant bits
+	// which need extra processing to construct are cached.
+	var shape shape
+	if shapeFunc, ok := proceduralShapes[geometry.Value()]; ok {
+		shape = shapeFunc(entity)
 	} else {
-		shape2 = getConvexShape(shape)
+		shape = getShape2(fileBackedGeometry{geometry.Value()})
 	}
 
-	return shape2
+	if motionType2 != 0 && shape.convex != nil {
+		return shape.convex
+	}
+	return shape.shape
 }
 
 func (world *World) physicsStep(updateParams *UpdateParams) {
@@ -205,83 +211,58 @@ func (world *World) physicsStep(updateParams *UpdateParams) {
 	world.processUpdates(updateParams)
 }
 
-// TODO: don't duplicate things we don't need to.
-
-var convexCache = make(map[geometryPacked]*physics.Shape)
-var concaveCache = make(map[geometryPacked]*physics.Shape)
-
-func getConvexShape(key2 geometryPacked) *physics.Shape {
-	shape, ok := convexCache[key2]
-	if ok {
-		return shape
-	}
-
-	key := unpackGeometry(key2)
-
-	var err error
-	switch key.Kind {
-	case geometrySphere:
-		shape, err = physics.NewSphereShape(key.HalfExtent[0])
-
-	case geometryBox:
-		shape, err = physics.NewBoxShape(key.HalfExtent, key.ConvexRadius)
-
-	case geometryCylinder:
-		shape, err = physics.NewCylinderShape(key.HalfExtent[0], key.HalfExtent[2], key.ConvexRadius)
-
-	case geometryFileBacked:
-		shape, err = physics.NewFileBackedShape(Data, key.Filename, false)
-
-	default:
-		panic(fmt.Sprintf("unknown physics shape kind %v", key.Kind))
-	}
-	if err != nil {
-		// TODO: actually print a warning and return a box?
-		panic(err)
-	}
-	shape, err = physics.NewTransformedShape(key.Translation, key.Rotation, key.Scale, shape)
-	if err != nil {
-		// TODO: actually print a warning and return a box
-		panic(err)
-	}
-	convexCache[key2] = shape
-	return shape
+type shape struct {
+	shape  *physics.Shape
+	convex *physics.Shape
 }
 
-func getConcaveShape(key2 geometryPacked) *physics.Shape {
-	shape, ok := concaveCache[key2]
+// TODO: make this weak-valued sync.Map
+var shapeCache = make(map[any]shape)
+
+func getShape2(key any) shape {
+	shape, ok := shapeCache[key]
 	if ok {
 		return shape
 	}
 
-	key := unpackGeometry(key2)
-
 	var err error
-	switch key.Kind {
-	case geometrySphere:
-		shape, err = physics.NewSphereShape(key.HalfExtent[0])
-
-	case geometryBox:
-		shape, err = physics.NewBoxShape(key.HalfExtent, key.ConvexRadius)
-
-	case geometryCylinder:
-		shape, err = physics.NewCylinderShape(key.HalfExtent[0], key.HalfExtent[2], key.ConvexRadius)
-
-	case geometryFileBacked:
-		shape, err = physics.NewFileBackedShape(Data, key.Filename, true)
-
+	switch key := key.(type) {
+	case sphere:
+		shape.shape, err = physics.NewSphereShape(key.Radius)
+		if err != nil {
+			panic(err)
+		}
+	// case geometryBox:
+	// 	shape.shape, err = physics.NewBoxShape(key.HalfExtent, key.ConvexRadius)
+	case cylinder:
+		shape.shape, err = physics.NewCylinderShape(key.Radius, key.Height/2, key.ConvexRadius)
+		if err != nil {
+			panic(err)
+		}
+	case fileBackedGeometry:
+		shape.shape, err = physics.NewFileBackedShape(Data, key.Filename, true)
+		if err != nil {
+			panic(err)
+		}
+		shape.convex, err = physics.NewFileBackedShape(Data, key.Filename, false)
+		if err != nil {
+			panic(err)
+		}
+	case transformedShape:
+		shape.shape, err = physics.NewTransformedShape(key.Translation, key.Rotation, gmath.Vec3Ones[float32](), key.Shape.shape)
+		if err != nil {
+			panic(err)
+		}
+		if key.Shape.convex != nil {
+			shape.convex, err = physics.NewTransformedShape(key.Translation, key.Rotation, gmath.Vec3Ones[float32](), key.Shape.convex)
+			if err != nil {
+				panic(err)
+			}
+		}
 	default:
-		panic(fmt.Sprintf("unknown physics shape kind %v", key.Kind))
+		panic(fmt.Sprintf("bad physics shape desc %#v", key))
 	}
-	if err != nil {
-		// TODO: actually print a warning and return a box?
-		panic(err)
-	}
-	shape, err = physics.NewTransformedShape(key.Translation, key.Rotation, key.Scale, shape)
-	if err != nil {
-		// TODO: actually print a warning and return a box
-		panic(err)
-	}
-	concaveCache[key2] = shape
+
+	shapeCache[key] = shape
 	return shape
 }

@@ -5,55 +5,24 @@ package game
 
 import (
 	"worldspawn/internal/gmath"
-	"worldspawn/internal/nice"
 )
 
-type geometryKind int
+type sphere struct {
+	Radius float32
+}
 
-const (
-	_ geometryKind = iota
-	geometrySphere
-	geometryBox
-	geometryCylinder
-	geometryFileBacked
-)
-
-// TODO: make it an interface with various implementations (FileBacked, etc.)
-type _Geometry struct {
-	// TODO: remove the transform in favor of an option to use children entities
-	// as a way to specify compound geometry.
-	Translation gmath.Vec3f32
-	Rotation    gmath.Rot3
-	Scale       gmath.Vec3f32
-
-	Kind         geometryKind
-	Filename     string // used by Kind=FileBacked
-	HalfExtent   gmath.Vec3f32
+type cylinder struct {
+	Radius       float32
+	Height       float32
 	ConvexRadius float32
 }
 
-type geometryPacked string
-
-func packGeometry(geo _Geometry) geometryPacked {
-	// TODO: ugh
-	if geo.Rotation == (gmath.Rot3{}) {
-		geo.Rotation = gmath.Rot3One()
-	}
-	if geo.Scale == (gmath.Vec3f32{}) {
-		geo.Scale = gmath.Vec3Ones[float32]()
-	}
-
-	buf, err := nice.Marshal(&geo)
-	if err != nil {
-		panic(err)
-	}
-	return geometryPacked(buf)
+type fileBackedGeometry struct {
+	Filename string
 }
 
-func unpackGeometry(packed geometryPacked) _Geometry {
-	var unpacked _Geometry
-	if err := nice.Unmarshal([]byte(packed), &unpacked); err != nil {
-		panic(err)
-	}
-	return unpacked
+type transformedShape struct {
+	Translation gmath.Vec3f32
+	Rotation    gmath.Rot3
+	Shape       shape // TODO: this should be type shape (pair of arbitrary and convex)
 }
