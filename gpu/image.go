@@ -9,7 +9,7 @@ import (
 	"worldspawn/gpu/vk/formatutil"
 )
 
-// TODO: get rid of this in favor of plain int + a flag on SubImage.
+// TODO: make this private
 type ImageDim int8
 
 const (
@@ -76,43 +76,6 @@ type Image struct {
 	cleanup runtime.Cleanup
 }
 
-// TODO: make the internals private and provide accessors instead.
-// TODO: use a more compact representation
-type ImageConfig struct {
-	Dim    int
-	Format vk.Format
-	Extent [3]int
-	Layers int
-	Mips   int
-	Usages vk.ImageUsageFlags
-}
-
-func MakeImageConfig(format vk.Format, extent []int) ImageConfig {
-	return ImageConfig{
-		Dim:    len(extent),
-		Format: format,
-		Extent: extent3(extent),
-		Layers: 1,
-		Mips:   1,
-		Usages: vk.ImageUsageFlags(vk.IMAGE_USAGE_TRANSFER_DST_BIT) | vk.ImageUsageFlags(vk.IMAGE_USAGE_TRANSFER_SRC_BIT),
-	}
-}
-
-func (config ImageConfig) WithLayers(layers int) ImageConfig {
-	config.Layers = layers
-	return config
-}
-
-func (config ImageConfig) WithMips(mips int) ImageConfig {
-	config.Mips = mips
-	return config
-}
-
-func (config ImageConfig) WithUsage(usage vk.ImageUsageFlagBits) ImageConfig {
-	config.Usages |= vk.ImageUsageFlags(usage)
-	return config
-}
-
 func NewImage(config ImageConfig) *Image {
 	gpuInit()
 
@@ -125,19 +88,19 @@ func NewImage(config ImageConfig) *Image {
 	imageCreateInfo.Flags |= vk.ImageCreateFlags(vk.IMAGE_CREATE_MUTABLE_FORMAT_BIT)
 	imageCreateInfo.Flags |= vk.ImageCreateFlags(vk.IMAGE_CREATE_EXTENDED_USAGE_BIT)
 	// TODO: actually check if it's compressed instead of checking BlockExtent
-	if formatutil.Describe(config.Format).BlockExtent != (vk.Extent3D{Width: 1, Height: 1, Depth: 1}) {
+	if formatutil.Describe(config.format).BlockExtent != (vk.Extent3D{Width: 1, Height: 1, Depth: 1}) {
 		imageCreateInfo.Flags |= vk.ImageCreateFlags(vk.IMAGE_CREATE_BLOCK_TEXEL_VIEW_COMPATIBLE_BIT)
 	}
-	if config.Dim == 2 && config.Extent[0] == config.Extent[1] && config.Layers >= 6 {
+	if config.dim == 2 && config.extent[0] == config.extent[1] && config.layers >= 6 {
 		imageCreateInfo.Flags |= vk.ImageCreateFlags(vk.IMAGE_CREATE_CUBE_COMPATIBLE_BIT)
 	}
-	imageCreateInfo.ImageType = ImageDim(config.Dim).vkImageType()
-	imageCreateInfo.Format = config.Format
-	imageCreateInfo.Extent = vkExtent3DFromInt3(config.Extent)
-	imageCreateInfo.MipLevels = uint32(config.Mips)
-	imageCreateInfo.ArrayLayers = uint32(config.Layers)
+	imageCreateInfo.ImageType = ImageDim(config.dim).vkImageType()
+	imageCreateInfo.Format = config.format
+	imageCreateInfo.Extent = vkExtent3DFromInt3(config.extent)
+	imageCreateInfo.MipLevels = uint32(config.mips)
+	imageCreateInfo.ArrayLayers = uint32(config.layers)
 	imageCreateInfo.Samples = 1
-	imageCreateInfo.Usage = config.Usages
+	imageCreateInfo.Usage = config.usages
 	imageCreateInfo.SharingMode = vk.SHARING_MODE_CONCURRENT
 	imageCreateInfo.QueueFamilyIndexCount = uint32(len(topology.probe))
 	imageCreateInfo.PQueueFamilyIndices = unsafe.SliceData(topology.probe)
@@ -195,12 +158,12 @@ func NewImage(config ImageConfig) *Image {
 	img := newImageFromData(&imageData{
 		vkImage: vkImage,
 
-		dim:    config.Dim,
-		format: config.Format,
-		extent: config.Extent,
-		layers: config.Layers,
-		mips:   config.Mips,
-		usages: config.Usages,
+		dim:    config.dim.dimensions(),
+		format: config.format,
+		extent: config.extent,
+		layers: config.layers,
+		mips:   config.mips,
+		usages: config.usages,
 
 		memory: memory,
 	})
@@ -213,12 +176,12 @@ func NewImageFromVkImage(vkImage vk.Image, config ImageConfig) *Image {
 	return newImageFromData(&imageData{
 		vkImage: vkImage,
 
-		dim:    config.Dim,
-		format: config.Format,
-		extent: config.Extent,
-		layers: config.Layers,
-		mips:   config.Mips,
-		usages: config.Usages,
+		dim:    config.dim.dimensions(),
+		format: config.format,
+		extent: config.extent,
+		layers: config.layers,
+		mips:   config.mips,
+		usages: config.usages,
 	})
 }
 
@@ -337,8 +300,20 @@ func (img *Image) SubImage(opts ...SubImageOption) *Image {
 	return newImage(img.data, &conf)
 }
 
-// TODO: replace these with (*Image) Config() ImageConfig method.
+func (img *Image) Config() ImageConfig {
+	return ImageConfig{
+		dim:    img.dim,
+		format: img.format,
+		extent: int3FromVkExtent3D(img.extent),
+		layers: img.bounds.Layers(),
+		mips:   img.bounds.Mips(),
+		usages: img.data.usages, // TODO: we might need to coerce things here
+	}
+}
 
+// TODO: kill some of these in favor of (*Image).Config()
+
+// TODO: kill this *definitely*.
 func (img *Image) Dim() ImageDim { return img.dim }
 
 func (img *Image) Format() vk.Format { return img.format }

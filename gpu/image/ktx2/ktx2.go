@@ -89,12 +89,10 @@ func (d *Decoder) Config() Config {
 	}
 
 	return Config{
-		Dim:    dim,
-		Cube:   d.header.FaceCount == 6,
-		Format: vk.Format(d.header.VkFormat),
-		Extent: extent,
-		Layers: max(int(d.header.LayerCount), 1) * int(d.header.FaceCount),
-		Mips:   len(d.mips),
+		ImageConfig: gpu.MakeImageConfig(vk.Format(d.header.VkFormat), extent[:]).
+			WithLayers(max(int(d.header.LayerCount), 1) * int(d.header.FaceCount)).
+			WithMips(len(d.mips)),
+		Cube: d.header.FaceCount == 6,
 	}
 }
 

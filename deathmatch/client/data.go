@@ -65,7 +65,7 @@ func texture(filename string) *renderer.Texture {
 		}
 
 		var wg gpu.WaitGroup
-		for i := range conf.Mips {
+		for i := range conf.Mips() {
 			wg.Add(1)
 
 			jq := new(gpu.JobQueue)
