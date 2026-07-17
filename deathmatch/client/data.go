@@ -59,10 +59,7 @@ func texture(filename string) *renderer.Texture {
 		conf := d.Config()
 
 		t = new(renderer.Texture)
-		t.Image = gpu.NewImage(conf.ImageConfig.WithUsage(vk.IMAGE_USAGE_SAMPLED_BIT))
-		if conf.Cube {
-			t.Image = t.Image.SubImage(gpu.ViewAs(gpu.ImageDimCube))
-		}
+		t.Image = gpu.NewImage(conf.WithUsage(vk.IMAGE_USAGE_SAMPLED_BIT))
 
 		var wg gpu.WaitGroup
 		for i := range conf.Mips() {

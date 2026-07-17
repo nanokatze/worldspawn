@@ -7,7 +7,6 @@ import (
 type imageData struct {
 	vkImage vk.Image
 
-	// TODO: review which of these fields we need
 	dim    int
 	format vk.Format
 	extent [3]int

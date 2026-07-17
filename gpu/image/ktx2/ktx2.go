@@ -66,12 +66,7 @@ func NewDecoder(r io.ReaderAt) (*Decoder, error) {
 	}, nil
 }
 
-type Config struct {
-	gpu.ImageConfig
-	Cube bool
-}
-
-func (d *Decoder) Config() Config {
+func (d *Decoder) Config() gpu.ImageConfig {
 	// TODO: do this garbage at NewDecoder time.
 
 	dim := 1
@@ -88,12 +83,14 @@ func (d *Decoder) Config() Config {
 		max(int(d.header.Depth), 1),
 	}
 
-	return Config{
-		ImageConfig: gpu.MakeImageConfig(vk.Format(d.header.VkFormat), extent[:]).
-			WithLayers(max(int(d.header.LayerCount), 1) * int(d.header.FaceCount)).
-			WithMips(len(d.mips)),
-		Cube: d.header.FaceCount == 6,
+	config := gpu.MakeImageConfig(vk.Format(d.header.VkFormat), extent[:])
+	if d.header.FaceCount == 6 {
+		config = config.AsCube()
 	}
+
+	return config.
+		WithLayers(max(int(d.header.LayerCount), 1) * int(d.header.FaceCount)).
+		WithMips(len(d.mips))
 }
 
 // TODO: support decoding at smaller granularity

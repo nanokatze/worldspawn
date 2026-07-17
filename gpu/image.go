@@ -17,7 +17,7 @@ const (
 	ImageDim1D
 	ImageDim2D
 	ImageDim3D
-	ImageDimCube = -ImageDim2D // TODO: try and kill this
+	ImageDimCube = -ImageDim2D
 )
 
 func (dim ImageDim) dimensions() int {
@@ -155,43 +155,45 @@ func NewImage(config ImageConfig) *Image {
 		MemoryOffset: 0,
 	}))
 
-	img := newImageFromData(&imageData{
-		vkImage: vkImage,
+	img := newImageFromData(
+		&imageData{
+			vkImage: vkImage,
 
-		dim:    config.dim.dimensions(),
-		format: config.format,
-		extent: config.extent,
-		layers: config.layers,
-		mips:   config.mips,
-		usages: config.usages,
+			format: config.format,
+			extent: config.extent,
+			layers: config.layers,
+			mips:   config.mips,
+			usages: config.usages,
 
-		memory: memory,
-	})
+			memory: memory,
+		},
+		config)
 	img.ownsData = true
 	// TODO: runtime.AddCleanup
 	return img
 }
 
 func NewImageFromVkImage(vkImage vk.Image, config ImageConfig) *Image {
-	return newImageFromData(&imageData{
-		vkImage: vkImage,
+	return newImageFromData(
+		&imageData{
+			vkImage: vkImage,
 
-		dim:    config.dim.dimensions(),
-		format: config.format,
-		extent: config.extent,
-		layers: config.layers,
-		mips:   config.mips,
-		usages: config.usages,
-	})
+			format: config.format,
+			extent: config.extent,
+			layers: config.layers,
+			mips:   config.mips,
+			usages: config.usages,
+		},
+		config)
 }
 
-func newImageFromData(data *imageData) *Image {
+func newImageFromData(data *imageData, config ImageConfig) *Image {
 	return newImage(data,
 		&subImageConfig{
-			Dim:    ImageDim(data.dim),
-			Format: data.format,
-			Layers: data.layers,
-			Mips:   data.mips,
+			Dim:    config.dim,
+			Format: config.format,
+			Layers: config.layers,
+			Mips:   config.mips,
 		})
 }
 
@@ -235,10 +237,10 @@ type subImageConfig struct {
 	Mips       int
 }
 
-// TODO: make this public too like ImageOption is
 type SubImageOption interface{ apply(config *subImageConfig) }
 
 // TODO: rename?
+// TODO: ViewAsCube{} variant
 type ViewAs ImageDim
 
 func (dim ViewAs) apply(config *subImageConfig) {

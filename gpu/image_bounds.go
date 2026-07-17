@@ -3,7 +3,6 @@ package gpu
 import "worldspawn/gpu/vk"
 
 // TODO: use an even more compact representation
-// TODO: this also needs an aspect/plane mask eventually
 type imageBounds struct {
 	aspects    vk.ImageAspectFlags // TODO: replace with our own mask
 	firstLayer uint32
@@ -29,8 +28,6 @@ func (bounds imageBounds) Layers() int { return int(bounds.layers) }
 func (bounds imageBounds) FirstMip() int { return int(bounds.firstMip) }
 
 func (bounds imageBounds) Mips() int { return int(bounds.mips) }
-
-// TODO: introduce a function just for the bounds also
 
 func (bounds imageBounds) VkImageSubresourceLayers(format vk.Format) vk.ImageSubresourceLayers {
 	return vk.ImageSubresourceLayers{

@@ -3,7 +3,6 @@ package gpu
 import "worldspawn/gpu/vk"
 
 // TODO: use a more compact representation
-// TODO: allow cubes
 type ImageConfig struct {
 	dim    ImageDim
 	format vk.Format
@@ -22,6 +21,12 @@ func MakeImageConfig(format vk.Format, extent []int) ImageConfig {
 		mips:   1,
 		usages: vk.ImageUsageFlags(vk.IMAGE_USAGE_TRANSFER_DST_BIT) | vk.ImageUsageFlags(vk.IMAGE_USAGE_TRANSFER_SRC_BIT),
 	}
+}
+
+func (config ImageConfig) AsCube() ImageConfig {
+	// TODO: validation
+	config.dim = ImageDimCube
+	return config
 }
 
 func (config ImageConfig) WithLayers(layers int) ImageConfig {
