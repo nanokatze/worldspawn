@@ -51,7 +51,7 @@ func init() {
 					},
 					io)
 
-				io.EnqueueEntityUpdate(entity,
+				io.Update(entity,
 					func(info *UpdateParams, entity Entity2, io IO) {
 						T := entity.Transform()
 						entity.Clear()

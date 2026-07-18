@@ -15,7 +15,7 @@ type Animtest struct {
 func init() {
 	Scripts[reflect.TypeFor[Animtest]()] = script{
 		Think: func(info *UpdateParams, world *World, entity Entity2, io IO) {
-			io.EnqueueEntityUpdate(entity,
+			io.Update(entity,
 				func(info *UpdateParams, entity Entity2, io IO) {
 					animtest := entity.ScriptState().(Animtest)
 

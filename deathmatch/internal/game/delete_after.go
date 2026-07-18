@@ -10,7 +10,7 @@ type DeleteAfter struct{}
 func init() {
 	Scripts[reflect.TypeFor[DeleteAfter]()] = script{
 		Think: func(_ *UpdateParams, world *World, entity Entity2, io IO) {
-			io.EnqueueEntityUpdate(entity,
+			io.Update(entity,
 				func(_ *UpdateParams, entity Entity2, io IO) {
 					entity.MarkForDeletion()
 				})

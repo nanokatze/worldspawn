@@ -271,7 +271,7 @@ func init() {
 
 				hands := world.GetEntity2(state.FirstPersonHands)
 
-				io.EnqueueEntityUpdate(hands,
+				io.Update(hands,
 					func(_ *UpdateParams, hands Entity2, io IO) {
 						hands.SetTransform(gmath.TRS3f64{
 							T: gmath.Vec3f64{0, 1, 0}.
@@ -285,7 +285,7 @@ func init() {
 			{
 				camera := world.GetEntity2(state.FirstPersonCamera)
 
-				io.EnqueueEntityUpdate(camera,
+				io.Update(camera,
 					func(_ *UpdateParams, camera Entity2, io IO) {
 						camera.SetTransform(gmath.TRS3f64{
 							T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
@@ -295,7 +295,7 @@ func init() {
 					})
 			}
 
-			io.EnqueueEntityUpdate(gladiator,
+			io.Update(gladiator,
 				func(info *UpdateParams, gladiator Entity2, io IO) {
 					state := gladiator.ScriptState().(Gladiator)
 					defer func() { gladiator.SetScriptState(state) }()

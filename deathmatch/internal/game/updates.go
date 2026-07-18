@@ -26,14 +26,12 @@ type updatef struct {
 	f   func(info *UpdateParams, entity Entity2, io IO)
 }
 
-// TODO: rename to "Update".
-func (io IO) EnqueueEntityUpdate(to Entity2, f func(info *UpdateParams, entity Entity2, io IO)) {
+func (io IO) Update(to Entity2, f func(info *UpdateParams, entity Entity2, io IO)) {
 	updates := &io.world.entityUpdates[to.id.Index()]
 	*updates = append(*updates, updatef{io.key, f})
 }
 
-// TODO: rename to "Create"
-func (io IO) EnqueueCreateEntity(f func(info *UpdateParams, entity Entity2, io IO)) {
+func (io IO) Create(f func(info *UpdateParams, entity Entity2, io IO)) {
 	io.world.globalUpdates = append(io.world.globalUpdates, func(info *UpdateParams, world *World) {
 		entity := world.CreateEntity(info)
 		f(info, entity, IO{world, uint64(entity.id.Index())})
