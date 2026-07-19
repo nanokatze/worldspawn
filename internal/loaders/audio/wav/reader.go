@@ -8,7 +8,8 @@ import (
 	"math"
 	"strconv"
 
-	"worldspawn/internal/loaders/wav/internal/riff"
+	"worldspawn/internal/loaders/audio"
+	"worldspawn/internal/loaders/audio/wav/internal/riff"
 )
 
 type redundantChunkError [4]byte
@@ -23,15 +24,14 @@ func (e unsupportedBitsPerSampleError) Error() string {
 	return "unsupported bits per sample " + strconv.FormatInt(int64(e), 10)
 }
 
-type config struct {
-	format     Format
-	channels   int32
-	sampleRate uint32
+type Reader struct {
+	r      *io.SectionReader
+	config audio.Config
 }
 
-type Reader struct {
-	conf config
-	r    *io.SectionReader
+func init() {
+	// TODO: can we use a more elaborate magic
+	audio.RegisterFormat("wav", "RIFF", func(r io.ReaderAt) (audio.Reader, error) { return NewReader(r) })
 }
 
 func NewReader(r io.ReaderAt) (*Reader, error) {
@@ -48,7 +48,7 @@ func NewReader(r io.ReaderAt) (*Reader, error) {
 		return nil, errors.New("not a WAVE file")
 	}
 
-	var conf config
+	var config audio.Config
 	for {
 		var header riff.Subchunk
 		if err := binary.Read(sr, binary.LittleEndian, &header); err != nil {
@@ -61,7 +61,7 @@ func NewReader(r io.ReaderAt) (*Reader, error) {
 
 		switch string(header.Id[:]) {
 		case "fmt ":
-			if conf != (config{}) {
+			if config != (audio.Config{}) {
 				return nil, redundantChunkError(header.Id)
 			}
 
@@ -110,20 +110,20 @@ func NewReader(r io.ReaderAt) (*Reader, error) {
 				return nil, fmt.Errorf("unsupported format tag 0x%x", wavefmt.FormatTag)
 			}
 
-			conf = config{
-				format:     format,
-				channels:   int32(wavefmt.Channels),
-				sampleRate: wavefmt.SamplesPerSec,
+			config = audio.Config{
+				Format:     int(format),
+				Channels:   int(wavefmt.Channels),
+				SampleRate: int(wavefmt.SamplesPerSec),
 			}
 
 		case "data":
-			if conf == (config{}) {
+			if config == (audio.Config{}) {
 				return nil, errors.New("no fmt chunk")
 			}
 
 			return &Reader{
-				conf: conf,
-				r:    data,
+				config: config,
+				r:      data,
 			}, nil
 
 		default:
@@ -141,17 +141,7 @@ const (
 	FORMAT_F32
 )
 
-func (r *Reader) Format() Format {
-	return r.conf.format
-}
-
-func (r *Reader) Channels() int {
-	return int(r.conf.channels)
-}
-
-func (r *Reader) SampleRate() int {
-	return int(r.conf.sampleRate)
-}
+func (r *Reader) Config() audio.Config { return r.config }
 
 func (r *Reader) Read(b []byte) (n int, err error) {
 	return r.r.Read(b)

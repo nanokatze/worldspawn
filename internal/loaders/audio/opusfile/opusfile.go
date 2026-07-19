@@ -10,7 +10,8 @@ import (
 	"math"
 	"unsafe"
 
-	"worldspawn/internal/loaders/opus"
+	"worldspawn/internal/loaders/audio"
+	"worldspawn/internal/loaders/audio/opus"
 )
 
 var ErrBadHeader = errors.New("invalid Ogg Opus header")
@@ -28,6 +29,13 @@ type Reader struct {
 	off            int    // offset within pcm for the next read
 	nextPagePos    int64  // granule position of the next page, in bytes
 	err            error
+}
+
+func init() {
+	// TODO: use a more elaborate magic. This doesn't distinguish
+	// Opus-containing Ogg from other things, notably Vorbis. Yes we don't
+	// support Vorbis, but still.
+	audio.RegisterFormat("opus", "OggS", func(r io.ReaderAt) (audio.Reader, error) { return NewReader(r.(io.Reader)) })
 }
 
 func NewReader(r io.Reader) (*Reader, error) {
@@ -74,12 +82,12 @@ func NewReader(r io.Reader) (*Reader, error) {
 	return rr, nil
 }
 
-func (r *Reader) Channels() int {
-	return int(r.channels)
-}
-
-func (r *Reader) SampleRate() int {
-	return 48000
+func (r *Reader) Config() audio.Config {
+	return audio.Config{
+		Format:     2,
+		Channels:   int(r.channels),
+		SampleRate: 48000,
+	}
 }
 
 func (r *Reader) preSkip() int64 {
@@ -87,7 +95,7 @@ func (r *Reader) preSkip() int64 {
 }
 
 func (r *Reader) sampleSize() int {
-	return r.Channels() * 4
+	return int(r.channels) * 4
 }
 
 func (r *Reader) Read(b []byte) (int, error) {

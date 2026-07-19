@@ -18,7 +18,7 @@ import (
 	"worldspawn/gpu/vk"
 	"worldspawn/gpu/wsi"
 	"worldspawn/internal/gmath"
-	"worldspawn/internal/loaders/opusfile"
+	"worldspawn/internal/loaders/audio/opusfile"
 	"worldspawn/internal/renderer"
 	"worldspawn/internal/sdl"
 )
@@ -261,7 +261,7 @@ func main() {
 			panic(err)
 		}
 
-		log.Println(r.Channels(), "channels")
+		log.Println(r.Config().Channels, "channels")
 
 		bytes, err := io.ReadAll(r)
 		if err != nil {

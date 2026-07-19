@@ -8,7 +8,7 @@ import (
 	"log"
 	"os"
 
-	"worldspawn/internal/loaders/opusfile"
+	"worldspawn/internal/loaders/audio/opusfile"
 )
 
 func main() {

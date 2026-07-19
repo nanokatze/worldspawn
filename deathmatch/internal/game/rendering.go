@@ -7,7 +7,8 @@ import (
 
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/gmath"
-	"worldspawn/internal/loaders/wav"
+	"worldspawn/internal/loaders/audio"
+	"worldspawn/internal/loaders/audio/wav"
 )
 
 // TODO: make it more general
@@ -53,24 +54,26 @@ func (a *LoopedSound) Init() {
 	}
 	defer f.Close()
 
-	wr, err := wav.NewReader(f.(io.ReaderAt))
+	wr, err := audio.NewReader(f.(io.ReaderAt))
 	if err != nil {
 		log.Print("got an error while trying to init LoopedSound: ", err)
 		return
 	}
 
-	if wr.Channels() != 1 {
+	config := wr.Config()
+
+	if config.Channels != 1 {
 		panic("only 1 channel is supported")
 	}
 
-	off, err := wr.Seek(0, io.SeekEnd)
+	off, err := wr.(io.ReadSeeker).Seek(0, io.SeekEnd)
 	if err != nil {
 		log.Print("got an error while trying to init LoopedSound: ", err)
 		return
 	}
 
 	var siz int
-	switch wr.Format() {
+	switch wav.Format(config.Format) {
 	case wav.FORMAT_S16:
 		siz = 2
 	case wav.FORMAT_F32:
@@ -79,7 +82,7 @@ func (a *LoopedSound) Init() {
 		panic("unreachable")
 	}
 
-	a.LengthInSamples = off / int64(wr.Channels()*siz)
+	a.LengthInSamples = off / int64(config.Channels*siz)
 }
 
 func (e Entity2) SetVisibilityCondition(v VisibilityCondition) {

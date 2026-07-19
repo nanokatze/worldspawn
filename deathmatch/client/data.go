@@ -22,9 +22,9 @@ import (
 	"worldspawn/internal/compiler"
 	"worldspawn/internal/compiler/core"
 	"worldspawn/internal/geometry"
+	"worldspawn/internal/loaders/audio"
+	"worldspawn/internal/loaders/audio/wav"
 	"worldspawn/internal/loaders/material"
-	"worldspawn/internal/loaders/opusfile"
-	"worldspawn/internal/loaders/wav"
 	"worldspawn/internal/loaders/wmesh"
 	"worldspawn/internal/renderer"
 	"worldspawn/internal/renderer/matc"
@@ -391,24 +391,15 @@ func lookupsound(id string) []float32 {
 			// TODO: should be non-fatal
 			panic(fmt.Sprintf("failed to open file %v", id))
 		}
+		defer f.Close()
 
-		switch path.Ext(id) {
-		case ".wav":
-			reader, err := wav.NewReader(f.(io.ReaderAt))
-			if err != nil {
-				panic(err)
-			}
-			samples, _ := readSamples(reader, reader.Format())
-			effect = extractChannel(samples, reader.Channels(), 0)
-
-		case ".opus":
-			reader, _ := opusfile.NewReader(f)
-			samples, _ := readSamples(reader, wav.FORMAT_F32)
-			effect = extractChannel(samples, reader.Channels(), 0)
-
-		default:
-			panic("unsupported")
+		reader, err := audio.NewReader(f.(io.ReaderAt))
+		if err != nil {
+			panic(err)
 		}
+
+		samples, _ := readSamples(reader, wav.Format(reader.Config().Format))
+		effect = extractChannel(samples, reader.Config().Channels, 0)
 
 		soundcache[id] = effect
 	}
