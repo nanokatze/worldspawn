@@ -1,7 +1,8 @@
-package wmaterial
+package material
 
 import (
 	"fmt"
+	"io/fs"
 	"strconv"
 
 	"github.com/go-json-experiment/json"
@@ -12,7 +13,15 @@ import (
 	"worldspawn/internal/renderer/matc"
 )
 
-type Header struct {
+// TODO: move wmaterial-specific code into a subdir
+
+// TODO: do not depend on matc here. Only compiler/material at most.
+
+// TODO: the material object returned by Load should only contain a program with
+// the compiler/material instructions only. It should not contain renderer
+// preamble and renderer shader, nor any of the renderer/matc instructions.
+
+type header struct {
 	// TODO: params probs should be folded into both program and preamble, or
 	// alternatively preamble could be made unaware of param types.
 	Params   []string
@@ -28,6 +37,7 @@ type stmt struct {
 	Args []string
 }
 
+// TODO: this should not be here at all, but rather in the compiler's IR parser
 func Type(typ string) compiler.Type {
 	switch typ {
 	case "Nothing":
@@ -70,8 +80,8 @@ var opImmParser = map[compiler.Op]func(imm string) (any, error){
 	matc.OpLoadParameter: func(imm string) (any, error) { return strconv.ParseInt(imm, 10, 64) },
 }
 
-// TODO: a proper syntax?
-func Parse(b *compiler.Builder, src []byte) (*compiler.Class, error) {
+// TODO: proper syntax
+func parse(b *compiler.Builder, src []byte) (*compiler.Class, error) {
 	var prog []stmt
 	if err := json.Unmarshal(src, &prog); err != nil {
 		return nil, err
@@ -111,4 +121,48 @@ func Parse(b *compiler.Builder, src []byte) (*compiler.Class, error) {
 	}
 
 	return l, nil
+}
+
+// TODO: this would be moved to the common package material loader
+// TODO: can we get rid of this and return just *compiler.Class? Or even the
+// still-serialized blob that will have to be parsed, but by the compiler's
+// parser.
+type Material struct {
+	// TODO: we should change renderer's material api to accept a blob of code
+	// in compiler's material dialect.
+
+	Params   []string
+	Preamble []string
+	IR       *compiler.Class
+}
+
+// TODO: allow user to pass the compiler rules somehow?
+func Load(fsys fs.FS, filename string) (*Material, error) {
+	src, err := fs.ReadFile(fsys, filename)
+	if err != nil {
+		return nil, err
+	}
+
+	var header header
+	if err := json.Unmarshal(src, &header); err != nil {
+		return nil, err
+	}
+
+	sea := compiler.NewSea()
+	b := &compiler.Builder{
+		Sea: sea,
+		// TODO: don't use any rules at this point. We should just decode the
+		// program. Or I guess the user could optionally supply the rules.
+		Rules: append(append([]compiler.RewriteRule(nil), core.Rules...), matc.LowerToInterpreter...),
+	}
+	ir, err := parse(b, header.Program)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Material{
+		Params:   header.Params,
+		Preamble: header.Preamble,
+		IR:       ir,
+	}, nil
 }

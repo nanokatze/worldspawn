@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"io/fs"
 	"log"
 	"math"
 	"os"
@@ -23,9 +22,9 @@ import (
 	"worldspawn/internal/compiler"
 	"worldspawn/internal/compiler/core"
 	"worldspawn/internal/geometry"
+	"worldspawn/internal/loaders/material"
 	"worldspawn/internal/loaders/opusfile"
 	"worldspawn/internal/loaders/wav"
-	"worldspawn/internal/loaders/wmaterial"
 	"worldspawn/internal/loaders/wmesh"
 	"worldspawn/internal/renderer"
 	"worldspawn/internal/renderer/matc"
@@ -35,7 +34,7 @@ import (
 // TODO: outline this into its own package. pathtracerio?
 
 var texturecache = make(map[string]*renderer.Texture)
-var materialcache = make(map[string]material)
+var materialcache = make(map[string]rendererMaterial)
 var modelcache = make(map[unique.Handle[string]]*fileBackedMesh)
 var soundcache = make(map[string][]float32)
 
@@ -86,43 +85,18 @@ func texture(filename string) *renderer.Texture {
 	return t
 }
 
-type material struct {
+// TODO: this belongs to internal/renderer
+type rendererMaterial struct {
 	preamble matc.Preamble
 	material *renderer.InterpretedMaterial
 }
 
-func getmaterial(identifier string) material {
+func getmaterial(identifier string) rendererMaterial {
 	m, ok := materialcache[identifier]
 	if !ok {
 		log.Println("loading material", path.Clean(identifier))
 
-		src, err := fs.ReadFile(game.Data, path.Clean(identifier))
-		if err != nil {
-			log.Printf("getmaterial: %v", err)
-			goto bail
-		}
-
-		// TODO: naming!!!!!!!!!!!!!!!!
-
-		var header wmaterial.Header
-		if err := json.Unmarshal(src, &header); err != nil {
-			log.Printf("getmaterial: %v", err)
-			goto bail
-		}
-
-		params := make([]compiler.Type, len(header.Params))
-		for i := range params {
-			params[i] = wmaterial.Type(header.Params[i])
-		}
-
-		paramsTuple := matc.MakeParamsTuple(params)
-
-		sea := compiler.NewSea()
-		b := &compiler.Builder{
-			Sea:   sea,
-			Rules: append(append([]compiler.RewriteRule(nil), core.Rules...), matc.LowerToInterpreter...),
-		}
-		ir, err := wmaterial.Parse(b, header.Program)
+		intermediate, err := material.Load(game.Data, path.Clean(identifier))
 		if err != nil {
 			log.Printf("getmaterial: %v", err)
 			goto bail
@@ -134,8 +108,14 @@ func getmaterial(identifier string) material {
 			debuglog = os.Stderr
 		}
 
-		m.preamble = matc.CompilePreamble(paramsTuple, header.Preamble)
-		m.material = renderer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(paramsTuple, sea, ir, debuglog))
+		paramsTuple := matc.MakeParamsTuple(slices.Collect(func(yield func(compiler.Type) bool) {
+			for _, typ := range intermediate.Params {
+				yield(material.Type(typ))
+			}
+		}))
+
+		m.preamble = matc.CompilePreamble(paramsTuple, intermediate.Preamble)
+		m.material = renderer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(paramsTuple, nil, intermediate.IR, debuglog))
 	}
 	materialcache[identifier] = m
 	return m

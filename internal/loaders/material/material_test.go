@@ -1,4 +1,4 @@
-package wmaterial
+package material
 
 import (
 	"testing"
@@ -35,7 +35,7 @@ func TestXxx(t *testing.T) {
 ]`)
 	sea := compiler.NewSea()
 	b := &compiler.Builder{Sea: sea, Rules: append(append([]compiler.RewriteRule(nil), core.Rules...), matc.LowerToInterpreter...)}
-	ir, err := Parse(b, src)
+	ir, err := parse(b, src)
 	if err != nil {
 		t.Fatal(err)
 	}
