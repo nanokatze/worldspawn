@@ -1,9 +1,11 @@
 package renderer
 
 import (
+	"bytes"
+	"encoding/binary"
+
 	"worldspawn/gpu"
 	"worldspawn/internal/renderer/internal/material"
-	"worldspawn/internal/renderer/matc"
 )
 
 /*
@@ -28,19 +30,22 @@ type InterpretedMaterial struct {
 	program  material.InterpreterProgram
 }
 
-// TODO: make blob some other type so that we drop dependency on matc. Maybe
-// []byte container or string or idk? In that case I guess we also could unify
-// the entry point to consume either interpreted or compiled material, by
-// distinguishing from the format specified in the container in the blob.
-func NewInterpretedMaterial(blob *matc.InterpretedMaterial) *InterpretedMaterial {
-	device := gpu.MakeSliceUncached[uint32](len(blob.Code))
-	copy(device.Value(), blob.Code)
+// TODO: unify this to consume either interpreted or SPIR-V material? We'll have
+// to include the magic into the blob in that case.
+func NewInterpretedMaterial(blob []byte) *InterpretedMaterial {
+	r := bytes.NewReader(blob)
+
+	var abi material.InterpreterABI
+	binary.Read(r, binary.LittleEndian, &abi)
+
+	code := gpu.MakeSliceUncached[uint32](r.Len() / 4)
+	binary.Read(r, binary.LittleEndian, code.Value())
 
 	return &InterpretedMaterial{
-		emissive: blob.ABI.EDFCount > 0,
+		emissive: abi.EDFCount > 0,
 		program: material.InterpreterProgram{
-			ABI:  blob.ABI,
-			Code: gpu.SliceData(device),
+			ABI:  abi,
+			Code: gpu.SliceData(code),
 		},
 	}
 }

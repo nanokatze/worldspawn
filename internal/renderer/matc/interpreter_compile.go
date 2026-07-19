@@ -1,6 +1,8 @@
 package matc
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"slices"
@@ -59,16 +61,13 @@ func extract2(b *compiler.Builder, c *compiler.Class, extracted map[*compiler.Cl
 	return x
 }
 
-// This is basically the same as renderer.InterpretedMaterial
-type InterpretedMaterial struct {
-	ABI  material.InterpreterABI
-	Code []uint32
-}
-
 // TODO: AOVs. Either the user can specify aov name -> offset mapping at compile
 // time, we can do the remapping later somehow
-// TODO: allow printing stuff for debugging somehow
-func CompileInterpretedMaterial(params ParamsTuple, sea *compiler.Sea, c *compiler.Class, log io.Writer) *InterpretedMaterial {
+// TODO: let the user have a unified interface and pass a target enum instead.
+// We could perhaps have a type Target interface { Compile(...) }
+// TODO: the compiler should probably name a tuple type for *compiler.Sea +
+// *compiler.Class.
+func CompileInterpretedMaterial(params ParamsTuple, sea *compiler.Sea, c *compiler.Class, log io.Writer) []byte {
 	sea2 := compiler.NewSea()
 
 	// TODO: dump representation to log if we have log
@@ -137,8 +136,9 @@ func CompileInterpretedMaterial(params ParamsTuple, sea *compiler.Sea, c *compil
 		edfs[i] = num
 	}
 
-	return &InterpretedMaterial{
-		ABI: material.InterpreterABI{
+	var buf bytes.Buffer
+	binary.Write(&buf, binary.LittleEndian,
+		material.InterpreterABI{
 			BSDFs:     bsdfs,
 			BSDFCount: uint8(len(abi.BSDFs)),
 			BSDFsOff:  uint8(abi.BSDFOff),
@@ -148,9 +148,10 @@ func CompileInterpretedMaterial(params ParamsTuple, sea *compiler.Sea, c *compil
 			EDFsOff:  uint8(abi.EDFOff),
 
 			OutputsReg: uint32(regm[x].I),
-		},
-		Code: assembled,
-	}
+		})
+	binary.Write(&buf, binary.LittleEndian, assembled)
+
+	return buf.Bytes()
 }
 
 func regs(t compiler.Type) int {

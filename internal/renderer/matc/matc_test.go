@@ -1,12 +1,15 @@
 package matc
 
 import (
+	"bytes"
+	"encoding/binary"
 	"math"
 	"os"
 	"testing"
 
 	"worldspawn/internal/compiler"
 	"worldspawn/internal/compiler/core"
+	"worldspawn/internal/renderer/internal/material"
 )
 
 var allRules = append(append([]compiler.RewriteRule(nil), core.Rules...), LowerToInterpreter...)
@@ -70,7 +73,10 @@ func TestXxx(t *testing.T) {
 
 	compiled := CompileInterpretedMaterial(paramStruct, sea, program, os.Stderr)
 
-	t.Log(compiled.ABI)
+	var abi material.InterpreterABI
+	binary.Read(bytes.NewReader(compiled), binary.LittleEndian, &abi)
+
+	t.Log(abi)
 }
 
 func TestXxx2(t *testing.T) {
