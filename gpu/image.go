@@ -9,22 +9,22 @@ import (
 	"worldspawn/gpu/vk/formatutil"
 )
 
+// Bits 0:1 specify number of dimensions, which is always at least 1.
+// Bit 7 specifies cube flag. Only valid for 2D images.
+//
 // TODO: make this private
-type ImageDim int8
+type ImageDim uint8
 
 const (
 	_ ImageDim = iota
 	ImageDim1D
 	ImageDim2D
 	ImageDim3D
-	ImageDimCube = -ImageDim2D
+	ImageDimCube = ImageDim2D | 0x80
 )
 
 func (dim ImageDim) dimensions() int {
-	if dim < 0 {
-		return -int(dim)
-	}
-	return int(dim)
+	return int(dim & 0b11)
 }
 
 func (dim ImageDim) vkImageType() vk.ImageType {

@@ -23,9 +23,13 @@ func MakeImageConfig(format vk.Format, extent []int) ImageConfig {
 	}
 }
 
-func (config ImageConfig) AsCube() ImageConfig {
-	// TODO: validation
-	config.dim = ImageDimCube
+// TODO: rename pls
+func (config ImageConfig) AsCube(cube bool) ImageConfig {
+	if cube {
+		config.dim |= 0x80
+	} else {
+		config.dim &^= 0x80
+	}
 	return config
 }
 

@@ -39,12 +39,10 @@ type mipHeader struct {
 	UncompressedLength uint64
 }
 
-// TODO: could we unify decoder with encoder?
 type Decoder struct {
 	r io.ReaderAt
 
-	// don't just keep the entire header
-	header fileHeader
+	header fileHeader // don't just keep the entire header around.
 	mips   []mipHeader
 }
 
@@ -66,31 +64,27 @@ func NewDecoder(r io.ReaderAt) (*Decoder, error) {
 	}, nil
 }
 
-func (d *Decoder) Config() gpu.ImageConfig {
-	// TODO: do this garbage at NewDecoder time.
-
-	dim := 1
-	if d.header.Height > 0 {
-		dim++
-		if d.header.Depth > 0 {
-			dim++
+// Like slices.Index, but returns len(s) instead of -1.
+func index[S ~[]E, E comparable](s S, e E) int {
+	i := 0
+	for ; i < len(s); i++ {
+		if s[i] == e {
+			break
 		}
 	}
+	return i
+}
 
-	extent := [3]int{
-		int(d.header.Width),
-		max(int(d.header.Height), 1),
-		max(int(d.header.Depth), 1),
-	}
+func (d *Decoder) Config() gpu.ImageConfig {
+	extent := [3]int{int(d.header.Width), int(d.header.Height), int(d.header.Depth)}
 
-	config := gpu.MakeImageConfig(vk.Format(d.header.VkFormat), extent[:dim])
-	if d.header.FaceCount == 6 {
-		config = config.AsCube()
-	}
+	dim := index(extent[:], 0)
 
-	return config.
+	config := gpu.MakeImageConfig(vk.Format(d.header.VkFormat), extent[:dim]).
+		AsCube(d.header.FaceCount == 6).
 		WithLayers(max(int(d.header.LayerCount), 1) * int(d.header.FaceCount)).
 		WithMips(len(d.mips))
+	return config
 }
 
 // TODO: support decoding at smaller granularity
