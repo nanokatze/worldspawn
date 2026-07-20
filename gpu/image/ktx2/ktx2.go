@@ -83,7 +83,7 @@ func (d *Decoder) Config() gpu.ImageConfig {
 		max(int(d.header.Depth), 1),
 	}
 
-	config := gpu.MakeImageConfig(vk.Format(d.header.VkFormat), extent[:])
+	config := gpu.MakeImageConfig(vk.Format(d.header.VkFormat), extent[:dim])
 	if d.header.FaceCount == 6 {
 		config = config.AsCube()
 	}
