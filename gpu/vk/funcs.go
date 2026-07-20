@@ -261,6 +261,10 @@ func (funcs *InstanceFuncs) EnumeratePhysicalDevices(instance Instance, pPhysica
 	return resultErr(Result(C.vkEnumeratePhysicalDevices(transmute[Instance, C.VkInstance](instance), (*C.uint32_t)(pPhysicalDeviceCount), (*C.VkPhysicalDevice)(unsafe.Pointer(pPhysicalDevices)))))
 }
 
+func (funcs *InstanceFuncs) EnumerateDeviceExtensionProperties(physicalDevice PhysicalDevice /* pLayerName */, pPropertyCount *uint32, pProperties *ExtensionProperties) error {
+	return resultErr(Result(C.vkEnumerateDeviceExtensionProperties(transmute[PhysicalDevice, C.VkPhysicalDevice](physicalDevice), nil, (*C.uint32_t)(pPropertyCount), (*C.VkExtensionProperties)(unsafe.Pointer(pProperties)))))
+}
+
 func (funcs *InstanceFuncs) GetPhysicalDeviceFeatures2(physicalDevice PhysicalDevice, pFeatures *PhysicalDeviceFeatures2) {
 	C.vkGetPhysicalDeviceFeatures2(transmute[PhysicalDevice, C.VkPhysicalDevice](physicalDevice), (*C.VkPhysicalDeviceFeatures2)(unsafe.Pointer(pFeatures)))
 }

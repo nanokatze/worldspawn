@@ -238,6 +238,28 @@ func gpuInit() {
 
 		// WantDeviceExtension("VK_EXT_external_memory_host")
 
+		availableExtensionsSlice, err := enumerate(func(len *uint32, data *vk.ExtensionProperties) error {
+			return vkFns.EnumerateDeviceExtensionProperties(physicalDevice, len, data)
+		})
+		availableExtensions := maps.Collect(func(yield func(string, struct{}) bool) {
+			for _, ext := range availableExtensionsSlice {
+				yield(byteSliceToString(ext.ExtensionName[:]), struct{}{})
+			}
+		})
+
+		var enabledDeviceExtensionsSlice []string
+		for _, ext := range slices.Sorted(maps.Keys(wantDeviceExts)) {
+			if _, ok := availableExtensions[ext]; !ok {
+				if wantDeviceExts[ext] {
+					// TODO: eagerly output as many as we can and bail only
+					// later.
+					panic("don't have required extension " + ext)
+				}
+				continue
+			}
+			enabledDeviceExtensionsSlice = append(enabledDeviceExtensionsSlice, ext)
+		}
+
 		var availableFeatures deviceFeatures
 		availableFeatures.init(false)
 		pinner.Pin(&availableFeatures)
@@ -272,8 +294,6 @@ func gpuInit() {
 				})
 			}
 		})
-
-		enabledDeviceExtensionsSlice := slices.Sorted(maps.Keys(wantDeviceExts))
 
 		pinner.Pin(&enabledFeatures)
 
