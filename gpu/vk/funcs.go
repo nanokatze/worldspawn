@@ -3,7 +3,8 @@ package vk
 // TODO: make mkfuncs.go generate this
 
 /*
-#cgo LDFLAGS: -lvulkan
+#cgo linux LDFLAGS: -lvulkan
+#cgo windows LDFLAGS: -lvulkan-1
 
 #include <stddef.h>
 #include <stdint.h>
@@ -15,61 +16,61 @@ package vk
 // TODO: change prefix to govkcall? _cgovkcall? ...
 
 uint32_t
-vkcall_32_uintptr(uint32_t (*fn)(uintptr_t), uintptr_t a0)
+vkcall_32_uintptr(uint32_t (VKAPI_PTR *fn)(uintptr_t), uintptr_t a0)
 {
 	return fn(a0);
 }
 
 uint32_t
-vkcall_32_uintptr_32_ptr(uint32_t (*fn)(uintptr_t, uint32_t, void*), uintptr_t a0, uint32_t a1, void *a2)
+vkcall_32_uintptr_32_ptr(uint32_t (*VKAPI_PTR fn)(uintptr_t, uint32_t, void*), uintptr_t a0, uint32_t a1, void *a2)
 {
 	return fn(a0, a1, a2);
 }
 
 uint32_t
-vkcall_32_uintptr_32_ptr_32_64(uint32_t (*fn)(uintptr_t, uint32_t, void*, uint32_t, uint64_t), uintptr_t a0, uint32_t a1, void *a2, uint32_t a3, uint64_t a4)
+vkcall_32_uintptr_32_ptr_32_64(uint32_t (*VKAPI_PTR fn)(uintptr_t, uint32_t, void*, uint32_t, uint64_t), uintptr_t a0, uint32_t a1, void *a2, uint32_t a3, uint64_t a4)
 {
 	return fn(a0, a1, a2, a3, a4);
 }
 
 uint32_t
-vkcall_32_uintptr_32_ptr_64(uint32_t (*fn)(uintptr_t, uint32_t, void*, uint64_t), uintptr_t a0, uint32_t a1, void *a2, uint64_t a3)
+vkcall_32_uintptr_32_ptr_64(uint32_t (*VKAPI_PTR fn)(uintptr_t, uint32_t, void*, uint64_t), uintptr_t a0, uint32_t a1, void *a2, uint64_t a3)
 {
 	return fn(a0, a1, a2, a3);
 }
 
 uint32_t
-vkcall_32_uintptr_32_ptr_ptr(uint32_t (*fn)(uintptr_t, uint32_t, void*, void*), uintptr_t a0, uint32_t a1, void *a2, void *a3)
+vkcall_32_uintptr_32_ptr_ptr(uint32_t (*VKAPI_PTR fn)(uintptr_t, uint32_t, void*, void*), uintptr_t a0, uint32_t a1, void *a2, void *a3)
 {
 	return fn(a0, a1, a2, a3);
 }
 
 uint32_t
-vkcall_32_uintptr_32_ptr_ptr_ptr(uint32_t (*fn)(uintptr_t, uint32_t, void*, void*, void*), uintptr_t a0, uint32_t a1, void *a2, void *a3, void *a4)
+vkcall_32_uintptr_32_ptr_ptr_ptr(uint32_t (*VKAPI_PTR fn)(uintptr_t, uint32_t, void*, void*, void*), uintptr_t a0, uint32_t a1, void *a2, void *a3, void *a4)
 {
 	return fn(a0, a1, a2, a3, a4);
 }
 
 uint32_t
-vkcall_32_uintptr_64_32_32_uintptr_ptr(uint32_t (*fn)(uintptr_t, uint64_t, uint32_t, uint32_t, uintptr_t, void*), uintptr_t a0, uint64_t a1, uint32_t a2, uint32_t a3, uintptr_t a4, void *a5)
+vkcall_32_uintptr_64_32_32_uintptr_ptr(uint32_t (*VKAPI_PTR fn)(uintptr_t, uint64_t, uint32_t, uint32_t, uintptr_t, void*), uintptr_t a0, uint64_t a1, uint32_t a2, uint32_t a3, uintptr_t a4, void *a5)
 {
 	return fn(a0, a1, a2, a3, a4, a5);
 }
 
 uint32_t
-vkcall_32_uintptr_64_64_32_ptr_ptr_ptr(uint32_t (*fn)(uintptr_t, uint64_t, uint64_t, uint32_t, void*, void*, void*), uintptr_t a0, uint64_t a1, uint64_t a2, uint32_t a3, void *a4, void *a5, void *a6)
+vkcall_32_uintptr_64_64_32_ptr_ptr_ptr(uint32_t (*VKAPI_PTR fn)(uintptr_t, uint64_t, uint64_t, uint32_t, void*, void*, void*), uintptr_t a0, uint64_t a1, uint64_t a2, uint32_t a3, void *a4, void *a5, void *a6)
 {
 	return fn(a0, a1, a2, a3, a4, a5, a6);
 }
 
 uint32_t
-vkcall_32_uintptr_64_ptr_ptr(uint32_t (*fn)(uintptr_t, uint64_t, void*, void*), uintptr_t a0, uint64_t a1, void *a2, void *a3)
+vkcall_32_uintptr_64_ptr_ptr(uint32_t (*VKAPI_PTR fn)(uintptr_t, uint64_t, void*, void*), uintptr_t a0, uint64_t a1, void *a2, void *a3)
 {
 	return fn(a0, a1, a2, a3);
 }
 
 uint32_t
-vkcall_32_uintptr_ptr(uint32_t (*fn)(uintptr_t, void*), uintptr_t a0, void *a1)
+vkcall_32_uintptr_ptr(uint32_t (*VKAPI_PTR fn)(uintptr_t, void*), uintptr_t a0, void *a1)
 {
 	return fn(a0, a1);
 }
@@ -77,13 +78,13 @@ vkcall_32_uintptr_ptr(uint32_t (*fn)(uintptr_t, void*), uintptr_t a0, void *a1)
 #cgo noescape vkcall_32_uintptr_ptr_64_noescape_nocallback
 #cgo nocallback vkcall_32_uintptr_ptr_64_noescape_nocallback
 uint32_t
-vkcall_32_uintptr_ptr_64_noescape_nocallback(uint32_t (*fn)(uintptr_t, void*, uint64_t), uintptr_t a0, void *a1, uint64_t a2)
+vkcall_32_uintptr_ptr_64_noescape_nocallback(uint32_t (*VKAPI_PTR fn)(uintptr_t, void*, uint64_t), uintptr_t a0, void *a1, uint64_t a2)
 {
 	return fn(a0, a1, a2);
 }
 
 uint32_t
-vkcall_32_uintptr_ptr_ptr(uint32_t (*fn)(uintptr_t, void*, void*), uintptr_t a0, void *a1, void *a2)
+vkcall_32_uintptr_ptr_ptr(uint32_t (*VKAPI_PTR fn)(uintptr_t, void*, void*), uintptr_t a0, void *a1, void *a2)
 {
 	return fn(a0, a1, a2);
 }
@@ -91,73 +92,73 @@ vkcall_32_uintptr_ptr_ptr(uint32_t (*fn)(uintptr_t, void*, void*), uintptr_t a0,
 #cgo noescape vkcall_32_uintptr_ptr_ptr_ptr_noescape_nocallback
 #cgo nocallback vkcall_32_uintptr_ptr_ptr_ptr_noescape_nocallback
 uint32_t
-vkcall_32_uintptr_ptr_ptr_ptr_noescape_nocallback(uint32_t (*fn)(uintptr_t, void*, void*, void*), uintptr_t a0, void *a1, void *a2, void *a3)
+vkcall_32_uintptr_ptr_ptr_ptr_noescape_nocallback(uint32_t (*VKAPI_PTR fn)(uintptr_t, void*, void*, void*), uintptr_t a0, void *a1, void *a2, void *a3)
 {
 	return fn(a0, a1, a2, a3);
 }
 
 uint64_t
-vkcall_64_uintptr_ptr(uint64_t (*fn)(uintptr_t, void*), uintptr_t a0, void *a1)
+vkcall_64_uintptr_ptr(uint64_t (*VKAPI_PTR fn)(uintptr_t, void*), uintptr_t a0, void *a1)
 {
 	return fn(a0, a1);
 }
 
 uint64_t
-vkcall_64_uintptr_64_32_32(uint64_t (*fn)(uintptr_t, uint64_t, uint32_t, uint32_t), uintptr_t a0, uint64_t a1, uint32_t a2, uint32_t a3)
+vkcall_64_uintptr_64_32_32(uint64_t (*VKAPI_PTR fn)(uintptr_t, uint64_t, uint32_t, uint32_t), uintptr_t a0, uint64_t a1, uint32_t a2, uint32_t a3)
 {
 	return fn(a0, a1, a2, a3);
 }
 
 void
-vkcall_void_uintptr(void (*fn)(uintptr_t), uintptr_t a0)
+vkcall_void_uintptr(void (*VKAPI_PTR fn)(uintptr_t), uintptr_t a0)
 {
 	fn(a0);
 }
 
 void
-vkcall_void_uintptr_32(void (*fn)(uintptr_t, uint32_t), uintptr_t a0, uint32_t a1)
+vkcall_void_uintptr_32(void (*VKAPI_PTR fn)(uintptr_t, uint32_t), uintptr_t a0, uint32_t a1)
 {
 	fn(a0, a1);
 }
 
 void
-vkcall_void_uintptr_32_32_32(void (*fn)(uintptr_t, uint32_t, uint32_t, uint32_t), uintptr_t a0, uint32_t a1, uint32_t a2, uint32_t a3)
+vkcall_void_uintptr_32_32_32(void (*VKAPI_PTR fn)(uintptr_t, uint32_t, uint32_t, uint32_t), uintptr_t a0, uint32_t a1, uint32_t a2, uint32_t a3)
 {
 	fn(a0, a1, a2, a3);
 }
 
 void
-vkcall_void_uintptr_32_32_32_32(void (*fn)(uintptr_t, uint32_t, uint32_t, uint32_t, uint32_t), uintptr_t a0, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4)
+vkcall_void_uintptr_32_32_32_32(void (*VKAPI_PTR fn)(uintptr_t, uint32_t, uint32_t, uint32_t, uint32_t), uintptr_t a0, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4)
 {
 	fn(a0, a1, a2, a3, a4);
 }
 
 void
-vkcall_void_uintptr_32_32_32_32_32(void (*fn)(uintptr_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t), uintptr_t a0, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
+vkcall_void_uintptr_32_32_32_32_32(void (*VKAPI_PTR fn)(uintptr_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t), uintptr_t a0, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
 {
 	fn(a0, a1, a2, a3, a4, a5);
 }
 
 void
-vkcall_void_uintptr_32_32_ptr(void (*fn)(uintptr_t, uint32_t, uint32_t, void*), uintptr_t a0, uint32_t a1, uint32_t a2, void *a3)
+vkcall_void_uintptr_32_32_ptr(void (*VKAPI_PTR fn)(uintptr_t, uint32_t, uint32_t, void*), uintptr_t a0, uint32_t a1, uint32_t a2, void *a3)
 {
 	fn(a0, a1, a2, a3);
 }
 
 void
-vkcall_void_uintptr_32_64(void (*fn)(uintptr_t, uint32_t, uint64_t),  uintptr_t a0, uint32_t a1, uint64_t a2)
+vkcall_void_uintptr_32_64(void (*VKAPI_PTR fn)(uintptr_t, uint32_t, uint64_t),  uintptr_t a0, uint32_t a1, uint64_t a2)
 {
 	fn(a0, a1, a2);
 }
 
 void
-vkcall_void_uintptr_32_64_32_32_ptr_32_ptr(void (*fn)(uintptr_t, uint32_t, uint64_t, uint32_t, uint32_t, void*, uint32_t, void*),  uintptr_t a0, uint32_t a1, uint64_t a2, uint32_t a3, uint32_t a4, void *a5, uint32_t a6, void *a7)
+vkcall_void_uintptr_32_64_32_32_ptr_32_ptr(void (*VKAPI_PTR fn)(uintptr_t, uint32_t, uint64_t, uint32_t, uint32_t, void*, uint32_t, void*),  uintptr_t a0, uint32_t a1, uint64_t a2, uint32_t a3, uint32_t a4, void *a5, uint32_t a6, void *a7)
 {
 	fn(a0, a1, a2, a3, a4, a5, a6, a7);
 }
 
 void
-vkcall_void_uintptr_32_ptr(void (*fn)(uintptr_t, uint32_t, void*), uintptr_t a0, uint32_t a1, void *a2)
+vkcall_void_uintptr_32_ptr(void (*VKAPI_PTR fn)(uintptr_t, uint32_t, void*), uintptr_t a0, uint32_t a1, void *a2)
 {
 	fn(a0, a1, a2);
 }
@@ -165,55 +166,55 @@ vkcall_void_uintptr_32_ptr(void (*fn)(uintptr_t, uint32_t, void*), uintptr_t a0,
 #cgo noescape vkcall_void_uintptr_32_ptr_32_ptr_noescape_nocallback
 #cgo nocallback vkcall_void_uintptr_32_ptr_32_ptr_noescape_nocallback
 void
-vkcall_void_uintptr_32_ptr_32_ptr_noescape_nocallback(void (*fn)(uintptr_t, uint32_t, void*, uint32_t, void*), uintptr_t a0, uint32_t a1, void *a2, uint32_t a3, void *a4)
+vkcall_void_uintptr_32_ptr_32_ptr_noescape_nocallback(void (*VKAPI_PTR fn)(uintptr_t, uint32_t, void*, uint32_t, void*), uintptr_t a0, uint32_t a1, void *a2, uint32_t a3, void *a4)
 {
 	fn(a0, a1, a2, a3, a4);
 }
 
 void
-vkcall_void_uintptr_32_ptr_ptr(void (*fn)(uintptr_t, uint32_t, void*, void*), uintptr_t a0, uint32_t a1, void *a2, void *a3)
+vkcall_void_uintptr_32_ptr_ptr(void (*VKAPI_PTR fn)(uintptr_t, uint32_t, void*, void*), uintptr_t a0, uint32_t a1, void *a2, void *a3)
 {
 	fn(a0, a1, a2, a3);
 }
 
 void
-vkcall_void_uintptr_32_ptr_ptr_ptr(void (*fn)(uintptr_t, uint32_t, void*, void*, void*), uintptr_t a0, uint32_t a1, void *a2, void *a3, void *a4)
+vkcall_void_uintptr_32_ptr_ptr_ptr(void (*VKAPI_PTR fn)(uintptr_t, uint32_t, void*, void*, void*), uintptr_t a0, uint32_t a1, void *a2, void *a3, void *a4)
 {
 	fn(a0, a1, a2, a3, a4);
 }
 
 void
-vkcall_void_uintptr_64_32_32_32_ptr(void (*fn)(uintptr_t, uint64_t, uint32_t, uint32_t, uint32_t, void*), uintptr_t a0, uint64_t a1, uint32_t a2, uint32_t a3, uint32_t a4, void *a5)
+vkcall_void_uintptr_64_32_32_32_ptr(void (*VKAPI_PTR fn)(uintptr_t, uint64_t, uint32_t, uint32_t, uint32_t, void*), uintptr_t a0, uint64_t a1, uint32_t a2, uint32_t a3, uint32_t a4, void *a5)
 {
 	fn(a0, a1, a2, a3, a4, a5);
 }
 
 void
-vkcall_void_uintptr_64_64_32(void (*fn)(uintptr_t, uint64_t, uint64_t, uint32_t), uintptr_t a0, uint64_t a1, uint64_t a2, uint32_t a3)
+vkcall_void_uintptr_64_64_32(void (*VKAPI_PTR fn)(uintptr_t, uint64_t, uint64_t, uint32_t), uintptr_t a0, uint64_t a1, uint64_t a2, uint32_t a3)
 {
 	fn(a0, a1, a2, a3);
 }
 
 void
-vkcall_void_uintptr_64_64_64_32(void (*fn)(uintptr_t, uint64_t, uint64_t, uint64_t, uint32_t), uintptr_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint32_t a4)
+vkcall_void_uintptr_64_64_64_32(void (*VKAPI_PTR fn)(uintptr_t, uint64_t, uint64_t, uint64_t, uint32_t), uintptr_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint32_t a4)
 {
 	fn(a0, a1, a2, a3, a4);
 }
 
 void
-vkcall_void_uintptr_64_ptr(void (*fn)(uintptr_t, uint64_t, void*), uintptr_t a0, uint64_t a1, void *a2)
+vkcall_void_uintptr_64_ptr(void (*VKAPI_PTR fn)(uintptr_t, uint64_t, void*), uintptr_t a0, uint64_t a1, void *a2)
 {
 	fn(a0, a1, a2);
 }
 
 void
-vkcall_void_uintptr_ptr(void (*fn)(uintptr_t, void*), uintptr_t a0, void *a1)
+vkcall_void_uintptr_ptr(void (*VKAPI_PTR fn)(uintptr_t, void*), uintptr_t a0, void *a1)
 {
 	fn(a0, a1);
 }
 
 void
-vkcall_void_uintptr_ptr_ptr(void (*fn)(uintptr_t, void*, void*), uintptr_t a0, void *a1, void *a2)
+vkcall_void_uintptr_ptr_ptr(void (*VKAPI_PTR fn)(uintptr_t, void*, void*), uintptr_t a0, void *a1, void *a2)
 {
 	fn(a0, a1, a2);
 }
@@ -221,7 +222,7 @@ vkcall_void_uintptr_ptr_ptr(void (*fn)(uintptr_t, void*, void*), uintptr_t a0, v
 #cgo noescape vkcall_void_uintptr_ptr_ptr_ptr_ptr_32_32_32_noescape_nocallback
 #cgo nocallback vkcall_void_uintptr_ptr_ptr_ptr_ptr_32_32_32_noescape_nocallback
 void
-vkcall_void_uintptr_ptr_ptr_ptr_ptr_32_32_32_noescape_nocallback(void (*fn)(uintptr_t, void*, void*, void*, void*, uint32_t, uint32_t, uint32_t), uintptr_t a0, void *a1, void *a2, void *a3, void *a4, uint32_t a5, uint32_t a6, uint32_t a7)
+vkcall_void_uintptr_ptr_ptr_ptr_ptr_32_32_32_noescape_nocallback(void (*VKAPI_PTR fn)(uintptr_t, void*, void*, void*, void*, uint32_t, uint32_t, uint32_t), uintptr_t a0, void *a1, void *a2, void *a3, void *a4, uint32_t a5, uint32_t a6, uint32_t a7)
 {
 	fn(a0, a1, a2, a3, a4, a5, a6, a7);
 }
