@@ -35,7 +35,7 @@ func (re *gameRendererAudio) Update(world *game.World, playerID ecs.ID, t0, t1 g
 	for id, soundEffect := range ecs.All(&world.SoundEffect) {
 		T := world.GetGlobalTransform(id)
 
-		effect := lookupsound(soundEffect.Effect)
+		effect := *soundcache.Get(soundEffect.Effect)
 
 		scene.Transform[id.Index()] = T.Convert[float32]().TRS()
 

@@ -9,7 +9,7 @@ import (
 )
 
 type Animtest struct {
-	Animation string
+	Animation unique.Handle[string]
 }
 
 func init() {
@@ -19,7 +19,7 @@ func init() {
 				func(info *UpdateParams, entity Entity2, io IO) {
 					animtest := entity.ScriptState().(Animtest)
 
-					animation := getanimation(animtest.Animation)
+					animation := animationCache.Get(animtest.Animation)
 
 					skelly := entity.world.GetSkeleton(entity.ID())
 

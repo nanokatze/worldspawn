@@ -19,6 +19,7 @@ import (
 	"worldspawn/gpu"
 	"worldspawn/gpu/image/ktx2"
 	"worldspawn/gpu/vk"
+	"worldspawn/internal/cache"
 	"worldspawn/internal/compiler"
 	"worldspawn/internal/compiler/core"
 	"worldspawn/internal/geometry"
@@ -32,99 +33,84 @@ import (
 
 // TODO: rename this file to something else
 // TODO: outline this into its own package. pathtracerio?
+// TODO: support streaming at finer granularity
 
-var texturecache = make(map[unique.Handle[string]]*renderer.Texture)
-var materialcache = make(map[unique.Handle[string]]rendererMaterial)
-var modelcache = make(map[unique.Handle[string]]*fileBackedMesh)
-var soundcache = make(map[unique.Handle[string]][]float32)
+var texturecache = cache.New(func(filename unique.Handle[string]) *renderer.Texture {
+	// TODO: move this code into its own func + handle errors and everything.
 
-// TODO: should support streaming etc.
-func texture(filename unique.Handle[string]) *renderer.Texture {
-	t, ok := texturecache[filename]
-	if !ok {
-		// TODO: move this code into its own func + handle errors and everything.
-
-		f, err := game.Data.Open(filename.Value())
-		if err != nil {
-			panic(err)
-		}
-		defer f.Close()
-
-		d, err := ktx2.NewDecoder(f.(io.ReaderAt))
-		if err != nil {
-			panic(err)
-		}
-
-		conf := d.Config()
-
-		t = new(renderer.Texture)
-		t.Image = gpu.NewImage(conf.WithUsage(vk.IMAGE_USAGE_SAMPLED_BIT))
-
-		var wg gpu.WaitGroup
-		for i := range conf.Mips() {
-			wg.Add(1)
-
-			jq := new(gpu.JobQueue)
-
-			img := t.Image.SubImage(gpu.WithMipRange{i, i + 1})
-			img.EnqueueInit(jq)
-
-			d.EnqueueDecode(jq, img, i)
-
-			jq.Cleanup(img.Destroy)
-
-			wg.EnqueueDone(jq)
-		}
-		// Wait for upload to complete before closing the file. TODO: spawn a
-		// goroutine to close the file instead, and just have the renderer block
-		// on fence.
-		wg.Wait()
-
-		texturecache[filename] = t
+	f, err := game.Data.Open(filename.Value())
+	if err != nil {
+		panic(err)
 	}
+	defer f.Close()
+
+	d, err := ktx2.NewDecoder(f.(io.ReaderAt))
+	if err != nil {
+		panic(err)
+	}
+
+	conf := d.Config()
+
+	t := new(renderer.Texture)
+	t.Image = gpu.NewImage(conf.WithUsage(vk.IMAGE_USAGE_SAMPLED_BIT))
+
+	var wg gpu.WaitGroup
+	for i := range conf.Mips() {
+		wg.Add(1)
+
+		jq := new(gpu.JobQueue)
+
+		img := t.Image.SubImage(gpu.WithMipRange{i, i + 1})
+		img.EnqueueInit(jq)
+
+		d.EnqueueDecode(jq, img, i)
+
+		jq.Cleanup(img.Destroy)
+
+		wg.EnqueueDone(jq)
+	}
+	// Wait for upload to complete before closing the file. TODO: spawn a
+	// goroutine to close the file instead, and just have the renderer block
+	// on fence.
+	wg.Wait()
+
 	return t
-}
+})
 
 type rendererMaterial struct {
 	preamble matc.Preamble
 	material *renderer.InterpretedMaterial
 }
 
-func getmaterial(identifier unique.Handle[string]) rendererMaterial {
-	m, ok := materialcache[identifier]
-	if !ok {
-		log.Println("loading material", path.Clean(identifier.Value()))
+var materialcache = cache.New(func(filename unique.Handle[string]) *rendererMaterial {
+	log.Println("loading material", path.Clean(filename.Value()))
 
-		intermediate, err := material.Load(game.Data, path.Clean(identifier.Value()))
-		if err != nil {
-			log.Printf("getmaterial: %v", err)
-			goto bail
+	intermediate, err := material.Load(game.Data, path.Clean(filename.Value()))
+	if err != nil {
+		log.Printf("getmaterial: %v", err)
+
+		return &rendererMaterial{
+			material: errorMaterial(),
 		}
-
-		debuglog := io.Writer(nil)
-		// This material bugs out
-		if identifier == unique.Make("weapons/grenade_launcher/materials/Anodized_Aluminium") {
-			debuglog = os.Stderr
-		}
-
-		paramsTuple := matc.MakeParamsTuple(slices.Collect(func(yield func(compiler.Type) bool) {
-			for _, typ := range intermediate.Params {
-				yield(material.Type(typ))
-			}
-		}))
-
-		m.preamble = matc.CompilePreamble(paramsTuple, intermediate.Preamble)
-		m.material = renderer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(paramsTuple, nil, intermediate.IR, debuglog))
 	}
-	materialcache[identifier] = m
-	return m
 
-bail:
-	// TODO: stop using gotos lmao aaa
-	m.material = errorMaterial()
-	materialcache[identifier] = m
-	return m
-}
+	debuglog := io.Writer(nil)
+	// This material bugs out
+	if filename == unique.Make("weapons/grenade_launcher/materials/Anodized_Aluminium") {
+		debuglog = os.Stderr
+	}
+
+	paramsTuple := matc.MakeParamsTuple(slices.Collect(func(yield func(compiler.Type) bool) {
+		for _, typ := range intermediate.Params {
+			yield(material.Type(typ))
+		}
+	}))
+
+	return &rendererMaterial{
+		preamble: matc.CompilePreamble(paramsTuple, intermediate.Preamble),
+		material: renderer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(paramsTuple, nil, intermediate.IR, debuglog)),
+	}
+})
 
 var errorMaterial = sync.OnceValue(func() *renderer.InterpretedMaterial {
 	sea := compiler.NewSea()
@@ -206,8 +192,8 @@ func loadattrbuf(blob2 io.ReaderAt, vertexCount int, desc wmesh.AttributeBuffer)
 	return ret
 }
 
-func loadmesh(filename string) *fileBackedMesh {
-	f, err := game.Data.Open(filename)
+var modelcache = cache.New(func(filename unique.Handle[string]) *fileBackedMesh {
+	f, err := game.Data.Open(filename.Value())
 	if err != nil {
 		panic(err)
 	}
@@ -307,16 +293,7 @@ func loadmesh(filename string) *fileBackedMesh {
 		geometry:        geometry,
 		accel:           accel,
 	}
-}
-
-func getgeometry(geo unique.Handle[string]) *fileBackedMesh {
-	m, ok := modelcache[geo]
-	if !ok {
-		m = loadmesh(geo.Value())
-		modelcache[geo] = m
-	}
-	return m
-}
+})
 
 // TODO: move this into gpu?
 func enqueueReadAt(jq *gpu.JobQueue, r io.ReaderAt, p gpu.Slice[byte], off int64) {
@@ -386,26 +363,21 @@ func extractChannel(s []float32, channels, channel int) []float32 {
 	return s2
 }
 
-func lookupsound(id unique.Handle[string]) []float32 {
-	effect, ok := soundcache[id]
-	if !ok {
-		f, err := game.Data.Open(id.Value())
-		if err != nil {
-			// TODO: should be non-fatal
-			panic(fmt.Sprintf("failed to open file %v", id))
-		}
-		defer f.Close()
+var soundcache = cache.New(func(filename unique.Handle[string]) *[]float32 {
+	f, err := game.Data.Open(filename.Value())
+	if err != nil {
+		// TODO: should be non-fatal
+		panic(fmt.Sprintf("failed to open file %v", filename.Value()))
+	}
+	defer f.Close()
 
-		reader, err := audio.NewReader(f.(io.ReaderAt))
-		if err != nil {
-			panic(err)
-		}
-
-		samples, _ := readSamples(reader, wav.Format(reader.Config().Format))
-		effect = extractChannel(samples, reader.Config().Channels, 0)
-
-		soundcache[id] = effect
+	reader, err := audio.NewReader(f.(io.ReaderAt))
+	if err != nil {
+		panic(err)
 	}
 
-	return effect
-}
+	samples, _ := readSamples(reader, wav.Format(reader.Config().Format))
+	effect := extractChannel(samples, reader.Config().Channels, 0)
+
+	return &effect
+})

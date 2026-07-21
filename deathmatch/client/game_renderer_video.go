@@ -148,7 +148,7 @@ func (re *gameRendererVideo) Update(world *game.World, playerID ecs.ID, t0, t1 g
 			update.parent[i] = -1
 		}
 
-		update.sky = texture(world.Globals().Sky).Image
+		update.sky = texturecache.Get(world.Globals().Sky).Image
 
 		for id, tr := range ecs.All(&world.TransformTR) {
 			i := id.Index()
@@ -217,7 +217,7 @@ func (re *gameRendererVideo) Update(world *game.World, playerID ecs.ID, t0, t1 g
 			}
 			update.mask[i] = mask
 
-			geometry := getgeometry(renderingGeometry)
+			geometry := modelcache.Get(renderingGeometry)
 
 			pose := world.Entities.Pose[id.Index()]
 
@@ -232,7 +232,7 @@ func (re *gameRendererVideo) Update(world *game.World, playerID ecs.ID, t0, t1 g
 			update.materialArgs[i] = make([][256]byte, len(geometry.materials))
 
 			for j := range update.materials[i] {
-				material := getmaterial(geometry.materials[j])
+				material := materialcache.Get(geometry.materials[j])
 				update.materials[i][j] = material.material
 				material.preamble.Pack(update.materialArgs[i][j][:],
 					func(name string, out *[4]float32) {

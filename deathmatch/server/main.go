@@ -538,7 +538,7 @@ func main() {
 
 	if true {
 		test := s.world.CreateEntity(info)
-		test.SetScriptState(game.Animtest{"testcharacter4/animations/metarigAction"})
+		test.SetScriptState(game.Animtest{unique.Make("testcharacter4/animations/metarigAction")})
 		test.SetTransform(gmath.TRS3f64{
 			T: gmath.Vec3f64{0, -1, 0},
 			R: gmath.Rot3One(),

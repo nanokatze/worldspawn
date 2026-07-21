@@ -255,7 +255,7 @@ func (world *World) GetSkeleton(id ecs.ID) *skeleton.Skeleton {
 	if !ok {
 		return nil
 	}
-	return getskeleton(skellyName)
+	return skeletonCache.Get(skellyName)
 }
 
 // TODO: do validation here
