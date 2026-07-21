@@ -40,7 +40,7 @@ type geoNodes struct {
 // TODO: rename?
 
 func (gs *geoNodes) Outputs(data *gsdata) (*renderer.Geometry, gpu.BLAS) {
-	if len(gs.pose.Bones) == 0 {
+	if len(gs.pose) == 0 {
 		if gs.src == nil {
 			return nil, gpu.BLAS{}
 		}
@@ -50,7 +50,7 @@ func (gs *geoNodes) Outputs(data *gsdata) (*renderer.Geometry, gpu.BLAS) {
 }
 
 func (gs *geoNodes) EnqueueEvaluate(jq *gpu.JobQueue, data *gsdata) {
-	if len(gs.pose.Bones) == 0 {
+	if len(gs.pose) == 0 {
 		return
 	}
 
@@ -81,11 +81,12 @@ func (gs *geoNodes) EnqueueEvaluate(jq *gpu.JobQueue, data *gsdata) {
 	}
 
 	poseHost := data.pose.Value()
-	for i, name := range gs.src.joints {
-		m, ok := gs.pose.Bones[gs.skelly.JointByName(name)]
-		if ok {
-			poseHost[i] = m.ToMat()
-		} else {
+	if gs.pose.Validate(gs.skelly) {
+		for i, name := range gs.src.joints {
+			poseHost[i] = gs.pose[gs.skelly.JointByName(name)].ToMat()
+		}
+	} else {
+		for i := range poseHost {
 			poseHost[i] = gmath.Mat4x4One[float32]()
 		}
 	}

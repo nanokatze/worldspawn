@@ -67,17 +67,8 @@ func (world *World) GetGlobalTransform(id ecs.ID) gmath.Affine3f64 {
 		if skelly == nil {
 			return gmath.Affine3One[float32]()
 		}
-		boneIndex := skelly.JointByName(bone)
-		if boneIndex == -1 {
-			return gmath.Affine3One[float32]()
-		}
-
 		pose := world.Entities.Pose[id.Index()]
-		boneTransform, ok := pose.Bones[boneIndex]
-		if !ok {
-			return skelly.BindPose[boneIndex]
-		}
-		return boneTransform.Mul(skelly.BindPose[boneIndex])
+		return pose.Get(skelly.JointByName(bone), skelly)
 	}
 
 	// TODO: don't hardcode the hierarchy depth bound

@@ -51,12 +51,14 @@ func init() {
 							}.Compose()
 					}
 
-					pose := skeleton.Pose{
-						Bones: map[int]gmath.Affine3f32{},
+					pose := make(skeleton.Pose, skelly.NumJoints())
+					for i := range pose {
+						pose[i] = gmath.Affine3One[float32]()
 					}
 
 					// TODO: flooding would be more efficient
-					for bone := range skelly.JointNames {
+					// TODO: factor this out
+					for bone := range skelly.NumJoints() {
 						A := gmath.Affine3One[float32]()
 
 						tmp := bone
@@ -75,7 +77,7 @@ func init() {
 							tmp = parent
 						}
 
-						pose.Bones[bone] = A.Mul(skelly.BindPoseInv[bone])
+						pose[bone] = A.Mul(skelly.BindPoseInv[bone])
 					}
 
 					entity.SetPose(pose)

@@ -177,15 +177,9 @@ func (re *gameRendererVideo) Update(world *game.World, playerID ecs.ID, t0, t1 g
 			}
 
 			if parentBone, parentedToBone := world.ParentBone.Get(id); parentedToBone {
-				pose := world.Entities.Pose[parent.Index()]
 				skelly := world.GetSkeleton(parent)
-				parentBoneIndex := skelly.JointByName(parentBone)
-				hmm, ok := pose.Bones[parentBoneIndex]
-				if !ok {
-					hmm = gmath.Affine3One[float32]()
-				}
-				tmp := hmm.Mul(skelly.BindPose[parentBoneIndex])
-
+				pose := world.Entities.Pose[parent.Index()]
+				tmp := pose.Get(skelly.JointByName(parentBone), skelly)
 				// kinda yikes but will do for now
 				//
 				// TODO: teach the renderer to understand skelly hierarchy and

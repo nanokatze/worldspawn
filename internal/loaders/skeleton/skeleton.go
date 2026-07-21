@@ -12,9 +12,6 @@ import (
 
 // TODO: introduce skeleton builder to simplify loader code
 
-type SkeletonBuilder struct {
-}
-
 // TODO: make the internals private?
 type Skeleton struct {
 	JointNames   []unique.Handle[string]
@@ -34,16 +31,11 @@ func (s *Skeleton) JointByName(name unique.Handle[string]) int {
 	return -1
 }
 
-// TODO: stick various methods onto the Pose object instead of exposing the
-// internals. We want to be able to get relative to rest and absolute joint
-// transforms.
-// TODO: alternatively just kill this object?
-type Pose struct {
-	Bones map[int]gmath.Affine3f32
+func (s *Skeleton) NumJoints() int {
+	return len(s.JointNames)
 }
 
 // TODO: have loader subpackages
-// TODO: accept byte slice instead of a reader?
 func Read(r io.Reader) (*Skeleton, error) {
 	var tmp struct {
 		Parent   map[string]string
