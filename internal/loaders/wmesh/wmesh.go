@@ -47,14 +47,14 @@ type Header struct {
 	Positions AttributeBuffer
 	Normals   AttributeBuffer
 
-	Joints []string
+	Joints []string // TODO: change to unique.Handle[string]
 
 	MaxInfluencesPerVertex int64
 
 	// VertexCount * MaxInfluencesPerVertex of index uint32 × weight float32 pairs
 	JointWeights Buffer
 
-	Materials []string
+	Materials []string // TODO: change to unique.Handle[string]
 
 	// MaterialIndices AttributeBuffer
 
@@ -63,7 +63,7 @@ type Header struct {
 	// TODO: rename pls
 	MaterialIndexRanges []Range
 
-	NamedAttributes map[string]AttributeBuffer
+	NamedAttributes map[string]AttributeBuffer // TODO: change the key to unique.Handle[string]
 }
 
 type Buffer struct {
@@ -73,7 +73,7 @@ type Buffer struct {
 
 type AttributeBuffer struct {
 	Domain Domain // TODO: should be represented with a string in json probably
-	Type   string // TODO: maybe replace with an enum?
+	Type   string // TODO: replace with an enum
 	Data   Buffer
 }
 

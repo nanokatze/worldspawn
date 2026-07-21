@@ -32,13 +32,13 @@ func (cosmeticOffset CosmeticOffset) Eval(now Time) gmath.Vec3f32 {
 }
 
 type SoundEmitter struct {
-	Effect      string
+	Effect      unique.Handle[string]
 	Attenuation float32
 	PlayTime    Time // TODO: we also need to equip it with a sample offset
 }
 
 type LoopedSound struct {
-	Sound           string
+	Sound           unique.Handle[string]
 	Attenuation     float32
 	LengthInSamples int64 // TODO: make this private and non-txable?
 }
@@ -47,7 +47,7 @@ type LoopedSound struct {
 func (a *LoopedSound) Init() {
 	// TODO: factor this out into a function in fuckwwise probs
 
-	f, err := Data.Open(a.Sound)
+	f, err := Data.Open(a.Sound.Value())
 	if err != nil {
 		log.Print("got an error while trying to init LoopedSound: ", err)
 		return

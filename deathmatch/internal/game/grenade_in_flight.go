@@ -4,6 +4,7 @@ import (
 	"math"
 	"reflect"
 	"time"
+	"unique"
 
 	"worldspawn/internal/ecs"
 )
@@ -55,7 +56,7 @@ func init() {
 					grenade.SetNextThink(info.Now.Add(2 * time.Second))
 					grenade.SetTransform(T)
 					grenade.SetSoundEffect(SoundEmitter{
-						Effect:      "explosion.wav",
+						Effect:      unique.Make("explosion.wav"),
 						Attenuation: 1,
 						PlayTime:    info.Now.Add(info.Δt),
 					})

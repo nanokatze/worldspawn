@@ -33,18 +33,18 @@ import (
 // TODO: rename this file to something else
 // TODO: outline this into its own package. pathtracerio?
 
-var texturecache = make(map[string]*renderer.Texture)
-var materialcache = make(map[string]rendererMaterial)
+var texturecache = make(map[unique.Handle[string]]*renderer.Texture)
+var materialcache = make(map[unique.Handle[string]]rendererMaterial)
 var modelcache = make(map[unique.Handle[string]]*fileBackedMesh)
-var soundcache = make(map[string][]float32)
+var soundcache = make(map[unique.Handle[string]][]float32)
 
 // TODO: should support streaming etc.
-func texture(filename string) *renderer.Texture {
+func texture(filename unique.Handle[string]) *renderer.Texture {
 	t, ok := texturecache[filename]
 	if !ok {
 		// TODO: move this code into its own func + handle errors and everything.
 
-		f, err := game.Data.Open(filename)
+		f, err := game.Data.Open(filename.Value())
 		if err != nil {
 			panic(err)
 		}
@@ -85,18 +85,17 @@ func texture(filename string) *renderer.Texture {
 	return t
 }
 
-// TODO: this belongs to internal/renderer
 type rendererMaterial struct {
 	preamble matc.Preamble
 	material *renderer.InterpretedMaterial
 }
 
-func getmaterial(identifier string) rendererMaterial {
+func getmaterial(identifier unique.Handle[string]) rendererMaterial {
 	m, ok := materialcache[identifier]
 	if !ok {
-		log.Println("loading material", path.Clean(identifier))
+		log.Println("loading material", path.Clean(identifier.Value()))
 
-		intermediate, err := material.Load(game.Data, path.Clean(identifier))
+		intermediate, err := material.Load(game.Data, path.Clean(identifier.Value()))
 		if err != nil {
 			log.Printf("getmaterial: %v", err)
 			goto bail
@@ -104,7 +103,7 @@ func getmaterial(identifier string) rendererMaterial {
 
 		debuglog := io.Writer(nil)
 		// This material bugs out
-		if identifier == "weapons/grenade_launcher/materials/Anodized_Aluminium" {
+		if identifier == unique.Make("weapons/grenade_launcher/materials/Anodized_Aluminium") {
 			debuglog = os.Stderr
 		}
 
@@ -171,7 +170,7 @@ type fileBackedMesh struct {
 
 	jointWeights gpu.Slice[geometry.Uhh]
 
-	materials []string
+	materials []unique.Handle[string]
 
 	geometry renderer.Geometry
 	accel    gpu.BLAS
@@ -292,8 +291,12 @@ func loadmesh(filename string) *fileBackedMesh {
 	gpu.WaitForIdle(jq)
 
 	return &fileBackedMesh{
-		materials: materials,
-		attrs:     attrs,
+		materials: slices.Collect(func(yield func(unique.Handle[string]) bool) {
+			for _, j := range header2.Materials {
+				yield(unique.Make(j))
+			}
+		}),
+		attrs: attrs,
 		joints: slices.Collect(func(yield func(unique.Handle[string]) bool) {
 			for _, j := range header2.Joints {
 				yield(unique.Make(j))
@@ -383,10 +386,10 @@ func extractChannel(s []float32, channels, channel int) []float32 {
 	return s2
 }
 
-func lookupsound(id string) []float32 {
+func lookupsound(id unique.Handle[string]) []float32 {
 	effect, ok := soundcache[id]
 	if !ok {
-		f, err := game.Data.Open(id)
+		f, err := game.Data.Open(id.Value())
 		if err != nil {
 			// TODO: should be non-fatal
 			panic(fmt.Sprintf("failed to open file %v", id))

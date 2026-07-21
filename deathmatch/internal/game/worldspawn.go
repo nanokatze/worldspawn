@@ -2,6 +2,7 @@ package game
 
 import (
 	"reflect"
+	"unique"
 
 	"worldspawn/internal/gmath"
 )
@@ -11,7 +12,7 @@ type WorldGlobals struct {
 	Now Time
 
 	// TODO: replace it with sky material
-	Sky string
+	Sky unique.Handle[string]
 
 	// TODO: create a separate "physics world" entity/component and move this
 	// stuff there

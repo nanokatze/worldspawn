@@ -4,6 +4,7 @@ import (
 	"math"
 	"reflect"
 	"time"
+	"unique"
 
 	"worldspawn/internal/ecs"
 )
@@ -48,7 +49,7 @@ func init() {
 					rocket.SetNextThink(info.Now.Add(2 * time.Second)) // TODO: should be long enough for sound to play
 					rocket.SetTransform(T)
 					rocket.SetSoundEffect(SoundEmitter{
-						Effect:      "explosion.wav",
+						Effect:      unique.Make("explosion.wav"),
 						Attenuation: 1,
 						PlayTime:    info.Now.Add(info.Δt),
 					})

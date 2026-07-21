@@ -4,6 +4,7 @@ import (
 	"math"
 	"reflect"
 	"time"
+	"unique"
 
 	"worldspawn/internal/ecs"
 )
@@ -59,7 +60,7 @@ func init() {
 						entity.SetNextThink(info.Now.Add(2 * time.Second)) // TODO: should be long enough for sound to play
 						entity.SetTransform(T)
 						entity.SetSoundEffect(SoundEmitter{
-							Effect:      "explosion.wav",
+							Effect:      unique.Make("explosion.wav"),
 							Attenuation: 1,
 							PlayTime:    info.Now.Add(info.Δt),
 						})

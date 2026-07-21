@@ -143,7 +143,7 @@ func init() {
 						// })
 
 						prop.SetSoundEffect(SoundEmitter{
-							Effect:      "weapons/grenade_launcher/fire.wav",
+							Effect:      unique.Make("weapons/grenade_launcher/fire.wav"),
 							Attenuation: 1,
 							PlayTime:    info.Now, // + time.Duration(rng(w.Time, entityID, 0).Int63n(int64(1*time.Millisecond))),
 						})

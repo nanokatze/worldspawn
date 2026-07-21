@@ -5,6 +5,7 @@ import (
 	"io"
 	"math"
 	"time"
+	"unique"
 )
 
 // TODO: kill this in favor of animation.Sample
@@ -28,7 +29,7 @@ type Animation struct {
 	Channels map[string]Track
 }
 
-func (a *Animation) Channels_() []string {
+func (a *Animation) Channels_() []unique.Handle[string] {
 	panic("not implemented")
 }
 
