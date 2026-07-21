@@ -3,25 +3,26 @@ package skeleton
 import (
 	"encoding/json/v2"
 	"io"
-	"maps"
-	"slices"
 	"unique"
 
 	"worldspawn/internal/gmath"
 )
 
-// TODO: introduce skeleton builder to simplify loader code
-
-// TODO: make the internals private?
 type Skeleton struct {
 	JointNames   []unique.Handle[string]
 	JointByName_ map[unique.Handle[string]]int
 
-	Parent         []int
-	Children       [][]int
-	BindPose       []gmath.Affine3f32
-	BindPoseInv    []gmath.Affine3f32
+	Parent   []int
+	Children [][]int
+
+	BindPose    []gmath.Affine3f32
+	BindPoseInv []gmath.Affine3f32
+
 	ParentRelative []gmath.Affine3f32
+}
+
+func (s *Skeleton) NumJoints() int {
+	return len(s.JointNames)
 }
 
 func (s *Skeleton) JointByName(name unique.Handle[string]) int {
@@ -31,78 +32,50 @@ func (s *Skeleton) JointByName(name unique.Handle[string]) int {
 	return -1
 }
 
-func (s *Skeleton) NumJoints() int {
-	return len(s.JointNames)
-}
-
-// TODO: have loader subpackages
+// TODO: move actual loaders into subpackages
 func Read(r io.Reader) (*Skeleton, error) {
-	var tmp struct {
-		Parent   map[string]string
-		BindPose map[string]gmath.Mat4x4f32
+	type joint struct {
+		Name     string
+		Parent   int
+		BindPose gmath.Mat4x4f32
 	}
-	if err := json.UnmarshalRead(r, &tmp, json.StringifyNumbers(true)); err != nil {
+	var joints []joint
+	if err := json.UnmarshalRead(r, &joints, json.StringifyNumbers(true)); err != nil {
 		return nil, err
 	}
 
-	bones := slices.Sorted(maps.Keys(tmp.BindPose))
-	bonesInv := maps.Collect(func(yield func(string, int) bool) {
-		for k, v := range bones {
-			yield(v, k)
-		}
-	})
-
 	var skeleton Skeleton
+	skeleton.JointNames = make([]unique.Handle[string], len(joints))
+	skeleton.JointByName_ = make(map[unique.Handle[string]]int, len(joints))
+	skeleton.Parent = make([]int, len(joints))
+	skeleton.Children = make([][]int, len(joints))
+	skeleton.BindPose = make([]gmath.Affine3f32, len(joints))
+	skeleton.BindPoseInv = make([]gmath.Affine3f32, len(joints))
+	skeleton.ParentRelative = make([]gmath.Affine3f32, len(joints))
 
-	skeleton.JointNames = slices.Collect(func(yield func(unique.Handle[string]) bool) {
-		for _, bone := range bones {
-			yield(unique.Make(bone))
-		}
-	})
-	skeleton.JointByName_ = maps.Collect(func(yield func(unique.Handle[string], int) bool) {
-		for bone, index := range bonesInv {
-			yield(unique.Make(bone), index)
-		}
-	})
+	for i, joint := range joints {
+		name := unique.Make(joint.Name)
+		skeleton.JointNames[i] = name
+		skeleton.JointByName_[name] = i
 
-	skeleton.Parent = slices.Collect(func(yield func(int) bool) {
-		for _, bone := range bones {
-			parent, hasParent := skeleton.JointByName_[unique.Make(tmp.Parent[bone])]
-			if !hasParent {
-				parent = -1
-			}
-			yield(parent)
-		}
-	})
-
-	skeleton.Children = make([][]int, len(skeleton.Parent))
-	for bone, parent := range skeleton.Parent {
-		if parent != -1 {
-			skeleton.Children[parent] = append(skeleton.Children[parent], bone)
-		}
+		bindPose := gmath.Affine3FromMat4x4(joint.BindPose)
+		skeleton.BindPose[i] = bindPose
+		skeleton.BindPoseInv[i] = bindPose.Inv()
 	}
 
-	skeleton.BindPose = slices.Collect(func(yield func(gmath.Affine3f32) bool) {
-		for _, bone := range bones {
-			yield(gmath.Affine3FromMat4x4(tmp.BindPose[bone]))
-		}
-	})
+	// TODO: require that on disk children appear strictly after their parents.
+	// This will permit us to load everything in a single pass.
 
-	skeleton.BindPoseInv = slices.Collect(func(yield func(gmath.Affine3f32) bool) {
-		for _, bone := range bones {
-			yield(gmath.Affine3FromMat4x4(tmp.BindPose[bone]).Inv())
+	for i, joint := range joints {
+		parent := joint.Parent
+		skeleton.Parent[i] = parent
+		parentBindPoseInv := gmath.Affine3One[float32]()
+		if parent != -1 {
+			skeleton.Children[parent] = append(skeleton.Children[parent], i)
+			parentBindPoseInv = skeleton.BindPoseInv[parent]
 		}
-	})
-
-	skeleton.ParentRelative = slices.Collect(func(yield func(gmath.Affine3f32) bool) {
-		for bone := range bones {
-			umm := gmath.Affine3One[float32]()
-			if parent := skeleton.Parent[bone]; parent != -1 {
-				umm = skeleton.BindPoseInv[parent]
-			}
-			yield(umm.Mul(skeleton.BindPose[bone]))
-		}
-	})
+		skeleton.ParentRelative[i] = parentBindPoseInv.Mul(skeleton.BindPose[i])
+	}
 
 	return &skeleton, nil
 }

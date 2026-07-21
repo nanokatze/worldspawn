@@ -12,21 +12,19 @@ def deps(context, obj, dset):
 def cook(context, obj):
     armature = obj.data
 
-    # TODO: change everything to plain arrays
-    parent = {}
-    bind_pose = {}
+    # TODO: joints should be sorted by hierarchy relationship (parents should
+    # appear before their children) and then also by name.
+
+    joints = []
 
     for bone in armature.bones:
-        if bone.parent is not None:
-            parent[bone.name] = bone.parent.name
-        bind_pose[bone.name] = bone.matrix_local
+        joints.append({
+            'Name':     bone.name,
+            'Parent':   next((i for i, parent in enumerate(armature.bones) if parent == bone.parent), -1),
+            'BindPose': bone.matrix_local,
+        })
 
-    skeleton = {
-        'Parent': parent,
-        'BindPose': bind_pose,
-    }
-
-    skeleton = bpyutil.fixupdict(skeleton)
+    joints = bpyutil.fixupdict(joints)
 
     with open(context.path_for_datablock(obj), 'wb') as f:
-        json.dump(skeleton, util.UTF8Writer(f), default=bpyutil.asdasd, indent='\t')
+        json.dump(joints, util.UTF8Writer(f), default=bpyutil.asdasd, indent='\t')
