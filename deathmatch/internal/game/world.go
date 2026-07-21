@@ -6,10 +6,10 @@ import (
 	"reflect"
 	"unique"
 
-	"worldspawn/internal/animgraph"
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/ecs/bitset"
 	"worldspawn/internal/gmath"
+	"worldspawn/internal/loaders/skeleton"
 	"worldspawn/internal/physics"
 )
 
@@ -78,7 +78,7 @@ type Columns struct {
 	// lol. We'll need to think more about this.
 	Skeleton ecs.Column[unique.Handle[string]]
 
-	// Pose ecs.Column[animgraph.Pose]
+	// Pose ecs.Column[skeleton.Pose]
 
 	// Collision
 
@@ -144,7 +144,7 @@ type World struct {
 	Columns
 
 	Entities struct {
-		Pose []animgraph.Pose
+		Pose []skeleton.Pose
 
 		// Entities marked for deletion
 		delete bitset.Bitset
@@ -172,7 +172,7 @@ func NewWorld(n int) *World {
 		columns.Field(i).Addr().Interface().(interface{ Init(*ecs.Table) }).Init(world.Table)
 	}
 
-	world.Entities.Pose = make([]animgraph.Pose, n)
+	world.Entities.Pose = make([]skeleton.Pose, n)
 
 	world.entityUpdates = make([][]updatef, n)
 	world.entityUpdates2 = make([][]updatef, n)
@@ -216,7 +216,7 @@ func (world *World) CreateEntity(info *UpdateParams) Entity2 {
 
 // This is used by client networking to remove entities.
 func (world *World) DeleteEntityImmediately(id ecs.ID) {
-	world.Entities.Pose[id.Index()] = animgraph.Pose{}
+	world.Entities.Pose[id.Index()] = skeleton.Pose{}
 	if _, ok := world.physicsBodyExists.Get(id); ok {
 		world.physics.RemoveBody(physics.BodyID(id.Index()))
 	}
@@ -250,12 +250,12 @@ func (world *World) SetParent(id, parent ecs.ID) {
 	}
 }
 
-func (world *World) GetSkeleton(id ecs.ID) *animgraph.Skeleton {
+func (world *World) GetSkeleton(id ecs.ID) *skeleton.Skeleton {
 	skellyName, ok := world.Skeleton.Get(id)
 	if !ok {
 		return nil
 	}
-	return skeleton(skellyName)
+	return getskeleton(skellyName)
 }
 
 // TODO: do validation here
@@ -316,7 +316,7 @@ func (e Entity2) SetShouldSetOffFuseOnImpact(v bool) {
 func (e Entity2) SetSkeleton(v unique.Handle[string]) { e.world.Skeleton.Store(e.id.Index(), v) }
 
 // Note that pose is not replicated
-func (e Entity2) SetPose(v animgraph.Pose) { e.world.Entities.Pose[e.id.Index()] = v }
+func (e Entity2) SetPose(v skeleton.Pose) { e.world.Entities.Pose[e.id.Index()] = v }
 
 func (e Entity2) SetCollisionLayer(v CollisionLayer) { e.world.CollisionLayer.Store(e.id.Index(), v) }
 

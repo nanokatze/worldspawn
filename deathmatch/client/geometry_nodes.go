@@ -4,9 +4,9 @@ import (
 	"slices"
 
 	"worldspawn/gpu"
-	"worldspawn/internal/animgraph"
 	"worldspawn/internal/geometry"
 	"worldspawn/internal/gmath"
+	"worldspawn/internal/loaders/skeleton"
 	"worldspawn/internal/renderer"
 )
 
@@ -29,8 +29,8 @@ type gsdata struct {
 // TODO: rename this
 type geoNodes struct {
 	src    *fileBackedMesh
-	skelly *animgraph.Skeleton
-	pose   animgraph.Pose
+	skelly *skeleton.Skeleton
+	pose   skeleton.Pose
 }
 
 // TODO: factor out allocation requests into its own function so that we can run

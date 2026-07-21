@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"unique"
 
-	"worldspawn/internal/animgraph"
 	"worldspawn/internal/gmath"
+	"worldspawn/internal/loaders/skeleton"
 )
 
 type Animtest struct {
@@ -19,7 +19,7 @@ func init() {
 				func(info *UpdateParams, entity Entity2, io IO) {
 					animtest := entity.ScriptState().(Animtest)
 
-					animation := animation(animtest.Animation)
+					animation := getanimation(animtest.Animation)
 
 					skelly := entity.world.GetSkeleton(entity.ID())
 
@@ -51,7 +51,7 @@ func init() {
 							}.Compose()
 					}
 
-					pose := animgraph.Pose{
+					pose := skeleton.Pose{
 						Bones: map[int]gmath.Affine3f32{},
 					}
 
@@ -75,7 +75,7 @@ func init() {
 							tmp = parent
 						}
 
-						pose.Bones[bone] = A.Mul(skelly.BindPoseInverse[bone])
+						pose.Bones[bone] = A.Mul(skelly.BindPoseInv[bone])
 					}
 
 					entity.SetPose(pose)
