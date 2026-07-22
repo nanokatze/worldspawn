@@ -17,7 +17,7 @@ import (
 	"worldspawn/deathmatch/internal/game"
 	"worldspawn/deathmatch/internal/replication"
 	"worldspawn/internal/ecs"
-	"worldspawn/internal/framing"
+	"worldspawn/internal/netutil"
 	"worldspawn/internal/nice"
 )
 
@@ -92,7 +92,7 @@ func newClient(renderer Renderer, addr string) (*Client, error) {
 
 	ready := make(chan struct{})
 	go func() {
-		deframer := framing.NewDeframer(stream2)
+		deframer := netutil.NewDeframer(stream2)
 		for {
 			var msgtype uint64
 			if err := binary.Read(deframer, binary.LittleEndian, &msgtype); err != nil {
@@ -302,7 +302,7 @@ func (s *Client) tick(Δt time.Duration) {
 		s.inputCmds = s.inputCmds[:0]
 
 		// TODO: this can block which is not very nice... or maybe that's fine?
-		msg := framing.NewFramer(s.inputStream)
+		msg := netutil.NewFramer(s.inputStream)
 		msg.Write(buf.Bytes())
 		msg.Next()
 	}

@@ -22,8 +22,8 @@ import (
 	"worldspawn/deathmatch/internal/game"
 	"worldspawn/deathmatch/internal/replication"
 	"worldspawn/internal/ecs"
-	"worldspawn/internal/framing"
 	"worldspawn/internal/gmath"
+	"worldspawn/internal/netutil"
 	"worldspawn/internal/nice"
 )
 
@@ -155,7 +155,7 @@ func (s *Server) serveConn(conn *quic.Conn, logger *slog.Logger) error {
 	u.player = s.world.SpawnPlayer(&game.UpdateParams{})
 	s.mu.Unlock()
 
-	framer := framing.NewFramer(stream2)
+	framer := netutil.NewFramer(stream2)
 
 	{
 		binary.Write(framer, binary.LittleEndian, int64(replication.ResetTicker))
@@ -200,7 +200,7 @@ func (s *Server) serveConn(conn *quic.Conn, logger *slog.Logger) error {
 
 	go func() {
 		for {
-			framer := framing.NewFramer(stream2)
+			framer := netutil.NewFramer(stream2)
 
 			// TODO: instrument with counting writers and everything so we can
 			// see what's happening.
@@ -244,7 +244,7 @@ func (s *Server) serveConn(conn *quic.Conn, logger *slog.Logger) error {
 
 // TODO: rename to receiveInputCommands perhaps?
 func (s *Server) handleInputPackets(u *user, stream io.Reader) error {
-	deframer := framing.NewDeframer(stream)
+	deframer := netutil.NewDeframer(stream)
 	for {
 		// TODO: we don't need double layering of messages and input packets. I
 		// guess we could have a message per input packet?

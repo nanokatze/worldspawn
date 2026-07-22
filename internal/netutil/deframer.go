@@ -1,4 +1,4 @@
-package framing
+package netutil
 
 import "io"
 
