@@ -1,6 +1,8 @@
 package renderer
 
 import (
+	"structs"
+
 	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
 )
@@ -38,25 +40,26 @@ func (indexType indexType) vkIndexType() vk.IndexType {
 }
 
 type IndexBuffer struct {
+	_     structs.HostLayout
 	type_ indexType
 	data  gpu.UnsafePointer
 	len   int
 }
 
 func IndexBufferIdentity(len int) IndexBuffer {
-	return IndexBuffer{indexIdentity, 0, len}
+	return IndexBuffer{type_: indexIdentity, data: 0, len: len}
 }
 
 func IndexBufferFromUint8Slice(data gpu.Slice[uint8]) IndexBuffer {
-	return IndexBuffer{index8, gpu.UnsafePointer(gpu.SliceData(data)), gpu.SliceLen(data)}
+	return IndexBuffer{type_: index8, data: gpu.UnsafePointer(gpu.SliceData(data)), len: gpu.SliceLen(data)}
 }
 
 func IndexBufferFromUint16Slice(data gpu.Slice[uint16]) IndexBuffer {
-	return IndexBuffer{index16, gpu.UnsafePointer(gpu.SliceData(data)), gpu.SliceLen(data)}
+	return IndexBuffer{type_: index16, data: gpu.UnsafePointer(gpu.SliceData(data)), len: gpu.SliceLen(data)}
 }
 
 func IndexBufferFromUint32Slice(data gpu.Slice[uint32]) IndexBuffer {
-	return IndexBuffer{index32, gpu.UnsafePointer(gpu.SliceData(data)), gpu.SliceLen(data)}
+	return IndexBuffer{type_: index32, data: gpu.UnsafePointer(gpu.SliceData(data)), len: gpu.SliceLen(data)}
 }
 
 func (buf IndexBuffer) Len() int { return buf.len }
@@ -75,9 +78,5 @@ func (buf IndexBuffer) Slice(i, j int) IndexBuffer {
 		data = gpu.UnsafePointerAdd(data, i*buf.type_.Size())
 	}
 
-	return IndexBuffer{
-		type_: buf.type_,
-		data:  data,
-		len:   len,
-	}
+	return IndexBuffer{type_: buf.type_, data: data, len: len}
 }
