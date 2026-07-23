@@ -2,8 +2,10 @@ package game
 
 import (
 	"reflect"
+	"regexp"
 	"unique"
 
+	"worldspawn/internal/animation"
 	"worldspawn/internal/gmath"
 	"worldspawn/internal/loaders/skeleton"
 )
@@ -21,67 +23,63 @@ func init() {
 
 					animation := animationCache.Get(animtest.Animation)
 
-					skelly := entity.world.GetSkeleton(entity.ID())
+					sk := skeletonCache.Get(entity.Skeleton())
 
-					localTransforms := map[int]gmath.Affine3f32{}
+					t := float64(info.Now.Sub(Time{})%1e9) / 1e9 * 30
 
-					// localTransforms[skelly.JointByName("spine")] =
-					// 	gmath.TRS3f32{
-					// 		R: gmath.Rot3AToB(gmath.Vec3f32{0, 0, 1}, gmath.Vec3f32{1, 0, 0}).
-					// 			Pow(float32(math.Sin(float64(w.Now.Sub(0)) / 1e9))),
-					// 		S: gmath.Mat3x3UOne[float32](),
-					// 	}.Compose()
+					localTransforms := make([]gmath.Affine3f32, sk.NumJoints())
 
-					for _, bone := range []string{
-						"upper_arm.L",
-						"forearm.L",
-						"hand.L",
-					} {
-						t := float64(info.Now.Sub(Time{})%1e9) / 1e9 * 30
+					animatePose(animation, sk, localTransforms, t)
 
-						localTransforms[skelly.JointByName(unique.Make(bone))] =
-							gmath.TRS3f32{
-								R: gmath.Rot3{
-									animation.Channels["pose.bones[\""+bone+"\"].rotation_quaternion[1]"].Sample(t),
-									animation.Channels["pose.bones[\""+bone+"\"].rotation_quaternion[2]"].Sample(t),
-									animation.Channels["pose.bones[\""+bone+"\"].rotation_quaternion[3]"].Sample(t),
-									animation.Channels["pose.bones[\""+bone+"\"].rotation_quaternion[0]"].Sample(t),
-								}.Renormalize(),
-								S: gmath.Mat3x3UOne[float32](),
-							}.Compose()
-					}
-
-					pose := make(skeleton.Pose, skelly.NumJoints())
-					for i := range pose {
-						pose[i] = gmath.Affine3One[float32]()
-					}
-
-					// TODO: flooding would be more efficient
-					// TODO: factor this out
-					for bone := range skelly.NumJoints() {
-						A := gmath.Affine3One[float32]()
-
-						tmp := bone
-						for {
-							B, ok := localTransforms[tmp]
-							if !ok {
-								B = gmath.Affine3One[float32]()
-							}
-
-							A = skelly.ParentRelative[tmp].Mul(B).Mul(A)
-
-							parent := skelly.Parent[tmp]
-							if parent == -1 {
-								break
-							}
-							tmp = parent
-						}
-
-						pose[bone] = A.Mul(skelly.BindPoseInv[bone])
-					}
+					pose := make(skeleton.Pose, sk.NumJoints())
+					sk.ForwardKinematics(localTransforms, pose)
 
 					entity.SetPose(pose)
 				})
 		},
+	}
+}
+
+// TODO: don't use regexp but an actual parser please!!!
+var posekey = regexp.MustCompile(`^pose\.bones\["([^"]*)"\]\.(.*)$`)
+
+// TODO: instead of this function, we should have a function to apply []float32
+// that (*animation.Animation).Sample spits out, to pose.
+func animatePose(a *animation.Animation, sk *skeleton.Skeleton, pose []gmath.Affine3f32, t float64) {
+	point := make([]float32, len(a.Channels()))
+	a.Sample(t, point)
+
+	shadow := make([]gmath.TRS3f32, len(pose))
+	for i := range shadow {
+		shadow[i] = gmath.TRS3One[float32]()
+	}
+
+	for i, ch := range a.Channels() {
+		match := posekey.FindStringSubmatch(ch.Value())
+
+		joint := &shadow[sk.JointByName(unique.Make(match[1]))]
+		value := point[i]
+		field := match[2]
+
+		switch field {
+		case "location[0]":
+			joint.T[0] = value
+		case "location[1]":
+			joint.T[1] = value
+		case "location[2]":
+			joint.T[2] = value
+		case "rotation_quaternion[0]":
+			joint.R[3] = value
+		case "rotation_quaternion[1]":
+			joint.R[0] = value
+		case "rotation_quaternion[2]":
+			joint.R[1] = value
+		case "rotation_quaternion[3]":
+			joint.R[2] = value
+		}
+	}
+
+	for i := range pose {
+		pose[i] = shadow[i].Compose()
 	}
 }

@@ -1,50 +1,64 @@
-package animation // TODO: rename to animation
+package animation
 
 import (
 	"encoding/json/v2"
 	"io"
 	"math"
-	"time"
+	"slices"
 	"unique"
 )
 
-// TODO: kill this in favor of animation.Sample
-type Track []float32
+// TODO: use time.Duration instead of float64 please?
 
-// TODO: should t stay float64, or be changed to float32 or fixed point? I guess
-// we could just use time.Duration as well.
-func (track Track) Sample(t float64) float32 {
+type Animation struct {
+	frames   int
+	channels []unique.Handle[string]
+	data     [][]float32
+}
+
+func (a *Animation) Channels() []unique.Handle[string] { return a.channels }
+
+// TODO: what do we do if we don't want all of the channels?
+// TODO: a convenience variant that samples a single channel
+func (a *Animation) Sample(t float64, out []float32) {
 	s0 := int(math.Floor(t))
 	s1 := int(math.Ceil(t))
-	if !(0 <= s0 && s1 < len(track)) {
-		return 0
+	if !(0 <= s0 && s1 < a.frames) {
+		clear(out)
+		return
 	}
+
 	uhh := float32(t - math.Floor(t))
-	return track[s0]*(1-uhh) + track[s1]*uhh
-}
 
-// TODO: make the internals private. Also should be an interface probably.
-type Animation struct {
-	Frames   int
-	Channels map[string]Track
-}
-
-func (a *Animation) Channels_() []unique.Handle[string] {
-	panic("not implemented")
-}
-
-// TODO: allow the user to pass the mask of channels they're interested in and
-// assume out is tightly packed?
-// TODO: a convenience variant that samples a single channel
-func (a *Animation) Sample(t time.Duration, out []float32) {
-	panic("not implemented")
+	for i, ch := range a.data {
+		out[i] = ch[s0]*(1-uhh) + ch[s1]*uhh
+	}
 }
 
 // TODO: this should be implemented by various loaders
 func Read(r io.Reader) (*Animation, error) {
-	var animation Animation
-	if err := json.UnmarshalRead(r, &animation, json.StringifyNumbers(true)); err != nil {
+	var tmp struct {
+		Frames   int
+		Channels []struct {
+			Name string
+			Data []float32
+		}
+	}
+	if err := json.UnmarshalRead(r, &tmp, json.StringifyNumbers(true)); err != nil {
 		return nil, err
 	}
-	return &animation, nil
+
+	return &Animation{
+		frames: tmp.Frames,
+		channels: slices.Collect(func(yield func(unique.Handle[string]) bool) {
+			for _, ch := range tmp.Channels {
+				yield(unique.Make(ch.Name))
+			}
+		}),
+		data: slices.Collect(func(yield func([]float32) bool) {
+			for _, ch := range tmp.Channels {
+				yield(ch.Data)
+			}
+		}),
+	}, nil
 }

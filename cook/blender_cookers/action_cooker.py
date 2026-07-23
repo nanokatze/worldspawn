@@ -14,7 +14,7 @@ def cook(context, action):
     frame_begin = math.floor(action.frame_range[0])
     frame_end = math.ceil(action.frame_range[1])
 
-    channels = {}
+    channels = []
 
     # TODO: iiuc layers override "lower levels" so we should just collapse all
     # layers together and output the strips.
@@ -22,12 +22,13 @@ def cook(context, action):
         for strip in layer.strips:
             for channelbag in strip.channelbags:
                 for fcurve in channelbag.fcurves:
-                    key = f'{fcurve.data_path}[{fcurve.array_index}]'
-
-                    channels[key] = [fcurve.evaluate(i) for i in range(frame_begin, frame_end+1)]
+                    channels.append({
+                        'Name': f'{fcurve.data_path}[{fcurve.array_index}]',
+                        'Data': [fcurve.evaluate(i) for i in range(frame_begin, frame_end + 1)],
+                    })
 
     animation = {
-        'Frames': frame_end+1-frame_begin,
+        'Frames': frame_end + 1 - frame_begin,
         'Channels': channels,
     }
 

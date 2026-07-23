@@ -313,9 +313,13 @@ func (e Entity2) SetShouldSetOffFuseOnImpact(v bool) {
 	}
 }
 
+func (e Entity2) Skeleton() unique.Handle[string] { return e.world.Skeleton.Load(e.id.Index()) }
+
 func (e Entity2) SetSkeleton(v unique.Handle[string]) { e.world.Skeleton.Store(e.id.Index(), v) }
 
 // Note that pose is not replicated
+//
+// TODO: change up the api to encourage slice reuse
 func (e Entity2) SetPose(v skeleton.Pose) { e.world.Entities.Pose[e.id.Index()] = v }
 
 func (e Entity2) SetCollisionLayer(v CollisionLayer) { e.world.CollisionLayer.Store(e.id.Index(), v) }
