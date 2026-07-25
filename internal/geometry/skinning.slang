@@ -12,10 +12,10 @@ struct Push {
 	// TODO: what about the tangents?
 
 	float3 *skinnedPositions;
-	// float3 *skinnedNormals;
+	float3 *skinnedNormals;
 
 	float3 *restPositions;
-	// float3 *restNormals;
+	float3 *restNormals;
 
 	// TODO: we should interleave indices with weights probably. Or maybe not if
 	// we want to use alternative compact formats. .... Or we could just use our
@@ -62,4 +62,5 @@ void skinMesh(uint32_t index : SV_DispatchThreadID) {
 		push.jointWeights + index * push.jointsPerVertex, push.jointsPerVertex);
 
 	push.skinnedPositions[index] = mul(deform, float4(push.restPositions[index], 1.0)).xyz;
+	push.skinnedNormals[index] = normalize(mul(float3x3(deform), push.restNormals[index])); // TODO: wrong with non-uniform scaling and/or shearing, review
 }

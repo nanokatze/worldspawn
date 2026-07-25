@@ -57,6 +57,7 @@ func (gs *geoNodes) EnqueueEvaluate(jq *gpu.JobQueue, data *gsdata) {
 	rest := gs.src.geometry
 
 	restPositions := gs.src.attrs[renderer.AttributePosition].(gpu.Slice[[3]float32])
+	restNormals := gs.src.attrs[renderer.AttributeNormal].(gpu.Slice[[3]float32])
 
 	skinnedPositions := data.skinnedPositions
 	if gpu.SliceCap(skinnedPositions) < gpu.SliceLen(restPositions) {
@@ -64,7 +65,14 @@ func (gs *geoNodes) EnqueueEvaluate(jq *gpu.JobQueue, data *gsdata) {
 	}
 	skinnedPositions = skinnedPositions.Slice(0, gpu.SliceLen(restPositions))
 
+	skinnedNormals := data.skinnedNormals
+	if gpu.SliceCap(skinnedNormals) < gpu.SliceLen(restNormals) {
+		skinnedNormals = gpu.MakeSliceUncached[[3]float32](gpu.SliceLen(restNormals))
+	}
+	skinnedNormals = skinnedNormals.Slice(0, gpu.SliceLen(restNormals))
+
 	data.skinnedPositions = skinnedPositions
+	data.skinnedNormals = skinnedNormals
 
 	// TODO: we should probably have our own geometry structure with a method to
 	// copy it over into pathtracer.Geometry so that we don't need to do this
@@ -72,6 +80,7 @@ func (gs *geoNodes) EnqueueEvaluate(jq *gpu.JobQueue, data *gsdata) {
 	skinned := new(renderer.Geometry)
 	skinned.AttributeBuffers = slices.Clone(rest.AttributeBuffers)
 	skinned.AttributeBuffers[renderer.AttributePosition] = skinnedPositions
+	skinned.AttributeBuffers[renderer.AttributeNormal] = skinnedNormals
 	skinned.Parts = slices.Clone(gs.src.geometry.Parts)
 	data.geometry = skinned
 
@@ -99,7 +108,7 @@ func (gs *geoNodes) EnqueueEvaluate(jq *gpu.JobQueue, data *gsdata) {
 	}
 
 	// TODO: we need to run this every frame, interpolating stuff.
-	geometry.EnqueueSkinMesh(jq, skinnedPositions, restPositions, gs.src.jointWeights, gs.src.jointsPerVertex, data.pose)
+	geometry.EnqueueSkinMesh(jq, skinnedPositions, skinnedNormals, restPositions, restNormals, gs.src.jointWeights, gs.src.jointsPerVertex, data.pose)
 
 	data.accel.EnqueueBuild(jq, accelConfig)
 }

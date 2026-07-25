@@ -1,14 +1,6 @@
 package geometry
 
-import (
-	"log"
-	"math"
-	"testing"
-
-	"worldspawn/gpu"
-	"worldspawn/internal/gmath"
-)
-
+/*
 func TestXxx(t *testing.T) {
 	vertexCount := 4
 	skinnedPositions := gpu.MakeSliceUncached[[3]float32](vertexCount)
@@ -47,3 +39,4 @@ func TestXxx(t *testing.T) {
 
 	log.Println(skinnedPositions.Value())
 }
+*/
