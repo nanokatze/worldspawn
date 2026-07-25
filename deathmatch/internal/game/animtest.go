@@ -68,15 +68,15 @@ func poseAnimator(a *animation.Animation, sk *skeleton.Skeleton) func(point []fl
 
 		chmap[i] = trs3Chmap{
 			T: [3]int{
-				slices.Index(a.Channels(), unique.Make("pose.bones[\""+sk.JointNames[i].Value()+"\"].location[0]")),
-				slices.Index(a.Channels(), unique.Make("pose.bones[\""+sk.JointNames[i].Value()+"\"].location[1]")),
-				slices.Index(a.Channels(), unique.Make("pose.bones[\""+sk.JointNames[i].Value()+"\"].location[2]")),
+				slices.Index(a.Channels(), "pose.bones[\""+sk.JointNames[i].Value()+"\"].location[0]"),
+				slices.Index(a.Channels(), "pose.bones[\""+sk.JointNames[i].Value()+"\"].location[1]"),
+				slices.Index(a.Channels(), "pose.bones[\""+sk.JointNames[i].Value()+"\"].location[2]"),
 			},
 			R: [4]int{
-				slices.Index(a.Channels(), unique.Make("pose.bones[\""+sk.JointNames[i].Value()+"\"].rotation_quaternion[1]")),
-				slices.Index(a.Channels(), unique.Make("pose.bones[\""+sk.JointNames[i].Value()+"\"].rotation_quaternion[2]")),
-				slices.Index(a.Channels(), unique.Make("pose.bones[\""+sk.JointNames[i].Value()+"\"].rotation_quaternion[3]")),
-				slices.Index(a.Channels(), unique.Make("pose.bones[\""+sk.JointNames[i].Value()+"\"].rotation_quaternion[0]")),
+				slices.Index(a.Channels(), "pose.bones[\""+sk.JointNames[i].Value()+"\"].rotation_quaternion[1]"),
+				slices.Index(a.Channels(), "pose.bones[\""+sk.JointNames[i].Value()+"\"].rotation_quaternion[2]"),
+				slices.Index(a.Channels(), "pose.bones[\""+sk.JointNames[i].Value()+"\"].rotation_quaternion[3]"),
+				slices.Index(a.Channels(), "pose.bones[\""+sk.JointNames[i].Value()+"\"].rotation_quaternion[0]"),
 			},
 		}
 	}

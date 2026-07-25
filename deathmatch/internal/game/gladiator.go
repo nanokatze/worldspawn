@@ -9,6 +9,7 @@ import (
 
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/gmath"
+	"worldspawn/internal/loaders/skeleton"
 	"worldspawn/internal/physics"
 )
 
@@ -209,62 +210,6 @@ func init() {
 				recoil = weapon.Script().Weapon_Think(info, world, weapon, state.HeldWeapon.Props[:], gladiator, T_attack, v_attack, buttons, io)
 			}
 
-			// EXTREMELY YUCKY!!!!!!!!!!!!
-			/*
-				{
-					// TODO: interpolate between two poses instead
-
-					skelly := world.GetSkeleton(entity)
-
-					localTransforms := map[int]gmath.Affine3f32{}
-					localTransforms[skelly.JointByName("spine")] =
-						skelly.BindPoseInverse[skelly.JointByName("spine")].
-							Mul(gmath.TRS3f32{
-								R: gmath.Rot3AToB(gmath.Vec3f32{1, 0, 0}, gmath.Vec3f32{0, 1, 0}).
-									Pow(4 * gladiator.Input.LookDir[0]),
-								S: gmath.Mat3x3UOne[float32](),
-							}.Compose()).
-							Mul(skelly.BindPose[skelly.JointByName("spine")])
-					localTransforms[skelly.JointByName("spine.001")] =
-						gmath.TRS3f32{
-							R: gmath.Rot3AToB(gmath.Vec3f32{0, 0, 1}, gmath.Vec3f32{0, 1, 0}).
-								Pow(4 * gladiator.Input.LookDir[1]),
-							S: gmath.Mat3x3UOne[float32](),
-						}.Compose()
-
-					pose := animgraph.Pose{
-						Bones: map[int]gmath.Affine3f32{},
-					}
-
-					// TODO: flooding would be more efficient
-					for bone := range skelly.JointNames {
-						A := gmath.Affine3One[float32]()
-
-						tmp := bone
-						for {
-							B, ok := localTransforms[tmp]
-							if !ok {
-								B = gmath.Affine3One[float32]()
-							}
-
-							A = skelly.ParentRelative[tmp].Mul(B).Mul(A)
-
-							parent := skelly.Parent[tmp]
-							if parent == -1 {
-								break
-							}
-							tmp = parent
-						}
-
-						pose.Bones[bone] = A.Mul(skelly.BindPoseInverse[bone])
-					}
-
-					io.EnqueueEntityUpdate(entity, func(world *World, entity ecs.ID, info *UpdateParams) {
-						world.Pose.Set(entity, pose)
-					})
-				}
-			*/
-
 			// TODO: redo sway animation
 			{
 				velocity := gladiator.Velocity()
@@ -282,6 +227,8 @@ func init() {
 					})
 			}
 
+			// TODO: this depends on LookDir so we should stick it inside the
+			// Update, after we do += recoil.
 			{
 				camera := world.GetEntity2(state.FirstPersonCamera)
 
@@ -369,6 +316,41 @@ func init() {
 					}
 
 					gladiator.SetVelocity(velocity)
+
+					{
+						anim := animationCache.Get(unique.Make("testcharacter4/animations/look"))
+
+						// TODO: introduce affine1 helper so that we can do remaps from one range to another
+
+						point := make([]float32, len(anim.Channels()))
+						anim.Sample(29*float64(0.5+2*state.Input.LookDir[1]), point)
+
+						sk := skeletonCache.Get(gladiator.Skeleton())
+
+						localTransforms := make([]gmath.Affine3f32, sk.NumJoints())
+						for i := range localTransforms {
+							localTransforms[i] = gmath.Affine3One[float32]()
+						}
+
+						poseAnimCache.Get(poseAnimCacheKey{anim, sk})(point, localTransforms)
+
+						b_spine := sk.JointByName(unique.Make("spine"))
+
+						localTransforms[b_spine] =
+							sk.BindPoseInv[b_spine].
+								Mul(gmath.TRS3f32{
+									R: gmath.Rot3AToB(gmath.Vec3f32{1, 0, 0}, gmath.Vec3f32{0, 1, 0}).
+										Pow(4 * state.Input.LookDir[0]),
+									S: gmath.Mat3x3UOne[float32](),
+								}.Compose()).
+								Mul(sk.BindPose[b_spine]).
+								Mul(localTransforms[b_spine])
+
+						pose := make(skeleton.Pose, sk.NumJoints())
+						sk.ForwardKinematics(localTransforms, pose)
+
+						gladiator.SetPose(pose)
+					}
 				})
 		},
 

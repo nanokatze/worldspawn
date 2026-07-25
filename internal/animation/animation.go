@@ -5,18 +5,17 @@ import (
 	"io"
 	"math"
 	"slices"
-	"unique"
 )
 
 // TODO: use time.Duration instead of float64 please?
 
 type Animation struct {
 	frames   int
-	channels []unique.Handle[string]
+	channels []string
 	data     [][]float32
 }
 
-func (a *Animation) Channels() []unique.Handle[string] { return a.channels }
+func (a *Animation) Channels() []string { return a.channels }
 
 // TODO: what do we do if we don't want all of the channels?
 // TODO: a convenience variant that samples a single channel
@@ -50,9 +49,9 @@ func Read(r io.Reader) (*Animation, error) {
 
 	return &Animation{
 		frames: tmp.Frames,
-		channels: slices.Collect(func(yield func(unique.Handle[string]) bool) {
+		channels: slices.Collect(func(yield func(string) bool) {
 			for _, ch := range tmp.Channels {
-				yield(unique.Make(ch.Name))
+				yield(ch.Name)
 			}
 		}),
 		data: slices.Collect(func(yield func([]float32) bool) {
