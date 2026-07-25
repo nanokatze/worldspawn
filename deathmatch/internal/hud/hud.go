@@ -15,12 +15,10 @@ import (
 // how to do animations. We'll do a widget tree like gio UI does.
 type State struct {
 	Health int32
-	Bleed  int32
 }
 
 func (state *State) Update(world *game.World, playerID ecs.ID) {
 	state.Health = 0
-	state.Bleed = 0
 
 	player := world.GetEntity2(playerID)
 	if !player.Valid() {
@@ -41,7 +39,6 @@ func (state *State) Update(world *game.World, playerID ecs.ID) {
 	}
 
 	state.Health = max(pawnState.Vitals.Health, 0)
-	state.Bleed = max(pawnState.Vitals.HealthToBleed, 0)
 }
 
 // TODO: it would be nice if this fed into some kind of vector rasterizer

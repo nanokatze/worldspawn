@@ -52,14 +52,6 @@ type Gladiator struct {
 
 	Vitals struct {
 		Health int32
-
-		// TODO: generalize "de/buffs"? We'd have to put them separately from Vitals.
-
-		// How much health we still have to bleed.
-		HealthToBleed int32
-
-		// When we lose a health point due to bleed
-		NextBleed Time
 	}
 
 	// TODO: factor out movement into its own struct? Yeah
@@ -289,16 +281,6 @@ func init() {
 						state.Motion.Steps = 0
 					}
 
-					for state.Vitals.HealthToBleed > 0 && !state.Vitals.NextBleed.After(info.Now) {
-						const bleedSpeedFactor = 0.1
-						const minBleedSpeed = 1.0
-
-						state.Vitals.Health--
-						state.Vitals.HealthToBleed--
-						state.Vitals.NextBleed = state.Vitals.NextBleed.
-							Add(time.Duration(1e9 / max(float64(state.Vitals.HealthToBleed)*bleedSpeedFactor, minBleedSpeed)))
-					}
-
 					// TODO: we should probably enqueue the death so that it happens
 					// after all impacts. That way we can see how far we are below 0
 					// and therefore decide whether we want to spawn gibs or just
@@ -364,15 +346,10 @@ func init() {
 			// Ceil to avoid rounding to zero
 			modifiedDamage := int32(math.Ceil(float64(impact.Damage) * modifier))
 
-			directDamage := int32(math.Ceil(float64(modifiedDamage) * (1 - float64(impactBleedFactor[impact.Type]))))
-			bleeding := modifiedDamage - directDamage
-
 			state := gladiator.ScriptState().(Gladiator)
 			defer func() { gladiator.SetScriptState(state) }()
 
-			state.Vitals.Health -= directDamage
-			state.Vitals.HealthToBleed += bleeding
-			state.Vitals.NextBleed = info.Now
+			state.Vitals.Health -= modifiedDamage
 		},
 
 		Magazine_Pull: func(info *UpdateParams, entity Entity2, ammoType AmmoType, io IO) bool {

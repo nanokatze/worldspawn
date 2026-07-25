@@ -11,11 +11,6 @@ const (
 	BulletImpact
 )
 
-var impactBleedFactor = map[ImpactType]float32{
-	BlastImpactWithFragmentation: 0.33,
-	BulletImpact:                 0.5,
-}
-
 // TODO: make this more structured and possibly pull this from json
 var impactForceFactor = map[ImpactType]float32{
 	BlastImpact:                  0.2,
