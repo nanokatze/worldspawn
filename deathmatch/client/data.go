@@ -82,14 +82,14 @@ type rendererMaterial struct {
 	material *renderer.InterpretedMaterial
 }
 
-var materialcache = cache.New(func(filename unique.Handle[string]) *rendererMaterial {
+var materialcache = cache.New(func(filename unique.Handle[string]) rendererMaterial {
 	log.Println("loading material", path.Clean(filename.Value()))
 
 	intermediate, err := material.Load(game.Data, path.Clean(filename.Value()))
 	if err != nil {
 		log.Printf("getmaterial: %v", err)
 
-		return &rendererMaterial{
+		return rendererMaterial{
 			material: errorMaterial(),
 		}
 	}
@@ -106,7 +106,7 @@ var materialcache = cache.New(func(filename unique.Handle[string]) *rendererMate
 		}
 	}))
 
-	return &rendererMaterial{
+	return rendererMaterial{
 		preamble: matc.CompilePreamble(paramsTuple, intermediate.Preamble),
 		material: renderer.NewInterpretedMaterial(matc.CompileInterpretedMaterial(paramsTuple, nil, intermediate.IR, debuglog)),
 	}
@@ -363,7 +363,7 @@ func extractChannel(s []float32, channels, channel int) []float32 {
 	return s2
 }
 
-var soundcache = cache.New(func(filename unique.Handle[string]) *[]float32 {
+var soundcache = cache.New(func(filename unique.Handle[string]) []float32 {
 	f, err := game.Data.Open(filename.Value())
 	if err != nil {
 		// TODO: should be non-fatal
@@ -379,5 +379,5 @@ var soundcache = cache.New(func(filename unique.Handle[string]) *[]float32 {
 	samples, _ := readSamples(reader, wav.Format(reader.Config().Format))
 	effect := extractChannel(samples, reader.Config().Channels, 0)
 
-	return &effect
+	return effect
 })
