@@ -2,10 +2,11 @@ package game
 
 import (
 	"reflect"
-	"regexp"
+	"slices"
 	"unique"
 
 	"worldspawn/internal/animation"
+	"worldspawn/internal/cache"
 	"worldspawn/internal/gmath"
 	"worldspawn/internal/loaders/skeleton"
 )
@@ -17,69 +18,103 @@ type Animtest struct {
 func init() {
 	Scripts[reflect.TypeFor[Animtest]()] = script{
 		Think: func(info *UpdateParams, world *World, entity Entity2, io IO) {
-			io.Update(entity,
-				func(info *UpdateParams, entity Entity2, io IO) {
-					animtest := entity.ScriptState().(Animtest)
+			io.Update(entity, func(info *UpdateParams, entity Entity2, io IO) {
+				animtest := entity.ScriptState().(Animtest)
 
-					animation := animationCache.Get(animtest.Animation)
+				animation := animationCache.Get(animtest.Animation)
 
-					sk := skeletonCache.Get(entity.Skeleton())
+				sk := skeletonCache.Get(entity.Skeleton())
 
-					t := float64(info.Now.Sub(Time{})%1e9) / 1e9 * 30
+				t := float64(info.Now.Sub(Time{})%1e9) / 1e9 * 30
 
-					localTransforms := make([]gmath.Affine3f32, sk.NumJoints())
+				point := make([]float32, len(animation.Channels()))
+				animation.Sample(t, point)
 
-					animatePose(animation, sk, localTransforms, t)
+				localTransforms := make([]gmath.Affine3f32, sk.NumJoints())
 
-					pose := make(skeleton.Pose, sk.NumJoints())
-					sk.ForwardKinematics(localTransforms, pose)
+				poseAnimCache.Get(poseAnimCacheKey{animation, sk})(point, localTransforms)
 
-					entity.SetPose(pose)
-				})
+				pose := make(skeleton.Pose, sk.NumJoints())
+				sk.ForwardKinematics(localTransforms, pose)
+
+				entity.SetPose(pose)
+			})
 		},
 	}
 }
 
-// TODO: don't use regexp but an actual parser please!!!
-var posekey = regexp.MustCompile(`^pose\.bones\["([^"]*)"\]\.(.*)$`)
+type poseAnimCacheKey struct {
+	A  *animation.Animation
+	Sk *skeleton.Skeleton
+}
 
-// TODO: instead of this function, we should have a function to apply []float32
-// that (*animation.Animation).Sample spits out, to pose.
-func animatePose(a *animation.Animation, sk *skeleton.Skeleton, pose []gmath.Affine3f32, t float64) {
-	point := make([]float32, len(a.Channels()))
-	a.Sample(t, point)
+var poseAnimCache = cache.New(func(key poseAnimCacheKey) func(point []float32, pose []gmath.Affine3f32) {
+	return poseAnimator(key.A, key.Sk)
+})
 
-	shadow := make([]gmath.TRS3f32, len(pose))
-	for i := range shadow {
-		shadow[i] = gmath.TRS3One[float32]()
+// TODO: move this to internal/animation
+func poseAnimator(a *animation.Animation, sk *skeleton.Skeleton) func(point []float32, pose []gmath.Affine3f32) {
+	type trs3Chmap struct {
+		T [3]int
+		R [4]int
+		// S [6]int
 	}
 
-	for i, ch := range a.Channels() {
-		match := posekey.FindStringSubmatch(ch.Value())
+	chmap := make([]trs3Chmap, sk.NumJoints())
+	// TODO: should we loop over channels or over joints?
+	for i := range sk.NumJoints() {
+		// TODO: skip if a particular joint is not animated. We could also make
+		// things sparse.
 
-		joint := &shadow[sk.JointByName(unique.Make(match[1]))]
-		value := point[i]
-		field := match[2]
-
-		switch field {
-		case "location[0]":
-			joint.T[0] = value
-		case "location[1]":
-			joint.T[1] = value
-		case "location[2]":
-			joint.T[2] = value
-		case "rotation_quaternion[0]":
-			joint.R[3] = value
-		case "rotation_quaternion[1]":
-			joint.R[0] = value
-		case "rotation_quaternion[2]":
-			joint.R[1] = value
-		case "rotation_quaternion[3]":
-			joint.R[2] = value
+		chmap[i] = trs3Chmap{
+			T: [3]int{
+				slices.Index(a.Channels(), unique.Make("pose.bones[\""+sk.JointNames[i].Value()+"\"].location[0]")),
+				slices.Index(a.Channels(), unique.Make("pose.bones[\""+sk.JointNames[i].Value()+"\"].location[1]")),
+				slices.Index(a.Channels(), unique.Make("pose.bones[\""+sk.JointNames[i].Value()+"\"].location[2]")),
+			},
+			R: [4]int{
+				slices.Index(a.Channels(), unique.Make("pose.bones[\""+sk.JointNames[i].Value()+"\"].rotation_quaternion[1]")),
+				slices.Index(a.Channels(), unique.Make("pose.bones[\""+sk.JointNames[i].Value()+"\"].rotation_quaternion[2]")),
+				slices.Index(a.Channels(), unique.Make("pose.bones[\""+sk.JointNames[i].Value()+"\"].rotation_quaternion[3]")),
+				slices.Index(a.Channels(), unique.Make("pose.bones[\""+sk.JointNames[i].Value()+"\"].rotation_quaternion[0]")),
+			},
 		}
 	}
 
-	for i := range pose {
-		pose[i] = shadow[i].Compose()
+	return func(point []float32, pose []gmath.Affine3f32) {
+		if len(pose) != len(chmap) {
+			panic("guh")
+		}
+
+		for i, j := range chmap {
+			// TODO: decompose if things are partially animated
+			tmp := gmath.TRS3One[float32]()
+
+			if j.T[0] != -1 {
+				tmp.T[0] = point[j.T[0]]
+			}
+			if j.T[1] != -1 {
+				tmp.T[1] = point[j.T[1]]
+			}
+			if j.T[2] != -1 {
+				tmp.T[2] = point[j.T[2]]
+			}
+
+			if j.R[0] != -1 {
+				tmp.R[0] = point[j.R[0]]
+			}
+			if j.R[1] != -1 {
+				tmp.R[1] = point[j.R[1]]
+			}
+			if j.R[2] != -1 {
+				tmp.R[2] = point[j.R[2]]
+			}
+			if j.R[3] != -1 {
+				tmp.R[3] = point[j.R[3]]
+			}
+			tmp.R = tmp.R.Renormalize()
+
+			pose[i] = tmp.Compose()
+		}
 	}
 }
