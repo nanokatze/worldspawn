@@ -68,7 +68,7 @@ func init() {
 
 			if buttons&WeaponTrigger != 0 && !state.CycleEnds.After(info.Now) {
 				io.Update(attacker, func(info *UpdateParams, mag Entity2, io IO) {
-					if !mag.Script().Magazine_Pull(info, mag, 0, io) {
+					if mag.Script().Magazine_Pull(info, mag, AmmoGrenades, 1, 1, io) <= 0 {
 						return
 					}
 

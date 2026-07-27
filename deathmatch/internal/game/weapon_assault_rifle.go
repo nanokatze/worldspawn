@@ -62,7 +62,7 @@ func init() {
 					})
 
 				io.Update(attacker, func(info *UpdateParams, mag Entity2, io IO) {
-					if !mag.Script().Magazine_Pull(info, mag, 1, io) {
+					if mag.Script().Magazine_Pull(info, mag, AmmoBullets, 1, 1, io) <= 0 {
 						// play a "click" sound to indicate that we ran out of ammo.
 						return
 					}

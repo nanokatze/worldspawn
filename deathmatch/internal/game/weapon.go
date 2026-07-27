@@ -4,6 +4,12 @@ import "worldspawn/internal/gmath"
 
 type AmmoType int8
 
+const (
+	_ AmmoType = iota - 1
+	AmmoGrenades
+	AmmoBullets
+)
+
 // TODO: give this a better name pls
 type WeaponHint struct {
 	// TODO: this should choose the animation set basically. Or maybe we should
@@ -20,7 +26,9 @@ const (
 	WeaponTrigger
 )
 
+/*
 // TODO: rename this to literally anything but
 type Recoil struct {
 	Recoil [2]float32
 }
+*/

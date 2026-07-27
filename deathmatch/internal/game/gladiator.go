@@ -345,15 +345,16 @@ func init() {
 			state.Vitals.Health -= impact.Damage
 		},
 
-		Magazine_Pull: func(info *UpdateParams, entity Entity2, ammoType AmmoType, io IO) bool {
+		Magazine_Pull: func(info *UpdateParams, entity Entity2, ammoType AmmoType, minAmount, maxAmount int, io IO) int {
 			state := entity.ScriptState().(Gladiator)
-			if state.Inventory.Ammo[ammoType] <= 0 {
-				return false
+			if state.Inventory.Ammo[ammoType] <= int8(minAmount) {
+				return 0
 			}
 			defer func() { entity.SetScriptState(state) }()
 
-			state.Inventory.Ammo[ammoType]--
-			return true
+			amount := int8(min(int(state.Inventory.Ammo[ammoType]), maxAmount))
+			state.Inventory.Ammo[ammoType] -= amount
+			return int(amount)
 		},
 	}
 }

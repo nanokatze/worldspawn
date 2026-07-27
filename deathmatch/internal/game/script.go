@@ -7,6 +7,9 @@ import (
 	"worldspawn/internal/gmath"
 )
 
+// TODO: all mutators should be continuation-based for composability. I.e.
+// instead of returning a result, they should take a continuation to call.
+
 // TODO: switch over more funcs to use Entity2?
 type script struct {
 	Funcs map[string]any
@@ -69,10 +72,8 @@ type script struct {
 		buttons WeaponButtons,
 		io IO)
 
-	// TODO: we might want to specify ammo type or at least mask?
-	// TODO: allow pulling multiple rounds? ideally we'd specify min and max.
-	// TODO: this should not have IO but a pure mutator
-	Magazine_Pull func(info *UpdateParams, entity Entity2, ammoType AmmoType, io IO) bool
+	// TODO: for composability reasons, this should probably take a continuation
+	Magazine_Pull func(info *UpdateParams, entity Entity2, ammoType AmmoType, min, max int, io IO) int
 }
 
 // Public only so that replication can load/store things. We'll eventually make this private.
