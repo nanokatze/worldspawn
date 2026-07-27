@@ -80,7 +80,7 @@ var JSONOptions = json.JoinOptions(
 		json.UnmarshalFromFunc(float32JSONUnmarshaler),
 		json.UnmarshalFromFunc(float64JSONUnmarshaler),
 
-		json.UnmarshalFromFunc(func(dec *jsontext.Decoder, x *Entity) error {
+		json.UnmarshalFromFunc(func(dec *jsontext.Decoder, x *ScriptState) error {
 			if _, err := dec.ReadToken(); err != nil {
 				return err
 			}
@@ -114,7 +114,7 @@ var JSONOptions = json.JoinOptions(
 				return err
 			}
 
-			*x, _ = reflect.TypeAssert[Entity](data.Elem())
+			*x, _ = reflect.TypeAssert[ScriptState](data.Elem())
 			return nil
 		}),
 	)))

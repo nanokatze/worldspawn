@@ -33,7 +33,7 @@ type Columns struct {
 
 	Name ecs.Column[unique.Handle[string]]
 
-	ScriptState ecs.Column[Entity]
+	ScriptState ecs.Column[ScriptState]
 
 	NextThink ecs.Column[Time]
 
@@ -287,9 +287,9 @@ func (e Entity2) Script() script {
 	return Scripts[reflect.TypeOf(e.world.ScriptState.Load(e.id.Index()))]
 }
 
-func (e Entity2) ScriptState() Entity { return e.world.ScriptState.Load(e.id.Index()) }
+func (e Entity2) ScriptState() ScriptState { return e.world.ScriptState.Load(e.id.Index()) }
 
-func (e Entity2) SetScriptState(v Entity) { e.world.ScriptState.Store(e.id.Index(), v) }
+func (e Entity2) SetScriptState(v ScriptState) { e.world.ScriptState.Store(e.id.Index(), v) }
 
 func (e Entity2) SetNextThink(v Time) { e.world.NextThink.Store(e.id.Index(), v) }
 

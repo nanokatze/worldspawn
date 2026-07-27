@@ -76,3 +76,39 @@ func MakeInterfaceArshaler[T any](types ...reflect.Type) Arshalers {
 			return nil
 		})
 }
+
+// TODO: kill this as well to be honest.
+// TODO: allow f and g to return error?
+func MakeInterfaceArshaler2[T any, ID any](f func(reflect.Type) ID, g func(ID) reflect.Type) Arshalers {
+	return MakeArshaler(
+		func(enc *Encoder, x *T) error {
+			data := reflect.ValueOf(*x)
+			typ := data.Type()
+
+			id := f(typ)
+			if err := MarshalEncode(enc, &id); err != nil {
+				return err
+			}
+
+			// TODO: any way we could avoid an alloc?
+			tmp := reflect.New(typ)
+			tmp.Elem().Set(data)
+			return MarshalEncode(enc, tmp.Interface())
+		},
+		func(dec *Decoder, x *T) error {
+			var id ID
+			if err := UnmarshalDecode(dec, &id); err != nil {
+				return err
+			}
+
+			typ := g(id)
+
+			// TODO: any way we could avoid an alloc?
+			data := reflect.New(typ)
+			if err := UnmarshalDecode(dec, data.Interface()); err != nil {
+				return err
+			}
+			*x, _ = reflect.TypeAssert[T](data.Elem())
+			return nil
+		})
+}
