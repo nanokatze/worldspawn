@@ -12,7 +12,7 @@ type UpdateParams struct {
 	Δt          time.Duration
 	Speculating bool
 
-	WorldGlobals
+	Worldspawn
 }
 
 // TODO: do not accept updateParams here but raw Δt and flags. We should
@@ -20,7 +20,7 @@ type UpdateParams struct {
 func (world *World) Step(updateParams UpdateParams) {
 	world.Now = world.Now.Add(updateParams.Δt)
 
-	updateParams.WorldGlobals = world.GetEntity2(1).ScriptState().(WorldGlobals)
+	updateParams.Worldspawn = world.GetEntity2(1).ScriptState().(Worldspawn)
 	updateParams.Now = world.Now
 
 	world.think(&updateParams)

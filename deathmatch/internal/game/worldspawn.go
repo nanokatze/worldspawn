@@ -7,8 +7,7 @@ import (
 	"worldspawn/internal/gmath"
 )
 
-// TODO: rename to Worldspawn
-type WorldGlobals struct {
+type Worldspawn struct {
 	Now Time
 
 	// TODO: replace it with sky material
@@ -20,10 +19,10 @@ type WorldGlobals struct {
 }
 
 func init() {
-	Scripts[reflect.TypeFor[WorldGlobals]()] = script{}
+	Scripts[reflect.TypeFor[Worldspawn]()] = script{}
 }
 
 // TODO: kill this method, it's useless
-func (world *World) Globals() WorldGlobals {
-	return world.GetEntity2(1).ScriptState().(WorldGlobals)
+func (world *World) Globals() Worldspawn {
+	return world.GetEntity2(1).ScriptState().(Worldspawn)
 }
