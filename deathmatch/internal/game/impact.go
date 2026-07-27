@@ -2,7 +2,7 @@ package game
 
 type ImpactType int
 
-// TODO: it would be nice if we could register these at runtime somehow.
+// TODO: it would be nice if we could register these at runtime
 const (
 	_ ImpactType = iota
 	BlastImpact
@@ -29,7 +29,7 @@ type Impact struct {
 
 	Type ImpactType
 
-	Damage int32
+	Damage float32 // TODO: should be a fixed point
 
 	Δv Velocity
 }

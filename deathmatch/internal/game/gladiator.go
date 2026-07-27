@@ -51,7 +51,7 @@ type Gladiator struct {
 	}
 
 	Vitals struct {
-		Health int32
+		Health float32
 	}
 
 	// TODO: factor out movement into its own struct? Yeah
@@ -284,10 +284,10 @@ func init() {
 					}
 
 					// TODO: we should probably enqueue the death so that it happens
-					// after all impacts. That way we can see how far we are below 0
+					// after all impacts. That way we can see how far we are below 1
 					// and therefore decide whether we want to spawn gibs or just
 					// drop a ragdoll.
-					if state.Vitals.Health <= 0 {
+					if state.Vitals.Health < 1 {
 						gladiator.Logger().Info("killing myself!!!")
 
 						// TODO: spawn ragdoll or gibs
@@ -340,18 +340,18 @@ func init() {
 
 		Impact: func(info *UpdateParams, gladiator Entity2, impact Impact, io IO) {
 			// TODO: be verbose when computing the modifier
-			modifier := 1.0
+			modifier := float32(1.0)
 			if gladiator == impact.Attacker {
 				modifier /= 2
 			}
 
-			// Ceil to avoid rounding to zero
-			modifiedDamage := int32(math.Ceil(float64(impact.Damage) * modifier))
+			// TODO: round this off in certain cases?
+			impact.Damage *= modifier
 
 			state := gladiator.ScriptState().(Gladiator)
 			defer func() { gladiator.SetScriptState(state) }()
 
-			state.Vitals.Health -= modifiedDamage
+			state.Vitals.Health -= impact.Damage
 		},
 
 		Magazine_Pull: func(info *UpdateParams, entity Entity2, ammoType AmmoType, io IO) bool {

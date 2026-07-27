@@ -38,7 +38,7 @@ func (state *State) Update(world *game.World, playerID ecs.ID) {
 		return
 	}
 
-	state.Health = max(pawnState.Vitals.Health, 0)
+	state.Health = int32(max(pawnState.Vitals.Health, 0))
 }
 
 // TODO: it would be nice if this fed into some kind of vector rasterizer

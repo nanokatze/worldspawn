@@ -13,7 +13,7 @@ import (
 type ExplosiveBarrel struct {
 	// TODO:
 
-	Health int32
+	Health float32
 
 	Attacker ecs.ID // who is using us to cause damage
 }
@@ -27,7 +27,7 @@ func init() {
 			state := entity.ScriptState().(ExplosiveBarrel)
 			T := world.GetGlobalTransform2(entity)
 
-			if state.Health <= 0 {
+			if state.Health < 1 {
 				attacker := world.GetEntity2(state.Attacker)
 				if !attacker.Valid() {
 					// If there's nobody using us, report ourselves as the

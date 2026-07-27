@@ -72,7 +72,7 @@ func (world *World) explosion(
 			Attacker: impact.Attacker,
 			Type:     impact.Type,
 			Δv:       result.dvel.Scale(impactForceFactor[impact.Type] * float32(impact.Damage)),
-			Damage:   int32(result.dmg * float32(impact.Damage)),
+			Damage:   result.dmg * impact.Damage,
 		}
 
 		io.Update(world.GetEntity2(entityID), impact.Apply)
