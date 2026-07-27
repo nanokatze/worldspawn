@@ -68,16 +68,18 @@ func init() {
 					}
 
 					if !info.Speculating {
-						impact := Impact{
-							Attacker: attacker,
-							Type:     BulletImpact,
-							Damage:   7,
-							Δv: Velocity{
-								Linear: T_attack.M.Mulv(forward).Normalize().Scale(1),
-							},
-						}
+						if rayHit.Entity.Valid() {
+							impact := Impact{
+								Attacker: attacker,
+								Type:     BulletImpact,
+								Damage:   7,
+								Δv: Velocity{
+									Linear: T_attack.M.Mulv(forward).Normalize().Scale(1),
+								},
+							}
 
-						io.Update(world.GetEntity2(rayHit.Entity), impact.Apply)
+							io.Update(rayHit.Entity, impact.Apply)
+						}
 					}
 
 					// Apply effects to the props; TODO: let's have scripts on the props

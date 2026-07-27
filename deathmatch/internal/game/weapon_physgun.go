@@ -46,15 +46,15 @@ func init() {
 						Entity: func(entity ecs.ID) bool { return entity != attacker.ID() },
 					})
 
-				if rayHit.Entity != ecs.NullID {
-					transform := T_attack.Inv().Mul(world.GetGlobalTransform(rayHit.Entity))
+				if rayHit.Entity.Valid() {
+					transform := T_attack.Inv().Mul(world.GetGlobalTransform(rayHit.Entity.ID()))
 
 					io.Update(weapon,
 						func(_ *UpdateParams, weapon Entity2, io IO) {
 							state := weapon.ScriptState().(WeaponPhysgun)
 							defer func() { weapon.SetScriptState(state) }()
 
-							state.HeldEntity = rayHit.Entity
+							state.HeldEntity = rayHit.Entity.ID()
 							state.Transform = transform
 						})
 				}

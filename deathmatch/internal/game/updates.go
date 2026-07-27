@@ -26,7 +26,16 @@ type updatef struct {
 	f   func(info *UpdateParams, entity Entity2, io IO)
 }
 
+func (io IO) validate(entity Entity2) {
+	// TODO: we can validate more stuff tbh
+	if !entity.Valid() {
+		panic("bad")
+	}
+}
+
 func (io IO) Update(to Entity2, f func(info *UpdateParams, entity Entity2, io IO)) {
+	io.validate(to)
+
 	updates := &io.world.entityUpdates[to.id.Index()]
 	*updates = append(*updates, updatef{io.key, f})
 }

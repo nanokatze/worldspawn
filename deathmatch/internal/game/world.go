@@ -251,10 +251,10 @@ func (world *World) GetSkeleton(id ecs.ID) *skeleton.Skeleton {
 // TODO: rename to just Entity when we rename the Entity column to something
 // more reasonable.
 func (world *World) GetEntity2(id ecs.ID) Entity2 {
-	if world.Table.IDs().Exists(id) {
-		return Entity2{world, id}
+	if !world.Table.IDs().Exists(id) {
+		return Entity2{}
 	}
-	return Entity2{}
+	return Entity2{world, id}
 }
 
 // Entity2 must not be stored in any structures and also not passed across

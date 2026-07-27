@@ -55,16 +55,18 @@ func (world *World) explosion(
 				TMax:      radius,
 			},
 			queryFilters)
-		if rayHit.Entity == ecs.NullID {
+		if !rayHit.Entity.Valid() {
 			continue
 		}
 
 		dmg := pdf * spat
 
-		tmp := results[rayHit.Entity]
+		id := rayHit.Entity.ID()
+
+		tmp := results[id]
 		tmp.dvel = tmp.dvel.Add(Velocity{Linear: d}.Scale(dmg))
 		tmp.dmg += dmg
-		results[rayHit.Entity] = tmp
+		results[id] = tmp
 	}
 
 	for entityID, result := range results {
@@ -75,6 +77,7 @@ func (world *World) explosion(
 			Damage:   result.dmg * impact.Damage,
 		}
 
+		// TODO: we could skip validation here.
 		io.Update(world.GetEntity2(entityID), impact.Apply)
 	}
 }
