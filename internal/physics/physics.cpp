@@ -360,26 +360,26 @@ JPH::RMat44 GetCenterOfMassTransform(JPH::RVec3Arg inPosition, JPH::QuatArg inRo
 
 class MyObjectLayerFilter : public JPH::ObjectLayerFilter {
 public:
-	MyObjectLayerFilter(void *pipeline) : pipeline(pipeline) {}
+	MyObjectLayerFilter(uintptr_t pipeline) : pipeline(pipeline) {}
 
 	virtual bool ShouldCollide(JPH::ObjectLayer layer) const override {
 		return physicsFilterLayerImpl(pipeline, (size_t)layer);
 	}
 
 private:
-	void *pipeline;
+	uintptr_t pipeline;
 };
 
 class MyBodyFilter : public JPH::BodyFilter
 {
 public:
-	MyBodyFilter(void *pipeline) : pipeline(pipeline) {}
+	MyBodyFilter(uintptr_t pipeline) : pipeline(pipeline) {}
 
 	virtual bool ShouldCollide(const JPH::BodyID &inBodyID) const override {
 		return physicsFilterBodyImpl(pipeline, inBodyID.GetIndexAndSequenceNumber());
 	}
 
-	void *pipeline;
+	uintptr_t pipeline;
 };
 
 // TODO: to implement per-subshape friction and restitution we just need to set
@@ -387,7 +387,7 @@ public:
 // of subshapes. We'll also want to disable "manifold combining" or whatever it
 // was called for select shapes.
 
-void physicsTraceRay(Physics *system, Ray ray, void *pipeline) {
+void physicsTraceRay(Physics *system, Ray ray, uintptr_t pipeline) {
 	// Ideally passing inf would be a supported use case.
 	ray.tmax = std::min(ray.tmax, 1e9f);
 
@@ -414,7 +414,7 @@ void physicsTraceRay(Physics *system, Ray ray, void *pipeline) {
 		}
 
 		float tmax;
-		void *pipeline;
+		uintptr_t pipeline;
 	};
 
 	MyCollector collector;
@@ -431,7 +431,7 @@ void physicsTraceRay(Physics *system, Ray ray, void *pipeline) {
 		{});
 }
 
-void physicsOverlapQuery(Physics *system, Overlap overlap, void *pipeline) {
+void physicsOverlapQuery(Physics *system, Overlap overlap, uintptr_t pipeline) {
 	class MyCollector : public JPH::CollideShapeCollector {
 	public:
 		virtual void AddHit(const JPH::CollideShapeResult &result) override {
@@ -457,7 +457,7 @@ void physicsOverlapQuery(Physics *system, Overlap overlap, void *pipeline) {
 			}
 		};
 
-		void *pipeline;
+		uintptr_t pipeline;
 	};
 
 	MyCollector collector;
@@ -482,7 +482,7 @@ void physicsOverlapQuery(Physics *system, Overlap overlap, void *pipeline) {
 		{});
 }
 
-void physicsSweepQuery(Physics *system, Overlap overlap, void *pipeline) {
+void physicsSweepQuery(Physics *system, Overlap overlap, uintptr_t pipeline) {
 }
 
 void physicsSetGravity(Physics *system, const vec3 gravity) {

@@ -61,7 +61,7 @@ func NewSystem(
 		(*C.bool)(unsafe.SliceData(layerRules))))
 }
 
-// TODO: factor all parameters into a struct?
+// TODO: factor all parameters into a struct? Or function options
 func (system *System) Update(dt float32, gravity gmath.Vec3f32) {
 	C.physicsSetGravity((*C.Physics)(system), *(*C.vec3)(unsafe.Pointer(&gravity)))
 	C.physicsUpdate((*C.Physics)(system), C.float(dt))

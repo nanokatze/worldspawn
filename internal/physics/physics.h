@@ -75,9 +75,9 @@ Physics* newPhysics(
 	const uint8_t *objectLayerToBroadPhaseLayer,
 	const bool *shouldObjectLayersCollide);
 
-bool physicsFilterLayerImpl(void *pipeline, uint32_t layer);
+bool physicsFilterLayerImpl(uintptr_t pipeline, uint32_t layer);
 
-bool physicsFilterBodyImpl(void *pipeline, BodyID bodyID);
+bool physicsFilterBodyImpl(uintptr_t pipeline, BodyID bodyID);
 
 // TODO: naming
 
@@ -95,10 +95,10 @@ struct SceneRayHit {
 	// SubShapeID subShapeID;
 };
 
-void physicsTraceRay(Physics *system, Ray ray, void *pipeline);
+void physicsTraceRay(Physics *system, Ray ray, uintptr_t pipeline);
 
 // TODO: we need a enum for this
-int physicsRayHitImpl(void *pipeline, SceneRayHit hit);
+int physicsRayHitImpl(uintptr_t pipeline, SceneRayHit hit);
 
 // TODO: pass base offset explicitly?
 typedef struct Overlap Overlap;
@@ -123,16 +123,16 @@ struct SceneOverlapHit {
 };
 
 // TODO: rename
-void physicsOverlapQuery(Physics *system, Overlap overlap, void *pipeline);
+void physicsOverlapQuery(Physics *system, Overlap overlap, uintptr_t pipeline);
 
-int physicsOverlapHitTramp(void *pipeline, SceneOverlapHit hit);
+int physicsOverlapHitTramp(uintptr_t pipeline, SceneOverlapHit hit);
 
 typedef struct Sweep Sweep;
 struct Sweep {
 	dvec3 pos;
 };
 
-void physicsSweepQuery(Physics *system, Sweep sweep, void *pipeline);
+void physicsSweepQuery(Physics *system, Sweep sweep, uintptr_t pipeline);
 
 void physicsSetGravity(Physics *physics, vec3 gravity);
 

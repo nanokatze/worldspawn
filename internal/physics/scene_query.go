@@ -37,7 +37,7 @@ type SceneQueryPipeline[T any] interface {
 }
 
 //export physicsFilterLayerImpl
-func physicsFilterLayerImpl(cpipeline unsafe.Pointer, layer uint32) C.bool {
+func physicsFilterLayerImpl(cpipeline uintptr, layer uint32) C.bool {
 	type Interface interface {
 		FilterLayer(int) bool
 	}
@@ -49,7 +49,7 @@ func physicsFilterLayerImpl(cpipeline unsafe.Pointer, layer uint32) C.bool {
 }
 
 //export physicsFilterBodyImpl
-func physicsFilterBodyImpl(cpipeline unsafe.Pointer, bodyID BodyID) C.bool {
+func physicsFilterBodyImpl(cpipeline uintptr, bodyID BodyID) C.bool {
 	type Interface interface {
 		FilterBody(BodyID) bool
 	}
@@ -84,11 +84,11 @@ func (system *System) TraceRay(ray Ray, pipeline SceneQueryPipeline[RayHit]) {
 	cpipeline := cgo.NewHandle(pipeline)
 	defer cpipeline.Delete()
 
-	C.physicsTraceRay((*C.Physics)(system), *(*C.Ray)(unsafe.Pointer(&ray)), unsafe.Pointer(cpipeline))
+	C.physicsTraceRay((*C.Physics)(system), *(*C.Ray)(unsafe.Pointer(&ray)), C.uintptr_t(cpipeline))
 }
 
 //export physicsRayHitImpl
-func physicsRayHitImpl(pipeline unsafe.Pointer, hit C.SceneRayHit) C.int {
+func physicsRayHitImpl(pipeline uintptr, hit C.SceneRayHit) C.int {
 	return C.int(cgo.Handle(pipeline).Value().(SceneQueryPipeline[RayHit]).Hit(*(*SceneRayHit)(unsafe.Pointer(&hit))))
 }
 
@@ -117,10 +117,10 @@ func (system *System) Overlap(overlap Overlap, pipeline SceneQueryPipeline[Overl
 	cpipeline := cgo.NewHandle(pipeline)
 	defer cpipeline.Delete()
 
-	C.physicsOverlapQuery((*C.Physics)(system), *(*C.Overlap)(unsafe.Pointer(&overlap)), unsafe.Pointer(cpipeline))
+	C.physicsOverlapQuery((*C.Physics)(system), *(*C.Overlap)(unsafe.Pointer(&overlap)), C.uintptr_t(cpipeline))
 }
 
 //export physicsOverlapHitTramp
-func physicsOverlapHitTramp(pipeline unsafe.Pointer, hit C.SceneOverlapHit) C.int {
+func physicsOverlapHitTramp(pipeline uintptr, hit C.SceneOverlapHit) C.int {
 	return C.int(cgo.Handle(pipeline).Value().(SceneQueryPipeline[OverlapHit]).Hit((*(*SceneIntersection[OverlapHit])(unsafe.Pointer(&hit)))))
 }
