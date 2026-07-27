@@ -1,8 +1,8 @@
 package game
 
 import (
+	"maps"
 	"reflect"
-	"slices"
 	"unique"
 
 	"worldspawn/internal/animation"
@@ -58,23 +58,39 @@ func poseAnimator(a *animation.Animation, sk *skeleton.Skeleton) func(point []fl
 		// S [6]int
 	}
 
+	channels := maps.Collect(func(yield func(string, int) bool) {
+		for i, name := range a.Channels() {
+			yield(name, i)
+		}
+	})
+
+	lookupchannel := func(name string) int {
+		if index, ok := channels[name]; ok {
+			return index
+		}
+		return -1
+	}
+
 	chmap := make([]trs3Chmap, sk.NumJoints())
 	// TODO: should we loop over channels or over joints?
 	for i := range sk.NumJoints() {
 		// TODO: skip if a particular joint is not animated. We could also make
 		// things sparse.
 
+		// TODO: we should have our own channel names. They should have a form
+		// of entitybinding.field.subfield..., Though in certain cases I suppose
+		// we'll need to add magic names, such as with the pose.
 		chmap[i] = trs3Chmap{
 			T: [3]int{
-				slices.Index(a.Channels(), "pose.bones[\""+sk.JointNames[i].Value()+"\"].location[0]"),
-				slices.Index(a.Channels(), "pose.bones[\""+sk.JointNames[i].Value()+"\"].location[1]"),
-				slices.Index(a.Channels(), "pose.bones[\""+sk.JointNames[i].Value()+"\"].location[2]"),
+				lookupchannel("pose.bones[\"" + sk.JointNames[i].Value() + "\"].location[0]"),
+				lookupchannel("pose.bones[\"" + sk.JointNames[i].Value() + "\"].location[1]"),
+				lookupchannel("pose.bones[\"" + sk.JointNames[i].Value() + "\"].location[2]"),
 			},
 			R: [4]int{
-				slices.Index(a.Channels(), "pose.bones[\""+sk.JointNames[i].Value()+"\"].rotation_quaternion[1]"),
-				slices.Index(a.Channels(), "pose.bones[\""+sk.JointNames[i].Value()+"\"].rotation_quaternion[2]"),
-				slices.Index(a.Channels(), "pose.bones[\""+sk.JointNames[i].Value()+"\"].rotation_quaternion[3]"),
-				slices.Index(a.Channels(), "pose.bones[\""+sk.JointNames[i].Value()+"\"].rotation_quaternion[0]"),
+				lookupchannel("pose.bones[\"" + sk.JointNames[i].Value() + "\"].rotation_quaternion[1]"),
+				lookupchannel("pose.bones[\"" + sk.JointNames[i].Value() + "\"].rotation_quaternion[2]"),
+				lookupchannel("pose.bones[\"" + sk.JointNames[i].Value() + "\"].rotation_quaternion[3]"),
+				lookupchannel("pose.bones[\"" + sk.JointNames[i].Value() + "\"].rotation_quaternion[0]"),
 			},
 		}
 	}
