@@ -16,18 +16,18 @@ type Animation struct {
 }
 
 func SampleTime(a *Animation, t time.Duration, out []float32) {
-	frames, frameRate := a.Duration()
-	a.Sample(int64(t)*int64(frames)/int64(frameRate), out)
+	a.Sample(int64(t)*int64(a.FrameRate()), out)
 }
 
 func SampleNormalized(a *Animation, t float32, out []float32) {
-	frames, _ := a.Duration()
-	a.Sample(int64(t*float32(frames)*1e9), out)
+	a.Sample(int64(t*float32(a.Frames())*1e9), out)
 }
 
 // Duration of an animation. If an animation is periodic, this is the duration
 // of the periodic segment.
-func (a *Animation) Duration() (int, int) { return a.frames, 30 }
+func (a *Animation) Frames() int { return a.frames }
+
+func (a *Animation) FrameRate() int { return 30 }
 
 func (a *Animation) Channels() []string { return a.channels }
 
