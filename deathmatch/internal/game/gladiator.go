@@ -7,6 +7,7 @@ import (
 	"time"
 	"unique"
 
+	"worldspawn/internal/animation"
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/gmath"
 	"worldspawn/internal/loaders/skeleton"
@@ -299,7 +300,7 @@ func init() {
 						// TODO: introduce affine1 helper so that we can do remaps from one range to another
 
 						point := make([]float32, len(anim.Channels()))
-						anim.Sample(29*float64(0.5+2*state.Input.LookDir[1]), point)
+						animation.SampleNormalized(anim, 0.5+2*state.Input.LookDir[1], point)
 
 						sk := skeletonCache.Get(gladiator.Skeleton())
 

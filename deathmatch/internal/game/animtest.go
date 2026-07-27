@@ -21,14 +21,12 @@ func init() {
 			io.Update(entity, func(info *UpdateParams, entity Entity2, io IO) {
 				state := entity.ScriptState().(Animtest)
 
-				animation := animationCache.Get(state.Animation)
+				anim := animationCache.Get(state.Animation)
 
 				sk := skeletonCache.Get(entity.Skeleton())
 
-				t := float64(info.Now.Sub(Time{})%1e9) / 1e9 * 30
-
-				point := make([]float32, len(animation.Channels()))
-				animation.Sample(t, point)
+				point := make([]float32, len(anim.Channels()))
+				animation.SampleTime(anim, info.Now.Sub(Time{}), point)
 
 				localTransforms := make([]gmath.Affine3f32, sk.NumJoints())
 
