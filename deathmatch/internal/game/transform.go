@@ -31,7 +31,7 @@ func (e Entity2) SetTransform(v gmath.TRS3f64) {
 	e.world.TransformS.Store(e.id.Index(), v.S)
 }
 
-func (e Entity2) SetTranslationAndRotation(v TR3f64) { e.world.TransformTR.Store(e.id.Index(), v) }
+func (e Entity2) SetTransformTR(v TR3f64) { e.world.TransformTR.Store(e.id.Index(), v) }
 
 func (world *World) GetGlobalTransform2(entity Entity2) gmath.Affine3f64 {
 	return world.GetGlobalTransform(entity.ID())

@@ -169,7 +169,7 @@ func (world *World) physicsStep(updateParams *UpdateParams) {
 
 		pos, rot, linVel, angVel := world.physics.WritebackBody(bodyID)
 
-		entity.SetTranslationAndRotation(TR3f64{T: pos, R: rot})
+		entity.SetTransformTR(TR3f64{T: pos, R: rot})
 
 		// TODO: don't store velocity back for kinematic bodies
 		entity.SetVelocity(Velocity{Linear: linVel, Angular: angVel})

@@ -60,7 +60,6 @@ type Columns struct {
 	//
 	// The translation and rotation parts of the entity's parent-relative
 	// transform.
-	// TODO: rename to TranslationAndRotation
 	TransformTR ecs.Column[TR3f64]
 	// Do not access this column directly; use {Get,Set}Transform and
 	// GetGlobalTransform instead.
@@ -70,7 +69,6 @@ type Columns struct {
 	// It is possible for an entity to have a TransformTR but not TransformS, in
 	// which case no scaling or shearing is applied to the entity.
 	// TODO: we'll later hard-require TransformS to always be set to something valid.
-	// TODO: rename to ScalingAndShearing
 	TransformS ecs.Column[gmath.Mat3x3Uf32]
 
 	// TODO: make skeletons part of geometry? Ok actually wait which geometry
