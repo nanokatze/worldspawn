@@ -64,7 +64,8 @@ func init() {
 		},
 
 		ContactAdded: func(info *UpdateParams, world *World, grenade, entity2 ecs.ID) {
-			state, _ := world.GetEntity[GrenadeInFlight](grenade)
+			state := world.GetEntity2(grenade).ScriptState().(GrenadeInFlight)
+
 			if entity2 == state.Attacker {
 				// TODO: this should not be reachable, but for now it is. We
 				// should ignore this contact in ShouldCollide.
@@ -77,7 +78,7 @@ func init() {
 
 			if _, ok := world.ShouldSetOffFuseOnImpact.Get(entity2); ok {
 				state.ExplodeNow = true
-				world.Entity.Set(grenade, state)
+				world.GetEntity2(grenade).SetScriptState(state)
 			}
 		},
 	}

@@ -65,16 +65,16 @@ func (world *World) Camera(playerID ecs.ID) ecs.ID {
 // TODO: this should not take UpdateParams *at all* I think. Actually we still
 // need flags, but not Δt.
 func (world *World) HandleInput(playerID ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
-	playerState := mustOk(world.GetEntity[Player](playerID))
+	playerState := world.GetEntity2(playerID).ScriptState().(Player)
 	if pawn := world.GetEntity2(playerState.Pawn); pawn.Valid() {
 		pawn.Script().Input(info, world, pawn.ID(), cmd)
 	} else {
 		if !info.Speculating {
-			spawnPoint := world.findSpawnPoint()
+			spawnPoint := world.findPlayerSpawn()
 			world.logger.Info("spawn", "player", playerID, "T", spawnPoint)
 
 			playerState.Pawn = world.spawnGladiator(spawnPoint, info)
-			world.Entity.Set(playerID, playerState)
+			world.GetEntity2(playerID).SetScriptState(playerState)
 		}
 	}
 }

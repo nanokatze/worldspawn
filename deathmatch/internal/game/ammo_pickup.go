@@ -18,7 +18,7 @@ func init() {
 
 			T := world.GetGlobalTransform2(entity)
 
-			for id, state := range ecs.All(&io.world.Entity) {
+			for id, state := range ecs.All(&io.world.ScriptState) {
 				if _, ok := state.(Gladiator); ok {
 					player := world.GetEntity2(id)
 					playerT := io.world.GetGlobalTransform(id)

@@ -3,11 +3,11 @@ package game
 import (
 	"reflect"
 	"slices"
+
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/gmath"
 )
 
-// TODO: rename to SpawnPoint
 type PlayerSpawn struct{}
 
 func init() {
@@ -16,9 +16,9 @@ func init() {
 
 // TODO: we need to pass more data here to choose the spawn point
 // TODO: we should also perform collision queries to ensure free space
-func (world *World) findSpawnPoint() gmath.TRS3f64 {
+func (world *World) findPlayerSpawn() gmath.TRS3f64 {
 	candidates := slices.Collect(func(yield func(ecs.ID) bool) {
-		for id, entity := range ecs.All(&world.Entity) {
+		for id, entity := range ecs.All(&world.ScriptState) {
 			if _, ok := entity.(PlayerSpawn); ok {
 				yield(id)
 			}

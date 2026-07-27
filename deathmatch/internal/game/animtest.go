@@ -19,9 +19,9 @@ func init() {
 	Scripts[reflect.TypeFor[Animtest]()] = script{
 		Think: func(info *UpdateParams, world *World, entity Entity2, io IO) {
 			io.Update(entity, func(info *UpdateParams, entity Entity2, io IO) {
-				animtest := entity.ScriptState().(Animtest)
+				state := entity.ScriptState().(Animtest)
 
-				animation := animationCache.Get(animtest.Animation)
+				animation := animationCache.Get(state.Animation)
 
 				sk := skeletonCache.Get(entity.Skeleton())
 

@@ -76,7 +76,7 @@ def cook(context, scene):
     tmp.cooked = {}
     tmp.entity = 1
 
-    tmp.add_entity({'Entity': {'WorldGlobals': cooked_scene}})
+    tmp.add_entity({'ScriptState': {'WorldGlobals': cooked_scene}})
 
     __handle_collection(context, tmp, scene.collection, Matrix())
 

@@ -111,8 +111,8 @@ func (world *World) InstanceCollectionAt(id ecs.ID, prefabRef PrefabRef) {
 func (dst *Columns) CopyEntities(id ecs.ID, src *Columns) {
 	// TODO: rewrite using reflect
 
-	if v, ok := src.Entity.Get(1); ok {
-		dst.Entity.Set(id, v)
+	if v, ok := src.ScriptState.Get(1); ok {
+		dst.ScriptState.Set(id, v)
 	}
 	if v, ok := src.TransformTR.Get(1); ok {
 		dst.TransformTR.Set(id, v)

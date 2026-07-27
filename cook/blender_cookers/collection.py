@@ -62,6 +62,8 @@ def cook_objects_into(context, xform, collection, cooked_scene):
 
         values = json.loads(obj.worldspawn.values or '{}')
 
+        assert 'Entity' not in values, f'{obj.name}'
+
         # TODO: should we always overwrite the values?
         # We might want to warn or error if these values are already set. Or
         # don't overwrite if these are already set. Erroring out seems to be the

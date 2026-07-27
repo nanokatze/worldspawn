@@ -33,8 +33,7 @@ type Columns struct {
 
 	Name ecs.Column[unique.Handle[string]]
 
-	// TODO: rename this pls
-	Entity ecs.Column[Entity]
+	ScriptState ecs.Column[Entity]
 
 	NextThink ecs.Column[Time]
 
@@ -225,16 +224,6 @@ func (world *World) DeleteEntityImmediately(id ecs.ID) {
 
 // TODO: kill all of these helpers
 
-// TODO: rename this
-func (world *World) GetEntity[T Entity](id ecs.ID) (T, bool) {
-	entity, _ := world.Entity.Get(id)
-	entityT, ok := entity.(T)
-	if !ok {
-		return *new(T), false
-	}
-	return entityT, true
-}
-
 func (world *World) GetParent(id ecs.ID) ecs.ID {
 	parent, _ := world.Parent.Get(id)
 	return parent
@@ -295,12 +284,12 @@ func (e Entity2) Clear() {
 // script satisfies some interface, and stuff for calling that interface?
 // TODO: return a pointer instead of struct as is?
 func (e Entity2) Script() script {
-	return Scripts[reflect.TypeOf(e.world.Entity.Load(e.id.Index()))]
+	return Scripts[reflect.TypeOf(e.world.ScriptState.Load(e.id.Index()))]
 }
 
-func (e Entity2) ScriptState() Entity { return e.world.Entity.Load(e.id.Index()) }
+func (e Entity2) ScriptState() Entity { return e.world.ScriptState.Load(e.id.Index()) }
 
-func (e Entity2) SetScriptState(v Entity) { e.world.Entity.Store(e.id.Index(), v) }
+func (e Entity2) SetScriptState(v Entity) { e.world.ScriptState.Store(e.id.Index(), v) }
 
 func (e Entity2) SetNextThink(v Time) { e.world.NextThink.Store(e.id.Index(), v) }
 

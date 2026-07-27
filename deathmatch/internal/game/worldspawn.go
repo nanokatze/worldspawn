@@ -23,7 +23,7 @@ func init() {
 	Scripts[reflect.TypeFor[WorldGlobals]()] = script{}
 }
 
+// TODO: kill this method, it's useless
 func (world *World) Globals() WorldGlobals {
-	globals, _ := world.GetEntity[WorldGlobals](1)
-	return globals
+	return world.GetEntity2(1).ScriptState().(WorldGlobals)
 }

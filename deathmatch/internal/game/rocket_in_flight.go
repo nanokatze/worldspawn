@@ -56,13 +56,13 @@ func init() {
 				})
 		},
 
-		ContactAdded: func(_ *UpdateParams, world *World, grenade, entity2 ecs.ID) {
-			state, _ := world.GetEntity[RocketInFlight](grenade)
+		ContactAdded: func(_ *UpdateParams, world *World, rocket, entity2 ecs.ID) {
+			state := world.GetEntity2(rocket).ScriptState().(RocketInFlight)
 			if entity2 == state.Attacker {
 				// TODO: filter this in ShouldCollide. This should never be reached
 				return
 			}
-			defer func() { world.Entity.Set(grenade, state) }()
+			defer func() { world.GetEntity2(rocket).SetScriptState(state) }()
 
 			state.ExplodeNow = true
 		},

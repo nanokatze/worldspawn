@@ -94,8 +94,10 @@ type Gladiator struct {
 func init() {
 	Scripts[reflect.TypeFor[Gladiator]()] = script{
 		Input: func(info *UpdateParams, world *World, id ecs.ID, cmd TimestampedInputCmd) {
-			gladiator, _ := world.GetEntity[Gladiator](id)
-			defer func() { world.Entity.Set(id, gladiator) }()
+			entity := world.GetEntity2(id)
+
+			gladiator := entity.ScriptState().(Gladiator)
+			defer func() { entity.SetScriptState(gladiator) }()
 
 			switch cmd := cmd.Cmd.(type) {
 			case InputCmdDLookXY:
@@ -537,10 +539,11 @@ func (gladiator *Gladiator) asdasd(world *World, id ecs.ID, velocity gmath.Vec3f
 
 // TODO: delete this
 func (world *World) GiveWeapon(id ecs.ID, weapon ecs.ID) {
-	char := mustOk(world.GetEntity[Gladiator](id))
+	entity := world.GetEntity2(id)
+	char := entity.ScriptState().(Gladiator)
 	freeSlot := slices.Index(char.Inventory.Slots[:], 0)
 	char.Inventory.Slots[freeSlot] = weapon
-	world.Entity.Set(id, char)
+	entity.SetScriptState(char)
 
 	world.SetParent(weapon, id)
 }
