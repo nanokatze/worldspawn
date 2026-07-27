@@ -28,7 +28,7 @@ func init() {
 			T_attack gmath.Affine3f64,
 			v_attack Velocity,
 			buttons WeaponButtons,
-			io IO) Recoil {
+			io IO) {
 			state := weapon.ScriptState().(WeaponPhysgun)
 
 			holdingEntity := world.GetEntity2(state.HeldEntity).Valid()
@@ -79,8 +79,6 @@ func init() {
 						state.HeldEntity = ecs.NullID
 					})
 			}
-
-			return Recoil{}
 		},
 	}
 }

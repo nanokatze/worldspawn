@@ -67,7 +67,7 @@ type script struct {
 		T_attack gmath.Affine3f64,
 		v_attack Velocity,
 		buttons WeaponButtons,
-		io IO) Recoil
+		io IO)
 
 	// TODO: we might want to specify ammo type or at least mask?
 	// TODO: allow pulling multiple rounds? ideally we'd specify min and max.

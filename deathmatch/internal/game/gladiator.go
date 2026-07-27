@@ -186,7 +186,6 @@ func init() {
 
 			state := gladiator.ScriptState().(Gladiator)
 
-			var recoil Recoil
 			if weapon := world.GetEntity2(state.HeldWeapon.Entity); weapon.Valid() {
 				var buttons WeaponButtons
 				if state.Input.HeldButtons&uint64(1<<ButtonAttack) != 0 {
@@ -201,7 +200,7 @@ func init() {
 					}.Compose())
 				v_attack := gladiator.Velocity()
 
-				recoil = weapon.Script().Weapon_Think(info, world, weapon, state.HeldWeapon.Props[:], gladiator, T_attack, v_attack, buttons, io)
+				weapon.Script().Weapon_Think(info, world, weapon, state.HeldWeapon.Props[:], gladiator, T_attack, v_attack, buttons, io)
 			}
 
 			// TODO: redo sway animation
@@ -221,8 +220,6 @@ func init() {
 					})
 			}
 
-			// TODO: this depends on LookDir so we should stick it inside the
-			// Update, after we do += recoil.
 			{
 				camera := world.GetEntity2(state.FirstPersonCamera)
 
@@ -240,11 +237,6 @@ func init() {
 				func(info *UpdateParams, gladiator Entity2, io IO) {
 					state := gladiator.ScriptState().(Gladiator)
 					defer func() { gladiator.SetScriptState(state) }()
-
-					// TODO: apply some part of the recoil as viewpunch?
-					// TODO: make sure we don't overflow LookDir
-					state.Input.LookDir[0] += recoil.Recoil[0]
-					state.Input.LookDir[1] += recoil.Recoil[1]
 
 					velocity := gladiator.Velocity()
 

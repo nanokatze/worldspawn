@@ -11,7 +11,6 @@ import (
 )
 
 type WeaponAssaultRifle struct {
-	Chambered bool
 	CycleEnds Time
 }
 
@@ -46,36 +45,12 @@ func init() {
 			v_attack Velocity,
 			buttons WeaponButtons,
 			io IO,
-		) Recoil {
+		) {
 			state := weapon.ScriptState().(WeaponAssaultRifle)
 
-			if state.CycleEnds.After(info.Now) {
-				return Recoil{}
-			}
-
-			// TODO: move this state transition into the normal Think. We'll
-			// need to be able to hold onto the player to pull ammo off them.
-			if !state.Chambered {
-				io.Update(attacker,
-					func(info *UpdateParams, mag Entity2, io IO) {
-						if mag.Script().Magazine_Pull(info, mag, 1, io) {
-							io.Update(weapon,
-								func(info *UpdateParams, weapon Entity2, io IO) {
-									state := weapon.ScriptState().(WeaponAssaultRifle)
-									defer func() { weapon.SetScriptState(state) }()
-
-									state.Chambered = true
-								})
-						}
-					})
-				return Recoil{}
-			}
-
-			if buttons&WeaponTrigger == 0 {
-				return Recoil{}
-			}
-
-			if !info.Speculating {
+			if buttons&WeaponTrigger != 0 && !state.CycleEnds.After(info.Now) {
+				// TODO: instead of doing hitscan, spawn a bullet entity, which
+				// will be handled by a special system further down the line.
 				rayHit := world.TraceRay(
 					physics.Ray{
 						Origin:    T_attack.T,
@@ -86,54 +61,56 @@ func init() {
 						Entity: func(entity ecs.ID) bool { return entity != attacker.ID() },
 					})
 
-				if rayHit.Entity != ecs.NullID {
-					impact := Impact{
-						Attacker: attacker,
-						Type:     BulletImpact,
-						Damage:   7,
-						Δv: Velocity{
-							Linear: T_attack.M.Mulv(forward).Normalize().Scale(1),
-						},
+				io.Update(attacker, func(info *UpdateParams, mag Entity2, io IO) {
+					if !mag.Script().Magazine_Pull(info, mag, 1, io) {
+						// play a "click" sound to indicate that we ran out of ammo.
+						return
 					}
 
-					io.Update(world.GetEntity2(rayHit.Entity), impact.Apply)
-				}
-			}
+					if !info.Speculating {
+						impact := Impact{
+							Attacker: attacker,
+							Type:     BulletImpact,
+							Damage:   7,
+							Δv: Velocity{
+								Linear: T_attack.M.Mulv(forward).Normalize().Scale(1),
+							},
+						}
 
-			// Apply effects to the props; TODO: let's have scripts on the props
-			// instead and let props consult the state.
-			for _, id := range weaponProps {
-				io.Update(world.GetEntity2(id),
-					func(info *UpdateParams, prop Entity2, io IO) {
-						// skelly := world.GetSkeleton(prop)
-						// world.Pose.Set(prop, animgraph.Pose{
-						// 	Bones: map[int]gmath.Affine3f32{
-						// 		skelly.JointByName("Bolt"): gmath.TRS3f32{
-						// 			T: gmath.Vec3f32{0, -0.1 * Rand(world.Now, weaponID, "grenade launcher bolt position").Float32(), 0},
-						// 			R: gmath.Rot3One(),
-						// 			S: gmath.Mat3x3UOne[float32](),
-						// 		}.Compose(),
-						// 	},
-						// })
+						io.Update(world.GetEntity2(rayHit.Entity), impact.Apply)
+					}
 
-						prop.SetSoundEffect(SoundEmitter{
-							Effect:      unique.Make("weapons/grenade_launcher/fire.wav"),
-							Attenuation: 1,
-							PlayTime:    info.Now, // + time.Duration(rng(w.Time, entityID, 0).Int63n(int64(1*time.Millisecond))),
+					// Apply effects to the props; TODO: let's have scripts on the props
+					// instead and let props consult the state.
+					for _, id := range weaponProps {
+						io.Update(world.GetEntity2(id), func(info *UpdateParams, prop Entity2, io IO) {
+							// skelly := world.GetSkeleton(prop)
+							// world.Pose.Set(prop, animgraph.Pose{
+							// 	Bones: map[int]gmath.Affine3f32{
+							// 		skelly.JointByName("Bolt"): gmath.TRS3f32{
+							// 			T: gmath.Vec3f32{0, -0.1 * Rand(world.Now, weaponID, "grenade launcher bolt position").Float32(), 0},
+							// 			R: gmath.Rot3One(),
+							// 			S: gmath.Mat3x3UOne[float32](),
+							// 		}.Compose(),
+							// 	},
+							// })
+
+							prop.SetSoundEffect(SoundEmitter{
+								Effect:      unique.Make("weapons/grenade_launcher/fire.wav"),
+								Attenuation: 1,
+								PlayTime:    info.Now, // + time.Duration(rng(w.Time, entityID, 0).Int63n(int64(1*time.Millisecond))),
+							})
 						})
+					}
+
+					io.Update(weapon, func(info *UpdateParams, weapon Entity2, io IO) {
+						state := weapon.ScriptState().(WeaponAssaultRifle)
+						defer func() { weapon.SetScriptState(state) }()
+
+						state.CycleEnds = info.Now.Add(time.Second / 8)
 					})
-			}
-
-			io.Update(weapon,
-				func(info *UpdateParams, weapon Entity2, io IO) {
-					state := weapon.ScriptState().(WeaponAssaultRifle)
-					defer func() { weapon.SetScriptState(state) }()
-
-					state.Chambered = false
-					state.CycleEnds = info.Now.Add(time.Second / 10)
 				})
-
-			return Recoil{}
+			}
 		},
 	}
 }
