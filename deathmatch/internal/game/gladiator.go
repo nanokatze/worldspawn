@@ -287,7 +287,7 @@ func init() {
 					// after all impacts. That way we can see how far we are below 1
 					// and therefore decide whether we want to spawn gibs or just
 					// drop a ragdoll.
-					if state.Vitals.Health < 1 {
+					if state.Vitals.Health <= 0 {
 						gladiator.Logger().Info("killing myself!!!")
 
 						// TODO: spawn ragdoll or gibs
@@ -345,7 +345,6 @@ func init() {
 				modifier /= 2
 			}
 
-			// TODO: round this off in certain cases?
 			impact.Damage *= modifier
 
 			state := gladiator.ScriptState().(Gladiator)

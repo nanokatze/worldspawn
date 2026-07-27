@@ -29,7 +29,7 @@ type Impact struct {
 
 	Type ImpactType
 
-	Damage float32 // TODO: should be a fixed point
+	Damage float32
 
 	Δv Velocity
 }

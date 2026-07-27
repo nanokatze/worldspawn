@@ -27,7 +27,7 @@ func init() {
 			state := entity.ScriptState().(ExplosiveBarrel)
 			T := world.GetGlobalTransform2(entity)
 
-			if state.Health < 1 {
+			if state.Health <= 0 {
 				attacker := world.GetEntity2(state.Attacker)
 				if !attacker.Valid() {
 					// If there's nobody using us, report ourselves as the
