@@ -13,6 +13,8 @@ import (
 
 type Animtest struct {
 	Animation unique.Handle[string]
+
+	PlayTime Time
 }
 
 func init() {
@@ -26,7 +28,7 @@ func init() {
 				sk := skeletonCache.Get(entity.Skeleton())
 
 				point := make([]float32, len(anim.Channels()))
-				animation.SampleTime(anim, info.Now.Sub(Time{}), point)
+				animation.SampleTime(anim, info.Now.Sub(state.PlayTime), point)
 
 				localTransforms := make([]gmath.Affine3f32, sk.NumJoints())
 
