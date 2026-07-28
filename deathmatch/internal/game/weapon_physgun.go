@@ -23,7 +23,7 @@ func init() {
 			info *UpdateParams,
 			world *World,
 			weapon Entity2,
-			weaponProps []ecs.ID,
+			weaponProps []Entity2,
 			attacker Entity2,
 			T_attack gmath.Affine3f64,
 			v_attack Velocity,

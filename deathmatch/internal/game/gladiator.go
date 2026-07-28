@@ -188,9 +188,9 @@ func init() {
 			state := gladiator.ScriptState().(Gladiator)
 
 			if weapon := world.GetEntity2(state.HeldWeapon.Entity); weapon.Valid() {
-				var buttons WeaponButtons
-				if state.Input.HeldButtons&uint64(1<<ButtonAttack) != 0 {
-					buttons |= WeaponTrigger
+				var props [len(state.HeldWeapon.Props)]Entity2 // TODO: this is horrible to read, we should introduce a enum.
+				for i, propID := range state.HeldWeapon.Props {
+					props[i] = world.GetEntity2(propID)
 				}
 
 				T_attack := world.GetGlobalTransform2(gladiator).
@@ -201,7 +201,12 @@ func init() {
 					}.Compose())
 				v_attack := gladiator.Velocity()
 
-				weapon.Script().Weapon_Think(info, world, weapon, state.HeldWeapon.Props[:], gladiator, T_attack, v_attack, buttons, io)
+				var buttons WeaponButtons
+				if state.Input.HeldButtons&uint64(1<<ButtonAttack) != 0 {
+					buttons |= WeaponTrigger
+				}
+
+				weapon.Script().Weapon_Think(info, world, weapon, props[:], gladiator, T_attack, v_attack, buttons, io)
 			}
 
 			// TODO: redo sway animation

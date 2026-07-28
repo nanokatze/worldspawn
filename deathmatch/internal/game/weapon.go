@@ -25,10 +25,3 @@ const (
 	_ WeaponButtons = 1 << iota
 	WeaponTrigger
 )
-
-/*
-// TODO: rename this to literally anything but
-type Recoil struct {
-	Recoil [2]float32
-}
-*/

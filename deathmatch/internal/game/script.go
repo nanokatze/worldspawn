@@ -61,11 +61,12 @@ type script struct {
 
 	// TODO: I think we need to split Weapon_Think into two, one subtick/Input
 	// thing and other the equivalent of Think basically.
+	// TODO: pass a continuation for recoil
 	Weapon_Think func(
 		info *UpdateParams,
 		world *World,
 		weapon Entity2,
-		weaponProps []ecs.ID, // TODO: should be Entity2 too
+		weaponProps []Entity2,
 		attacker Entity2,
 		T_attack gmath.Affine3f64,
 		v_attack Velocity,

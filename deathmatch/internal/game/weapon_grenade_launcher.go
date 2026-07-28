@@ -57,7 +57,7 @@ func init() {
 			info *UpdateParams,
 			world *World,
 			weapon Entity2,
-			weaponProps []ecs.ID,
+			weaponProps []Entity2,
 			attacker Entity2,
 			T_attack gmath.Affine3f64,
 			v_attack Velocity,
@@ -113,8 +113,8 @@ func init() {
 
 					// Apply effects to the props; TODO: let's have scripts on the props
 					// instead and let props consult the state.
-					for _, id := range weaponProps {
-						io.Update(world.GetEntity2(id), func(info *UpdateParams, prop Entity2, io IO) {
+					for _, prop := range weaponProps {
+						io.Update(prop, func(info *UpdateParams, prop Entity2, io IO) {
 							// skelly := world.GetSkeleton(prop)
 							// world.Pose.Set(prop, animgraph.Pose{
 							// 	Bones: map[int]gmath.Affine3f32{
