@@ -11,6 +11,7 @@ import (
 type Animation struct {
 	addressMode bool // true=repeat; false=clamp; TODO: make a proper enum for it
 	frames      int
+	frameRate   int
 	channels    []string
 	data        [][]float32
 }
@@ -23,11 +24,13 @@ func SampleNormalized(a *Animation, t float32, out []float32) {
 	a.Sample(int64(t*float32(a.Frames())*1e9), out)
 }
 
-// Duration of an animation. If an animation is periodic, this is the duration
+// Duration of the animation. If an animation is periodic, this is the duration
 // of the periodic segment.
 func (a *Animation) Frames() int { return a.frames }
 
-func (a *Animation) FrameRate() int { return 30 }
+// Frame rate of the animation.
+// TODO: allow this to be fractional (UGHHHHHHHHH)
+func (a *Animation) FrameRate() int { return a.frameRate }
 
 func (a *Animation) Channels() []string { return a.channels }
 
@@ -63,8 +66,9 @@ func (a *Animation) Sample(t int64, out []float32) {
 // TODO: this should be implemented by various loaders
 func Read(r io.Reader) (*Animation, error) {
 	var tmp struct {
-		Frames   int
-		Channels []struct {
+		Frames    int
+		FrameRate int
+		Channels  []struct {
 			Name string
 			Data []float32
 		}
@@ -74,7 +78,8 @@ func Read(r io.Reader) (*Animation, error) {
 	}
 
 	return &Animation{
-		frames: tmp.Frames,
+		frames:    tmp.Frames,
+		frameRate: tmp.FrameRate,
 		channels: slices.Collect(func(yield func(string) bool) {
 			for _, ch := range tmp.Channels {
 				yield(ch.Name)

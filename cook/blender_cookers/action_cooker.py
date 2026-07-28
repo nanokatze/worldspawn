@@ -16,6 +16,8 @@ def cook(context, action):
 
     channels = []
 
+    # TODO: also account for scene.render.fps_base (ass)
+
     # TODO: iiuc layers override "lower levels" so we should just collapse all
     # layers together and output the strips.
     for layer in action.layers:
@@ -29,6 +31,7 @@ def cook(context, action):
 
     animation = {
         'Frames': frame_end + 1 - frame_begin,
+        'FrameRate': context.bpy_context.scene.render.fps,
         'Channels': channels,
     }
 
