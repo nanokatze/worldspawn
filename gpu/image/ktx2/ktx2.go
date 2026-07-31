@@ -8,9 +8,9 @@ import (
 
 type fileHeader struct {
 	Magic                      [12]byte
-	VkFormat                   uint32
+	Format                     uint32
 	TypeSize                   uint32
-	Width, Height, Depth       uint32
+	Extent                     [3]uint32
 	LayerCount                 uint32
 	FaceCount                  uint32
 	MipLevelCount              uint32

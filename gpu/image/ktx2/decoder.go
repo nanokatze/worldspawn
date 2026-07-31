@@ -35,11 +35,15 @@ func NewDecoder(r io.ReaderAt) (*Decoder, error) {
 }
 
 func (d *Decoder) Config() gpu.ImageConfig {
-	extent := [3]int{int(d.header.Width), int(d.header.Height), int(d.header.Depth)}
+	extent := [3]int{
+		int(d.header.Extent[0]),
+		int(d.header.Extent[1]),
+		int(d.header.Extent[2]),
+	}
 
 	dim := index(extent[:], 0)
 
-	config := gpu.MakeImageConfig(vk.Format(d.header.VkFormat), extent[:dim]).
+	config := gpu.MakeImageConfig(vk.Format(d.header.Format), extent[:dim]).
 		AsCube(d.header.FaceCount == 6).
 		WithLayers(max(int(d.header.LayerCount), 1) * int(d.header.FaceCount)).
 		WithMips(len(d.mips))
