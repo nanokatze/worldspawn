@@ -19,8 +19,8 @@ type Animtest struct {
 
 func init() {
 	Scripts[reflect.TypeFor[Animtest]()] = script{
-		Think: func(info *UpdateParams, world *World, entity Entity2, io IO) {
-			io.Update(entity, func(info *UpdateParams, entity Entity2, io IO) {
+		Think: func(stx ScriptContext, world *World, entity Entity2) {
+			stx.Update(entity, func(stx ScriptContext, entity Entity2) {
 				state := entity.ScriptState().(Animtest)
 
 				anim := animationCache.Get(state.Animation)
@@ -28,7 +28,7 @@ func init() {
 				sk := skeletonCache.Get(entity.Skeleton())
 
 				point := make([]float32, len(anim.Channels()))
-				animation.SampleTime(anim, info.Now.Sub(state.PlayTime), point)
+				animation.SampleTime(anim, stx.Now.Sub(state.PlayTime), point)
 
 				localTransforms := make([]gmath.Affine3f32, sk.NumJoints())
 

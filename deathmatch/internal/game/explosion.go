@@ -19,13 +19,13 @@ type distributionFunction func(gmath.Vec2f32) (gmath.Vec3f32, float32)
 // (https://github.com/nanokatze/worldspawn-deathmatch/issues/12)
 // TODO: we should have a separate Explosion struct which will describe some things that Impact does (but not all)
 func (world *World) explosion(
+	stx ScriptContext,
 	impact Impact, // TODO: flatten/inline the relevant fields instead of passing Impact
 	T gmath.Affine3f64, // TODO: move this to be the first parameter?
 	df distributionFunction,
 	radius float32,
 	resolution float32,
 	queryFilters QueryFilters,
-	io IO,
 ) {
 	spat := resolution / (4 * math.Pi)
 	nrays := math.Ceil(1.0 / float64(spat))
@@ -78,7 +78,7 @@ func (world *World) explosion(
 		}
 
 		// TODO: we could skip validation here.
-		io.Update(world.GetEntity2(entityID), impact.Apply)
+		stx.Update(world.GetEntity2(entityID), impact.Apply)
 	}
 }
 

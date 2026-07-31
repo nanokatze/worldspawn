@@ -20,15 +20,14 @@ func init() {
 		},
 
 		Weapon_Think: func(
-			info *UpdateParams,
+			stx ScriptContext,
 			world *World,
 			weapon Entity2,
 			weaponProps []Entity2,
 			attacker Entity2,
 			T_attack gmath.Affine3f64,
 			v_attack Velocity,
-			buttons WeaponButtons,
-			io IO) {
+			buttons WeaponButtons) {
 			state := weapon.ScriptState().(WeaponPhysgun)
 
 			holdingEntity := world.GetEntity2(state.HeldEntity).Valid()
@@ -49,8 +48,8 @@ func init() {
 				if rayHit.Entity.Valid() {
 					transform := T_attack.Inv().Mul(world.GetGlobalTransform(rayHit.Entity.ID()))
 
-					io.Update(weapon,
-						func(_ *UpdateParams, weapon Entity2, io IO) {
+					stx.Update(weapon,
+						func(stx ScriptContext, weapon Entity2) {
 							state := weapon.ScriptState().(WeaponPhysgun)
 							defer func() { weapon.SetScriptState(state) }()
 
@@ -64,15 +63,15 @@ func init() {
 				// that's parented to something.
 				transform := T_attack.Mul(state.Transform)
 
-				io.Update(world.GetEntity2(state.HeldEntity),
-					func(_ *UpdateParams, entity Entity2, io IO) {
+				stx.Update(world.GetEntity2(state.HeldEntity),
+					func(stx ScriptContext, entity Entity2) {
 						entity.SetTransform(transform.TRS())
 						entity.SetVelocity(Velocity{})
 					})
 
 			case holdingEntity && !triggerHeld:
-				io.Update(weapon,
-					func(_ *UpdateParams, weapon Entity2, io IO) {
+				stx.Update(weapon,
+					func(stx ScriptContext, weapon Entity2) {
 						state := weapon.ScriptState().(WeaponPhysgun)
 						defer func() { weapon.SetScriptState(state) }()
 

@@ -11,21 +11,21 @@ type AmmoPickup struct{}
 
 func init() {
 	Scripts[reflect.TypeFor[AmmoPickup]()] = script{
-		Think: func(info *UpdateParams, world *World, entity Entity2, io IO) {
+		Think: func(stx ScriptContext, world *World, entity Entity2) {
 			// TODO: we should implement this instead by spawning a pickup that
 			// then gets picked up by the player. When that entity gets picked
 			// up, we'll eventually respawn a new one.
 
 			T := world.GetGlobalTransform2(entity)
 
-			for id, state := range ecs.All(&io.world.ScriptState) {
+			for id, state := range ecs.All(&world.ScriptState) {
 				if _, ok := state.(Gladiator); ok {
 					player := world.GetEntity2(id)
-					playerT := io.world.GetGlobalTransform(id)
+					playerT := world.GetGlobalTransform(id)
 
 					if T.T.Sub(playerT.T).Length() <= 1.1 {
-						io.Update(player,
-							func(info *UpdateParams, player Entity2, io IO) {
+						stx.Update(player,
+							func(stx ScriptContext, player Entity2) {
 								state := player.ScriptState().(Gladiator)
 								defer func() { player.SetScriptState(state) }()
 
@@ -35,9 +35,9 @@ func init() {
 								entity.Logger().Info("resupplied", "player", player.ID())
 							})
 
-						io.Update(entity,
-							func(info *UpdateParams, entity Entity2, io IO) {
-								entity.SetNextThink(info.Now.Add(10 * time.Second))
+						stx.Update(entity,
+							func(stx ScriptContext, entity Entity2) {
+								entity.SetNextThink(stx.Now.Add(10 * time.Second))
 							})
 
 						break

@@ -9,9 +9,9 @@ type DeleteAfter struct{}
 
 func init() {
 	Scripts[reflect.TypeFor[DeleteAfter]()] = script{
-		Think: func(_ *UpdateParams, world *World, entity Entity2, io IO) {
-			io.Update(entity,
-				func(_ *UpdateParams, entity Entity2, io IO) {
+		Think: func(stx ScriptContext, world *World, entity Entity2) {
+			stx.Update(entity,
+				func(stx ScriptContext, entity Entity2) {
 					entity.MarkForDeletion()
 				})
 		},

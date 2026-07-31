@@ -36,7 +36,7 @@ func init() {
 		},
 
 		Weapon_Think: func(
-			info *UpdateParams,
+			stx ScriptContext,
 			world *World,
 			weapon Entity2,
 			weaponProps []Entity2,
@@ -44,11 +44,10 @@ func init() {
 			T_attack gmath.Affine3f64,
 			v_attack Velocity,
 			buttons WeaponButtons,
-			io IO,
 		) {
 			state := weapon.ScriptState().(WeaponAssaultRifle)
 
-			if buttons&WeaponTrigger != 0 && !state.CycleEnds.After(info.Now) {
+			if buttons&WeaponTrigger != 0 && !state.CycleEnds.After(stx.Now) {
 				// TODO: instead of doing hitscan, spawn a bullet entity, which
 				// will be handled by a special system further down the line.
 				rayHit := world.TraceRay(
@@ -61,13 +60,13 @@ func init() {
 						Entity: func(entity ecs.ID) bool { return entity != attacker.ID() },
 					})
 
-				io.Update(attacker, func(info *UpdateParams, mag Entity2, io IO) {
-					if mag.Script().Magazine_Pull(info, mag, AmmoBullets, 1, 1, io) <= 0 {
+				stx.Update(attacker, func(stx ScriptContext, mag Entity2) {
+					if mag.Script().Magazine_Pull(stx, mag, AmmoBullets, 1, 1) <= 0 {
 						// play a "click" sound to indicate that we ran out of ammo.
 						return
 					}
 
-					if !info.Speculating {
+					if !stx.Speculating {
 						if rayHit.Entity.Valid() {
 							impact := Impact{
 								Attacker: attacker,
@@ -78,14 +77,14 @@ func init() {
 								},
 							}
 
-							io.Update(rayHit.Entity, impact.Apply)
+							stx.Update(rayHit.Entity, impact.Apply)
 						}
 					}
 
 					// Apply effects to the props; TODO: let's have scripts on the props
 					// instead and let props consult the state.
 					for _, prop := range weaponProps {
-						io.Update(prop, func(info *UpdateParams, prop Entity2, io IO) {
+						stx.Update(prop, func(stx ScriptContext, prop Entity2) {
 							// skelly := world.GetSkeleton(prop)
 							// world.Pose.Set(prop, animgraph.Pose{
 							// 	Bones: map[int]gmath.Affine3f32{
@@ -100,16 +99,16 @@ func init() {
 							prop.SetSoundEffect(SoundEmitter{
 								Effect:      unique.Make("weapons/grenade_launcher/fire.wav"),
 								Attenuation: 1,
-								PlayTime:    info.Now, // + time.Duration(rng(w.Time, entityID, 0).Int63n(int64(1*time.Millisecond))),
+								PlayTime:    stx.Now, // + time.Duration(rng(w.Time, entityID, 0).Int63n(int64(1*time.Millisecond))),
 							})
 						})
 					}
 
-					io.Update(weapon, func(info *UpdateParams, weapon Entity2, io IO) {
+					stx.Update(weapon, func(stx ScriptContext, weapon Entity2) {
 						state := weapon.ScriptState().(WeaponAssaultRifle)
 						defer func() { weapon.SetScriptState(state) }()
 
-						state.CycleEnds = info.Now.Add(time.Second / 8)
+						state.CycleEnds = stx.Now.Add(time.Second / 8)
 					})
 				})
 			}

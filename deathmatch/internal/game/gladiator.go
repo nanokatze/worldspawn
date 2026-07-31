@@ -182,7 +182,7 @@ func init() {
 				})
 		},
 
-		Think: func(info *UpdateParams, world *World, gladiator Entity2, io IO) {
+		Think: func(stx ScriptContext, world *World, gladiator Entity2) {
 			// TODO: sort this out pls and make it obey Think rules, i.e. put all mutations into lambdas.
 
 			state := gladiator.ScriptState().(Gladiator)
@@ -206,7 +206,7 @@ func init() {
 					buttons |= WeaponTrigger
 				}
 
-				weapon.Script().Weapon_Think(info, world, weapon, props[:], gladiator, T_attack, v_attack, buttons, io)
+				weapon.Script().Weapon_Think(stx, world, weapon, props[:], gladiator, T_attack, v_attack, buttons)
 			}
 
 			// TODO: redo sway animation
@@ -215,11 +215,11 @@ func init() {
 
 				hands := world.GetEntity2(state.FirstPersonHands)
 
-				io.Update(hands,
-					func(_ *UpdateParams, hands Entity2, io IO) {
+				stx.Update(hands,
+					func(stx ScriptContext, hands Entity2) {
 						hands.SetTransform(gmath.TRS3f64{
 							T: gmath.Vec3f64{0, 1, 0}.
-								Scale(math.Sin(float64(info.Now.Sub(Time{}))/1e9*6) * 0.03 * min(float64(velocity.Linear.Length()/6), 1)),
+								Scale(math.Sin(float64(stx.Now.Sub(Time{}))/1e9*6) * 0.03 * min(float64(velocity.Linear.Length()/6), 1)),
 							R: gmath.Rot3One(),
 							S: gmath.Mat3x3UOne[float32](),
 						})
@@ -229,8 +229,8 @@ func init() {
 			{
 				camera := world.GetEntity2(state.FirstPersonCamera)
 
-				io.Update(camera,
-					func(_ *UpdateParams, camera Entity2, io IO) {
+				stx.Update(camera,
+					func(stx ScriptContext, camera Entity2) {
 						camera.SetTransform(gmath.TRS3f64{
 							T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
 							R: e01.Pow(4 * state.Input.LookDir[0]).Mul(e12.Pow(4 * state.Input.LookDir[1])),
@@ -239,8 +239,8 @@ func init() {
 					})
 			}
 
-			io.Update(gladiator,
-				func(info *UpdateParams, gladiator Entity2, io IO) {
+			stx.Update(gladiator,
+				func(stx ScriptContext, gladiator Entity2) {
 					state := gladiator.ScriptState().(Gladiator)
 					defer func() { gladiator.SetScriptState(state) }()
 
@@ -265,18 +265,18 @@ func init() {
 					}
 					velocity.Linear = rotation.Rotate(v_local)
 					if !state.Motion.Supported {
-						velocity.Linear = velocity.Linear.Add(info.Gravity.Scale(float32(durationToFloatSeconds(info.Δt))))
+						velocity.Linear = velocity.Linear.Add(stx.Gravity.Scale(float32(durationToFloatSeconds(stx.Δt))))
 					}
-					velocity.Linear = state.asdasd(io.world, gladiator.ID(), velocity.Linear, info.Δt)
+					velocity.Linear = state.asdasd(stx.world, gladiator.ID(), velocity.Linear, stx.Δt)
 
 					if state.Motion.Supported {
-						state.Motion.Steps += float64(velocity.Linear.Length()) * durationToFloatSeconds(info.Δt)
+						state.Motion.Steps += float64(velocity.Linear.Length()) * durationToFloatSeconds(stx.Δt)
 					}
 					if state.Motion.Steps > 3 {
 						gladiator.SetSoundEffect(SoundEmitter{
 							Effect:      unique.Make("step.wav"),
 							Attenuation: 1,
-							PlayTime:    info.Now,
+							PlayTime:    stx.Now,
 						})
 						state.Motion.Steps = 0
 					}
@@ -336,7 +336,7 @@ func init() {
 				})
 		},
 
-		Impact: func(info *UpdateParams, gladiator Entity2, impact Impact, io IO) {
+		Impact: func(stx ScriptContext, gladiator Entity2, impact Impact) {
 			// TODO: be verbose when computing the modifier
 			modifier := float32(1.0)
 			if gladiator == impact.Attacker {
@@ -351,7 +351,7 @@ func init() {
 			state.Vitals.Health -= impact.Damage
 		},
 
-		Magazine_Pull: func(info *UpdateParams, entity Entity2, ammoType AmmoType, minAmount, maxAmount int, io IO) int {
+		Magazine_Pull: func(stx ScriptContext, entity Entity2, ammoType AmmoType, minAmount, maxAmount int) int {
 			state := entity.ScriptState().(Gladiator)
 			if state.Inventory.Ammo[ammoType] <= int8(minAmount) {
 				return 0

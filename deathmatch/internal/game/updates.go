@@ -23,7 +23,7 @@ type IO struct {
 
 type updatef struct {
 	key uint64
-	f   func(info *UpdateParams, entity Entity2, io IO)
+	f   func(stx ScriptContext, entity Entity2)
 }
 
 func (io IO) validate(entity Entity2) {
@@ -33,17 +33,19 @@ func (io IO) validate(entity Entity2) {
 	}
 }
 
-func (io IO) Update(to Entity2, f func(info *UpdateParams, entity Entity2, io IO)) {
+// func (io IO) Think(to Entity2, )
+
+func (io IO) Update(to Entity2, f func(stx ScriptContext, entity Entity2)) {
 	io.validate(to)
 
 	updates := &io.world.entityUpdates[to.id.Index()]
 	*updates = append(*updates, updatef{io.key, f})
 }
 
-func (io IO) Create(f func(info *UpdateParams, entity Entity2, io IO)) {
+func (io IO) Create(f func(stx ScriptContext, entity Entity2)) {
 	io.world.globalUpdates = append(io.world.globalUpdates, func(info *UpdateParams, world *World) {
 		entity := world.CreateEntity(info)
-		f(info, entity, IO{world, uint64(entity.id.Index())})
+		f(ScriptContext{info, IO{world, uint64(entity.id.Index())}}, entity)
 	})
 }
 
@@ -69,7 +71,7 @@ func (world *World) processUpdates(info *UpdateParams) {
 			id := world.Table.IDs().Index(index)
 
 			for _, u := range updates {
-				u.f(info, Entity2{world, id}, IO{world, uint64(index)})
+				u.f(ScriptContext{info, IO{world, uint64(index)}}, Entity2{world, id})
 			}
 
 			world.entityUpdates2[index] = nil

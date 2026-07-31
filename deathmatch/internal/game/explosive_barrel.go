@@ -20,7 +20,7 @@ type ExplosiveBarrel struct {
 
 func init() {
 	Scripts[reflect.TypeFor[ExplosiveBarrel]()] = script{
-		Think: func(info *UpdateParams, world *World, entity Entity2, io IO) {
+		Think: func(stx ScriptContext, world *World, entity Entity2) {
 			// TODO: we should do a SetNextThink to forever and have Impact
 			// SetNextThink asap otherwise
 
@@ -36,6 +36,7 @@ func init() {
 				}
 
 				world.explosion(
+					stx,
 					Impact{
 						Attacker: attacker,
 						Type:     BlastImpactWithFragmentation, // TODO: we should specify impact type and damage on the barrel itself I think
@@ -49,25 +50,24 @@ func init() {
 						Entity: func(id ecs.ID) bool {
 							return id != entity.ID()
 						},
-					},
-					io)
+					})
 
-				io.Update(entity,
-					func(info *UpdateParams, entity Entity2, io IO) {
+				stx.Update(entity,
+					func(stx ScriptContext, entity Entity2) {
 						T := entity.Transform()
 						entity.Clear()
 						entity.SetScriptState(DeleteAfter{})
-						entity.SetNextThink(info.Now.Add(2 * time.Second)) // TODO: should be long enough for sound to play
+						entity.SetNextThink(stx.Now.Add(2 * time.Second)) // TODO: should be long enough for sound to play
 						entity.SetTransform(T)
 						entity.SetSoundEffect(SoundEmitter{
 							Effect:      unique.Make("explosion.wav"),
 							Attenuation: 1,
-							PlayTime:    info.Now.Add(info.Δt),
+							PlayTime:    stx.Now.Add(stx.Δt),
 						})
 					})
 			}
 		},
-		Impact: func(info *UpdateParams, entity Entity2, impact Impact, io IO) {
+		Impact: func(stx ScriptContext, entity Entity2, impact Impact) {
 			// TODO: verify impact preconditions here
 
 			state := entity.ScriptState().(ExplosiveBarrel)

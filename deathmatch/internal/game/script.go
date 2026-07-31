@@ -7,6 +7,11 @@ import (
 	"worldspawn/internal/gmath"
 )
 
+type ScriptContext struct {
+	*UpdateParams
+	IO
+}
+
 // TODO: all mutators should be continuation-based for composability. I.e.
 // instead of returning a result, they should take a continuation to call.
 
@@ -19,15 +24,18 @@ type script struct {
 
 	// TODO: the following should be shadows of Funcs basically
 
-	// OutOfBounds func(info *UpdateParams, world *World, entity ecs.ID)
+	// OutOfBounds func(stx ScriptContext, world *World, entity ecs.ID)
 
-	// TODO: prefix this somehow, e.g. with Character. Also rename to HandleInput?
+	// TODO: rename to HandleInput?
 	// TODO: allow this to return error, in which case the server would drop the player?
+	// TODO: this should be a Thinker and get IO. Client will just call
+	// processUpdates immediately. We could expose two HandleInputs, one would
+	// be for server and one for client.
 	Input func(info *UpdateParams, world *World, entity ecs.ID, cmd TimestampedInputCmd)
 
 	// Think may not perform any mutations, but may read states of entities,
 	// perform physics queries and enqueue updates.
-	Think func(info *UpdateParams, world *World, entity Entity2, io IO)
+	Think func(stx ScriptContext, world *World, entity Entity2)
 
 	// Physics
 
@@ -36,7 +44,7 @@ type script struct {
 	//
 	// TODO: naming
 	// TODO: pass JPH::CollideShapeResult
-	ShouldCollide func(info *UpdateParams, world *World, entity1, entity2 ecs.ID) int // TODO: return a enum that corresponds to JPH::ValidateResult
+	ShouldCollide func(stx ScriptContext, world *World, entity1, entity2 ecs.ID) int // TODO: return a enum that corresponds to JPH::ValidateResult
 
 	// Note that ContactAdded and ContactRemoved are not called
 	// deterministically, it's thus necessary to pay extra care so that the
@@ -46,11 +54,11 @@ type script struct {
 	// ContactAdded but I'm not sure what to rename ContactRemoved to.
 	// TODO: inout parameter which lets the script edit the contact
 	// TODO: should this be thinker or mutator? I'm inclined towards the thinker...
-	ContactAdded   func(info *UpdateParams, world *World, entity1, entity2 ecs.ID)
-	ContactRemoved func(info *UpdateParams, world *World, entity1, entity2 ecs.ID)
+	ContactAdded   func(stx ScriptContext, world *World, entity1, entity2 ecs.ID)
+	ContactRemoved func(stx ScriptContext, world *World, entity1, entity2 ecs.ID)
 
 	// Impact may not perform any queries, but may mutate the entity.
-	Impact func(info *UpdateParams, entity Entity2, impact Impact, io IO)
+	Impact func(stx ScriptContext, entity Entity2, impact Impact)
 
 	// TODO: rename this, this is not a hint but provides some info which is the
 	// responsibility of the thing using the weapon to implement
@@ -63,18 +71,17 @@ type script struct {
 	// thing and other the equivalent of Think basically.
 	// TODO: pass a continuation for recoil
 	Weapon_Think func(
-		info *UpdateParams,
+		stx ScriptContext,
 		world *World,
 		weapon Entity2,
 		weaponProps []Entity2,
 		attacker Entity2,
 		T_attack gmath.Affine3f64,
 		v_attack Velocity,
-		buttons WeaponButtons,
-		io IO)
+		buttons WeaponButtons)
 
 	// TODO: for composability reasons, this should probably take a continuation
-	Magazine_Pull func(info *UpdateParams, entity Entity2, ammoType AmmoType, min, max int, io IO) int
+	Magazine_Pull func(stx ScriptContext, entity Entity2, ammoType AmmoType, min, max int) int
 }
 
 // Public only so that replication can load/store things. We'll eventually make this private.

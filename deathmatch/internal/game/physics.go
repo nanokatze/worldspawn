@@ -188,21 +188,28 @@ func (world *World) physicsStep(updateParams *UpdateParams) {
 		entity1 := world.GetEntity2(entityID1)
 		entity2 := world.GetEntity2(entityID2)
 		if entity1.Valid() && entity2.Valid() {
+			// TODO: once we make ContactAdded/Removed be called concurrently,
+			// we'll probably change these entry points to be pure thinkers. At
+			// that point we'll want to make the key be the entire pair rather
+			// than just one entity.
+			stx1 := ScriptContext{updateParams, IO{world, uint64(entityID1.Index())}}
+			stx2 := ScriptContext{updateParams, IO{world, uint64(entityID2.Index())}}
+
 			switch ce.Type {
 			case 1:
 				if script := entity1.Script(); script.ContactAdded != nil {
-					script.ContactAdded(updateParams, world, entityID1, entityID2)
+					script.ContactAdded(stx1, world, entityID1, entityID2)
 				}
 				if script := entity2.Script(); script.ContactAdded != nil {
-					script.ContactAdded(updateParams, world, entityID2, entityID1)
+					script.ContactAdded(stx2, world, entityID2, entityID1)
 				}
 
 			case 2:
 				if script := entity1.Script(); script.ContactRemoved != nil {
-					script.ContactRemoved(updateParams, world, entityID1, entityID2)
+					script.ContactRemoved(stx1, world, entityID1, entityID2)
 				}
 				if script := entity2.Script(); script.ContactRemoved != nil {
-					script.ContactRemoved(updateParams, world, entityID2, entityID1)
+					script.ContactRemoved(stx2, world, entityID2, entityID1)
 				}
 			}
 		}

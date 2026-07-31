@@ -24,15 +24,16 @@ type GrenadeInFlight struct {
 
 func init() {
 	Scripts[reflect.TypeFor[GrenadeInFlight]()] = script{
-		Think: func(info *UpdateParams, world *World, grenade Entity2, io IO) {
+		Think: func(stx ScriptContext, world *World, grenade Entity2) {
 			const fuse = 1400 * time.Millisecond
 
 			state := grenade.ScriptState().(GrenadeInFlight)
-			if state.LaunchedAt.Add(fuse).After(info.Now) && !state.ExplodeNow {
+			if state.LaunchedAt.Add(fuse).After(stx.Now) && !state.ExplodeNow {
 				return
 			}
 
 			world.explosion(
+				stx,
 				Impact{
 					Attacker: world.GetEntity2(state.Attacker),
 					Type:     BlastImpactWithFragmentation,
@@ -44,26 +45,25 @@ func init() {
 				4*math.Pi/500,
 				QueryFilters{
 					Entity: func(id ecs.ID) bool { return id != grenade.ID() },
-				},
-				io)
+				})
 
 			// TODO: create a new entity instead?
-			io.Update(grenade,
-				func(info *UpdateParams, grenade Entity2, io IO) {
+			stx.Update(grenade,
+				func(stx ScriptContext, grenade Entity2) {
 					T := grenade.Transform()
 					grenade.Clear()
 					grenade.SetScriptState(DeleteAfter{})
-					grenade.SetNextThink(info.Now.Add(2 * time.Second))
+					grenade.SetNextThink(stx.Now.Add(2 * time.Second))
 					grenade.SetTransform(T)
 					grenade.SetSoundEffect(SoundEmitter{
 						Effect:      unique.Make("explosion.wav"),
 						Attenuation: 1,
-						PlayTime:    info.Now.Add(info.Δt),
+						PlayTime:    stx.Now.Add(stx.Δt),
 					})
 				})
 		},
 
-		ContactAdded: func(info *UpdateParams, world *World, grenade, entity2 ecs.ID) {
+		ContactAdded: func(stx ScriptContext, world *World, grenade, entity2 ecs.ID) {
 			state := world.GetEntity2(grenade).ScriptState().(GrenadeInFlight)
 
 			if entity2 == state.Attacker {

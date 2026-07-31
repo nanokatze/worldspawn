@@ -54,7 +54,7 @@ func init() {
 		},
 
 		Weapon_Think: func(
-			info *UpdateParams,
+			stx ScriptContext,
 			world *World,
 			weapon Entity2,
 			weaponProps []Entity2,
@@ -62,23 +62,22 @@ func init() {
 			T_attack gmath.Affine3f64,
 			v_attack Velocity,
 			buttons WeaponButtons,
-			io IO,
 		) {
 			state := weapon.ScriptState().(WeaponGrenadeLauncher)
 
-			if buttons&WeaponTrigger != 0 && !state.CycleEnds.After(info.Now) {
-				io.Update(attacker, func(info *UpdateParams, mag Entity2, io IO) {
-					if mag.Script().Magazine_Pull(info, mag, AmmoGrenades, 1, 1, io) <= 0 {
+			if buttons&WeaponTrigger != 0 && !state.CycleEnds.After(stx.Now) {
+				stx.Update(attacker, func(stx ScriptContext, mag Entity2) {
+					if mag.Script().Magazine_Pull(stx, mag, AmmoGrenades, 1, 1) <= 0 {
 						return
 					}
 
-					if !info.Speculating {
-						io.Create(func(info *UpdateParams, projectile Entity2, io IO) {
+					if !stx.Speculating {
+						stx.Create(func(stx ScriptContext, projectile Entity2) {
 							// TODO: don't use prefab here tbh
 							// TODO: it would be nice if we could specify this bit without assuming ScriptState type
 							projectile.SetScriptState(GrenadeInFlight{
 								Attacker:   attacker.ID(),
-								LaunchedAt: info.Now,
+								LaunchedAt: stx.Now,
 							})
 							projectile.SetTransform(
 								T_attack.
@@ -96,7 +95,7 @@ func init() {
 							projectile.SetPhysicsMassOverride(0.1)
 							projectile.SetCosmeticOffset(CosmeticOffset{
 								Alpha: 2,
-								T0:    info.Now,
+								T0:    stx.Now,
 								// Ugh. TODO: think how we could make this not as gross.
 								Offset: T_attack.M.Mulv(gmath.Vec3f32{0.18, 0, -0.2}),
 							})
@@ -104,17 +103,17 @@ func init() {
 						})
 					}
 
-					io.Update(weapon, func(info *UpdateParams, weapon Entity2, io IO) {
+					stx.Update(weapon, func(stx ScriptContext, weapon Entity2) {
 						state := weapon.ScriptState().(WeaponGrenadeLauncher)
 						defer func() { weapon.SetScriptState(state) }()
 
-						state.CycleEnds = info.Now.Add(grenadeLauncherStats.CycleDuration)
+						state.CycleEnds = stx.Now.Add(grenadeLauncherStats.CycleDuration)
 					})
 
 					// Apply effects to the props; TODO: let's have scripts on the props
 					// instead and let props consult the state.
 					for _, prop := range weaponProps {
-						io.Update(prop, func(info *UpdateParams, prop Entity2, io IO) {
+						stx.Update(prop, func(stx ScriptContext, prop Entity2) {
 							// skelly := world.GetSkeleton(prop)
 							// world.Pose.Set(prop, animgraph.Pose{
 							// 	Bones: map[int]gmath.Affine3f32{
@@ -129,13 +128,13 @@ func init() {
 							prop.SetSoundEffect(SoundEmitter{
 								Effect:      unique.Make("weapons/grenade_launcher/fire.wav"),
 								Attenuation: 1,
-								PlayTime:    info.Now, // + time.Duration(rng(w.Time, entityID, 0).Int63n(int64(1*time.Millisecond))),
+								PlayTime:    stx.Now, // + time.Duration(rng(w.Time, entityID, 0).Int63n(int64(1*time.Millisecond))),
 							})
 						})
 					}
 
 					// TODO: eschew rnd?
-					rnd := Rand(info.Now, weapon.ID(), T_attack)
+					rnd := Rand(stx.Now, weapon.ID(), T_attack)
 
 					θ := 0.1 * 2 * math.Pi * (rnd.Float64() - 0.5)
 					r := 0.02
