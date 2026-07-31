@@ -65,7 +65,7 @@ type script struct {
 	// TODO: make this a read-only thingy?
 	Weapon_Hint func(info *UpdateParams, world *World, weapon ecs.ID) WeaponHint
 
-	Weapon_CreateProp func(info *UpdateParams, world *World, weapon ecs.ID) Entity2
+	Weapon_CreateProp func(stx ScriptContext, weapon Entity2, f func(stx ScriptContext, prop Entity2))
 
 	// TODO: I think we need to split Weapon_Think into two, one subtick/Input
 	// thing and other the equivalent of Think basically.

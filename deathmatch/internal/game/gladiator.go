@@ -148,26 +148,29 @@ func init() {
 						hint := script.Weapon_Hint(info, world, newWeapon.ID())
 
 						for i := range 2 {
-							// TODO: let's try to reformulate this in terms of
-							// EnqueueEntityCreate.
+							script.Weapon_CreateProp(ScriptContext{info, IO{world, uint64(id.Index())}}, newWeapon,
+								func(stx ScriptContext, prop Entity2) {
+									switch i {
+									case 0:
+										// TODO: parent it directly to the camera instead.
+										prop.SetParent(gladiator.FirstPersonHands)
+										prop.SetTransform(hint.FirstPersonPropTransform)
+										prop.SetVisibilityCondition(VisibilityCondition{Mask: 0b01, Camera: gladiator.FirstPersonCamera})
 
-							prop := script.Weapon_CreateProp(info, world, newWeapon.ID())
+									case 1:
+										prop.SetParent(id)
+										prop.SetParentBone(unique.Make("hand.R"))
+										prop.SetTransform(gmath.TRS3One[float64]())
+										prop.SetVisibilityCondition(VisibilityCondition{Mask: 0b10, Camera: gladiator.FirstPersonCamera})
+									}
 
-							switch i {
-							case 0:
-								// TODO: parent it directly to the camera instead.
-								prop.SetParent(gladiator.FirstPersonHands)
-								prop.SetTransform(hint.FirstPersonPropTransform)
-								prop.SetVisibilityCondition(VisibilityCondition{Mask: 0b01, Camera: gladiator.FirstPersonCamera})
+									stx.Update(entity, func(stx ScriptContext, entity Entity2) {
+										state := entity.ScriptState().(Gladiator)
+										defer func() { entity.SetScriptState(state) }()
 
-							case 1:
-								prop.SetParent(id)
-								prop.SetParentBone(unique.Make("hand.R"))
-								prop.SetTransform(gmath.TRS3One[float64]())
-								prop.SetVisibilityCondition(VisibilityCondition{Mask: 0b10, Camera: gladiator.FirstPersonCamera})
-							}
-
-							gladiator.HeldWeapon.Props[i] = prop.ID()
+										state.HeldWeapon.Props[i] = prop.ID()
+									})
+								})
 						}
 					}
 				}
