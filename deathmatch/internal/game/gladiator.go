@@ -277,7 +277,7 @@ func init() {
 					}
 					if state.Motion.Steps > 3 {
 						gladiator.SetSoundEffect(SoundEmitter{
-							Effect:      unique.Make("step.wav"),
+							Effect:      unique.Make("Step"),
 							Attenuation: 1,
 							PlayTime:    stx.Now,
 						})

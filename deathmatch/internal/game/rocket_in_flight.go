@@ -49,7 +49,7 @@ func init() {
 					rocket.SetNextThink(stx.Now.Add(2 * time.Second)) // TODO: should be long enough for sound to play
 					rocket.SetTransform(T)
 					rocket.SetSoundEffect(SoundEmitter{
-						Effect:      unique.Make("explosion.wav"),
+						Effect:      unique.Make("common/sounds/Explosion"),
 						Attenuation: 1,
 						PlayTime:    stx.Now.Add(stx.Δt),
 					})
