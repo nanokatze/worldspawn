@@ -136,7 +136,7 @@ def _sort_by_material_index(raw):
         attribute_buffers[k].data = v.data[material_index_sorter]
 
 
-def cook(raw, directory):
+def cook(ctx, raw, directory):
     attribute_buffers = [
         raw.positions,
         raw.normals,
@@ -202,7 +202,7 @@ def cook(raw, directory):
             continue
         named_attributes[name] = _write_attribute_buffer(blob, attr_buf)
 
-    with open(directory, 'wb') as f:
+    with ctx.create(directory) as f:
         f.write(b'Worldspawn')
         seek_align(f, 16)
         f.write(b'Mesh')

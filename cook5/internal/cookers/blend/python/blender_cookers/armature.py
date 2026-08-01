@@ -26,5 +26,5 @@ def cook(context, obj):
 
     joints = bpyutil.fixupdict(joints)
 
-    with open(context.path_for_datablock(obj), 'wb') as f:
+    with context.create(context.path_for_datablock(obj)) as f:
         json.dump(joints, util.UTF8Writer(f), default=bpyutil.asdasd, indent='\t')

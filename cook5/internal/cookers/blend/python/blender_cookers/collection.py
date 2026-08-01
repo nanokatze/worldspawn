@@ -77,16 +77,17 @@ def cook_objects_into(context, xform, collection, cooked_scene):
             'T': T,
             'R': R,
         }
-        values['TransformS'] = [
-            S[0], 0, 0,
-               S[1], 0,
-                  S[2],
-        ]
+        values['TransformS'] = [S[0], 0, 0, S[1], 0, S[2]]
 
         if __should_cook_object_data(obj):
             geometry = context.path_for_datablock(obj)
 
-            # TODO: do we need to do anything about this?
+            # TODO: this should (also) be handled in should_cook_object_data.
+            # I.e., if an object has both RenderingGeometry and
+            # CollisionGeometry set to anything, we should not cook object data.
+            # Actually, mayhaps the inverse, we should just do assert
+            # __should_cook_object_data(obj) inside the then blocks.
+
             if 'RenderingGeometry' not in values:
                 values['RenderingGeometry'] = geometry
 
@@ -114,7 +115,7 @@ def cook(context, datablock):
     __handle_collection(context, tmp, datablock, Matrix())
 
     cooked = bpyutil.fixupdict(tmp.cooked) # pain
-    with open(context.path_for_datablock(datablock), 'wb') as f:
+    with context.create(context.path_for_datablock(datablock)) as f:
         json.dump(cooked, util.UTF8Writer(f), indent='\t', default=bpyutil.asdasd)
 
 

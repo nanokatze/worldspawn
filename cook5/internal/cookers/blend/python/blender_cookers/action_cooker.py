@@ -37,5 +37,5 @@ def cook(context, action):
 
     animation = bpyutil.fixupdict(animation)
 
-    with open(context.path_for_datablock(action), 'wb') as f:
+    with context.create(context.path_for_datablock(action)) as f:
         json.dump(animation, util.UTF8Writer(f), default=bpyutil.asdasd, indent='\t')

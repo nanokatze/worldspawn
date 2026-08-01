@@ -81,5 +81,5 @@ def cook(context, scene):
     __handle_collection(context, tmp, scene.collection, Matrix())
 
     cooked_scene = bpyutil.fixupdict(tmp.cooked) # pain
-    with open(context.path_for_datablock(scene), 'wb') as f:
+    with context.create(context.path_for_datablock(scene)) as f:
         json.dump(cooked_scene, util.UTF8Writer(f), indent='\t', default=bpyutil.asdasd)

@@ -44,7 +44,7 @@ def cook(ctx, material):
                                           Args=[sea.names[a.id] for a in instr.args])
         program.append(dataclasses.asdict(guh))
 
-    with open(ctx.path_for_datablock(material), 'wb') as f:
+    with ctx.create(ctx.path_for_datablock(material)) as f:
         json.dump({'Params': c.params, 'Preamble': c.preamble, 'Program': program}, util.UTF8Writer(f), indent='\t')
 
 

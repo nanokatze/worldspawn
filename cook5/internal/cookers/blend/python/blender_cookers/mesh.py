@@ -130,4 +130,4 @@ def cook(context, obj):
         material_indices=material_indices,
         named_attributes=named_attributes)
 
-    mesh_cooker2.cook(mesh2, context.path_for_datablock(obj))
+    mesh_cooker2.cook(context, mesh2, context.path_for_datablock(obj))
