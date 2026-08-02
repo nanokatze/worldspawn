@@ -1,4 +1,4 @@
-//go:generate go run mkstypetab.go -o stypetab.go /usr/share/vulkan/registry/vk.xml
+//go:generate go run mkstypetab.go -o stypetab.go vk.xml
 
 package vk
 

@@ -1,9 +1,7 @@
-// TODO: keep vk.xml locally
-
 // TODO: generate String() for the enums? *Flags are bitmasks
 
-//go:generate go run mkfuncs.go -o funcs.go /usr/share/vulkan/registry/vk.xml
-//go:generate go run mktypes.go -o types.go /usr/share/vulkan/registry/vk.xml
+//go:generate go run mkfuncs.go -o funcs.go vk.xml
+//go:generate go run mktypes.go -o types.go vk.xml
 
 //go:generate stringer -type Format -trimprefix FORMAT_
 //go:generate stringer -type Result
@@ -76,6 +74,10 @@ const MAX_PIPELINE_BINARY_KEY_SIZE_KHR = 32
 const MAX_PHYSICAL_DEVICE_DATA_GRAPH_OPERATION_SET_NAME_SIZE_ARM = 128
 
 const DATA_GRAPH_MODEL_TOOLCHAIN_VERSION_LENGTH_QCOM = 3
+
+const MAX_DATA_GRAPH_TOSA_NAME_SIZE_ARM = 128
+
+const MAX_TENSOR_CREATE_INFO_ROLLING_BACKING_WRAP_COUNT_ARM = 4
 
 type ClearColorValue [4]uint32
 
