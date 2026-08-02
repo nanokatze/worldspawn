@@ -57,6 +57,7 @@ func newDeviceQueue(queueFamily, queueIndex int) *DeviceQueue {
 	var vkQueue vk.Queue
 	vkFns.GetDeviceQueue2(device, &vk.DeviceQueueInfo2{
 		SType:            vk.STRUCTURE_TYPE_DEVICE_QUEUE_INFO_2,
+		Flags:            vk.DeviceQueueCreateFlags(vk.DEVICE_QUEUE_CREATE_INTERNALLY_SYNCHRONIZED_BIT_KHR),
 		QueueFamilyIndex: uint32(queueFamily),
 		QueueIndex:       uint32(queueIndex),
 	}, &vkQueue)

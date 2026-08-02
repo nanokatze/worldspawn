@@ -207,6 +207,9 @@ func gpuInit() {
 		wantDeviceExts.Add("VK_KHR_device_address_commands", true)
 		wantDeviceFeatures.Add("DeviceAddressCommands", true)
 
+		wantDeviceExts.Add("VK_KHR_internally_synchronized_queues", true)
+		wantDeviceFeatures.Add("InternallySynchronizedQueues", true)
+
 		wantDeviceExts.Add("VK_EXT_shader_object", true)
 		wantDeviceFeatures.Add("ShaderObject", true)
 
@@ -291,6 +294,7 @@ func gpuInit() {
 				prios := make([]float32, count)
 				yield(vk.DeviceQueueCreateInfo{
 					SType:            vk.STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+					Flags:            vk.DeviceQueueCreateFlags(vk.DEVICE_QUEUE_CREATE_INTERNALLY_SYNCHRONIZED_BIT_KHR),
 					QueueFamilyIndex: uint32(family),
 					QueueCount:       uint32(count),
 					PQueuePriorities: pinnedSliceData(&pinner, prios),
