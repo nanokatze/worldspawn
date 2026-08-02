@@ -9,6 +9,9 @@ import bpyutil
 from cookers import material as material_cooker
 
 
+DIR = 'materials'
+
+
 def deps(context, datablock, dset):
     # TODO: should be handled in common code
     if datablock.library:

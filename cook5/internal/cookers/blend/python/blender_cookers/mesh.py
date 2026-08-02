@@ -8,6 +8,9 @@ import numpyutil as nputil
 import bpyutil
 
 
+DIR = 'geometries'
+
+
 # TODO: should this be called an object cooker instead?
 
 

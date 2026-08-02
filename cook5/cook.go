@@ -48,9 +48,6 @@ func (a *Artifacts) Create(file string) (*os.File, error) {
 	return os.Create(filepath.Join(a.dir, file))
 }
 
-// TODO: action.Exec should tell which files it produced (which ones should be
-// packed), actually. We don't really need to declare them up-front.
-
 func copyCooker(srcDir *os.Root, file string) (*Action, error) {
 	// TODO: we should have a more ergonomic hash helper, this one sucks
 	stat, err := srcDir.Stat(file)

@@ -6,6 +6,10 @@ import util
 import bpyutil
 
 
+
+DIR = 'prefabs'
+
+
 def __should_cook_object(obj):
     if obj.hide_render:
         return False

@@ -5,6 +5,9 @@ import bpyutil
 import util
 
 
+DIR = 'skeletons'
+
+
 def deps(context, obj, dset):
     dset.add_product((context.path_for_datablock(obj), 'Object', obj.name))
 

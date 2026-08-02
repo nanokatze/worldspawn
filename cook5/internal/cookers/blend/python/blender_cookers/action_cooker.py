@@ -6,6 +6,9 @@ import bpyutil
 import util
 
 
+DIR = 'animations'
+
+
 def deps(context, action, dset):
     dset.add_product((context.path_for_datablock(action), 'Action', action.name))
 

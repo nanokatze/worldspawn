@@ -8,6 +8,9 @@ import bpyutil
 from . import collection as collection_cooker
 
 
+DIR = 'scenes'
+
+
 def deps(context, scene, dset):
     # import mesh_cooker
 
