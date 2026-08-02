@@ -16,8 +16,8 @@ func TestImageExtent(t *testing.T) {
 
 	for i := range 4 {
 		t.Log(
-			img.SubImage(WithMipRange{i, i + 1}).Extent(),
-			img.SubImage(WithMipRange{i, i + 1}, Reinterpret(vk.FORMAT_R32G32B32A32_UINT)).Extent())
+			img.SubImage(SliceMips{i, i + 1}).Extent(),
+			img.SubImage(SliceMips{i, i + 1}, Reinterpret(vk.FORMAT_R32G32B32A32_UINT)).Extent())
 	}
 }
 

@@ -1,6 +1,9 @@
 package gpu
 
-import "worldspawn/gpu/vk"
+import (
+	"worldspawn/gpu/vk"
+	"worldspawn/gpu/vk/formatutil"
+)
 
 // TODO: use a more compact representation
 type ImageConfig struct {
@@ -9,7 +12,7 @@ type ImageConfig struct {
 	extent [3]int
 	layers int
 	mips   int
-	usages vk.ImageUsageFlags
+	usage  vk.ImageUsageFlags
 }
 
 func MakeImageConfig(format vk.Format, extent []int) ImageConfig {
@@ -19,12 +22,12 @@ func MakeImageConfig(format vk.Format, extent []int) ImageConfig {
 		extent: extent3(extent),
 		layers: 1,
 		mips:   1,
-		usages: vk.ImageUsageFlags(vk.IMAGE_USAGE_TRANSFER_DST_BIT) | vk.ImageUsageFlags(vk.IMAGE_USAGE_TRANSFER_SRC_BIT),
 	}
 }
 
 // TODO: rename pls
 func (config ImageConfig) AsCube(cube bool) ImageConfig {
+	// TODO: make this a method on ImageDim
 	if cube {
 		config.dim |= 0x80
 	} else {
@@ -44,7 +47,7 @@ func (config ImageConfig) WithMips(mips int) ImageConfig {
 }
 
 func (config ImageConfig) WithUsage(usage vk.ImageUsageFlagBits) ImageConfig {
-	config.usages |= vk.ImageUsageFlags(usage)
+	config.usage |= vk.ImageUsageFlags(usage)
 	return config
 }
 
@@ -58,4 +61,69 @@ func (config ImageConfig) Layers() int { return config.layers }
 
 func (config ImageConfig) Mips() int { return config.mips }
 
-func (config ImageConfig) Usages() vk.ImageUsageFlags { return config.usages }
+func (config ImageConfig) Usage() vk.ImageUsageFlags { return config.usage }
+
+type subImageConfig struct {
+	dim        ImageDim
+	format     vk.Format
+	firstLayer int
+	layers     int
+	firstMip   int
+	mips       int
+}
+
+func subImageConfigFromImageConfig(config ImageConfig) subImageConfig {
+	return subImageConfig{
+		dim:    config.dim,
+		format: config.format,
+		layers: config.layers,
+		mips:   config.mips,
+	}
+}
+
+func (config subImageConfig) bounds() imageBounds {
+	return makeImageBounds(formatutil.Aspects(config.format), config.firstLayer, config.layers, config.firstMip, config.mips)
+}
+
+type SubImageOption interface {
+	// TODO: this should also take the *Image so that we can perform validation
+	// during construction. We could also supply that info through
+	// subImageConfig
+	apply(config *subImageConfig)
+}
+
+// TODO: validation
+
+// TODO: make all of these be SubImageOption constructors instead of plain types
+
+// TODO: rename?
+// TODO: ViewAsCube{} variant
+type ViewAs ImageDim
+
+func (dim ViewAs) apply(config *subImageConfig) {
+	config.dim = ImageDim(dim)
+}
+
+type Reinterpret vk.Format
+
+func (format Reinterpret) apply(config *subImageConfig) {
+	// TODO: validation
+	config.format = vk.Format(format)
+}
+
+// TODO: make a variant of this called SliceSlices to be used for 3D images
+type SliceLayers [2]int
+
+func (layers SliceLayers) apply(config *subImageConfig) {
+	// TODO: validation
+	config.firstLayer = config.firstLayer + layers[0]
+	config.layers = layers[1] - layers[0]
+}
+
+type SliceMips [2]int
+
+func (mips SliceMips) apply(config *subImageConfig) {
+	// TODO: validation
+	config.firstMip = config.firstMip + mips[0]
+	config.mips = mips[1] - mips[0]
+}

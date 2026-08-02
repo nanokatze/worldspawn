@@ -60,7 +60,7 @@ var texturecache = cache.New(func(filename unique.Handle[string]) *renderer.Text
 
 		jq := new(gpu.JobQueue)
 
-		img := t.Image.SubImage(gpu.WithMipRange{i, i + 1})
+		img := t.Image.SubImage(gpu.SliceMips{i, i + 1})
 		img.EnqueueInit(jq)
 
 		d.EnqueueDecode(jq, img, i)

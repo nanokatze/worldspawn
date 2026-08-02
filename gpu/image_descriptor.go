@@ -13,13 +13,13 @@ type ImageDescriptor struct {
 	bits uint32
 }
 
-func newImageDescriptor(data *imageData, config *subImageConfig) ImageDescriptor {
-	formatProps := getFormatImageProperties(config.Format)
+func newImageDescriptor(data *imageData, config subImageConfig) ImageDescriptor {
+	formatProps := getFormatImageProperties(config.format)
 	if !formatProps.Supported {
 		panic("unsupported format")
 	}
 
-	usages := data.usages & formatProps.SupportedUsages
+	usages := data.usage & formatProps.SupportedUsages
 
 	// TODO: factor things into a mask of shader usages and then do a loop
 	// creating a descriptor for every usage.
@@ -80,7 +80,7 @@ type pointerToDescriptor struct {
 	ArrayElement uint32
 }
 
-func initVulkanImageDescriptor(data *imageData, config *subImageConfig, descriptorType vk.DescriptorType, imageView *vk.ImageView, descriptor pointerToDescriptor) {
+func initVulkanImageDescriptor(data *imageData, config subImageConfig, descriptorType vk.DescriptorType, imageView *vk.ImageView, descriptor pointerToDescriptor) {
 	must(vkFns.CreateImageView(device, &vk.ImageViewCreateInfo{
 		SType: vk.STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 		PNext: unsafe.Pointer(&vk.ImageViewUsageCreateInfo{
@@ -88,9 +88,9 @@ func initVulkanImageDescriptor(data *imageData, config *subImageConfig, descript
 			Usage: imageUsageFromDescriptorType(descriptorType),
 		}),
 		Image:            data.vkImage,
-		ViewType:         config.Dim.vkImageViewType(),
-		Format:           config.Format,
-		SubresourceRange: config.bounds().VkImageSubresourceRange(config.Format),
+		ViewType:         config.dim.vkImageViewType(),
+		Format:           config.format,
+		SubresourceRange: config.bounds().VkImageSubresourceRange(config.format),
 	}, nil, imageView))
 
 	vkFns.UpdateDescriptorSets(device,

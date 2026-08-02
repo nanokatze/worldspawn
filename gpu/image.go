@@ -3,7 +3,6 @@ package gpu
 import (
 	"fmt"
 	"runtime"
-	"unsafe"
 
 	"worldspawn/gpu/vk"
 	"worldspawn/gpu/vk/formatutil"
@@ -79,127 +78,19 @@ type Image struct {
 func NewImage(config ImageConfig) *Image {
 	gpuInit()
 
-	var pinner runtime.Pinner
-	defer pinner.Unpin()
-
-	imageCreateInfo := new(vk.ImageCreateInfo)
-	imageCreateInfo.SType = vk.STRUCTURE_TYPE_IMAGE_CREATE_INFO
-	// TODO: shove these into a function that operates on vk.ImageCreateInfo
-	imageCreateInfo.Flags |= vk.ImageCreateFlags(vk.IMAGE_CREATE_MUTABLE_FORMAT_BIT)
-	imageCreateInfo.Flags |= vk.ImageCreateFlags(vk.IMAGE_CREATE_EXTENDED_USAGE_BIT)
-	// TODO: actually check if it's compressed instead of checking BlockExtent
-	if formatutil.Describe(config.format).BlockExtent != (vk.Extent3D{Width: 1, Height: 1, Depth: 1}) {
-		imageCreateInfo.Flags |= vk.ImageCreateFlags(vk.IMAGE_CREATE_BLOCK_TEXEL_VIEW_COMPATIBLE_BIT)
-	}
-	if config.dim == 2 && config.extent[0] == config.extent[1] && config.layers >= 6 {
-		imageCreateInfo.Flags |= vk.ImageCreateFlags(vk.IMAGE_CREATE_CUBE_COMPATIBLE_BIT)
-	}
-	imageCreateInfo.ImageType = ImageDim(config.dim).vkImageType()
-	imageCreateInfo.Format = config.format
-	imageCreateInfo.Extent = vkExtent3DFromInt3(config.extent)
-	imageCreateInfo.MipLevels = uint32(config.mips)
-	imageCreateInfo.ArrayLayers = uint32(config.layers)
-	imageCreateInfo.Samples = 1
-	imageCreateInfo.Usage = config.usages
-	imageCreateInfo.SharingMode = vk.SHARING_MODE_CONCURRENT
-	imageCreateInfo.QueueFamilyIndexCount = uint32(len(topology.probe))
-	imageCreateInfo.PQueueFamilyIndices = unsafe.SliceData(topology.probe)
-
-	pinner.Pin(imageCreateInfo)
-	pinner.Pin(imageCreateInfo.PQueueFamilyIndices)
-
-	requirements := &vk.MemoryRequirements2{
-		SType: vk.STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2,
-	}
-	vkFns.GetDeviceImageMemoryRequirements(device,
-		&vk.DeviceImageMemoryRequirements{
-			SType:       vk.STRUCTURE_TYPE_DEVICE_IMAGE_MEMORY_REQUIREMENTS,
-			PCreateInfo: imageCreateInfo,
-		},
-		requirements)
-
-	// println(fmt.Sprintf("image %v needs %v aligned to %v", config.Extent, requirements.Size, requirements.Alignment))
-
-	size := roundUpDeviceAllocationSize(int(requirements.Size))
-
-	var vkImage vk.Image
-	must(vkFns.CreateImage(device, imageCreateInfo, nil, &vkImage))
-
-	memoryTypeIndex := findMemoryTypeIndex(requirements.MemoryTypeBits, 0)
-
-	var memory *deviceMemory
-	{
-		allocPoolMu.Lock()
-		entries := allocPool[size]
-		if len(entries) > 0 {
-			memory = entries[len(entries)-1]
-			allocPool[size] = entries[:len(entries)-1]
-		}
-		allocPoolMu.Unlock()
-	}
-	if memory == nil {
-		var allocation deviceMemory
-		allocation.size = size
-		must(vkFns.AllocateMemory(device, &vk.MemoryAllocateInfo{
-			SType:           vk.STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-			AllocationSize:  vk.DeviceSize(size),
-			MemoryTypeIndex: uint32(memoryTypeIndex),
-		}, nil, &allocation.memory))
-		memory = &allocation
-	}
-
-	must(vkFns.BindImageMemory2(device, 1, &vk.BindImageMemoryInfo{
-		SType:        vk.STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO,
-		Image:        vkImage,
-		Memory:       memory.memory,
-		MemoryOffset: 0,
-	}))
-
-	img := newImageFromData(
-		&imageData{
-			vkImage: vkImage,
-
-			format: config.format,
-			extent: config.extent,
-			layers: config.layers,
-			mips:   config.mips,
-			usages: config.usages,
-
-			memory: memory,
-		},
-		config)
+	img := newImage(newImageData(config), subImageConfigFromImageConfig(config))
 	img.ownsData = true
 	// TODO: runtime.AddCleanup
 	return img
 }
 
 func NewImageFromVkImage(vkImage vk.Image, config ImageConfig) *Image {
-	return newImageFromData(
-		&imageData{
-			vkImage: vkImage,
-
-			format: config.format,
-			extent: config.extent,
-			layers: config.layers,
-			mips:   config.mips,
-			usages: config.usages,
-		},
-		config)
+	return newImage(newImageDataFromVkImage(vkImage, config), subImageConfigFromImageConfig(config))
 }
 
-func newImageFromData(data *imageData, config ImageConfig) *Image {
-	return newImage(data,
-		&subImageConfig{
-			Dim:    config.dim,
-			Format: config.format,
-			Layers: config.layers,
-			Mips:   config.mips,
-		})
-}
-
-func newImage(data *imageData, config *subImageConfig) *Image {
-	extent := minify3(data.extent, config.FirstMip)
-	formatClass := formatutil.Describe(config.Format).Class
+func newImage(data *imageData, config subImageConfig) *Image {
+	extent := minify3(data.extent, config.firstMip)
+	formatClass := formatutil.Describe(config.format).Class
 	baseFormatClass := formatutil.Describe(data.format).Class
 	if formatClass != baseFormatClass {
 		// Format classes differ, this can only be possible if we're
@@ -207,8 +98,8 @@ func newImage(data *imageData, config *subImageConfig) *Image {
 		// 1, 1, 1.
 		// TODO: check that formatClass is uncompressed, while baseFormatClass
 		// is compressed instead of this hack
-		if formatBlockExtent(config.Format) != ([3]int{1, 1, 1}) {
-			panic(fmt.Sprintf("cannot create a %v view of a %v class image", config.Format, baseFormatClass))
+		if formatBlockExtent(config.format) != ([3]int{1, 1, 1}) {
+			panic(fmt.Sprintf("cannot create a %v view of a %v class image", config.format, baseFormatClass))
 		}
 		extent = divByBlockExtentRoundUp(extent, data.format)
 	}
@@ -216,8 +107,8 @@ func newImage(data *imageData, config *subImageConfig) *Image {
 	img := &Image{
 		data:       data,
 		descriptor: newImageDescriptor(data, config),
-		dim:        config.Dim,
-		format:     config.Format,
+		dim:        config.dim,
+		format:     config.format,
 		bounds:     config.bounds(),
 		extent:     vkExtent3DFromInt3(extent),
 	}
@@ -228,78 +119,24 @@ func newImage(data *imageData, config *subImageConfig) *Image {
 	return img
 }
 
-type subImageConfig struct {
-	Dim        ImageDim
-	Format     vk.Format
-	FirstLayer int
-	Layers     int
-	FirstMip   int
-	Mips       int
-}
-
-type SubImageOption interface{ apply(config *subImageConfig) }
-
-// TODO: rename?
-// TODO: ViewAsCube{} variant
-type ViewAs ImageDim
-
-func (dim ViewAs) apply(config *subImageConfig) {
-	// TODO: validation
-	config.Dim = ImageDim(dim)
-}
-
-type Reinterpret vk.Format
-
-func (format Reinterpret) apply(config *subImageConfig) {
-	// TODO: validation
-	config.Format = vk.Format(format)
-}
-
-// TODO: make a variant of this called WithSlices which would have to be used for 3D images?
-type WithLayerRange [2]int
-
-func (layers WithLayerRange) apply(config *subImageConfig) {
-	// TODO: validation
-	config.FirstLayer = config.FirstLayer + layers[0]
-	config.Layers = layers[1] - layers[0]
-}
-
-type WithMipRange [2]int
-
-func (mips WithMipRange) apply(config *subImageConfig) {
-	// TODO: validation
-	config.FirstMip = config.FirstMip + mips[0]
-	config.Mips = mips[1] - mips[0]
-}
-
-func (conf *subImageConfig) join(opts ...SubImageOption) {
-	// TODO: switch over common impls so that we noescape things
-
-	for _, opt := range opts {
-		// TODO: switch over common impls so that we noescape things
-		opt.apply(conf)
-	}
-}
-
-func (conf *subImageConfig) bounds() imageBounds {
-	return makeImageBounds(formatutil.Aspects(conf.Format), conf.FirstLayer, conf.Layers, conf.FirstMip, conf.Mips)
-}
-
 // TODO: for multi-planar images we'd also want to specify aspect mask. Instead,
 // we can pretend all images are multi-planar and specify *plane mask* (up to 3
 // bits). Depth-stencil images always have depth be plane 0 and stencil plane 1.
 // TODO: better parameter names
 func (img *Image) SubImage(opts ...SubImageOption) *Image {
-	conf := subImageConfig{
-		Dim:        img.dim,
-		Format:     img.format,
-		FirstLayer: img.bounds.FirstLayer(),
-		Layers:     img.bounds.Layers(),
-		FirstMip:   img.bounds.FirstMip(),
-		Mips:       img.bounds.Mips(),
+	config := subImageConfig{
+		dim:        img.dim,
+		format:     img.format,
+		firstLayer: img.bounds.FirstLayer(),
+		layers:     img.bounds.Layers(),
+		firstMip:   img.bounds.FirstMip(),
+		mips:       img.bounds.Mips(),
 	}
-	conf.join(opts...)
-	return newImage(img.data, &conf)
+	for _, opt := range opts {
+		// TODO: switch over common impls so that we noescape things
+		opt.apply(&config)
+	}
+	return newImage(img.data, config)
 }
 
 func (img *Image) Config() ImageConfig {
@@ -309,7 +146,7 @@ func (img *Image) Config() ImageConfig {
 		extent: int3FromVkExtent3D(img.extent),
 		layers: img.bounds.Layers(),
 		mips:   img.bounds.Mips(),
-		usages: img.data.usages, // TODO: we might need to coerce things here
+		usage:  img.data.usage, // TODO: we might need to coerce things here
 	}
 }
 

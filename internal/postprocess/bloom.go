@@ -23,7 +23,7 @@ func Bloom(jq *gpu.JobQueue, dst, src *gpu.Image) {
 
 	tmpMips := make([]*gpu.Image, tmp.Mips())
 	for i := range tmpMips {
-		tmpMips[i] = tmp.SubImage(gpu.WithMipRange{i, i + 1})
+		tmpMips[i] = tmp.SubImage(gpu.SliceMips{i, i + 1})
 		defer jq.Cleanup(tmpMips[i].Destroy)
 	}
 

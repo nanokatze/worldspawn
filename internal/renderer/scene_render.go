@@ -90,7 +90,7 @@ var blueNoise = sync.OnceValue(func() *gpu.Image {
 
 			gpu.EnqueueCopyMemoryToImage(
 				jq,
-				gpuImg.SubImage(gpu.WithLayerRange{i, i + 1}), nil,
+				gpuImg.SubImage(gpu.SliceLayers{i, i + 1}), nil,
 				staging, 0, 0,
 				[]int{imgNRGBA.Rect.Max.X, imgNRGBA.Rect.Max.Y})
 
@@ -118,7 +118,7 @@ func mustReadFile(filename string) []byte {
 func (scene *Scene) EnqueueRender(jq *gpu.JobQueue, film Film, camera *Camera, cameraTransform gmath.Mat4x4f32, frameNumber uint32, quality *Quality) {
 	bn := blueNoise()
 
-	bnLayer := bn.SubImage(gpu.WithLayerRange{int(frameNumber) % bn.Layers(), int(frameNumber)%bn.Layers() + 1})
+	bnLayer := bn.SubImage(gpu.SliceLayers{int(frameNumber) % bn.Layers(), int(frameNumber)%bn.Layers() + 1})
 	defer jq.Cleanup(bnLayer.Destroy)
 
 	dscene := gpu.NewUncached[Scene]()
