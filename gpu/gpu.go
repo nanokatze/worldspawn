@@ -204,6 +204,9 @@ func gpuInit() {
 		wantDeviceExts.Add("VK_KHR_maintenance9", true)
 		wantDeviceFeatures.Add("Maintenance9", true)
 
+		wantDeviceExts.Add("VK_KHR_device_address_commands", true)
+		wantDeviceFeatures.Add("DeviceAddressCommands", true)
+
 		wantDeviceExts.Add("VK_EXT_shader_object", true)
 		wantDeviceFeatures.Add("ShaderObject", true)
 

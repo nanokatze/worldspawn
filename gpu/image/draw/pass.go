@@ -133,10 +133,22 @@ func Begin(jq *gpu.JobQueue, config *Config) *Pass {
 // TODO: remove when we can use ms only
 func (pass *Pass) SetIndexBuffer(indexType vk.IndexType, indexBuffer gpu.UnsafePointer) {
 	if indexBuffer != vk.NULL_HANDLE {
-		buffer, offset := gpu.BufferAndOffset(indexBuffer)
-		vkFns.CmdBindIndexBuffer(pass.cb, buffer, offset, indexType)
+		vkFns.CmdBindIndexBuffer3KHR(pass.cb,
+			&vk.BindIndexBuffer3InfoKHR{
+				SType: vk.STRUCTURE_TYPE_BIND_INDEX_BUFFER_3_INFO_KHR,
+				AddressRange: vk.DeviceAddressRangeKHR{
+					Address: vk.DeviceAddress(indexBuffer),
+					Size:    ^vk.DeviceSize(0), // provide a real address
+				},
+				AddressFlags: vk.AddressCommandFlagsKHR(vk.ADDRESS_COMMAND_FULLY_BOUND_BIT_KHR) |
+					vk.AddressCommandFlagsKHR(vk.ADDRESS_COMMAND_UNKNOWN_STORAGE_BUFFER_USAGE_BIT_KHR),
+				IndexType: indexType,
+			})
 	} else {
-		// needs maintenance6: vkProcs.CmdBindIndexBuffer(rp.cb_, vk.NULL_HANDLE, 0, 0)
+		vkFns.CmdBindIndexBuffer3KHR(pass.cb,
+			&vk.BindIndexBuffer3InfoKHR{
+				SType: vk.STRUCTURE_TYPE_BIND_INDEX_BUFFER_3_INFO_KHR,
+			})
 	}
 }
 

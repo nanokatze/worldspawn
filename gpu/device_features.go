@@ -16,6 +16,7 @@ type deviceFeatures struct {
 	vk.PhysicalDeviceMaintenance7FeaturesKHR
 	vk.PhysicalDeviceMaintenance8FeaturesKHR
 	vk.PhysicalDeviceMaintenance9FeaturesKHR
+	vk.PhysicalDeviceDeviceAddressCommandsFeaturesKHR
 	vk.PhysicalDeviceShaderObjectFeaturesEXT
 	vk.PhysicalDeviceMeshShaderFeaturesEXT
 	vk.PhysicalDeviceImageViewMinLodFeaturesEXT

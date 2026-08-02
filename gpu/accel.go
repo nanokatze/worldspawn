@@ -210,17 +210,14 @@ func newVkAccelerationStructureAt(accel accel) vk.AccelerationStructureKHR {
 		panic("size must not be 0")
 	}
 
-	// TODO: we could probably replace size with the remaining buffer size.
-
-	buffer, offset := BufferAndOffset(accel.data)
-
 	var as vk.AccelerationStructureKHR
-	must(vkFns.CreateAccelerationStructureKHR(device, &vk.AccelerationStructureCreateInfoKHR{
-		SType:  vk.STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
-		Buffer: buffer,
-		Offset: offset,
-		Size:   vk.DeviceSize(accel.size),
-		Type:   vk.ACCELERATION_STRUCTURE_TYPE_GENERIC_KHR,
+	must(vkFns.CreateAccelerationStructure2KHR(device, &vk.AccelerationStructureCreateInfo2KHR{
+		SType: vk.STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
+		AddressRange: vk.DeviceAddressRangeKHR{
+			Address: vk.DeviceAddress(accel.data),
+			Size:    vk.DeviceSize(accel.size),
+		},
+		Type: vk.ACCELERATION_STRUCTURE_TYPE_GENERIC_KHR,
 	}, nil, &as))
 
 	asAddr := vkFns.GetAccelerationStructureDeviceAddressKHR(device, &vk.AccelerationStructureDeviceAddressInfoKHR{

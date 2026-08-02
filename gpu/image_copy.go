@@ -170,26 +170,27 @@ func (job *copyMemoryToImageJob) Exec(q *DeviceQueue) {
 		var pinner runtime.Pinner
 		defer pinner.Unpin()
 
-		srcBuffer, srcOffset := BufferAndOffset(job.src)
-
-		region := &vk.BufferImageCopy2{
-			SType:             vk.STRUCTURE_TYPE_BUFFER_IMAGE_COPY_2,
-			BufferOffset:      srcOffset,
-			BufferRowLength:   uint32(job.srcRowLength),
-			BufferImageHeight: uint32(job.srcImageHeight),
-			ImageSubresource:  job.dstBounds.VkImageSubresourceLayers(job.dst.format),
-			ImageOffset:       job.dstOffset,
-			ImageExtent:       job.extent,
+		region := &vk.DeviceMemoryImageCopyKHR{
+			SType: vk.STRUCTURE_TYPE_DEVICE_MEMORY_IMAGE_COPY_KHR,
+			AddressRange: vk.DeviceAddressRangeKHR{
+				Address: vk.DeviceAddress(job.src),
+				Size:    ^vk.DeviceSize(0), // BUG: provide a real size
+			},
+			AddressFlags: vk.AddressCommandFlagsKHR(vk.ADDRESS_COMMAND_FULLY_BOUND_BIT_KHR) |
+				vk.AddressCommandFlagsKHR(vk.ADDRESS_COMMAND_UNKNOWN_STORAGE_BUFFER_USAGE_BIT_KHR),
+			AddressRowLength:   uint32(job.srcRowLength),
+			AddressImageHeight: uint32(job.srcImageHeight),
+			ImageSubresource:   job.dstBounds.VkImageSubresourceLayers(job.dst.format),
+			ImageOffset:        job.dstOffset,
+			ImageExtent:        job.extent,
 		}
 		pinner.Pin(region)
 
-		vkFns.CmdCopyBufferToImage2(cb, &vk.CopyBufferToImageInfo2{
-			SType:          vk.STRUCTURE_TYPE_COPY_BUFFER_TO_IMAGE_INFO_2,
-			SrcBuffer:      srcBuffer,
-			DstImage:       job.dst.vkImage,
-			DstImageLayout: vk.IMAGE_LAYOUT_GENERAL,
-			RegionCount:    1,
-			PRegions:       region,
+		vkFns.CmdCopyMemoryToImageKHR(cb, &vk.CopyDeviceMemoryImageInfoKHR{
+			SType:       vk.STRUCTURE_TYPE_COPY_DEVICE_MEMORY_IMAGE_INFO_KHR,
+			Image:       job.dst.vkImage,
+			RegionCount: 1,
+			PRegions:    region,
 		})
 	})
 }
@@ -250,26 +251,27 @@ func (job *copyImageToMemoryJob) Exec(q *DeviceQueue) {
 		var pinner runtime.Pinner
 		defer pinner.Unpin()
 
-		dstBuffer, dstOffset := BufferAndOffset(job.dst)
-
-		region := &vk.BufferImageCopy2{
-			SType:             vk.STRUCTURE_TYPE_BUFFER_IMAGE_COPY_2,
-			BufferOffset:      dstOffset,
-			BufferRowLength:   uint32(job.dstRowLength),
-			BufferImageHeight: uint32(job.dstImageHeight),
-			ImageSubresource:  job.srcBounds.VkImageSubresourceLayers(job.src.format),
-			ImageOffset:       job.srcOffset,
-			ImageExtent:       job.extent,
+		region := &vk.DeviceMemoryImageCopyKHR{
+			SType: vk.STRUCTURE_TYPE_DEVICE_MEMORY_IMAGE_COPY_KHR,
+			AddressRange: vk.DeviceAddressRangeKHR{
+				Address: vk.DeviceAddress(job.dst),
+				Size:    ^vk.DeviceSize(0), // BUG: provide a real size
+			},
+			AddressFlags: vk.AddressCommandFlagsKHR(vk.ADDRESS_COMMAND_FULLY_BOUND_BIT_KHR) |
+				vk.AddressCommandFlagsKHR(vk.ADDRESS_COMMAND_UNKNOWN_STORAGE_BUFFER_USAGE_BIT_KHR),
+			AddressRowLength:   uint32(job.dstRowLength),
+			AddressImageHeight: uint32(job.dstImageHeight),
+			ImageSubresource:   job.srcBounds.VkImageSubresourceLayers(job.src.format),
+			ImageOffset:        job.srcOffset,
+			ImageExtent:        job.extent,
 		}
 		pinner.Pin(region)
 
-		vkFns.CmdCopyImageToBuffer2(cb, &vk.CopyImageToBufferInfo2{
-			SType:          vk.STRUCTURE_TYPE_COPY_IMAGE_TO_BUFFER_INFO_2,
-			SrcImage:       job.src.vkImage,
-			SrcImageLayout: vk.IMAGE_LAYOUT_GENERAL,
-			DstBuffer:      dstBuffer,
-			RegionCount:    1,
-			PRegions:       region,
+		vkFns.CmdCopyImageToMemoryKHR(cb, &vk.CopyDeviceMemoryImageInfoKHR{
+			SType:       vk.STRUCTURE_TYPE_COPY_DEVICE_MEMORY_IMAGE_INFO_KHR,
+			Image:       job.src.vkImage,
+			RegionCount: 1,
+			PRegions:    region,
 		})
 	})
 }

@@ -300,15 +300,15 @@ type DeviceFuncs struct {
 	C_BindImageMemory2                         *[0]byte
 	C_CmdBeginRendering                        *[0]byte
 	C_CmdBindDescriptorSets                    *[0]byte
-	C_CmdBindIndexBuffer                       *[0]byte
+	C_CmdBindIndexBuffer3KHR                   *[0]byte
 	C_CmdBindPipeline                          *[0]byte
 	C_CmdBindShadersEXT                        *[0]byte
 	C_CmdBuildAccelerationStructuresKHR        *[0]byte
 	C_CmdClearAttachments                      *[0]byte
-	C_CmdCopyBuffer2                           *[0]byte
-	C_CmdCopyBufferToImage2                    *[0]byte
 	C_CmdCopyImage2                            *[0]byte
-	C_CmdCopyImageToBuffer2                    *[0]byte
+	C_CmdCopyImageToMemoryKHR                  *[0]byte
+	C_CmdCopyMemoryKHR                         *[0]byte
+	C_CmdCopyMemoryToImageKHR                  *[0]byte
 	C_CmdDispatch                              *[0]byte
 	C_CmdDraw                                  *[0]byte
 	C_CmdDrawIndexed                           *[0]byte
@@ -342,7 +342,7 @@ type DeviceFuncs struct {
 	C_CmdSetVertexInputEXT                     *[0]byte
 	C_CmdSetViewportWithCountEXT               *[0]byte
 	C_CmdTraceRaysKHR                          *[0]byte
-	C_CreateAccelerationStructureKHR           *[0]byte
+	C_CreateAccelerationStructure2KHR          *[0]byte
 	C_CreateBuffer                             *[0]byte
 	C_CreateCommandPool                        *[0]byte
 	C_CreateDescriptorPool                     *[0]byte
@@ -432,8 +432,8 @@ func (funcs *DeviceFuncs) CmdBindDescriptorSets(commandBuffer CommandBuffer, pip
 	C.vkcall_void_uintptr_32_64_32_32_ptr_32_ptr(funcs.C_CmdBindDescriptorSets, C.uintptr_t(commandBuffer), C.uint32_t(pipelineBindPoint), C.uint64_t(layout), C.uint32_t(firstSet), C.uint32_t(descriptorSetCount), unsafe.Pointer(pDescriptorSets), C.uint32_t(dynamicOffsetCount), unsafe.Pointer(pDynamicOffsets))
 }
 
-func (funcs *DeviceFuncs) CmdBindIndexBuffer(commandBuffer CommandBuffer, buffer Buffer, offset DeviceSize, indexType IndexType) {
-	C.vkcall_void_uintptr_64_64_32(funcs.C_CmdBindIndexBuffer, C.uintptr_t(commandBuffer), C.uint64_t(buffer), C.uint64_t(offset), C.uint32_t(indexType))
+func (funcs *DeviceFuncs) CmdBindIndexBuffer3KHR(commandBuffer CommandBuffer, info *BindIndexBuffer3InfoKHR) {
+	C.vkcall_void_uintptr_ptr(funcs.C_CmdBindIndexBuffer3KHR, C.uintptr_t(commandBuffer), unsafe.Pointer(info))
 }
 
 func (funcs *DeviceFuncs) CmdBindPipeline(commandBuffer CommandBuffer, pipelineBindPoint PipelineBindPoint, pipeline Pipeline) {
@@ -452,20 +452,20 @@ func (funcs *DeviceFuncs) CmdClearAttachments(commandBuffer CommandBuffer, attac
 	C.vkcall_void_uintptr_32_ptr_32_ptr_noescape_nocallback(funcs.C_CmdClearAttachments, C.uintptr_t(commandBuffer), C.uint32_t(attachmentCount), unsafe.Pointer(attachments), C.uint32_t(rectCount), unsafe.Pointer(rects))
 }
 
-func (funcs *DeviceFuncs) CmdCopyBuffer2(commandBuffer CommandBuffer, pCopyBufferInfo *CopyBufferInfo2) {
-	C.vkcall_void_uintptr_ptr(funcs.C_CmdCopyBuffer2, C.uintptr_t(commandBuffer), unsafe.Pointer(pCopyBufferInfo))
+func (funcs *DeviceFuncs) CmdCopyMemoryKHR(commandBuffer CommandBuffer, pCopyMemoryInfo *CopyDeviceMemoryInfoKHR) {
+	C.vkcall_void_uintptr_ptr(funcs.C_CmdCopyMemoryKHR, C.uintptr_t(commandBuffer), unsafe.Pointer(pCopyMemoryInfo))
 }
 
-func (funcs *DeviceFuncs) CmdCopyBufferToImage2(commandBuffer CommandBuffer, pCopyBufferToImageInfo *CopyBufferToImageInfo2) {
-	C.vkcall_void_uintptr_ptr(funcs.C_CmdCopyBufferToImage2, C.uintptr_t(commandBuffer), unsafe.Pointer(pCopyBufferToImageInfo))
+func (funcs *DeviceFuncs) CmdCopyImageToMemoryKHR(commandBuffer CommandBuffer, pCopyMemoryInfo *CopyDeviceMemoryImageInfoKHR) {
+	C.vkcall_void_uintptr_ptr(funcs.C_CmdCopyImageToMemoryKHR, C.uintptr_t(commandBuffer), unsafe.Pointer(pCopyMemoryInfo))
+}
+
+func (funcs *DeviceFuncs) CmdCopyMemoryToImageKHR(commandBuffer CommandBuffer, pCopyMemoryInfo *CopyDeviceMemoryImageInfoKHR) {
+	C.vkcall_void_uintptr_ptr(funcs.C_CmdCopyMemoryToImageKHR, C.uintptr_t(commandBuffer), unsafe.Pointer(pCopyMemoryInfo))
 }
 
 func (funcs *DeviceFuncs) CmdCopyImage2(commandBuffer CommandBuffer, pCopyImageInfo *CopyImageInfo2) {
 	C.vkcall_void_uintptr_ptr(funcs.C_CmdCopyImage2, C.uintptr_t(commandBuffer), unsafe.Pointer(pCopyImageInfo))
-}
-
-func (funcs *DeviceFuncs) CmdCopyImageToBuffer2(commandBuffer CommandBuffer, pCopyImageToBufferInfo *CopyImageToBufferInfo2) {
-	C.vkcall_void_uintptr_ptr(funcs.C_CmdCopyImageToBuffer2, C.uintptr_t(commandBuffer), unsafe.Pointer(pCopyImageToBufferInfo))
 }
 
 func (funcs *DeviceFuncs) CmdDispatch(commandBuffer CommandBuffer, groupCountX, groupCountY, groupCountZ uint32) {
@@ -596,8 +596,8 @@ func (funcs *DeviceFuncs) CmdTraceRaysKHR(commandBuffer CommandBuffer, pRaygenSh
 	C.vkcall_void_uintptr_ptr_ptr_ptr_ptr_32_32_32_noescape_nocallback(funcs.C_CmdTraceRaysKHR, C.uintptr_t(commandBuffer), unsafe.Pointer(pRaygenShaderBindingTable), unsafe.Pointer(pMissShaderBindingTable), unsafe.Pointer(pHitShaderBindingTable), unsafe.Pointer(pCallableShaderBindingTable), C.uint32_t(width), C.uint32_t(height), C.uint32_t(depth))
 }
 
-func (funcs *DeviceFuncs) CreateAccelerationStructureKHR(device Device, pCreateInfo *AccelerationStructureCreateInfoKHR, pAllocator *AllocationCallbacks, pAccelerationStructure *AccelerationStructureKHR) error {
-	return resultErr(Result(C.vkcall_32_uintptr_ptr_ptr_ptr_noescape_nocallback(funcs.C_CreateAccelerationStructureKHR, C.uintptr_t(device), unsafe.Pointer(pCreateInfo), unsafe.Pointer(pAllocator), unsafe.Pointer(pAccelerationStructure))))
+func (funcs *DeviceFuncs) CreateAccelerationStructure2KHR(device Device, pCreateInfo *AccelerationStructureCreateInfo2KHR, pAllocator *AllocationCallbacks, pAccelerationStructure *AccelerationStructureKHR) error {
+	return resultErr(Result(C.vkcall_32_uintptr_ptr_ptr_ptr_noescape_nocallback(funcs.C_CreateAccelerationStructure2KHR, C.uintptr_t(device), unsafe.Pointer(pCreateInfo), unsafe.Pointer(pAllocator), unsafe.Pointer(pAccelerationStructure))))
 }
 
 func (funcs *DeviceFuncs) CreateBuffer(device Device, createInfo *BufferCreateInfo, allocator *AllocationCallbacks, buffer *Buffer) error {

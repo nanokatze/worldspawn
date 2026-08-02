@@ -49,21 +49,29 @@ func (job *copyJob) Exec(q *DeviceQueue) {
 		var pinner runtime.Pinner
 		defer pinner.Unpin()
 
-		dstBuffer, dstOffset := BufferAndOffset(job.dst)
-		srcBuffer, srcOffset := BufferAndOffset(job.src)
+		// We don't use sparse for now so we can use FULLY_BOUND. In the future
+		// when we get sparse going we'll want to set FULLY_BOUND flag by
+		// consulting the allocator. RADV benefits from this flag in some cases.
 
-		region := &vk.BufferCopy2{
-			SType:     vk.STRUCTURE_TYPE_BUFFER_COPY_2,
-			SrcOffset: srcOffset,
-			DstOffset: dstOffset,
-			Size:      vk.DeviceSize(job.len),
+		region := &vk.DeviceMemoryCopyKHR{
+			SType: vk.STRUCTURE_TYPE_DEVICE_MEMORY_COPY_KHR,
+			SrcRange: vk.DeviceAddressRangeKHR{
+				Address: vk.DeviceAddress(job.src),
+				Size:    vk.DeviceSize(job.len),
+			},
+			SrcFlags: vk.AddressCommandFlagsKHR(vk.ADDRESS_COMMAND_FULLY_BOUND_BIT_KHR) |
+				vk.AddressCommandFlagsKHR(vk.ADDRESS_COMMAND_UNKNOWN_STORAGE_BUFFER_USAGE_BIT_KHR),
+			DstRange: vk.DeviceAddressRangeKHR{
+				Address: vk.DeviceAddress(job.dst),
+				Size:    vk.DeviceSize(job.len),
+			},
+			DstFlags: vk.AddressCommandFlagsKHR(vk.ADDRESS_COMMAND_FULLY_BOUND_BIT_KHR) |
+				vk.AddressCommandFlagsKHR(vk.ADDRESS_COMMAND_UNKNOWN_STORAGE_BUFFER_USAGE_BIT_KHR),
 		}
 		pinner.Pin(region)
 
-		vkFns.CmdCopyBuffer2(cb, &vk.CopyBufferInfo2{
+		vkFns.CmdCopyMemoryKHR(cb, &vk.CopyDeviceMemoryInfoKHR{
 			SType:       vk.STRUCTURE_TYPE_COPY_BUFFER_INFO_2,
-			SrcBuffer:   srcBuffer,
-			DstBuffer:   dstBuffer,
 			RegionCount: 1,
 			PRegions:    region,
 		})
