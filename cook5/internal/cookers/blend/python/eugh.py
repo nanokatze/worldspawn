@@ -1,5 +1,4 @@
 import bpy
-import os
 import pathlib
 
 import blender_schema
@@ -59,7 +58,7 @@ class Context:
 
     def create(self, filename):
         fullpath = self.output_directory + '/' + filename
-        pathlib.Path(os.path.dirname(fullpath)).mkdir(parents=True, exist_ok=True)
+        pathlib.Path(fullpath).parent.mkdir(parents=True, exist_ok=True)
         return open(fullpath, 'wb')
 
 
