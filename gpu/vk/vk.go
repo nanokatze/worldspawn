@@ -75,6 +75,8 @@ const MAX_PIPELINE_BINARY_KEY_SIZE_KHR = 32
 
 const MAX_PHYSICAL_DEVICE_DATA_GRAPH_OPERATION_SET_NAME_SIZE_ARM = 128
 
+const DATA_GRAPH_MODEL_TOOLCHAIN_VERSION_LENGTH_QCOM = 3
+
 type ClearColorValue [4]uint32
 
 type ClearValue [4]uint32
@@ -92,6 +94,10 @@ type PipelineExecutableStatisticValueKHR uint64
 type DescriptorDataEXT uint64
 
 type ClusterAccelerationStructureOpInputNV uint64
+
+type ResourceDescriptorDataEXT unsafe.Pointer
+
+type DescriptorMappingSourceDataEXT struct{ _ uint64 } // broken, do not use
 
 // the following are borked
 
