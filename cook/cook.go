@@ -15,8 +15,8 @@ import (
 	"slices"
 	"strings"
 
-	"worldspawn/cook5/internal/cookers/blend"
-	"worldspawn/cook5/internal/work"
+	"worldspawn/cook/internal/cookers/blend"
+	"worldspawn/cook/internal/work"
 
 	"golang.org/x/sync/errgroup"
 )

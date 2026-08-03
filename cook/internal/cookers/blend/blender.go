@@ -15,6 +15,7 @@ type blender struct {
 func openBlender() (*blender, error) {
 	// TODO: take the command + flags from the envvar
 	cmd := exec.Command("blender", "-b", "-q", "--python-console")
+	// cmd := exec.Command("python3.13")
 	if true { // TODO: gate on envvar or similar
 		cmd.Stdout = os.Stdout
 	}
