@@ -23,7 +23,7 @@ type Impact struct {
 	//
 	// TODO: we might need more attribution fields (weapon id for weapon name
 	// and icon, etc)
-	Attacker Entity2
+	Attacker Entity
 
 	// TODO: we also need to communicate something for the damage/kill icon
 
@@ -35,7 +35,7 @@ type Impact struct {
 }
 
 // TODO: kill this in favor of enqueueImpact
-func (impact Impact) Apply(stx ScriptContext, entity Entity2) {
+func (impact Impact) Apply(stx ScriptContext, entity Entity) {
 	scriptFuncs := entity.Script()
 	if scriptFuncs.Impact != nil {
 		scriptFuncs.Impact(stx, entity, impact)

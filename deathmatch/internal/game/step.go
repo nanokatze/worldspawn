@@ -20,7 +20,7 @@ type UpdateParams struct {
 func (world *World) Step(updateParams UpdateParams) {
 	world.Now = world.Now.Add(updateParams.Δt)
 
-	updateParams.Worldspawn = world.GetEntity2(1).ScriptState().(Worldspawn)
+	updateParams.Worldspawn = world.Entity(1).ScriptState().(Worldspawn)
 	updateParams.Now = world.Now
 
 	world.think(&updateParams)
@@ -78,7 +78,7 @@ func (world *World) think(updateParams *UpdateParams) {
 			continue
 		}
 
-		script.Think(ScriptContext{updateParams, IO{world, uint64(id.Index())}}, world, Entity2{world, id})
+		script.Think(ScriptContext{updateParams, IO{world, uint64(id.Index())}}, world, Entity{world, id})
 	}
 
 	// Process the enqueued updates

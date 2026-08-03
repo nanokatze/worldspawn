@@ -14,13 +14,13 @@ import (
 // This is basically root of the scene (widget tree.) We'll want to figure out
 // how to do animations. We'll do a widget tree like gio UI does.
 type State struct {
-	Health int32
+	Health float32
 }
 
 func (state *State) Update(world *game.World, playerID ecs.ID) {
 	state.Health = 0
 
-	player := world.GetEntity2(playerID)
+	player := world.Entity(playerID)
 	if !player.Valid() {
 		return
 	}
@@ -29,7 +29,7 @@ func (state *State) Update(world *game.World, playerID ecs.ID) {
 		return
 	}
 
-	pawn := world.GetEntity2(playerState.Pawn)
+	pawn := world.Entity(playerState.Pawn)
 	if !pawn.Valid() {
 		return
 	}
@@ -38,7 +38,7 @@ func (state *State) Update(world *game.World, playerID ecs.ID) {
 		return
 	}
 
-	state.Health = int32(max(pawnState.Vitals.Health, 0))
+	state.Health = pawnState.Vitals.Health
 }
 
 // TODO: it would be nice if this fed into some kind of vector rasterizer

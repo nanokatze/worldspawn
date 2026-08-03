@@ -9,7 +9,7 @@ import (
 )
 
 type RayHit struct {
-	Entity Entity2
+	Entity Entity
 	T      float32
 }
 
@@ -34,7 +34,7 @@ func (world *World) TraceRay(ray physics.Ray, filters QueryFilters) RayHit {
 
 	var result RayHit
 	if collector.closestHit.BodyID != 0xffffffff {
-		result.Entity = Entity2{world, world.Table.IDs().Index(int(collector.closestHit.BodyID))}
+		result.Entity = Entity{world, world.Table.IDs().Index(int(collector.closestHit.BodyID))}
 	}
 	return result
 }

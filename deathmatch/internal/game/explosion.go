@@ -78,7 +78,7 @@ func (world *World) explosion(
 		}
 
 		// TODO: we could skip validation here.
-		stx.Update(world.GetEntity2(entityID), impact.Apply)
+		stx.Update(world.Entity(entityID), impact.Apply)
 	}
 }
 

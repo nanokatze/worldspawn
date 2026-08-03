@@ -20,15 +20,16 @@ type ExplosiveBarrel struct {
 
 func init() {
 	Scripts[reflect.TypeFor[ExplosiveBarrel]()] = script{
-		Think: func(stx ScriptContext, world *World, entity Entity2) {
+		Think: func(stx ScriptContext, world *World, entity Entity) {
 			// TODO: we should do a SetNextThink to forever and have Impact
 			// SetNextThink asap otherwise
 
 			state := entity.ScriptState().(ExplosiveBarrel)
-			T := world.GetGlobalTransform2(entity)
 
 			if state.Health <= 0 {
-				attacker := world.GetEntity2(state.Attacker)
+				T := world.GetGlobalTransform2(entity)
+
+				attacker := world.Entity(state.Attacker)
 				if !attacker.Valid() {
 					// If there's nobody using us, report ourselves as the
 					// attacker.
@@ -53,7 +54,7 @@ func init() {
 					})
 
 				stx.Update(entity,
-					func(stx ScriptContext, entity Entity2) {
+					func(stx ScriptContext, entity Entity) {
 						T := entity.Transform()
 						entity.Clear()
 						entity.SetScriptState(DeleteAfter{})
@@ -67,7 +68,7 @@ func init() {
 					})
 			}
 		},
-		Impact: func(stx ScriptContext, entity Entity2, impact Impact) {
+		Impact: func(stx ScriptContext, entity Entity, impact Impact) {
 			// TODO: verify impact preconditions here
 
 			state := entity.ScriptState().(ExplosiveBarrel)

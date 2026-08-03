@@ -24,7 +24,7 @@ type GrenadeInFlight struct {
 
 func init() {
 	Scripts[reflect.TypeFor[GrenadeInFlight]()] = script{
-		Think: func(stx ScriptContext, world *World, grenade Entity2) {
+		Think: func(stx ScriptContext, world *World, grenade Entity) {
 			const fuse = 1400 * time.Millisecond
 
 			state := grenade.ScriptState().(GrenadeInFlight)
@@ -35,7 +35,7 @@ func init() {
 			world.explosion(
 				stx,
 				Impact{
-					Attacker: world.GetEntity2(state.Attacker),
+					Attacker: world.Entity(state.Attacker),
 					Type:     BlastImpactWithFragmentation,
 					Damage:   1500,
 				},
@@ -49,7 +49,7 @@ func init() {
 
 			// TODO: create a new entity instead?
 			stx.Update(grenade,
-				func(stx ScriptContext, grenade Entity2) {
+				func(stx ScriptContext, grenade Entity) {
 					T := grenade.Transform()
 					grenade.Clear()
 					grenade.SetScriptState(DeleteAfter{})
@@ -64,7 +64,7 @@ func init() {
 		},
 
 		ContactAdded: func(stx ScriptContext, world *World, grenade, entity2 ecs.ID) {
-			state := world.GetEntity2(grenade).ScriptState().(GrenadeInFlight)
+			state := world.Entity(grenade).ScriptState().(GrenadeInFlight)
 
 			if entity2 == state.Attacker {
 				// TODO: this should not be reachable, but for now it is. We
@@ -78,7 +78,7 @@ func init() {
 
 			if _, ok := world.ShouldSetOffFuseOnImpact.Get(entity2); ok {
 				state.ExplodeNow = true
-				world.GetEntity2(grenade).SetScriptState(state)
+				world.Entity(grenade).SetScriptState(state)
 			}
 		},
 	}

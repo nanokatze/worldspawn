@@ -19,8 +19,8 @@ type Animtest struct {
 
 func init() {
 	Scripts[reflect.TypeFor[Animtest]()] = script{
-		Think: func(stx ScriptContext, world *World, entity Entity2) {
-			stx.Update(entity, func(stx ScriptContext, entity Entity2) {
+		Think: func(stx ScriptContext, world *World, entity Entity) {
+			stx.Update(entity, func(stx ScriptContext, entity Entity) {
 				state := entity.ScriptState().(Animtest)
 
 				anim := animationCache.Get(state.Animation)

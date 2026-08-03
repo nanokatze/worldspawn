@@ -22,15 +22,15 @@ func init() {
 		Weapon_Think: func(
 			stx ScriptContext,
 			world *World,
-			weapon Entity2,
-			weaponProps []Entity2,
-			attacker Entity2,
+			weapon Entity,
+			weaponProps []Entity,
+			attacker Entity,
 			T_attack gmath.Affine3f64,
 			v_attack Velocity,
 			buttons WeaponButtons) {
 			state := weapon.ScriptState().(WeaponPhysgun)
 
-			holdingEntity := world.GetEntity2(state.HeldEntity).Valid()
+			holdingEntity := world.Entity(state.HeldEntity).Valid()
 			triggerHeld := buttons&WeaponTrigger != 0
 
 			switch {
@@ -49,7 +49,7 @@ func init() {
 					transform := T_attack.Inv().Mul(world.GetGlobalTransform(rayHit.Entity.ID()))
 
 					stx.Update(weapon,
-						func(stx ScriptContext, weapon Entity2) {
+						func(stx ScriptContext, weapon Entity) {
 							state := weapon.ScriptState().(WeaponPhysgun)
 							defer func() { weapon.SetScriptState(state) }()
 
@@ -63,15 +63,15 @@ func init() {
 				// that's parented to something.
 				transform := T_attack.Mul(state.Transform)
 
-				stx.Update(world.GetEntity2(state.HeldEntity),
-					func(stx ScriptContext, entity Entity2) {
+				stx.Update(world.Entity(state.HeldEntity),
+					func(stx ScriptContext, entity Entity) {
 						entity.SetTransform(transform.TRS())
 						entity.SetVelocity(Velocity{})
 					})
 
 			case holdingEntity && !triggerHeld:
 				stx.Update(weapon,
-					func(stx ScriptContext, weapon Entity2) {
+					func(stx ScriptContext, weapon Entity) {
 						state := weapon.ScriptState().(WeaponPhysgun)
 						defer func() { weapon.SetScriptState(state) }()
 

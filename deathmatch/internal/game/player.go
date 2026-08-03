@@ -41,7 +41,7 @@ func (world *World) SpawnPlayer(info *UpdateParams) ecs.ID {
 // TODO: delegate this stuff to script somehow? So that it would work like
 // HandleInput.
 func (world *World) Camera(playerID ecs.ID) ecs.ID {
-	player := world.GetEntity2(playerID)
+	player := world.Entity(playerID)
 	if !player.Valid() {
 		return 0
 	}
@@ -50,7 +50,7 @@ func (world *World) Camera(playerID ecs.ID) ecs.ID {
 		return 0
 	}
 
-	pawn := world.GetEntity2(playerState.Pawn)
+	pawn := world.Entity(playerState.Pawn)
 	if !pawn.Valid() {
 		return 0
 	}
@@ -64,9 +64,9 @@ func (world *World) Camera(playerID ecs.ID) ecs.ID {
 
 // TODO: this should not take UpdateParams *at all* I think. Actually we still
 // need flags, but not Δt.
-func (world *World) HandleInput(playerID ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
-	playerState := world.GetEntity2(playerID).ScriptState().(Player)
-	if pawn := world.GetEntity2(playerState.Pawn); pawn.Valid() {
+func (world *World) HandleInput(playerID ecs.ID, cmd InputCmd, info *UpdateParams) {
+	playerState := world.Entity(playerID).ScriptState().(Player)
+	if pawn := world.Entity(playerState.Pawn); pawn.Valid() {
 		pawn.Script().Input(info, world, pawn.ID(), cmd)
 	} else {
 		if !info.Speculating {
@@ -74,7 +74,7 @@ func (world *World) HandleInput(playerID ecs.ID, cmd TimestampedInputCmd, info *
 			world.logger.Info("spawn", "player", playerID, "T", spawnPoint)
 
 			playerState.Pawn = world.spawnGladiator(spawnPoint, info)
-			world.GetEntity2(playerID).SetScriptState(playerState)
+			world.Entity(playerID).SetScriptState(playerState)
 		}
 	}
 }

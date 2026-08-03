@@ -24,5 +24,5 @@ func init() {
 
 // TODO: kill this method, it's useless
 func (world *World) Globals() Worldspawn {
-	return world.GetEntity2(1).ScriptState().(Worldspawn)
+	return world.Entity(1).ScriptState().(Worldspawn)
 }

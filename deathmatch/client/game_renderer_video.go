@@ -236,7 +236,7 @@ func (re *gameRendererVideo) Update(world *game.World, playerID ecs.ID, t0, t1 g
 				update.materials[i][j] = material.material
 				material.preamble.Pack(update.materialArgs[i][j][:],
 					func(name string, out *[4]float32) {
-						state := world.GetEntity2(id).ScriptState()
+						state := world.Entity(id).ScriptState()
 						if state != nil {
 							*out = getv(reflect.ValueOf(state).FieldByName(name))
 						}

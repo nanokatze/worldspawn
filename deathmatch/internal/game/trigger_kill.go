@@ -11,7 +11,7 @@ type TriggerKill struct{}
 func init() {
 	Scripts[reflect.TypeFor[TriggerKill]()] = script{
 		ContactAdded: func(stx ScriptContext, world *World, entity1, entity2 ecs.ID) {
-			world.GetEntity2(entity2).MarkForDeletion()
+			world.Entity(entity2).MarkForDeletion()
 			world.logger.Info("entity entered the trigger", "us", entity1, "them", entity2)
 		},
 		ContactRemoved: func(stx ScriptContext, world *World, entity1, entity2 ecs.ID) {

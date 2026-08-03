@@ -27,9 +27,9 @@ func (a Velocity) Scale(λ float32) Velocity {
 	}
 }
 
-func (e Entity2) Velocity() Velocity { return e.world.Velocity.Load(e.id.Index()) }
+func (e Entity) Velocity() Velocity { return e.world.Velocity.Load(e.id.Index()) }
 
-func (e Entity2) SetVelocity(v Velocity) { e.world.Velocity.Store(e.id.Index(), v) }
+func (e Entity) SetVelocity(v Velocity) { e.world.Velocity.Store(e.id.Index(), v) }
 
 // Always run this before performing physics queries!!!
 //
@@ -56,7 +56,7 @@ func (world *World) updatePhysicsShadow(updateParams *UpdateParams) {
 			gravityFactor = 1
 		}
 
-		shape2 := getShape(Entity2{world, id})
+		shape2 := getShape(Entity{world, id})
 
 		mass, overrideMass := world.PhysicsMassOverride.Get(id)
 		if !overrideMass {
@@ -109,14 +109,14 @@ func (world *World) updatePhysicsShadow(updateParams *UpdateParams) {
 
 // TODO: procedural shape functions should use a more limited interface than
 // Entity2 directly. On the other hand, I'm not so sure how we would allow these
-// functions to perform collision queries and such then.
-var proceduralShapes = map[string]func(entity Entity2) shape{
-	"Grenade": func(entity Entity2) shape {
+// functions to perform collision queries and such then...
+var proceduralShapes = map[string]func(entity Entity) shape{
+	"Grenade": func(entity Entity) shape {
 		return getShape2(sphere{
 			Radius: 0.0568,
 		})
 	},
-	"Gladiator": func(entity Entity2) shape {
+	"Gladiator": func(entity Entity) shape {
 		return getShape2(transformedShape{
 			Translation: gmath.Vec3f32{0, 0, 1.9 / 2}, // TODO: read standing height off entity
 			Rotation:    gmath.Rot3One(),
@@ -129,7 +129,7 @@ var proceduralShapes = map[string]func(entity Entity2) shape{
 	},
 }
 
-func getShape(entity Entity2) *physics.Shape {
+func getShape(entity Entity) *physics.Shape {
 	// TOOD: introduce proper accessors for these?
 	layer := entity.world.CollisionLayer.Load(entity.id.Index())
 	geometry := entity.world.CollisionGeometry.Load(entity.id.Index())
@@ -165,7 +165,7 @@ func (world *World) physicsStep(updateParams *UpdateParams) {
 
 	for _, bodyID := range world.physics.ActiveBodies() {
 		entityID := ecs.ID(bodyID) // BUG: this is not correct anymore because the generations do not match!!!
-		entity := world.GetEntity2(entityID)
+		entity := world.Entity(entityID)
 
 		pos, rot, linVel, angVel := world.physics.WritebackBody(bodyID)
 
@@ -180,13 +180,11 @@ func (world *World) physicsStep(updateParams *UpdateParams) {
 		entityID1 := ecs.ID(ce.Body1.BodyID)
 		entityID2 := ecs.ID(ce.Body2.BodyID)
 
-		// TODO: spawn sounds on collision
+		// TODO: https://github.com/nanokatze/worldspawn-deathmatch/issues/60
+		// TODO: https://github.com/nanokatze/worldspawn-deathmatch/issues/61
 
-		// One or both entities in the contact event might've been removed
-		// before the last Update
-
-		entity1 := world.GetEntity2(entityID1)
-		entity2 := world.GetEntity2(entityID2)
+		entity1 := world.Entity(entityID1)
+		entity2 := world.Entity(entityID2)
 		if entity1.Valid() && entity2.Valid() {
 			// TODO: once we make ContactAdded/Removed be called concurrently,
 			// we'll probably change these entry points to be pure thinkers. At

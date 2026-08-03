@@ -18,7 +18,7 @@ type RocketInFlight struct {
 
 func init() {
 	Scripts[reflect.TypeFor[RocketInFlight]()] = script{
-		Think: func(stx ScriptContext, world *World, rocket Entity2) {
+		Think: func(stx ScriptContext, world *World, rocket Entity) {
 			const fuse = 5000 * time.Millisecond
 
 			state := rocket.ScriptState().(RocketInFlight)
@@ -29,7 +29,7 @@ func init() {
 			world.explosion(
 				stx,
 				Impact{
-					Attacker: world.GetEntity2(state.Attacker),
+					Attacker: world.Entity(state.Attacker),
 					Type:     BlastImpactWithFragmentation,
 					Damage:   1200,
 				},
@@ -42,7 +42,7 @@ func init() {
 				})
 
 			stx.Update(rocket,
-				func(stx ScriptContext, rocket Entity2) {
+				func(stx ScriptContext, rocket Entity) {
 					T := rocket.Transform()
 					rocket.Clear()
 					rocket.SetScriptState(DeleteAfter{})
@@ -57,12 +57,12 @@ func init() {
 		},
 
 		ContactAdded: func(stx ScriptContext, world *World, rocket, entity2 ecs.ID) {
-			state := world.GetEntity2(rocket).ScriptState().(RocketInFlight)
+			state := world.Entity(rocket).ScriptState().(RocketInFlight)
 			if entity2 == state.Attacker {
 				// TODO: filter this in ShouldCollide. This should never be reached
 				return
 			}
-			defer func() { world.GetEntity2(rocket).SetScriptState(state) }()
+			defer func() { world.Entity(rocket).SetScriptState(state) }()
 
 			state.ExplodeNow = true
 		},

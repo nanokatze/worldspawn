@@ -95,7 +95,7 @@ type Gladiator struct {
 func init() {
 	Scripts[reflect.TypeFor[Gladiator]()] = script{
 		Input: func(info *UpdateParams, world *World, id ecs.ID, cmd TimestampedInputCmd) {
-			entity := world.GetEntity2(id)
+			entity := world.Entity(id)
 
 			gladiator := entity.ScriptState().(Gladiator)
 			defer func() { entity.SetScriptState(gladiator) }()
@@ -130,7 +130,7 @@ func init() {
 			// TODO: make weapon switching predicted
 			if !info.Speculating && gladiator.HeldWeapon.Entity != switchToWeaponID {
 				for _, propID := range gladiator.HeldWeapon.Props {
-					if prop := world.GetEntity2(propID); prop.Valid() {
+					if prop := world.Entity(propID); prop.Valid() {
 						prop.MarkForDeletion()
 					}
 				}
@@ -140,7 +140,7 @@ func init() {
 
 				gladiator.HeldWeapon.Entity = switchToWeaponID
 
-				if newWeapon := world.GetEntity2(gladiator.HeldWeapon.Entity); newWeapon.Valid() {
+				if newWeapon := world.Entity(gladiator.HeldWeapon.Entity); newWeapon.Valid() {
 					// We've switched to the new weapon, create the new weapon props
 
 					script := newWeapon.Script()
@@ -149,7 +149,7 @@ func init() {
 
 						for i := range 2 {
 							script.Weapon_CreateProp(ScriptContext{info, IO{world, uint64(id.Index())}}, newWeapon,
-								func(stx ScriptContext, prop Entity2) {
+								func(stx ScriptContext, prop Entity) {
 									switch i {
 									case 0:
 										// TODO: parent it directly to the camera instead.
@@ -164,7 +164,7 @@ func init() {
 										prop.SetVisibilityCondition(VisibilityCondition{Mask: 0b10, Camera: gladiator.FirstPersonCamera})
 									}
 
-									stx.Update(entity, func(stx ScriptContext, entity Entity2) {
+									stx.Update(entity, func(stx ScriptContext, entity Entity) {
 										state := entity.ScriptState().(Gladiator)
 										defer func() { entity.SetScriptState(state) }()
 
@@ -177,7 +177,7 @@ func init() {
 			}
 
 			// TODO: factor this out?
-			world.GetEntity2(gladiator.FirstPersonCamera).
+			world.Entity(gladiator.FirstPersonCamera).
 				SetTransform(gmath.TRS3f64{
 					T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
 					R: e01.Pow(4 * gladiator.Input.LookDir[0]).Mul(e12.Pow(4 * gladiator.Input.LookDir[1])),
@@ -185,15 +185,15 @@ func init() {
 				})
 		},
 
-		Think: func(stx ScriptContext, world *World, gladiator Entity2) {
+		Think: func(stx ScriptContext, world *World, gladiator Entity) {
 			// TODO: sort this out pls and make it obey Think rules, i.e. put all mutations into lambdas.
 
 			state := gladiator.ScriptState().(Gladiator)
 
-			if weapon := world.GetEntity2(state.HeldWeapon.Entity); weapon.Valid() {
-				var props [len(state.HeldWeapon.Props)]Entity2 // TODO: this is horrible to read, we should introduce a enum.
+			if weapon := world.Entity(state.HeldWeapon.Entity); weapon.Valid() {
+				var props [len(state.HeldWeapon.Props)]Entity // TODO: this is horrible to read, we should introduce a enum.
 				for i, propID := range state.HeldWeapon.Props {
-					props[i] = world.GetEntity2(propID)
+					props[i] = world.Entity(propID)
 				}
 
 				T_attack := world.GetGlobalTransform2(gladiator).
@@ -216,10 +216,10 @@ func init() {
 			{
 				velocity := gladiator.Velocity()
 
-				hands := world.GetEntity2(state.FirstPersonHands)
+				hands := world.Entity(state.FirstPersonHands)
 
 				stx.Update(hands,
-					func(stx ScriptContext, hands Entity2) {
+					func(stx ScriptContext, hands Entity) {
 						hands.SetTransform(gmath.TRS3f64{
 							T: gmath.Vec3f64{0, 1, 0}.
 								Scale(math.Sin(float64(stx.Now.Sub(Time{}))/1e9*6) * 0.03 * min(float64(velocity.Linear.Length()/6), 1)),
@@ -230,10 +230,10 @@ func init() {
 			}
 
 			{
-				camera := world.GetEntity2(state.FirstPersonCamera)
+				camera := world.Entity(state.FirstPersonCamera)
 
 				stx.Update(camera,
-					func(stx ScriptContext, camera Entity2) {
+					func(stx ScriptContext, camera Entity) {
 						camera.SetTransform(gmath.TRS3f64{
 							T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
 							R: e01.Pow(4 * state.Input.LookDir[0]).Mul(e12.Pow(4 * state.Input.LookDir[1])),
@@ -243,7 +243,7 @@ func init() {
 			}
 
 			stx.Update(gladiator,
-				func(stx ScriptContext, gladiator Entity2) {
+				func(stx ScriptContext, gladiator Entity) {
 					state := gladiator.ScriptState().(Gladiator)
 					defer func() { gladiator.SetScriptState(state) }()
 
@@ -339,7 +339,7 @@ func init() {
 				})
 		},
 
-		Impact: func(stx ScriptContext, gladiator Entity2, impact Impact) {
+		Impact: func(stx ScriptContext, gladiator Entity, impact Impact) {
 			// TODO: be verbose when computing the modifier
 			modifier := float32(1.0)
 			if gladiator == impact.Attacker {
@@ -354,7 +354,7 @@ func init() {
 			state.Vitals.Health -= impact.Damage
 		},
 
-		Magazine_Pull: func(stx ScriptContext, entity Entity2, ammoType AmmoType, minAmount, maxAmount int) int {
+		Magazine_Pull: func(stx ScriptContext, entity Entity, ammoType AmmoType, minAmount, maxAmount int) int {
 			state := entity.ScriptState().(Gladiator)
 			if state.Inventory.Ammo[ammoType] <= int8(minAmount) {
 				return 0
@@ -461,7 +461,7 @@ func (a *gladiatorMovementQueryPipeline) Hit(x physics.SceneIntersection[physics
 }
 
 func (gladiator *Gladiator) asdasd(world *World, id ecs.ID, velocity gmath.Vec3f32, Δt time.Duration) gmath.Vec3f32 {
-	trs := world.GetEntity2(id).Transform()
+	trs := world.Entity(id).Transform()
 
 	up := gmath.Vec3f32{0, 0, 1}
 
@@ -479,7 +479,7 @@ func (gladiator *Gladiator) asdasd(world *World, id ecs.ID, velocity gmath.Vec3f
 			Pos:                   trs.T,
 			Rot:                   trs.R,
 			Scale:                 gmath.Vec3Ones[float32](),
-			Shape:                 getShape(Entity2{world, id}),
+			Shape:                 getShape(Entity{world, id}),
 			MovementDirection:     velocity.Normalize(),
 			MaxSeparationDistance: 0.1,
 		},
@@ -540,7 +540,7 @@ func (gladiator *Gladiator) asdasd(world *World, id ecs.ID, velocity gmath.Vec3f
 
 // TODO: delete this
 func (world *World) GiveWeapon(id ecs.ID, weapon ecs.ID) {
-	entity := world.GetEntity2(id)
+	entity := world.Entity(id)
 	char := entity.ScriptState().(Gladiator)
 	freeSlot := slices.Index(char.Inventory.Slots[:], 0)
 	char.Inventory.Slots[freeSlot] = weapon

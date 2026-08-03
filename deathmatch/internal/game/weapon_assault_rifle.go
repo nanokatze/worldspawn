@@ -26,8 +26,8 @@ func init() {
 			}
 		},
 
-		Weapon_CreateProp: func(stx ScriptContext, weapon Entity2, f func(stx ScriptContext, entity Entity2)) {
-			stx.Create(func(stx ScriptContext, prop Entity2) {
+		Weapon_CreateProp: func(stx ScriptContext, weapon Entity, f func(stx ScriptContext, entity Entity)) {
+			stx.Create(func(stx ScriptContext, prop Entity) {
 				prop.SetScriptState(Testburger{
 					BaseColor: [4]float32{1, 0.1, 0.1, 1},
 				})
@@ -40,9 +40,9 @@ func init() {
 		Weapon_Think: func(
 			stx ScriptContext,
 			world *World,
-			weapon Entity2,
-			weaponProps []Entity2,
-			attacker Entity2,
+			weapon Entity,
+			weaponProps []Entity,
+			attacker Entity,
 			T_attack gmath.Affine3f64,
 			v_attack Velocity,
 			buttons WeaponButtons,
@@ -62,7 +62,7 @@ func init() {
 						Entity: func(entity ecs.ID) bool { return entity != attacker.ID() },
 					})
 
-				stx.Update(attacker, func(stx ScriptContext, mag Entity2) {
+				stx.Update(attacker, func(stx ScriptContext, mag Entity) {
 					if mag.Script().Magazine_Pull(stx, mag, AmmoBullets, 1, 1) <= 0 {
 						// play a "click" sound to indicate that we ran out of ammo.
 						return
@@ -106,7 +106,7 @@ func init() {
 						})
 					}
 
-					stx.Update(weapon, func(stx ScriptContext, weapon Entity2) {
+					stx.Update(weapon, func(stx ScriptContext, weapon Entity) {
 						state := weapon.ScriptState().(WeaponAssaultRifle)
 						defer func() { weapon.SetScriptState(state) }()
 

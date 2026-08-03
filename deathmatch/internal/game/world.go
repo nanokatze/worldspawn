@@ -196,19 +196,18 @@ func NewWorld(n int) *World {
 func (world *World) Cap() int { return world.Table.IDs().Cap() }
 
 // TODO: make this private?
-// TODO: kill this in favor of EnqueueCreateEntity? We might need some thinking
-// for the external users (the server) and also how to handle prefabs.
-func (world *World) CreateEntity(info *UpdateParams) Entity2 {
+// TODO: kill this in favor of IO.Create
+func (world *World) CreateEntity(info *UpdateParams) Entity {
 	// TODO: don't hardcode index ranges
 
 	if info.Speculating {
 		id := world.Table.CreateRowAuto(900, 999, &world.NextIDSpeculative)
 		world.Speculation.Set(id, world.Now)
-		return Entity2{world, id}
+		return Entity{world, id}
 	}
 
 	id := world.Table.CreateRowAuto(1, 899, &world.NextID)
-	return Entity2{world, id}
+	return Entity{world, id}
 }
 
 // This is used by client networking to remove entities.
@@ -238,38 +237,40 @@ func (world *World) SetParent(id, parent ecs.ID) {
 }
 
 func (world *World) GetSkeleton(id ecs.ID) *skeleton.Skeleton {
-	skellyName, ok := world.Skeleton.Get(id)
-	if !ok {
+	skellyName, _ := world.Skeleton.Get(id)
+	if skellyName.Value() == "" {
 		return nil
 	}
 	return skeletonCache.Get(skellyName)
 }
 
 // TODO: do validation here
-// TODO: rename to just Entity when we rename the Entity column to something
-// more reasonable.
-func (world *World) GetEntity2(id ecs.ID) Entity2 {
+func (world *World) Entity(id ecs.ID) Entity {
 	if !world.Table.IDs().Exists(id) {
-		return Entity2{}
+		return Entity{}
 	}
-	return Entity2{world, id}
+	return Entity{world, id}
 }
 
-// Entity2 must not be stored in any structures and also not passed across
-// update lambdas.
+// Entity must not be stored in any structures and also not passed across
+// update lambdas. Actually passing it might just be fine I guess.
+//
+// I suppose in a way we can reason about Entity like it's a strong pointer,
+// and entity ID is a weak pointer, and we have to validate ID when upgrading it
+// to Entity.
 //
 // TODO: rename to EntityPtr or something along those lines
-type Entity2 struct {
+type Entity struct {
 	world *World
 	id    ecs.ID // TODO: replace with index
 }
 
-func (e Entity2) ID() ecs.ID { return e.id }
+func (e Entity) Valid() bool { return e.id != 0 }
 
-func (e Entity2) Valid() bool { return e.id != 0 }
+func (e Entity) ID() ecs.ID { return e.id }
 
 // TODO: rename to something nicer
-func (e Entity2) Clear() {
+func (e Entity) Clear() {
 	if _, ok := e.world.physicsBodyExists.Get(e.id); ok {
 		// We have to do this because ClearRow unsets the bit in
 		// physicsBodyExists, so we end up with an orphan physics body.
@@ -281,17 +282,17 @@ func (e Entity2) Clear() {
 // TODO: replace with an easy to use thingy for checking whether an entity's
 // script satisfies some interface, and stuff for calling that interface?
 // TODO: return a pointer instead of struct as is?
-func (e Entity2) Script() script {
+func (e Entity) Script() script {
 	return Scripts[reflect.TypeOf(e.world.ScriptState.Load(e.id.Index()))]
 }
 
-func (e Entity2) ScriptState() ScriptState { return e.world.ScriptState.Load(e.id.Index()) }
+func (e Entity) ScriptState() ScriptState { return e.world.ScriptState.Load(e.id.Index()) }
 
-func (e Entity2) SetScriptState(v ScriptState) { e.world.ScriptState.Store(e.id.Index(), v) }
+func (e Entity) SetScriptState(v ScriptState) { e.world.ScriptState.Store(e.id.Index(), v) }
 
-func (e Entity2) SetNextThink(v Time) { e.world.NextThink.Store(e.id.Index(), v) }
+func (e Entity) SetNextThink(v Time) { e.world.NextThink.Store(e.id.Index(), v) }
 
-func (e Entity2) SetShouldSetOffFuseOnImpact(v bool) {
+func (e Entity) SetShouldSetOffFuseOnImpact(v bool) {
 	// TODO: raaah just have it be a plain bitset already!
 	if v {
 		e.world.ShouldSetOffFuseOnImpact.Store(e.id.Index(), struct{}{})
@@ -300,25 +301,25 @@ func (e Entity2) SetShouldSetOffFuseOnImpact(v bool) {
 	}
 }
 
-func (e Entity2) Skeleton() unique.Handle[string] { return e.world.Skeleton.Load(e.id.Index()) }
+func (e Entity) Skeleton() unique.Handle[string] { return e.world.Skeleton.Load(e.id.Index()) }
 
-func (e Entity2) SetSkeleton(v unique.Handle[string]) { e.world.Skeleton.Store(e.id.Index(), v) }
+func (e Entity) SetSkeleton(v unique.Handle[string]) { e.world.Skeleton.Store(e.id.Index(), v) }
 
 // Note that pose is not replicated
 //
 // TODO: change up the api to encourage slice reuse
-func (e Entity2) SetPose(v skeleton.Pose) { e.world.Entities.Pose[e.id.Index()] = v }
+func (e Entity) SetPose(v skeleton.Pose) { e.world.Entities.Pose[e.id.Index()] = v }
 
-func (e Entity2) SetCollisionLayer(v CollisionLayer) { e.world.CollisionLayer.Store(e.id.Index(), v) }
+func (e Entity) SetCollisionLayer(v CollisionLayer) { e.world.CollisionLayer.Store(e.id.Index(), v) }
 
-func (e Entity2) SetCollisionGeometry(v unique.Handle[string]) {
+func (e Entity) SetCollisionGeometry(v unique.Handle[string]) {
 	e.world.CollisionGeometry.Store(e.id.Index(), v)
 }
 
-func (e Entity2) SetPhysicsMassOverride(v float32) {
+func (e Entity) SetPhysicsMassOverride(v float32) {
 	e.world.PhysicsMassOverride.Store(e.id.Index(), v)
 }
 
-func (e Entity2) MarkForDeletion() { e.world.Entities.delete.Store(e.id.Index(), true) }
+func (e Entity) MarkForDeletion() { e.world.Entities.delete.Store(e.id.Index(), true) }
 
-func (e Entity2) Logger() *slog.Logger { return e.world.logger.With("id", e.ID()) }
+func (e Entity) Logger() *slog.Logger { return e.world.logger.With("id", e.ID()) }
