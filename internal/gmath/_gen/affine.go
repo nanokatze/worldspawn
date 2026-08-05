@@ -37,11 +37,19 @@ func Affine{{.D}}One[T constraints.Float]() {{$AffineD}}[T] {
 	}
 }
 
-/*
-func (A {{$AffineD}}[T]) Inv() {{$AffineD}}[T] {
-	panic("not implemented")
+func (A {{$AffineD}}[T]) Add(B {{$AffineD}}[T]) {{$AffineD}}[T] {
+	return {{$AffineD}}[T]{
+		M: A.M.Add(B.M),
+		T: A.T.Add(B.T),
+	}
 }
-*/
+
+func (A {{$AffineD}}[T]) Scale(λ T) {{$AffineD}}[T] {
+	return {{$AffineD}}[T]{
+		M: A.M.Scale(float32(λ)),
+		T: A.T.Scale(λ),
+	}
+}
 
 func (A {{$AffineD}}[T]) Mul(B {{$AffineD}}[T]) {{$AffineD}}[T] {
 	return {{$AffineD}}[T]{
@@ -49,6 +57,12 @@ func (A {{$AffineD}}[T]) Mul(B {{$AffineD}}[T]) {{$AffineD}}[T] {
 		T: A.T.Add(A.M.Convert[T]().Mulv(B.T)),
 	}
 }
+
+/*
+func (A {{$AffineD}}[T]) Inv() {{$AffineD}}[T] {
+	panic("not implemented")
+}
+*/
 
 func (A {{$AffineD}}[T]) TRS() {{$TRSD}}[T] {
 	// TODO: don't assume this is just translation * rotation, properly extract

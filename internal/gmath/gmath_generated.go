@@ -110,8 +110,18 @@ func Mat2x2Diag[T constraints.Float](d Vec2[T]) Mat2x2[T] {
 	return D
 }
 
-func (A Mat2x2[T]) Inv() Mat2x2[T] {
-	panic("not implemented")
+func (A Mat2x2[T]) Add(B Mat2x2[T]) Mat2x2[T] {
+	for i := range A {
+		A[i] += B[i]
+	}
+	return A
+}
+
+func (A Mat2x2[T]) Scale(λ T) Mat2x2[T] {
+	for i := range A {
+		A[i] *= λ
+	}
+	return A
 }
 
 func (A Mat2x2[T]) Mul(B Mat2x2[T]) Mat2x2[T] {
@@ -121,6 +131,10 @@ func (A Mat2x2[T]) Mul(B Mat2x2[T]) Mat2x2[T] {
 	*AB.Index(1, 0) = 0 + *A.Index(1, 0)**B.Index(0, 0) + *A.Index(1, 1)**B.Index(1, 0)
 	*AB.Index(1, 1) = 0 + *A.Index(1, 0)**B.Index(0, 1) + *A.Index(1, 1)**B.Index(1, 1)
 	return AB
+}
+
+func (A Mat2x2[T]) Inv() Mat2x2[T] {
+	panic("not implemented")
 }
 
 func (A Mat2x2[T]) Mulv(b Vec2[T]) Vec2[T] {
@@ -241,8 +255,18 @@ func Mat3x3Diag[T constraints.Float](d Vec3[T]) Mat3x3[T] {
 	return D
 }
 
-func (A Mat3x3[T]) Inv() Mat3x3[T] {
-	panic("not implemented")
+func (A Mat3x3[T]) Add(B Mat3x3[T]) Mat3x3[T] {
+	for i := range A {
+		A[i] += B[i]
+	}
+	return A
+}
+
+func (A Mat3x3[T]) Scale(λ T) Mat3x3[T] {
+	for i := range A {
+		A[i] *= λ
+	}
+	return A
 }
 
 func (A Mat3x3[T]) Mul(B Mat3x3[T]) Mat3x3[T] {
@@ -257,6 +281,10 @@ func (A Mat3x3[T]) Mul(B Mat3x3[T]) Mat3x3[T] {
 	*AB.Index(2, 1) = 0 + *A.Index(2, 0)**B.Index(0, 1) + *A.Index(2, 1)**B.Index(1, 1) + *A.Index(2, 2)**B.Index(2, 1)
 	*AB.Index(2, 2) = 0 + *A.Index(2, 0)**B.Index(0, 2) + *A.Index(2, 1)**B.Index(1, 2) + *A.Index(2, 2)**B.Index(2, 2)
 	return AB
+}
+
+func (A Mat3x3[T]) Inv() Mat3x3[T] {
+	panic("not implemented")
 }
 
 func (A Mat3x3[T]) Mulv(b Vec3[T]) Vec3[T] {
@@ -293,8 +321,18 @@ func Mat3x3UDiag[T constraints.Float](d Vec3[T]) Mat3x3U[T] {
 	return D
 }
 
-func (A Mat3x3U[T]) Inv() Mat3x3U[T] {
-	panic("not implemented")
+func (A Mat3x3U[T]) Add(B Mat3x3U[T]) Mat3x3U[T] {
+	for i := range A {
+		A[i] += B[i]
+	}
+	return A
+}
+
+func (A Mat3x3U[T]) Scale(λ T) Mat3x3U[T] {
+	for i := range A {
+		A[i] *= λ
+	}
+	return A
 }
 
 func (A Mat3x3U[T]) Mul(B Mat3x3U[T]) Mat3x3U[T] {
@@ -307,6 +345,10 @@ func (A Mat3x3U[T]) Mul(B Mat3x3U[T]) Mat3x3U[T] {
 		}
 	}
 	return AB
+}
+
+func (A Mat3x3U[T]) Inv() Mat3x3U[T] {
+	panic("not implemented")
 }
 
 func (U Mat3x3U[T]) ToMat() Mat3x3[T] {
@@ -439,8 +481,18 @@ func Mat4x4Diag[T constraints.Float](d Vec4[T]) Mat4x4[T] {
 	return D
 }
 
-func (A Mat4x4[T]) Inv() Mat4x4[T] {
-	panic("not implemented")
+func (A Mat4x4[T]) Add(B Mat4x4[T]) Mat4x4[T] {
+	for i := range A {
+		A[i] += B[i]
+	}
+	return A
+}
+
+func (A Mat4x4[T]) Scale(λ T) Mat4x4[T] {
+	for i := range A {
+		A[i] *= λ
+	}
+	return A
 }
 
 func (A Mat4x4[T]) Mul(B Mat4x4[T]) Mat4x4[T] {
@@ -462,6 +514,10 @@ func (A Mat4x4[T]) Mul(B Mat4x4[T]) Mat4x4[T] {
 	*AB.Index(3, 2) = 0 + *A.Index(3, 0)**B.Index(0, 2) + *A.Index(3, 1)**B.Index(1, 2) + *A.Index(3, 2)**B.Index(2, 2) + *A.Index(3, 3)**B.Index(3, 2)
 	*AB.Index(3, 3) = 0 + *A.Index(3, 0)**B.Index(0, 3) + *A.Index(3, 1)**B.Index(1, 3) + *A.Index(3, 2)**B.Index(2, 3) + *A.Index(3, 3)**B.Index(3, 3)
 	return AB
+}
+
+func (A Mat4x4[T]) Inv() Mat4x4[T] {
+	panic("not implemented")
 }
 
 func (A Mat4x4[T]) Mulv(b Vec4[T]) Vec4[T] {
@@ -496,11 +552,19 @@ func Affine3One[T constraints.Float]() Affine3[T] {
 	}
 }
 
-/*
-func (A Affine3[T]) Inv() Affine3[T] {
-	panic("not implemented")
+func (A Affine3[T]) Add(B Affine3[T]) Affine3[T] {
+	return Affine3[T]{
+		M: A.M.Add(B.M),
+		T: A.T.Add(B.T),
+	}
 }
-*/
+
+func (A Affine3[T]) Scale(λ T) Affine3[T] {
+	return Affine3[T]{
+		M: A.M.Scale(float32(λ)),
+		T: A.T.Scale(λ),
+	}
+}
 
 func (A Affine3[T]) Mul(B Affine3[T]) Affine3[T] {
 	return Affine3[T]{
@@ -508,6 +572,12 @@ func (A Affine3[T]) Mul(B Affine3[T]) Affine3[T] {
 		T: A.T.Add(A.M.Convert[T]().Mulv(B.T)),
 	}
 }
+
+/*
+func (A Affine3[T]) Inv() Affine3[T] {
+	panic("not implemented")
+}
+*/
 
 func (A Affine3[T]) TRS() TRS3[T] {
 	// TODO: don't assume this is just translation * rotation, properly extract

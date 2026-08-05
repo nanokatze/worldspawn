@@ -16,8 +16,7 @@ func Lerp9(A, B Mat3x3Uf32, t float32) Mat3x3Uf32 {
 	return C
 }
 
-// Transitional stuff, TODO: remove
-
+// TODO: actually generate this as well. And ToMat() too
 func Affine3FromMat4x4[T constraints.Float](M Mat4x4[T]) Affine3[T] {
 	var f Affine3[T]
 	for i := range 3 {

@@ -60,9 +60,25 @@ func Mat{{.M}}x{{.M}}Diag[T constraints.Float](d Vec{{.M}}[T]) {{$MatMxM}}[T] {
 	return D
 }
 
-func (A {{$MatMxM}}[T]) Inv() {{$MatMxM}}[T] {
-	panic("not implemented")
+{{end}}
+
+func (A {{$MatMxN}}[T]) Add(B {{$MatMxN}}[T]) {{$MatMxN}}[T] {
+	for i := range A {
+		A[i] += B[i]
+	}
+	return A
 }
+
+func (A {{$MatMxN}}[T]) Scale(λ T) {{$MatMxN}}[T] {
+	for i := range A {
+		A[i] *= λ
+	}
+	return A
+}
+
+{{if (eq .M .N)}}
+
+{{$MatMxM := printf "Mat%dx%d" .M .M}}
 
 func (A {{$MatMxM}}[T]) Mul(B {{$MatMxM}}[T]) {{$MatMxM}}[T] {
 	var AB {{$MatMxM}}[T]
@@ -72,6 +88,10 @@ func (A {{$MatMxM}}[T]) Mul(B {{$MatMxM}}[T]) {{$MatMxM}}[T] {
 	{{- end}}
 	{{- end}}
 	return AB
+}
+
+func (A {{$MatMxM}}[T]) Inv() {{$MatMxM}}[T] {
+	panic("not implemented")
 }
 
 {{end}}
@@ -139,8 +159,18 @@ func Mat{{.M}}x{{.M}}UDiag[T constraints.Float](d Vec{{.M}}[T]) {{$MatMxMU}}[T] 
 	return D
 }
 
-func (A {{$MatMxMU}}[T]) Inv() {{$MatMxMU}}[T] {
-	panic("not implemented")
+func (A {{$MatMxMU}}[T]) Add(B {{$MatMxMU}}[T]) {{$MatMxMU}}[T] {
+	for i := range A {
+		A[i] += B[i]
+	}
+	return A
+}
+
+func (A {{$MatMxMU}}[T]) Scale(λ T) {{$MatMxMU}}[T] {
+	for i := range A {
+		A[i] *= λ
+	}
+	return A
 }
 
 func (A {{$MatMxMU}}[T]) Mul(B {{$MatMxMU}}[T]) {{$MatMxMU}}[T] {
@@ -153,6 +183,10 @@ func (A {{$MatMxMU}}[T]) Mul(B {{$MatMxMU}}[T]) {{$MatMxMU}}[T] {
 		}
 	}
 	return AB
+}
+
+func (A {{$MatMxMU}}[T]) Inv() {{$MatMxMU}}[T] {
+	panic("not implemented")
 }
 
 {{$MatMxM := printf "Mat%dx%d" .M .M}}
