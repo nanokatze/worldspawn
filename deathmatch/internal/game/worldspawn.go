@@ -21,8 +21,3 @@ type Worldspawn struct {
 func init() {
 	Scripts[reflect.TypeFor[Worldspawn]()] = script{}
 }
-
-// TODO: kill this method, it's useless
-func (world *World) Globals() Worldspawn {
-	return world.Entity(1).ScriptState().(Worldspawn)
-}

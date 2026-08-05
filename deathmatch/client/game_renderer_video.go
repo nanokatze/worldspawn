@@ -16,8 +16,6 @@ import (
 
 // TODO: rename the objects in here
 
-// TODO: replace this with a widget tree (encoded sequentially like gio's ops,
-// for efficiency)
 type hudState struct {
 	Health int32
 	Bleed  int32
@@ -67,12 +65,8 @@ type sceneUpdate struct {
 
 	sky *gpu.Image
 
-	// TODO: make transformT0 and T1 actually just gmath.Affine3
-	// parent      []int
 	transformT0 []gmath.Affine3f32
 	transformT1 []gmath.Affine3f32
-	// TODO: we also need to carry velocity here for motion blur, or at least
-	// some extra info to disambiguate fast temporally-aliased motions.
 
 	mask []uint8
 
@@ -141,7 +135,7 @@ func (re *gameRendererVideo) Update(world *game.World, playerID ecs.ID, t0, t1 g
 	{
 		update.hudState.Update(world, playerID)
 
-		update.sky = texturecache.Get(world.Globals().Sky).Image
+		update.sky = texturecache.Get(world.Entity(1).ScriptState().(game.Worldspawn).Sky).Image
 
 		for id := range ecs.All(&world.TransformTR) {
 			i := id.Index()
