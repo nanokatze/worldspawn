@@ -21,7 +21,7 @@ func init() {
 			for id, state := range ecs.All(&world.ScriptState) {
 				if _, ok := state.(Gladiator); ok {
 					player := world.Entity(id)
-					playerT := world.GetGlobalTransform(id)
+					playerT := world.GetGlobalTransform2(player)
 
 					if T.T.Sub(playerT.T).Length() <= 1.1 {
 						stx.Update(player,

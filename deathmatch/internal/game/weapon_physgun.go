@@ -46,7 +46,7 @@ func init() {
 					})
 
 				if rayHit.Entity.Valid() {
-					transform := T_attack.Inv().Mul(world.GetGlobalTransform(rayHit.Entity.ID()))
+					transform := T_attack.Inv().Mul(world.GetGlobalTransform2(rayHit.Entity))
 
 					stx.Update(weapon,
 						func(stx ScriptContext, weapon Entity) {
