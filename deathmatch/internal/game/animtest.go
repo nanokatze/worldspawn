@@ -9,6 +9,8 @@ import (
 	"worldspawn/internal/loaders/skeleton"
 )
 
+// TODO: factor things out into an actual AnimationPlayer "component" (component
+// as in UE)
 type Animtest struct {
 	Animation unique.Handle[string]
 

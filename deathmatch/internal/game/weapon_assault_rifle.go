@@ -83,20 +83,16 @@ func init() {
 						}
 					}
 
-					// Apply effects to the props; TODO: let's have scripts on the props
-					// instead and let props consult the state.
 					for _, prop := range weaponProps {
-						stx.Update(prop, func(stx ScriptContext, prop Entity2) {
-							// skelly := world.GetSkeleton(prop)
-							// world.Pose.Set(prop, animgraph.Pose{
-							// 	Bones: map[int]gmath.Affine3f32{
-							// 		skelly.JointByName("Bolt"): gmath.TRS3f32{
-							// 			T: gmath.Vec3f32{0, -0.1 * Rand(world.Now, weaponID, "grenade launcher bolt position").Float32(), 0},
-							// 			R: gmath.Rot3One(),
-							// 			S: gmath.Mat3x3UOne[float32](),
-							// 		}.Compose(),
-							// 	},
-							// })
+						stx.Update(prop, func(stx ScriptContext, prop Entity) {
+							prop.SetScriptState(Testburger{
+								Animation: unique.Make("weapons/grenade_launcher/animations/Fire"),
+
+								PlayTime:      stx.Now,
+								PlaybackSpeed: 3,
+
+								BaseColor: [4]float32{1, 0.1, 0.1, 1},
+							})
 
 							prop.SetSoundEffect(SoundEmitter{
 								Effect:      unique.Make("weapons/grenade_launcher/sounds/Fire"),

@@ -6,8 +6,10 @@ import (
 	"time"
 	"unique"
 
+	"worldspawn/internal/animation"
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/gmath"
+	"worldspawn/internal/loaders/skeleton"
 )
 
 var grenadeLauncherStats = struct {
@@ -26,11 +28,45 @@ type WeaponGrenadeLauncher struct {
 }
 
 type Testburger struct {
+	Animation unique.Handle[string]
+
+	PlayTime      Time
+	PlaybackSpeed float32 // 0 is remapped to 1
+
 	BaseColor [4]float32
 }
 
 func init() {
-	Scripts[reflect.TypeFor[Testburger]()] = script{}
+	Scripts[reflect.TypeFor[Testburger]()] = script{
+		Think: func(stx ScriptContext, world *World, entity Entity) {
+			state := entity.ScriptState().(Testburger)
+
+			if state.Animation != (unique.Handle[string]{}) {
+				stx.Update(entity, func(stx ScriptContext, entity Entity) {
+					anim := animationCache.Get(state.Animation)
+
+					sk := skeletonCache.Get(entity.Skeleton())
+
+					playbackSpeed := state.PlaybackSpeed
+					if playbackSpeed == 0 {
+						playbackSpeed = 1
+					}
+
+					v := make([]float32, len(anim.Channels()))
+					animation.SampleTime(anim, time.Duration(1e9*(durationToFloatSeconds(stx.Now.Sub(state.PlayTime))*float64(playbackSpeed))), v)
+
+					localTransforms := make([]gmath.Affine3f32, sk.NumJoints())
+
+					poseMapperCache.Get(poseMapperKey{anim, sk})(v, localTransforms)
+
+					pose := make(skeleton.Pose, sk.NumJoints())
+					sk.ForwardKinematics(localTransforms, pose)
+
+					entity.SetPose(pose)
+				})
+			}
+		},
+	}
 
 	Scripts[reflect.TypeFor[WeaponGrenadeLauncher]()] = script{
 		Weapon_Hint: func(info *UpdateParams, world *World, entity ecs.ID) WeaponHint {
@@ -109,20 +145,15 @@ func init() {
 						state.CycleEnds = stx.Now.Add(grenadeLauncherStats.CycleDuration)
 					})
 
-					// Apply effects to the props; TODO: let's have scripts on the props
-					// instead and let props consult the state.
 					for _, prop := range weaponProps {
-						stx.Update(prop, func(stx ScriptContext, prop Entity2) {
-							// skelly := world.GetSkeleton(prop)
-							// world.Pose.Set(prop, animgraph.Pose{
-							// 	Bones: map[int]gmath.Affine3f32{
-							// 		skelly.JointByName("Bolt"): gmath.TRS3f32{
-							// 			T: gmath.Vec3f32{0, -0.1 * Rand(info.Now, weaponID, "grenade launcher bolt position").Float32(), 0},
-							// 			R: gmath.Rot3One(),
-							// 			S: gmath.Mat3x3UOne[float32](),
-							// 		}.Compose(),
-							// 	},
-							// })
+						stx.Update(prop, func(stx ScriptContext, prop Entity) {
+							prop.SetScriptState(Testburger{
+								Animation: unique.Make("weapons/grenade_launcher/animations/Fire"),
+
+								PlayTime: stx.Now,
+
+								BaseColor: [4]float32{1, 1, 1, 1},
+							})
 
 							prop.SetSoundEffect(SoundEmitter{
 								Effect:      unique.Make("weapons/grenade_launcher/sounds/Fire"),
