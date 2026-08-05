@@ -69,7 +69,7 @@ type Columns struct {
 	// lol. We'll need to think more about this.
 	Skeleton ecs.Column[unique.Handle[string]]
 
-	Pose []skeleton.Pose `worldspawn:"dontreplicate"`
+	pose []skeleton.Pose `worldspawn:"dontreplicate"`
 
 	// Collision
 
@@ -170,7 +170,7 @@ func NewWorld(n int) *World {
 		}
 	}
 
-	world.Columns.Pose = make([]skeleton.Pose, n)
+	world.Columns.pose = make([]skeleton.Pose, n)
 
 	world.entityUpdates = make([][]updatef, n)
 	world.entityUpdates2 = make([][]updatef, n)
@@ -209,7 +209,7 @@ func (world *World) CreateEntity(info *UpdateParams) Entity {
 
 // This is used by client networking to remove entities.
 func (world *World) DeleteEntityImmediately(id ecs.ID) {
-	world.Columns.Pose[id.Index()] = skeleton.Pose{}
+	world.Columns.pose[id.Index()] = skeleton.Pose{}
 	if _, ok := world.physicsBodyExists.Get(id); ok {
 		world.physics.RemoveBody(physics.BodyID(id.Index()))
 	}
@@ -306,12 +306,12 @@ func (e Entity) Skeleton() unique.Handle[string] { return e.world.Skeleton.Load(
 
 func (e Entity) SetSkeleton(v unique.Handle[string]) { e.world.Skeleton.Store(e.id.Index(), v) }
 
-func (e Entity) Pose() skeleton.Pose { return e.world.Columns.Pose[e.id.Index()] }
+func (e Entity) Pose() skeleton.Pose { return e.world.Columns.pose[e.id.Index()] }
 
 // Note that pose is not replicated
 //
 // TODO: change up the api to encourage slice reuse
-func (e Entity) SetPose(v skeleton.Pose) { e.world.Columns.Pose[e.id.Index()] = v }
+func (e Entity) SetPose(v skeleton.Pose) { e.world.Columns.pose[e.id.Index()] = v }
 
 func (e Entity) SetCollisionLayer(v CollisionLayer) { e.world.CollisionLayer.Store(e.id.Index(), v) }
 

@@ -165,6 +165,8 @@ func (re *gameRendererVideo) Update(world *game.World, playerID ecs.ID, t0, t1 g
 		// everything that follows.
 
 		for id, v := range ecs.Join(&world.RenderingGeometry, &world.TransformTR) {
+			entity := world.Entity(id)
+
 			renderingGeometry := v.V1
 
 			i := id.Index()
@@ -178,7 +180,7 @@ func (re *gameRendererVideo) Update(world *game.World, playerID ecs.ID, t0, t1 g
 
 			geometry := modelcache.Get(renderingGeometry)
 
-			pose := world.Columns.Pose[id.Index()]
+			pose := entity.Pose()
 
 			update.geoNodes[i] = geoNodes{
 				src:    geometry,
