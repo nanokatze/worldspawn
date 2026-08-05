@@ -55,7 +55,7 @@ func (world *World) explosion(
 				TMax:      radius,
 			},
 			queryFilters)
-		if !rayHit.Entity.Valid() {
+		if !rayHit.Entity.IsValid() {
 			continue
 		}
 

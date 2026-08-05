@@ -42,7 +42,7 @@ func (world *World) SpawnPlayer(info *UpdateParams) ecs.ID {
 // HandleInput.
 func (world *World) Camera(playerID ecs.ID) ecs.ID {
 	player := world.Entity(playerID)
-	if !player.Valid() {
+	if !player.IsValid() {
 		return 0
 	}
 	playerState, ok := player.ScriptState().(Player)
@@ -51,7 +51,7 @@ func (world *World) Camera(playerID ecs.ID) ecs.ID {
 	}
 
 	pawn := world.Entity(playerState.Pawn)
-	if !pawn.Valid() {
+	if !pawn.IsValid() {
 		return 0
 	}
 	pawnState, ok := pawn.ScriptState().(Gladiator) // TODO: could we just poke a script function on the entity?
@@ -64,9 +64,9 @@ func (world *World) Camera(playerID ecs.ID) ecs.ID {
 
 // TODO: this should not take UpdateParams *at all* I think. Actually we still
 // need flags, but not Δt.
-func (world *World) HandleInput(playerID ecs.ID, cmd InputCmd, info *UpdateParams) {
+func (world *World) HandleInput(playerID ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
 	playerState := world.Entity(playerID).ScriptState().(Player)
-	if pawn := world.Entity(playerState.Pawn); pawn.Valid() {
+	if pawn := world.Entity(playerState.Pawn); pawn.IsValid() {
 		pawn.Script().Input(info, world, pawn.ID(), cmd)
 	} else {
 		if !info.Speculating {

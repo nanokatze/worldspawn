@@ -130,7 +130,7 @@ func init() {
 			// TODO: make weapon switching predicted
 			if !info.Speculating && gladiator.HeldWeapon.Entity != switchToWeaponID {
 				for _, propID := range gladiator.HeldWeapon.Props {
-					if prop := world.Entity(propID); prop.Valid() {
+					if prop := world.Entity(propID); prop.IsValid() {
 						prop.MarkForDeletion()
 					}
 				}
@@ -140,7 +140,7 @@ func init() {
 
 				gladiator.HeldWeapon.Entity = switchToWeaponID
 
-				if newWeapon := world.Entity(gladiator.HeldWeapon.Entity); newWeapon.Valid() {
+				if newWeapon := world.Entity(gladiator.HeldWeapon.Entity); newWeapon.IsValid() {
 					// We've switched to the new weapon, create the new weapon props
 
 					script := newWeapon.Script()
@@ -190,7 +190,7 @@ func init() {
 
 			state := gladiator.ScriptState().(Gladiator)
 
-			if weapon := world.Entity(state.HeldWeapon.Entity); weapon.Valid() {
+			if weapon := world.Entity(state.HeldWeapon.Entity); weapon.IsValid() {
 				var props [len(state.HeldWeapon.Props)]Entity // TODO: this is horrible to read, we should introduce a enum.
 				for i, propID := range state.HeldWeapon.Props {
 					props[i] = world.Entity(propID)

@@ -21,7 +21,7 @@ func (state *State) Update(world *game.World, playerID ecs.ID) {
 	state.Health = 0
 
 	player := world.Entity(playerID)
-	if !player.Valid() {
+	if !player.IsValid() {
 		return
 	}
 	playerState, ok := player.ScriptState().(game.Player)
@@ -30,7 +30,7 @@ func (state *State) Update(world *game.World, playerID ecs.ID) {
 	}
 
 	pawn := world.Entity(playerState.Pawn)
-	if !pawn.Valid() {
+	if !pawn.IsValid() {
 		return
 	}
 	pawnState, ok := pawn.ScriptState().(game.Gladiator) // TODO: could we just poke a script function on the entity? Yeah we could I guess. Also on Player.

@@ -185,7 +185,7 @@ func (world *World) physicsStep(updateParams *UpdateParams) {
 
 		entity1 := world.Entity(entityID1)
 		entity2 := world.Entity(entityID2)
-		if entity1.Valid() && entity2.Valid() {
+		if entity1.IsValid() && entity2.IsValid() {
 			// TODO: once we make ContactAdded/Removed be called concurrently,
 			// we'll probably change these entry points to be pure thinkers. At
 			// that point we'll want to make the key be the entire pair rather

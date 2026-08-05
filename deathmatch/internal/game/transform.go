@@ -63,14 +63,14 @@ func (world *World) GetGlobalTransform2(entity Entity) gmath.Affine3f64 {
 	// NOTE: the hierarchy depth is bounded by no. of entries in the table
 
 	A := gmath.Affine3One[float64]()
-	if !entity.Valid() {
+	if !entity.IsValid() {
 		return A
 	}
 	for range 5000 {
 		A = getEntityTransform(entity).Mul(A)
 
 		parent := world.Entity(entity.Parent())
-		if !parent.Valid() {
+		if !parent.IsValid() {
 			// TODO: ensure that parent to bone isn't set in this case
 			break
 		}

@@ -69,7 +69,7 @@ func init() {
 					}
 
 					if !stx.Speculating {
-						if rayHit.Entity.Valid() {
+						if rayHit.Entity.IsValid() {
 							impact := Impact{
 								Attacker: attacker,
 								Type:     BulletImpact,

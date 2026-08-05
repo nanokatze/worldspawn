@@ -262,7 +262,7 @@ type Entity struct {
 	id    ecs.ID // TODO: replace with index
 }
 
-func (e Entity) Valid() bool { return e.id != 0 }
+func (e Entity) IsValid() bool { return e.id != 0 }
 
 func (e Entity) ID() ecs.ID { return e.id }
 

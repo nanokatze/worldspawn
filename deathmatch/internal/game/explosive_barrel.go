@@ -30,7 +30,7 @@ func init() {
 				T := world.GetGlobalTransform2(entity)
 
 				attacker := world.Entity(state.Attacker)
-				if !attacker.Valid() {
+				if !attacker.IsValid() {
 					// If there's nobody using us, report ourselves as the
 					// attacker.
 					attacker = entity

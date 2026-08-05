@@ -28,7 +28,7 @@ type updatef struct {
 
 func (io IO) validate(entity Entity) {
 	// TODO: we can validate more stuff tbh
-	if !entity.Valid() {
+	if !entity.IsValid() {
 		panic("bad")
 	}
 }

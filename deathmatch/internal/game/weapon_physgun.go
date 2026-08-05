@@ -30,7 +30,7 @@ func init() {
 			buttons WeaponButtons) {
 			state := weapon.ScriptState().(WeaponPhysgun)
 
-			holdingEntity := world.Entity(state.HeldEntity).Valid()
+			holdingEntity := world.Entity(state.HeldEntity).IsValid()
 			triggerHeld := buttons&WeaponTrigger != 0
 
 			switch {
@@ -45,7 +45,7 @@ func init() {
 						Entity: func(entity ecs.ID) bool { return entity != attacker.ID() },
 					})
 
-				if rayHit.Entity.Valid() {
+				if rayHit.Entity.IsValid() {
 					transform := T_attack.Inv().Mul(world.GetGlobalTransform2(rayHit.Entity))
 
 					stx.Update(weapon,
