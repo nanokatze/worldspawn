@@ -296,7 +296,7 @@ func (re *gameRendererVideo) Redraw(jq *gpu.JobQueue, dst *gpu.Image, sdlNow uin
 	camera := re.ourCamera
 	cameraTransform := gmath.Mat4x4One[float32]()
 	if re.scene2 != nil {
-		cameraTransform = re.scene2.Transform(re.ourCameraTransform, float32(t)).ToMat().Mul(worldspawnToRenderer.Inverse())
+		cameraTransform = re.scene2.Transform(re.ourCameraTransform, float32(t)).Mat().Mul(worldspawnToRenderer.Inv())
 
 		for i := range re.scene2.mask {
 			tmp := re.scene2.Transform(i, float32(t))

@@ -83,7 +83,7 @@ func Read(r io.Reader) (*Skeleton, error) {
 		sk.JointNames[i] = name
 		sk.JointByName_[name] = i
 
-		bindPose := gmath.Affine3FromMat4x4(joint.BindPose)
+		bindPose := gmath.Affine3FromMat(joint.BindPose)
 		sk.BindPose[i] = bindPose
 		sk.BindPoseInv[i] = bindPose.Inv()
 	}

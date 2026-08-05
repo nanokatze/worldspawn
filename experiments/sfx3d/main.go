@@ -352,7 +352,7 @@ func main() {
 			float32(swapchainImage.Extent()[0])/float32(swapchainImage.Extent()[1]),
 			0.01)
 
-		viewInverse := camera.Compose().ToMat().Mul(blenderToPathTracer.Inverse())
+		viewInverse := camera.Affine().Mat().Mul(blenderToPathTracer.Inv())
 
 		inputMu.Unlock()
 
@@ -364,7 +364,7 @@ func main() {
 			TLAS    gpu.TLAS
 			Output  gpu.ImageDescriptor
 		}{
-			ProjInv: proj.Inverse(),
+			ProjInv: proj.Inv(),
 			ViewInv: viewInverse,
 			TLAS:    tlas,
 			Output:  swapchainImage.Descriptor(),

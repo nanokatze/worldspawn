@@ -201,7 +201,7 @@ func init() {
 						T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
 						R: e01.Pow(4 * state.Input.LookDir[0]).Mul(e12.Pow(4 * state.Input.LookDir[1])),
 						S: gmath.Mat3x3UOne[float32](),
-					}.Compose())
+					}.Affine())
 				v_attack := gladiator.Velocity()
 
 				var buttons WeaponButtons
@@ -327,7 +327,7 @@ func init() {
 									R: gmath.Rot3AToB(gmath.Vec3f32{1, 0, 0}, gmath.Vec3f32{0, 1, 0}).
 										Pow(4 * state.Input.LookDir[0]),
 									S: gmath.Mat3x3UOne[float32](),
-								}.Compose()).
+								}.Affine()).
 								Mul(sk.BindPose[b_spine]).
 								Mul(localTransforms[b_spine])
 

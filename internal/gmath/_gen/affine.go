@@ -95,11 +95,10 @@ func TRS{{.D}}One[T constraints.Float]() {{$TRSD}}[T] {
 	}
 }
 
-func (trs {{$TRSD}}[T]) Compose() {{$AffineD}}[T] {
+func (trs {{$TRSD}}[T]) Affine() {{$AffineD}}[T] {
 	return {{$AffineD}}[T]{
-		// TODO: special case R.Mat() by S.Mat() for more :b:erf and kill those
-		// methods
-		M: trs.R.ToMat().Mul(trs.S.ToMat()),
+		// TODO: special case R.Mat() by S.Mat() for more :b:erf
+		M: trs.R.Mat().Mul(trs.S.Mat()),
 		T: trs.T,
 	}
 }

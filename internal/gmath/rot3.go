@@ -137,19 +137,17 @@ func (R Rot3) Sqrt() Rot3 {
 	}.Renormalize()
 }
 
-func (r Rot3) ToMat() Mat3x3f32 {
-	// ughhhhhhhhhhhhhhhhhhhhhh
-	var R Mat3x3f32
-	*R.Index(0, 0) = r[3]*r[3] + r[0]*r[0] - r[1]*r[1] - r[2]*r[2]
-	*R.Index(0, 1) = r[0]*r[1]*2 - r[3]*r[2]*2
-	*R.Index(0, 2) = r[3]*r[1]*2 + r[0]*r[2]*2
-	*R.Index(1, 0) = r[3]*r[2]*2 + r[0]*r[1]*2
-	*R.Index(1, 1) = r[3]*r[3] - r[0]*r[0] + r[1]*r[1] - r[2]*r[2]
-	*R.Index(1, 2) = r[1]*r[2]*2 - r[3]*r[0]*2
-	*R.Index(2, 0) = r[0]*r[2]*2 - r[3]*r[1]*2
-	*R.Index(2, 1) = r[3]*r[0]*2 + r[1]*r[2]*2
-	*R.Index(2, 2) = r[3]*r[3] - r[0]*r[0] - r[1]*r[1] + r[2]*r[2]
-	return R
+func (R Rot3) Mat() Mat3x3f32 {
+	var M Mat3x3f32
+	for i := range 3 {
+		v := Vec3f32{}
+		v[i] = 1
+		Rv := R.Rotate(v)
+		for j := range 3 {
+			*M.Index(j, i) = Rv[j]
+		}
+	}
+	return M
 }
 
 func (R Rot3) Rotate[T constraints.Float](v Vec3[T]) Vec3[T] {

@@ -43,7 +43,7 @@ func (e Entity) SetTransformTR(v TR3f64) { e.world.TransformTR.Store(e.id.Index(
 // common case
 func (world *World) GetGlobalTransform2(entity Entity) gmath.Affine3f64 {
 	getEntityTransform := func(entity Entity) gmath.Affine3f64 {
-		return entity.Transform().Compose()
+		return entity.Transform().Affine()
 	}
 
 	getBoneTransform := func(entity Entity, bone unique.Handle[string]) gmath.Affine3f32 {

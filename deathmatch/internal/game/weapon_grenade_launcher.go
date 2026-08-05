@@ -83,7 +83,7 @@ func init() {
 									Mul(gmath.TRS3f64{
 										R: gmath.Rot3AToB(gmath.Vec3f32{0, 0, 1}, gmath.Vec3f32{0, 1, 0}),
 										S: gmath.Mat3x3UOne[float32](),
-									}.Compose()).
+									}.Affine()).
 									TRS())
 							projectile.SetVelocity(Velocity{
 								Linear: v_attack.Linear.Add(T_attack.M.Mulv(forward.Scale(grenadeLauncherStats.MuzzleVelocity))),

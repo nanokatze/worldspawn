@@ -36,8 +36,8 @@ func (A {{$MatMxN}}[From]) Convert[To constraints.Float]() {{$MatMxN}}[To] {
 
 func (A *{{$MatMxN}}[T]) Index(i, j int) *T {
 	A_i := A[i*{{.N}}:][:{{.N}}]
-	A_i_j := &A_i[j]
-	return A_i_j
+	A_ij := &A_i[j]
+	return A_ij
 }
 
 {{if (eq .M .N)}}
@@ -90,9 +90,11 @@ func (A {{$MatMxM}}[T]) Mul(B {{$MatMxM}}[T]) {{$MatMxM}}[T] {
 	return AB
 }
 
+/*
 func (A {{$MatMxM}}[T]) Inv() {{$MatMxM}}[T] {
 	panic("not implemented")
 }
+*/
 
 {{end}}
 
@@ -139,8 +141,8 @@ type Mat{{.M}}x{{.M}}Uf32 = {{$MatMxMU}}[float32]
 
 func (A *{{$MatMxMU}}[T]) Index(i, j int) *T {
 	A_i := A[len(A)-triangularNumber({{.M}}-i):][:{{.M}}-i]
-	A_i_j := &A_i[j-i]
-	return A_i_j
+	A_ij := &A_i[j-i]
+	return A_ij
 }
 
 func Mat{{.M}}x{{.M}}UOne[T constraints.Float]() {{$MatMxMU}}[T] {
@@ -191,7 +193,7 @@ func (A {{$MatMxMU}}[T]) Inv() {{$MatMxMU}}[T] {
 
 {{$MatMxM := printf "Mat%dx%d" .M .M}}
 
-func (U {{$MatMxMU}}[T]) ToMat() {{$MatMxM}}[T] {
+func (U {{$MatMxMU}}[T]) Mat() {{$MatMxM}}[T] {
 	var M {{$MatMxM}}[T]
 	for i := range {{.M}} {
 		for j := i; j < {{.M}}; j++ {

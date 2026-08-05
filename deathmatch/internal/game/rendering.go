@@ -106,7 +106,7 @@ func (world *World) GetRenderingTransform(entity Entity) gmath.Affine3f64 {
 		offset := entity.world.CosmeticOffset.Load(entity.ID().Index()).Eval(world.Now)
 		trs.T = trs.T.Add(offset.Convert[float64]())
 
-		return trs.Compose()
+		return trs.Affine()
 	}
 
 	getBoneTransform := func(entity Entity, bone unique.Handle[string]) gmath.Affine3f32 {

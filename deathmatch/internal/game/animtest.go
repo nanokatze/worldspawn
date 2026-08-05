@@ -130,7 +130,7 @@ func poseAnimator(a *animation.Animation, sk *skeleton.Skeleton) func(point []fl
 			}
 			tmp.R = tmp.R.Renormalize()
 
-			pose[i] = tmp.Compose()
+			pose[i] = tmp.Affine()
 		}
 	}
 }

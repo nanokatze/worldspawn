@@ -14,9 +14,8 @@ func Rot{{.D}}One() {{$RotD}} {
 	panic("not implemented")
 }
 
-func Rot{{.D}}InPlane(???, θ float32) {{$RotD}} {
-	s, c := math.Sincos(float64(θ / 2))
-	return {{$RotD}}{}
+func Rot{{.D}}AToB(a, b Vec{{.D}}f32) {{$RotD}} {
+	panic("not implemented")
 }
 
 func Rot{{.D}}FromMat(M Mat{{.D}}x{{.D}}f32) {{$RotD}} {
@@ -27,16 +26,19 @@ func (R {{$RotD}}) Renormalize() {{$RotD}} {
 	panic("not implemented")
 }
 
+func (R {{$RotD}}) Mul(S {{$RotD}}) {{$RotD}} {
+	panic("not implemented")
+}
+
 func (R {{$RotD}}) Inv() {{$RotD}} {
 	panic("not implemented")
 }
 
-func (R1 {{$RotD}}) Mul(R2 {{$RotD}}) {{$RotD}} {
+func (R {{$RotD}}) Mat() Mat{{.D}}x{{.D}}f32 {
 	panic("not implemented")
 }
 
-// TODO: make this generic once generic methods land
-func (R {{$RotD}}) Rotate32(v Vec{{.D}}f32) Vec{{.D}}f32 {
+func (R {{$RotD}}) Rotate[T constraints.Float](v Vec{{.D}}[T]) Vec{{.D}}[T] {
 	panic("not implemented")
 }
 `))

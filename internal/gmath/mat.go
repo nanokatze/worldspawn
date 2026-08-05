@@ -17,7 +17,7 @@ func Mat4x4InfinitePerspective(fov, aspect, near float32) Mat4x4f32 {
 }
 
 // TODO: generate this
-func (A Mat4x4[T]) Inverse() (A_inv Mat4x4[T]) {
+func (A Mat4x4[T]) Inv() (A_inv Mat4x4[T]) {
 	// TODO: write a generalized routine for computing inverse that can be
 	// unrolled and use it to replace this thing
 

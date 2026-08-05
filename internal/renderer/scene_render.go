@@ -142,7 +142,7 @@ func (scene *Scene) EnqueueRender(jq *gpu.JobQueue, film Film, camera *Camera, c
 		// https://blog.demofox.org/2022/01/01/interleaved-gradient-noise-a-different-kind-of-low-discrepancy-sequence/
 
 		viewInverse := cameraTransform
-		view := viewInverse.Inverse()
+		view := viewInverse.Inv()
 
 		*frame.Value() = frameParams{
 			Film: _Film{
@@ -160,7 +160,7 @@ func (scene *Scene) EnqueueRender(jq *gpu.JobQueue, film Film, camera *Camera, c
 				View: view,
 
 				ViewProj:    proj.Mul(view),
-				ProjInverse: proj.Inverse(),
+				ProjInverse: proj.Inv(),
 				ViewInverse: viewInverse,
 			},
 

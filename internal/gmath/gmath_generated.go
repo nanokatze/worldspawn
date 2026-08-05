@@ -84,8 +84,8 @@ func (A Mat2x2[From]) Convert[To constraints.Float]() Mat2x2[To] {
 
 func (A *Mat2x2[T]) Index(i, j int) *T {
 	A_i := A[i*2:][:2]
-	A_i_j := &A_i[j]
-	return A_i_j
+	A_ij := &A_i[j]
+	return A_ij
 }
 
 func Mat2x2One[T constraints.Float]() Mat2x2[T] {
@@ -125,9 +125,11 @@ func (A Mat2x2[T]) Mul(B Mat2x2[T]) Mat2x2[T] {
 	return AB
 }
 
+/*
 func (A Mat2x2[T]) Inv() Mat2x2[T] {
 	panic("not implemented")
 }
+*/
 
 func (A Mat2x2[T]) Mulv(b Vec2[T]) Vec2[T] {
 	var Ab Vec2[T]
@@ -218,8 +220,8 @@ func (A Mat3x3[From]) Convert[To constraints.Float]() Mat3x3[To] {
 
 func (A *Mat3x3[T]) Index(i, j int) *T {
 	A_i := A[i*3:][:3]
-	A_i_j := &A_i[j]
-	return A_i_j
+	A_ij := &A_i[j]
+	return A_ij
 }
 
 func Mat3x3One[T constraints.Float]() Mat3x3[T] {
@@ -266,9 +268,11 @@ func (A Mat3x3[T]) Mul(B Mat3x3[T]) Mat3x3[T] {
 	return AB
 }
 
+/*
 func (A Mat3x3[T]) Inv() Mat3x3[T] {
 	panic("not implemented")
 }
+*/
 
 func (A Mat3x3[T]) Mulv(b Vec3[T]) Vec3[T] {
 	var Ab Vec3[T]
@@ -284,8 +288,8 @@ type Mat3x3Uf32 = Mat3x3U[float32]
 
 func (A *Mat3x3U[T]) Index(i, j int) *T {
 	A_i := A[len(A)-triangularNumber(3-i):][:3-i]
-	A_i_j := &A_i[j-i]
-	return A_i_j
+	A_ij := &A_i[j-i]
+	return A_ij
 }
 
 func Mat3x3UOne[T constraints.Float]() Mat3x3U[T] {
@@ -334,7 +338,7 @@ func (A Mat3x3U[T]) Inv() Mat3x3U[T] {
 	panic("not implemented")
 }
 
-func (U Mat3x3U[T]) ToMat() Mat3x3[T] {
+func (U Mat3x3U[T]) Mat() Mat3x3[T] {
 	var M Mat3x3[T]
 	for i := range 3 {
 		for j := i; j < 3; j++ {
@@ -432,8 +436,8 @@ func (A Mat4x4[From]) Convert[To constraints.Float]() Mat4x4[To] {
 
 func (A *Mat4x4[T]) Index(i, j int) *T {
 	A_i := A[i*4:][:4]
-	A_i_j := &A_i[j]
-	return A_i_j
+	A_ij := &A_i[j]
+	return A_ij
 }
 
 func Mat4x4One[T constraints.Float]() Mat4x4[T] {
@@ -489,9 +493,11 @@ func (A Mat4x4[T]) Mul(B Mat4x4[T]) Mat4x4[T] {
 	return AB
 }
 
+/*
 func (A Mat4x4[T]) Inv() Mat4x4[T] {
 	panic("not implemented")
 }
+*/
 
 func (A Mat4x4[T]) Mulv(b Vec4[T]) Vec4[T] {
 	var Ab Vec4[T]
@@ -583,11 +589,10 @@ func TRS3One[T constraints.Float]() TRS3[T] {
 	}
 }
 
-func (trs TRS3[T]) Compose() Affine3[T] {
+func (trs TRS3[T]) Affine() Affine3[T] {
 	return Affine3[T]{
-		// TODO: special case R.Mat() by S.Mat() for more :b:erf and kill those
-		// methods
-		M: trs.R.ToMat().Mul(trs.S.ToMat()),
+		// TODO: special case R.Mat() by S.Mat() for more :b:erf
+		M: trs.R.Mat().Mul(trs.S.Mat()),
 		T: trs.T,
 	}
 }

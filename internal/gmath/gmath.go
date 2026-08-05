@@ -4,12 +4,14 @@ import "golang.org/x/exp/constraints"
 
 //go:generate go run ./_gen -o gmath_generated.go
 
+// TODO: remove "To" from all conversion functions
+// TODO: rename TRSD[T].Compose to TRSD[T].Affine
+
 func triangularNumber(n int) int {
 	return n * (n + 1) / 2
 }
 
-// TODO: actually generate this as well. And ToMat() too
-func Affine3FromMat4x4[T constraints.Float](M Mat4x4[T]) Affine3[T] {
+func Affine3FromMat[T constraints.Float](M Mat4x4[T]) Affine3[T] {
 	var f Affine3[T]
 	for i := range 3 {
 		for j := range 3 {
@@ -20,7 +22,7 @@ func Affine3FromMat4x4[T constraints.Float](M Mat4x4[T]) Affine3[T] {
 	return f
 }
 
-func (f Affine3[T]) ToMat() Mat4x4[T] {
+func (f Affine3[T]) Mat() Mat4x4[T] {
 	var M Mat4x4[T]
 	for i := range 3 {
 		for j := range 3 {
@@ -34,5 +36,5 @@ func (f Affine3[T]) ToMat() Mat4x4[T] {
 
 // TODO: _gen/affine.go should generate this
 func (f Affine3[T]) Inv() Affine3[T] {
-	return Affine3FromMat4x4(f.ToMat().Inverse())
+	return Affine3FromMat(f.Mat().Inv())
 }

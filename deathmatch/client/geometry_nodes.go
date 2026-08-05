@@ -92,7 +92,7 @@ func (gs *geoNodes) EnqueueEvaluate(jq *gpu.JobQueue, data *gsdata) {
 	poseHost := data.pose.Value()
 	if gs.pose.Validate(gs.skelly) {
 		for i, name := range gs.src.joints {
-			poseHost[i] = gs.pose[gs.skelly.JointByName(name)].ToMat()
+			poseHost[i] = gs.pose[gs.skelly.JointByName(name)].Mat()
 		}
 	} else {
 		for i := range poseHost {
