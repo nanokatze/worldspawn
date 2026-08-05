@@ -33,42 +33,26 @@ func (e Entity) SetTransform(v gmath.TRS3f64) {
 
 func (e Entity) SetTransformTR(v TR3f64) { e.world.TransformTR.Store(e.id.Index(), v) }
 
-func (world *World) GetGlobalTransform2(entity Entity) gmath.Affine3f64 {
-	return world.GetGlobalTransform(entity.ID())
-}
-
 // TODO: if we encounter errors during hierarchy traversal we should restart
 // traversal with diagnostics collection and print the collected diagnostics
-// after using Scene.Logger.Error
+// after using World.logger.Error
 //
 // TODO: cycle detection
 //
 // TODO: replace T.Mul(A) with just A on the first iteration to optimize the
 // common case
-//
-// TODO: clean this up. Could Entity2 help here?
-// TODO: remove this in favor of GetGlobalTransform2
-func (world *World) GetGlobalTransform(id ecs.ID) gmath.Affine3f64 {
-	getEntityTransform := func(id ecs.ID) gmath.Affine3f64 {
-		tr, ok := world.TransformTR.Get(id)
-		if !ok {
-			return gmath.Affine3One[float64]()
-		}
-		s, ok := world.TransformS.Get(id)
-		if !ok {
-			s = gmath.Mat3x3UOne[float32]()
-		}
-		return gmath.TRS3f64{tr.T, tr.R, s}.Compose()
+func (world *World) GetGlobalTransform2(entity Entity) gmath.Affine3f64 {
+	getEntityTransform := func(entity Entity) gmath.Affine3f64 {
+		return entity.Transform().Compose()
 	}
 
-	// TODO: make this a method on the scene?
-	getBoneTransform := func(id ecs.ID, bone unique.Handle[string]) gmath.Affine3f32 {
-		skelly := world.GetSkeleton(id)
-		if skelly == nil {
+	getBoneTransform := func(entity Entity, bone unique.Handle[string]) gmath.Affine3f32 {
+		sk := skeletonCache.Get(entity.Skeleton())
+		if sk == nil {
 			return gmath.Affine3One[float32]()
 		}
-		pose := world.Entities.Pose[id.Index()]
-		return pose.Get(skelly.JointByName(bone), skelly)
+		pose := entity.Pose()
+		return pose.Get(sk.JointByName(bone), sk)
 	}
 
 	// TODO: don't hardcode the hierarchy depth bound
@@ -79,21 +63,28 @@ func (world *World) GetGlobalTransform(id ecs.ID) gmath.Affine3f64 {
 	// NOTE: the hierarchy depth is bounded by no. of entries in the table
 
 	A := gmath.Affine3One[float64]()
+	if !entity.Valid() {
+		return A
+	}
 	for range 5000 {
-		A = getEntityTransform(id).Mul(A)
+		A = getEntityTransform(entity).Mul(A)
 
-		parent := world.GetParent(id)
-		if parent == 0 {
-			// TODO: ensure that parent to bone isn't set
+		parent := world.Entity(entity.Parent())
+		if !parent.Valid() {
+			// TODO: ensure that parent to bone isn't set in this case
 			break
 		}
 
-		if parentBone, parentedToBone := world.ParentBone.Get(id); parentedToBone {
+		if parentBone := entity.ParentBone(); parentBone != (unique.Handle[string]{}) {
 			A = getBoneTransform(parent, parentBone).Convert[float64]().Mul(A)
 		}
 
-		id = parent
+		entity = parent
 	}
 
 	return A
+}
+
+func (world *World) GetGlobalTransform(id ecs.ID) gmath.Affine3f64 {
+	return world.GetGlobalTransform2(world.Entity(id))
 }

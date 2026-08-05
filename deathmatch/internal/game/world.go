@@ -301,9 +301,15 @@ func (e Entity) SetShouldSetOffFuseOnImpact(v bool) {
 	}
 }
 
+func (e Entity) Parent() ecs.ID { return e.world.Parent.Load(e.id.Index()) }
+
+func (e Entity) ParentBone() unique.Handle[string] { return e.world.ParentBone.Load(e.id.Index()) }
+
 func (e Entity) Skeleton() unique.Handle[string] { return e.world.Skeleton.Load(e.id.Index()) }
 
 func (e Entity) SetSkeleton(v unique.Handle[string]) { e.world.Skeleton.Store(e.id.Index(), v) }
+
+func (e Entity) Pose() skeleton.Pose { return e.world.Entities.Pose[e.id.Index()] }
 
 // Note that pose is not replicated
 //
