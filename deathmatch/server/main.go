@@ -517,8 +517,10 @@ func main() {
 	maxEntities := 1000
 
 	s.tickPeriod = time.Second / 64
-	s.world = game.NewWorld(maxEntities)
-	s.prevWorld = game.NewWorld(maxEntities)
+	s.world = new(game.World)
+	s.world.Reset(maxEntities)
+	s.prevWorld = new(game.World)
+	s.prevWorld.Reset(maxEntities)
 	s.mtimes.Init(maxEntities, reflect.TypeFor[game.Columns]().NumField())
 
 	sceneFile, err := game.Data.Open(conf.MapRotation[0])

@@ -154,9 +154,7 @@ type World struct {
 	logger *slog.Logger
 }
 
-func NewWorld(n int) *World {
-	world := new(World)
-
+func (world *World) Reset(n int) {
 	world.Table = ecs.NewTable(n)
 
 	columns := reflect.ValueOf(&world.Columns).Elem()
@@ -186,9 +184,9 @@ func NewWorld(n int) *World {
 
 	// TODO: the user should pass this
 	world.logger = slog.Default()
-
-	return world
 }
+
+// func (world *World) SetLogger(logger *slog.Logger) { world.logger = logger }
 
 func (world *World) Cap() int { return world.Table.IDs().Cap() }
 

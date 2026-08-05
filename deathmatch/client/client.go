@@ -114,7 +114,8 @@ func newClient(renderer Renderer, addr string) (*Client, error) {
 				// secondary (above the primary)
 				slog.Info("world reset", "cap", cap)
 				s.mu.Lock()
-				s.world = game.NewWorld(int(cap))
+				s.world = new(game.World)
+				s.world.Reset(int(cap))
 				// TODO: we should also stop rendering until we get the first
 				// UpdateWorld
 				s.renderer.Reset(int(cap))
