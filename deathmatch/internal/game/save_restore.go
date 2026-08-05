@@ -1,9 +1,8 @@
 package game
 
 import (
+	"encoding/json/v2"
 	"io"
-
-	"github.com/go-json-experiment/json"
 )
 
 // TODO: we'd benefit from an additional step before Restore so we can know the

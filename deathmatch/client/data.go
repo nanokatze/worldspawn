@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/binary"
+	"encoding/json/v2"
 	"fmt"
 	"io"
 	"log"
@@ -12,8 +13,6 @@ import (
 	"sync"
 	"unique"
 	"unsafe"
-
-	"github.com/go-json-experiment/json"
 
 	"worldspawn/deathmatch/internal/game"
 	"worldspawn/gpu"

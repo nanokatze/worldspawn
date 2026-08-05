@@ -3,10 +3,9 @@ package wmesh
 
 import (
 	"encoding/binary"
+	"encoding/json/v2"
 	"io"
 	"math"
-
-	"github.com/go-json-experiment/json"
 )
 
 type IndexType int8

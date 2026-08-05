@@ -1,12 +1,11 @@
 package ecs
 
 import (
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"errors"
 	"iter"
 	"reflect"
-
-	"github.com/go-json-experiment/json"
-	"github.com/go-json-experiment/json/jsontext"
 
 	"worldspawn/internal/ecs/bitset"
 )

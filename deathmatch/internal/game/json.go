@@ -1,14 +1,13 @@
 package game
 
 import (
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"math"
 	"reflect"
 	"strconv"
 	"unique"
-
-	"github.com/go-json-experiment/json"
-	"github.com/go-json-experiment/json/jsontext"
 )
 
 func float32JSONMarshaler(enc *jsontext.Encoder, x *float32) error {

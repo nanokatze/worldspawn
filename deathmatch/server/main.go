@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/binary"
+	"encoding/json/v2"
 	"flag"
 	"io"
 	"log"
@@ -14,8 +15,6 @@ import (
 	"sync"
 	"time"
 	"unique"
-
-	"github.com/go-json-experiment/json"
 
 	"github.com/quic-go/quic-go"
 

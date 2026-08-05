@@ -1,12 +1,11 @@
 package material
 
 import (
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"io/fs"
 	"strconv"
-
-	"github.com/go-json-experiment/json"
-	"github.com/go-json-experiment/json/jsontext"
 
 	"worldspawn/internal/compiler"
 	"worldspawn/internal/compiler/core"

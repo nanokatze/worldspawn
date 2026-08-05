@@ -1,10 +1,10 @@
 package game
 
 import (
+	"encoding/json/v2"
+	"io/fs"
 	"log"
 	"path/filepath"
-
-	"github.com/go-json-experiment/json"
 
 	"worldspawn/internal/ecs"
 )
@@ -53,16 +53,12 @@ type CollectionInstance struct {
 	Filename string
 }
 
-// TODO: rename this to something else, e.g. just Prefab?
-// TODO: make it this an interface of file-backed prefab and inline string
-// prefab (i.e. just json)
+// TODO: kill this
 type PrefabRef struct {
 	Filename string // for on-disk prefabs
 }
 
-// TODO: rename this to make it clear that we're instanting collections
-// specified by CollectionInstance components. E.g.
-// Realize{,Collection,Prefab}Instances?
+// TODO: kill this
 func (world *World) InstantinateCollections() {
 	for id, collection := range ecs.All(&world.CollectionInstance) {
 		world.CollectionInstance.Delete(id)
@@ -72,9 +68,9 @@ func (world *World) InstantinateCollections() {
 
 // TODO: pass fs explicitly, etc. We'll make Data fs and caches per-World,
 // likely
-func prefab(filename string) *Columns {
+func prefab(fsys fs.FS, filename string) *Columns {
 	// TODO: we shouldn't need to be doing filepath.Clean here, the exporter should export stuff properly by itself
-	f, err := Data.Open(filepath.Clean(filename))
+	f, err := fsys.Open(filepath.Clean(filename))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -90,17 +86,18 @@ func prefab(filename string) *Columns {
 	return w
 }
 
-func (world *World) InstantinatePrefab(filename string, info *UpdateParams) Entity {
-	e := world.CreateEntity(info)
-	world.CopyEntities(e.id, prefab(filename))
-	return e
+// TODO: this should take continuation
+func (world *World) SpawnPrefab(io IO, filename string) {
+	io.Create(func(stx ScriptContext, entity Entity) {
+		world.CopyEntities(entity.ID(), prefab(Data, filename))
+	})
 }
 
-// TODO: kill this in favor of InstantinatePrefab
+// TODO: this should follow SpawnPrefab above
 func (world *World) InstanceCollectionAt(id ecs.ID, prefabRef PrefabRef) {
 	T := world.Entity(id).Transform()
 
-	world.CopyEntities(id, prefab(prefabRef.Filename))
+	world.CopyEntities(id, prefab(Data, prefabRef.Filename))
 	// TODO: actually compose these rather than override!
 	world.Entity(id).SetTransform(T)
 

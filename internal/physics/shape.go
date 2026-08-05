@@ -5,11 +5,10 @@ import "C"
 
 import (
 	"encoding/binary"
+	"encoding/json/v2"
 	"io"
 	"io/fs"
 	"unsafe"
-
-	"github.com/go-json-experiment/json"
 
 	"worldspawn/internal/gmath"
 	"worldspawn/internal/loaders/wmesh"

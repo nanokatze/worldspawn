@@ -4,7 +4,6 @@ go 1.27
 
 require (
 	gioui.org v0.10.0
-	github.com/go-json-experiment/json v0.0.0-20260601182631-00ed12fed2a6
 	github.com/quic-go/quic-go v0.60.0
 	golang.org/x/crypto v0.53.0
 	golang.org/x/exp v0.0.0-20260611194520-c48552f49976

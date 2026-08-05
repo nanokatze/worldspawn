@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json/v2"
 	"flag"
 	"fmt"
 	"io/fs"
@@ -11,7 +12,6 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/go-json-experiment/json"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 
