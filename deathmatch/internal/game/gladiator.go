@@ -307,8 +307,8 @@ func init() {
 
 						// TODO: introduce affine1 helper so that we can do remaps from one range to another
 
-						point := make([]float32, len(anim.Channels()))
-						animation.SampleNormalized(anim, 0.5+2*state.Input.LookDir[1], point)
+						v := make([]float32, len(anim.Channels()))
+						animation.SampleNormalized(anim, 0.5+2*state.Input.LookDir[1], v)
 
 						sk := skeletonCache.Get(gladiator.Skeleton())
 
@@ -317,7 +317,7 @@ func init() {
 							localTransforms[i] = gmath.Affine3One[float32]()
 						}
 
-						poseAnimCache.Get(poseAnimCacheKey{anim, sk})(point, localTransforms)
+						poseMapperCache.Get(poseMapperKey{anim, sk})(v, localTransforms)
 
 						b_spine := sk.JointByName(unique.Make("spine"))
 
