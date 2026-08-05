@@ -296,21 +296,6 @@ func (e Entity) SetShouldSetOffFuseOnImpact(v bool) {
 	}
 }
 
-func (e Entity) Parent() ecs.ID { return e.world.Parent.Load(e.id.Index()) }
-
-func (e Entity) ParentBone() unique.Handle[string] { return e.world.ParentBone.Load(e.id.Index()) }
-
-func (e Entity) Skeleton() unique.Handle[string] { return e.world.Skeleton.Load(e.id.Index()) }
-
-func (e Entity) SetSkeleton(v unique.Handle[string]) { e.world.Skeleton.Store(e.id.Index(), v) }
-
-func (e Entity) Pose() skeleton.Pose { return e.world.Columns.pose[e.id.Index()] }
-
-// Note that pose is not replicated
-//
-// TODO: change up the api to encourage slice reuse
-func (e Entity) SetPose(v skeleton.Pose) { e.world.Columns.pose[e.id.Index()] = v }
-
 func (e Entity) SetCollisionLayer(v CollisionLayer) { e.world.CollisionLayer.Store(e.id.Index(), v) }
 
 func (e Entity) SetCollisionGeometry(v unique.Handle[string]) {
