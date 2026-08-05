@@ -67,7 +67,7 @@ func (w *mainWindow) Run() {
 	for i := range w.videoRenderer.idGen {
 		w.videoRenderer.idGen[i] = 0xffffffff
 	}
-	w.videoRenderer.transform = make([]gmath.TRS3f32, w.videoRenderer.n)
+	w.videoRenderer.transform = make([]gmath.Affine3f32, w.videoRenderer.n)
 	w.videoRenderer.updates = make(chan *sceneUpdate, 1)
 	w.videoRenderer.gsdata = make([]gsdata, w.videoRenderer.n)
 	w.videoRenderer.scene = renderer.NewScene(w.videoRenderer.n, 6)

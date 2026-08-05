@@ -96,3 +96,54 @@ func (e Entity) SetRenderingGeometry(v unique.Handle[string]) {
 }
 
 func (e Entity) SetSoundEffect(v SoundEmitter) { e.world.SoundEffect.Store(e.id.Index(), v) }
+
+// TODO: rewrite this so that it reuses GetGlobalTransform
+func (world *World) GetRenderingTransform(entity Entity) gmath.Affine3f64 {
+	getEntityTransform := func(entity Entity) gmath.Affine3f64 {
+		trs := entity.Transform()
+
+		// TODO: don't add cosmetic offset if it's disabled in the config
+		offset := entity.world.CosmeticOffset.Load(entity.ID().Index()).Eval(world.Now)
+		trs.T = trs.T.Add(offset.Convert[float64]())
+
+		return trs.Compose()
+	}
+
+	getBoneTransform := func(entity Entity, bone unique.Handle[string]) gmath.Affine3f32 {
+		sk := skeletonCache.Get(entity.Skeleton())
+		if sk == nil {
+			return gmath.Affine3One[float32]()
+		}
+		pose := entity.Pose()
+		return pose.Get(sk.JointByName(bone), sk)
+	}
+
+	// TODO: don't hardcode the hierarchy depth bound
+	// TODO: actually maybe have a bloom filter/small hashmap to track cycles?
+	// It would be nice to avoid having a different behavior regardless of
+	// whether we have cycle detection on or not.
+	//
+	// NOTE: the hierarchy depth is bounded by no. of entries in the table
+
+	A := gmath.Affine3One[float64]()
+	if !entity.Valid() {
+		return A
+	}
+	for range 5000 {
+		A = getEntityTransform(entity).Mul(A)
+
+		parent := world.Entity(entity.Parent())
+		if !parent.Valid() {
+			// TODO: ensure that parent to bone isn't set in this case
+			break
+		}
+
+		if parentBone := entity.ParentBone(); parentBone != (unique.Handle[string]{}) {
+			A = getBoneTransform(parent, parentBone).Convert[float64]().Mul(A)
+		}
+
+		entity = parent
+	}
+
+	return A
+}

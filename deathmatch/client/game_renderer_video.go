@@ -26,11 +26,10 @@ type hudState struct {
 type gameRendererVideo struct {
 	n int
 
-	// TODO: instead of generation, look at whether T_0 + velocity * dt is
+	// TODO: instead of idGen, look at whether T_0 + velocity * dt is
 	// too far from T_1
-	idGen []uint32
-	// parent []int
-	transform []gmath.TRS3f32
+	idGen     []uint32
+	transform []gmath.Affine3f32
 
 	// The update that didn't fit into the queue
 	stagingUpdate *sceneUpdate
@@ -68,9 +67,10 @@ type sceneUpdate struct {
 
 	sky *gpu.Image
 
-	parent      []int
-	transformT0 []gmath.TRS3f32
-	transformT1 []gmath.TRS3f32
+	// TODO: make transformT0 and T1 actually just gmath.Affine3
+	// parent      []int
+	transformT0 []gmath.Affine3f32
+	transformT1 []gmath.Affine3f32
 	// TODO: we also need to carry velocity here for motion blur, or at least
 	// some extra info to disambiguate fast temporally-aliased motions.
 
@@ -84,9 +84,8 @@ type sceneUpdate struct {
 
 func newSceneDirty(n int) *sceneUpdate {
 	return &sceneUpdate{
-		parent:      make([]int, n),
-		transformT0: make([]gmath.TRS3f32, n),
-		transformT1: make([]gmath.TRS3f32, n),
+		transformT0: make([]gmath.Affine3f32, n),
+		transformT1: make([]gmath.Affine3f32, n),
 
 		mask: make([]uint8, n),
 
@@ -97,14 +96,8 @@ func newSceneDirty(n int) *sceneUpdate {
 	}
 }
 
-// TODO: this should use Affine3f64
 func (s *sceneUpdate) Transform(i int, t float32) gmath.Affine3f32 {
-	A := gmath.Affine3One[float32]()
-	for ; i != -1; i = s.parent[i] {
-		T := s.transformT0[i].NLerp(s.transformT1[i], t).Compose()
-		A = T.Mul(A)
-	}
-	return A
+	return s.transformT0[i].Scale(1 - t).Add(s.transformT1[i].Scale(t))
 }
 
 type timeMapping struct {
@@ -134,7 +127,11 @@ func (re *gameRendererVideo) commitUpdate(update *sceneUpdate) {
 
 func (re *gameRendererVideo) Update(world *game.World, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration) {
 	// TODO: pass the bits that interest us explicitly
-	conf := config.Load()
+	//conf := config.Load()
+
+	// TODO: move most of this code into game. We should introduce a
+	// World.Render method which could either return a pile of bytes, or be fed
+	// an interface.
 
 	update := re.beginUpdate()
 	defer re.commitUpdate(update)
@@ -144,50 +141,12 @@ func (re *gameRendererVideo) Update(world *game.World, playerID ecs.ID, t0, t1 g
 	{
 		update.hudState.Update(world, playerID)
 
-		for i := range update.parent {
-			update.parent[i] = -1
-		}
-
 		update.sky = texturecache.Get(world.Globals().Sky).Image
 
-		for id, tr := range ecs.All(&world.TransformTR) {
+		for id := range ecs.All(&world.TransformTR) {
 			i := id.Index()
 
-			s, ok := world.TransformS.Get(id)
-			if !ok {
-				s = gmath.Mat3x3UOne[float32]()
-			}
-
-			cosmeticOffset, _ := world.CosmeticOffset.Get(id)
-
-			var offset gmath.Vec3f32
-			if !conf.Developer.DisableCosmeticOffset {
-				offset = cosmeticOffset.Eval(world.Now)
-			}
-
-			trs := gmath.TRS3f32{
-				T: tr.T.Convert[float32]().Add(offset),
-				R: tr.R,
-				S: s,
-			}
-
-			parent := world.GetParent(id)
-			if parent != 0 {
-				update.parent[i] = parent.Index()
-			}
-
-			if parentBone, parentedToBone := world.ParentBone.Get(id); parentedToBone {
-				skelly := world.GetSkeleton(parent)
-				pose := world.Entities.Pose[parent.Index()]
-				tmp := pose.Get(skelly.JointByName(parentBone), skelly)
-				// kinda yikes but will do for now
-				//
-				// TODO: teach the renderer to understand skelly hierarchy and
-				// thus properly interpolate the transform?
-				trs = tmp.Mul(trs.Compose()).TRS()
-			}
-
-			transformT1 := trs
+			transformT1 := world.GetRenderingTransform(world.Entity(id)).Convert[float32]()
 
 			transformT0 := re.transform[i]
 			if re.idGen[i] != id.Generation() {
