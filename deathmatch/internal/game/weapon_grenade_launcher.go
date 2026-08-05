@@ -102,7 +102,7 @@ func init() {
 						})
 					}
 
-					stx.Update(weapon, func(stx ScriptContext, weapon Entity2) {
+					stx.Update(weapon, func(stx ScriptContext, weapon Entity) {
 						state := weapon.ScriptState().(WeaponGrenadeLauncher)
 						defer func() { weapon.SetScriptState(state) }()
 
