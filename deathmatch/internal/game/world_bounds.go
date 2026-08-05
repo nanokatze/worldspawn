@@ -47,7 +47,7 @@ func (world *World) handleOutOfBoundsEntities(info *UpdateParams) {
 		// TODO: check if the entity's script implements OutOfBounds and
 		// poke that instead of this thing.
 
-		world.Entities.delete.Store(id.Index(), true)
+		world.Columns.delete.Store(id.Index(), true)
 	}
 
 	world.deleteMarkedEntities()

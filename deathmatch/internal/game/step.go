@@ -42,19 +42,6 @@ func (world *World) Step(updateParams UpdateParams) {
 	}
 
 	world.deleteMarkedEntities()
-
-	// Clear transient columns
-	{
-		// TODO: we should create a helper for these
-		rcolumns := reflect.ValueOf(&world.Columns).Elem()
-		ty := rcolumns.Type()
-		for i := range rcolumns.NumField() {
-			if ty.Field(i).Tag.Get("worldspawn") != "transient" {
-				continue
-			}
-			rcolumns.Field(i).Addr().Interface().(interface{ Clear() }).Clear()
-		}
-	}
 }
 
 func (world *World) think(updateParams *UpdateParams) {
@@ -102,13 +89,13 @@ func (world *World) deleteMarkedEntities() {
 				return false
 			}
 
-			if world.Entities.delete.Load(id.Index()) {
+			if world.Columns.delete.Load(id.Index()) {
 				return true
 			}
 
 			delet := f(world.GetParent(id))
 			if delet {
-				world.Entities.delete.Store(id.Index(), true)
+				world.Columns.delete.Store(id.Index(), true)
 			}
 			return delet
 		}
@@ -119,10 +106,10 @@ func (world *World) deleteMarkedEntities() {
 	}
 
 	// Remove entities that were scheduled for removal
-	for index := range world.Entities.delete.Ones() {
+	for index := range world.Columns.delete.Ones() {
 		id := world.Table.IDs().Index(index)
 
 		world.DeleteEntityImmediately(id)
 	}
-	world.Entities.delete.Reset()
+	world.Columns.delete.Reset()
 }

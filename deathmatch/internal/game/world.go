@@ -35,18 +35,12 @@ type Columns struct {
 
 	ScriptState ecs.Column[ScriptState]
 
+	// TODO: this will need to be a wheel rather than a plain column
 	NextThink ecs.Column[Time]
 
 	// TODO: require that entities that we're do collision/physics for have no
 	// parent. Or maybe allow that somehow, e.g. by having children be joined
 	// with the collision geometry of the parent?
-
-	// Other gameplay stuff
-
-	// Whether the fuse of certain projectiles should be set off when they
-	// collide with this entity.
-	// TODO: could we generalize this?
-	ShouldSetOffFuseOnImpact ecs.Column[struct{}]
 
 	// Transform
 
@@ -75,7 +69,7 @@ type Columns struct {
 	// lol. We'll need to think more about this.
 	Skeleton ecs.Column[unique.Handle[string]]
 
-	// Pose ecs.Column[skeleton.Pose]
+	Pose []skeleton.Pose `worldspawn:"dontreplicate"`
 
 	// Collision
 
@@ -100,7 +94,13 @@ type Columns struct {
 	PhysicsInertiaOverride ecs.Column[gmath.Mat4x4f32]
 
 	// TODO: kill this column and handle it at prefab instantination
-	CollectionInstance ecs.Column[CollectionInstance]
+	CollectionInstance ecs.Column[CollectionInstance] `worldspawn:"dontreplicate"`
+
+	// Other gameplay stuff
+
+	// Whether the fuse of certain projectiles should be set off when they
+	// collide with this entity.
+	ShouldSetOffFuseOnImpact ecs.Column[struct{}]
 
 	// Renderer
 
@@ -124,7 +124,14 @@ type Columns struct {
 	// Deadlines of speculatively spawned entities.
 	//
 	// TODO: rename
-	Speculation ecs.Column[Time]
+	Speculation ecs.Column[Time] `worldspawn:"dontreplicate"`
+
+	// TODO: wrap this (along with physicsSystem) into a type that implements Column interface.
+	physics           *physics.System      `worldspawn:"dontreplicate"`
+	physicsBodyExists ecs.Column[struct{}] `worldspawn:"dontreplicate"`
+
+	// Entities marked for deletion
+	delete bitset.Bitset `worldspawn:"dontreplicate"`
 }
 
 // TODO: make all of the internals private. We'll need to add infrastructure for
@@ -138,21 +145,11 @@ type World struct {
 	NextIDSpeculative ecs.ID
 
 	Table *ecs.Table
+	// TODO: stop embedding this and make it private
 	Columns
-
-	Entities struct {
-		Pose []skeleton.Pose
-
-		// Entities marked for deletion
-		delete bitset.Bitset
-	}
 
 	entityUpdates, entityUpdates2 [][]updatef
 	globalUpdates                 []func(*UpdateParams, *World)
-
-	physics *physics.System
-	// TODO: this should be folded into physicsSystem
-	physicsBodyExists ecs.Column[struct{}]
 
 	logger *slog.Logger
 }
@@ -162,30 +159,30 @@ func NewWorld(n int) *World {
 
 	world.Table = ecs.NewTable(n)
 
-	// TODO: make it clear that these are reflect references
-
 	columns := reflect.ValueOf(&world.Columns).Elem()
 	for i := range columns.Type().NumField() {
-		columns.Field(i).Addr().Interface().(interface{ Init(*ecs.Table) }).Init(world.Table)
+		if !columns.Type().Field(i).IsExported() {
+			continue
+		}
+		col, ok := columns.Field(i).Addr().Interface().(interface{ Init(*ecs.Table) })
+		if ok {
+			col.Init(world.Table)
+		}
 	}
 
-	world.Entities.Pose = make([]skeleton.Pose, n)
+	world.Columns.Pose = make([]skeleton.Pose, n)
 
 	world.entityUpdates = make([][]updatef, n)
 	world.entityUpdates2 = make([][]updatef, n)
 
-	// TODO: pass contact listener. Or make it so that the contact listener is
-	// passed at call to Update.
-	// TODO: we should expose an OptimizeBroadPhase call on physicsSystem which
-	// we'll (optionally) call after loading the world and perhaps every so
-	// often
-	world.physics = physics.NewSystem(
+	// TODO: we could expose an OptimizeBroadPhase call on physicsSystem I suppose.
+	world.Columns.physics = physics.NewSystem(
 		int(numCollisionLayers),
 		collisionLayerToBroadPhaseLayer[:],
 		collisionLayerRules)
-	world.physicsBodyExists.Init(world.Table)
+	world.Columns.physicsBodyExists.Init(world.Table)
 
-	world.Entities.delete = bitset.Make(n)
+	world.Columns.delete = bitset.Make(n)
 
 	// TODO: the user should pass this
 	world.logger = slog.Default()
@@ -212,7 +209,7 @@ func (world *World) CreateEntity(info *UpdateParams) Entity {
 
 // This is used by client networking to remove entities.
 func (world *World) DeleteEntityImmediately(id ecs.ID) {
-	world.Entities.Pose[id.Index()] = skeleton.Pose{}
+	world.Columns.Pose[id.Index()] = skeleton.Pose{}
 	if _, ok := world.physicsBodyExists.Get(id); ok {
 		world.physics.RemoveBody(physics.BodyID(id.Index()))
 	}
@@ -309,12 +306,12 @@ func (e Entity) Skeleton() unique.Handle[string] { return e.world.Skeleton.Load(
 
 func (e Entity) SetSkeleton(v unique.Handle[string]) { e.world.Skeleton.Store(e.id.Index(), v) }
 
-func (e Entity) Pose() skeleton.Pose { return e.world.Entities.Pose[e.id.Index()] }
+func (e Entity) Pose() skeleton.Pose { return e.world.Columns.Pose[e.id.Index()] }
 
 // Note that pose is not replicated
 //
 // TODO: change up the api to encourage slice reuse
-func (e Entity) SetPose(v skeleton.Pose) { e.world.Entities.Pose[e.id.Index()] = v }
+func (e Entity) SetPose(v skeleton.Pose) { e.world.Columns.Pose[e.id.Index()] = v }
 
 func (e Entity) SetCollisionLayer(v CollisionLayer) { e.world.CollisionLayer.Store(e.id.Index(), v) }
 
@@ -326,6 +323,6 @@ func (e Entity) SetPhysicsMassOverride(v float32) {
 	e.world.PhysicsMassOverride.Store(e.id.Index(), v)
 }
 
-func (e Entity) MarkForDeletion() { e.world.Entities.delete.Store(e.id.Index(), true) }
+func (e Entity) MarkForDeletion() { e.world.Columns.delete.Store(e.id.Index(), true) }
 
 func (e Entity) Logger() *slog.Logger { return e.world.logger.With("id", e.ID()) }
