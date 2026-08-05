@@ -233,7 +233,7 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 
 	// TODO: clean this horrible mess up
 
-	for _, columnIndex := range replication.ReplicatedColumns {
+	for _, columnIndex := range game.ReplicatedColumns {
 		column := reflect.ValueOf(&s.world.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
 
 		v := reflect.New(column.ElemType())

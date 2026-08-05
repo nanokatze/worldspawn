@@ -39,15 +39,7 @@ type Server struct {
 
 	world *game.World
 
-	// TODO: history should be a responsibility of game.World itself. Or maybe
-	// not. Perhaps we should pass the history and shadow columns through
-	// UpdateParams, but be responsible for managing those.
-	//
-	// TODO: we only need a subset of the entire world: only networked
-	// components, no physics, etc.
-	//
-	// For lag compensation, we might need physics for queries, but it's not yet
-	// clear how that should be done exactly.
+	// TODO: history should be a responsibility of game.World itself
 	prevWorld *game.World
 
 	mtimes modTimes
@@ -278,6 +270,7 @@ func (s *Server) handleInputPackets(u *user, stream io.Reader) error {
 	}
 }
 
+// TODO: nuke this actually
 func (mtimes *modTimes) update(prevWorld, world *game.World) {
 	{
 		a := prevWorld.Table.IDs()
@@ -290,7 +283,7 @@ func (mtimes *modTimes) update(prevWorld, world *game.World) {
 		}
 	}
 
-	for _, columnIndex := range replication.ReplicatedColumns {
+	for _, columnIndex := range game.ReplicatedColumns {
 		old := reflect.ValueOf(&prevWorld.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
 		cur := reflect.ValueOf(&world.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
 
@@ -334,7 +327,7 @@ func (s *Server) tick(Δt time.Duration) {
 	// TODO: move this into a method on the World
 	s.prevWorld.Now = s.world.Now
 	s.prevWorld.Table.Copy(s.world.Table)
-	for _, columnIndex := range replication.ReplicatedColumns {
+	for _, columnIndex := range game.ReplicatedColumns {
 		dst := reflect.ValueOf(&s.prevWorld.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
 		src := reflect.ValueOf(&s.world.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
 		dst.Copy(src)
@@ -401,7 +394,7 @@ func (s *Server) sendUpdates(u *user) {
 
 	// TODO: insert various canaries to make debugging easier
 
-	for _, columnIndex := range replication.ReplicatedColumns {
+	for _, columnIndex := range game.ReplicatedColumns {
 		column := reflect.ValueOf(&s.world.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
 
 		buf2 := new(bytes.Buffer)
