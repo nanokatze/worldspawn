@@ -151,20 +151,6 @@ func (r Rot3) ToMat() Mat3x3f32 {
 	return R
 }
 
-// TODO: kill this and delegate it to the user entirely.
-func (R Rot3) NLerp(S Rot3, t float32) Rot3 {
-	u, v := 1-t, t
-	if Vec4f32(R).Dot(Vec4f32(S)) < 0 {
-		v = -t
-	}
-
-	var c Rot3
-	for i := range 4 {
-		c[i] = R[i]*u + S[i]*v
-	}
-	return c.Renormalize()
-}
-
 // TODO: rename to Rotate32 probably, or actually make it generic!
 func (R Rot3) Rotate(v Vec3f32) Vec3f32 {
 	q := quat[float32](R)

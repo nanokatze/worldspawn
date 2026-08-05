@@ -84,13 +84,4 @@ func (a {{$VecD}}[T]) Normalize() {{$VecD}}[T] {
 		{{- end}}
 	}
 }
-
-// TODO: kill this
-func (a {{$VecD}}[T]) Lerp(b {{$VecD}}[T], t T) {{$VecD}}[T] {
-	return {{$VecD}}[T]{
-		{{- range .D}}
-		lerp(a[{{.}}], b[{{.}}], t),
-		{{- end}}
-	}
-}
 `))

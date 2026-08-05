@@ -8,14 +8,6 @@ func triangularNumber(n int) int {
 	return n * (n + 1) / 2
 }
 
-func Lerp9(A, B Mat3x3Uf32, t float32) Mat3x3Uf32 {
-	var C Mat3x3Uf32
-	for i := range C {
-		C[i] = lerp(A[i], B[i], t)
-	}
-	return C
-}
-
 // TODO: actually generate this as well. And ToMat() too
 func Affine3FromMat4x4[T constraints.Float](M Mat4x4[T]) Affine3[T] {
 	var f Affine3[T]
@@ -43,13 +35,4 @@ func (f Affine3[T]) ToMat() Mat4x4[T] {
 // TODO: _gen/affine.go should generate this
 func (f Affine3[T]) Inv() Affine3[T] {
 	return Affine3FromMat4x4(f.ToMat().Inverse())
-}
-
-// TODO: delegate interpolation to the user?
-func (trs TRS3[T]) NLerp(B TRS3[T], t float32) TRS3[T] {
-	return TRS3[T]{
-		T: trs.T.Lerp(B.T, T(t)),
-		R: trs.R.NLerp(B.R, t),
-		S: Lerp9(trs.S, B.S, t),
-	}
 }

@@ -70,14 +70,6 @@ func (a Vec2[T]) Normalize() Vec2[T] {
 	}
 }
 
-// TODO: kill this
-func (a Vec2[T]) Lerp(b Vec2[T], t T) Vec2[T] {
-	return Vec2[T]{
-		lerp(a[0], b[0], t),
-		lerp(a[1], b[1], t),
-	}
-}
-
 type Mat2x2[T constraints.Float] [2 * 2]T
 
 type Mat2x2f32 = Mat2x2[float32]
@@ -209,15 +201,6 @@ func (a Vec3[T]) Normalize() Vec3[T] {
 		a[0] / length,
 		a[1] / length,
 		a[2] / length,
-	}
-}
-
-// TODO: kill this
-func (a Vec3[T]) Lerp(b Vec3[T], t T) Vec3[T] {
-	return Vec3[T]{
-		lerp(a[0], b[0], t),
-		lerp(a[1], b[1], t),
-		lerp(a[2], b[2], t),
 	}
 }
 
@@ -432,16 +415,6 @@ func (a Vec4[T]) Normalize() Vec4[T] {
 		a[1] / length,
 		a[2] / length,
 		a[3] / length,
-	}
-}
-
-// TODO: kill this
-func (a Vec4[T]) Lerp(b Vec4[T], t T) Vec4[T] {
-	return Vec4[T]{
-		lerp(a[0], b[0], t),
-		lerp(a[1], b[1], t),
-		lerp(a[2], b[2], t),
-		lerp(a[3], b[3], t),
 	}
 }
 
