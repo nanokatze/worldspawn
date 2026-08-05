@@ -43,7 +43,7 @@ var earDirs = [2]gmath.Vec3f32{
 // TODO: it would probably make more sense to get cameraTransform decomposed...
 // But I guess whatever
 func (scene *Scene) Render(film Film, cameraTransform gmath.Affine3f32) {
-	ugh := cameraTransform.TRS().R.Inverse()
+	ugh := cameraTransform.TRS().R.Inv()
 
 	for i, emitter := range scene.Emitters {
 		if len(emitter) == 0 {

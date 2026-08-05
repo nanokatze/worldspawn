@@ -258,7 +258,7 @@ func init() {
 						move = move.Scale(1 / float32(math.Sqrt(float64(lengthSqr))))
 					}
 
-					v_local := rotation.Inverse().Rotate(velocity.Linear)
+					v_local := rotation.Inv().Rotate(velocity.Linear)
 					if state.Motion.Supported {
 						v_local[0] = move[0] * gladiatorStats.WalkSpeed
 						v_local[1] = move[1] * gladiatorStats.WalkSpeed

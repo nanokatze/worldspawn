@@ -2,6 +2,8 @@ package gmath
 
 import (
 	"math"
+
+	"golang.org/x/exp/constraints"
 )
 
 // TODO: kill quat and generate RotN types
@@ -103,13 +105,12 @@ func (R Rot3) Renormalize() Rot3 {
 	return Rot3(tmp.Normalize())
 }
 
-// TODO: rename to Inv()
-func (R Rot3) Inverse() Rot3 {
-	return Rot3(quat[float32](R).Conj())
-}
-
 func (R Rot3) Mul(S Rot3) Rot3 {
 	return Rot3(quat[float32](R).Mul(quat[float32](S))).Renormalize()
+}
+
+func (R Rot3) Inv() Rot3 {
+	return Rot3(quat[float32](R).Conj())
 }
 
 func (R Rot3) Pow(p float32) Rot3 {
@@ -151,13 +152,7 @@ func (r Rot3) ToMat() Mat3x3f32 {
 	return R
 }
 
-// TODO: rename to Rotate32 probably, or actually make it generic!
-func (R Rot3) Rotate(v Vec3f32) Vec3f32 {
-	q := quat[float32](R)
-	return q.Mul(quatFromVec3(v)).Mul(q.Conj()).Imag()
-}
-
-func (R Rot3) Rotate64(v Vec3f64) Vec3f64 {
-	q := quat[float64](Vec4f32(R).Convert[float64]())
+func (R Rot3) Rotate[T constraints.Float](v Vec3[T]) Vec3[T] {
+	q := quat[T](Vec4f32(R).Convert[T]())
 	return q.Mul(quatFromVec3(v)).Mul(q.Conj()).Imag()
 }
