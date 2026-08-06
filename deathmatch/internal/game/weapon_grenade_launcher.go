@@ -124,7 +124,7 @@ func init() {
 							projectile.SetVelocity(Velocity{
 								Linear: v_attack.Linear.Add(T_attack.M.Mulv(forward.Scale(grenadeLauncherStats.MuzzleVelocity))),
 							})
-							projectile.SetCollisionLayer(CollisionLayerProjectiles)
+							projectile.SetCollisionLayer(CollisionLayerProjectile)
 							// TODO: we should model grenade prop to be something that's kinda 8-gon so that it stops rolling sooner
 							projectile.SetCollisionGeometry(unique.Make("Grenade"))
 							projectile.SetPhysicsMassOverride(0.1)

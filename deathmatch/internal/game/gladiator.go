@@ -448,7 +448,7 @@ type gladiatorMovementQueryPipeline struct {
 
 func (*gladiatorMovementQueryPipeline) FilterLayer(layer int) bool {
 	// TOOD: we should just poke the rule table
-	return layer == int(CollisionLayerNonMoving) || layer == int(CollisionLayerMoving)
+	return layer == int(CollisionLayerBackground) || layer == int(CollisionLayerProp)
 }
 
 func (a *gladiatorMovementQueryPipeline) FilterBody(body physics.BodyID) bool {

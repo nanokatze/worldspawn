@@ -296,12 +296,6 @@ func (e Entity) SetShouldSetOffFuseOnImpact(v bool) {
 	}
 }
 
-func (e Entity) SetCollisionLayer(v CollisionLayer) { e.world.CollisionLayer.Store(e.id.Index(), v) }
-
-func (e Entity) SetCollisionGeometry(v unique.Handle[string]) {
-	e.world.CollisionGeometry.Store(e.id.Index(), v)
-}
-
 func (e Entity) SetPhysicsMassOverride(v float32) {
 	e.world.PhysicsMassOverride.Store(e.id.Index(), v)
 }
