@@ -14,7 +14,7 @@ func Cook(outDir, guhDir, blend string) error {
 	}
 
 	// TODO: go:embed the python code and sneak it in by other means
-	io.WriteString(blender.stdin, "import sys; sys.path.insert(0, 'cook5/internal/cookers/blend/python')\n")
+	io.WriteString(blender.stdin, "import sys; sys.path.insert(0, 'cook/internal/cookers/blend/python')\n")
 	io.WriteString(blender.stdin, "import bpy\n")
 	io.WriteString(blender.stdin, "import eugh\n")
 
