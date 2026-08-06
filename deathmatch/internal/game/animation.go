@@ -6,14 +6,9 @@ import (
 
 	"worldspawn/internal/animation"
 	"worldspawn/internal/cache"
-	"worldspawn/internal/ecs"
 	"worldspawn/internal/gmath"
 	"worldspawn/internal/loaders/skeleton"
 )
-
-func (e Entity) Parent() ecs.ID { return e.world.Parent.Load(e.id.Index()) }
-
-func (e Entity) ParentBone() unique.Handle[string] { return e.world.ParentBone.Load(e.id.Index()) }
 
 func (e Entity) Skeleton() unique.Handle[string] { return e.world.Skeleton.Load(e.id.Index()) }
 

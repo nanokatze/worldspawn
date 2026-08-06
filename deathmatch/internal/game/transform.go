@@ -12,7 +12,11 @@ type TR3f64 struct {
 	R gmath.Rot3
 }
 
+func (e Entity) Parent() ecs.ID { return e.world.Parent.Load(e.id.Index()) }
+
 func (e Entity) SetParent(v ecs.ID) { e.world.SetParent(e.id, v) }
+
+func (e Entity) ParentBone() unique.Handle[string] { return e.world.ParentBone.Load(e.id.Index()) }
 
 func (e Entity) SetParentBone(v unique.Handle[string]) { e.world.ParentBone.Store(e.id.Index(), v) }
 

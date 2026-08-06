@@ -239,7 +239,7 @@ func (world *World) GetSkeleton(id ecs.ID) *skeleton.Skeleton {
 	return skeletonCache.Get(skellyName)
 }
 
-// TODO: do validation here
+// TODO: https://github.com/nanokatze/worldspawn-deathmatch/issues/68
 func (world *World) Entity(id ecs.ID) Entity {
 	if !world.Table.IDs().Exists(id) {
 		return Entity{}
@@ -247,17 +247,12 @@ func (world *World) Entity(id ecs.ID) Entity {
 	return Entity{world, id}
 }
 
-// Entity must not be stored in any structures and also not passed across
-// update lambdas. Actually passing it might just be fine I guess.
+// Entity represents a reference to an entity
 //
-// I suppose in a way we can reason about Entity like it's a strong pointer,
-// and entity ID is a weak pointer, and we have to validate ID when upgrading it
-// to Entity.
-//
-// TODO: rename to EntityPtr or something along those lines
+// TODO: https://github.com/nanokatze/worldspawn-deathmatch/issues/68
 type Entity struct {
-	world *World
-	id    ecs.ID // TODO: replace with index
+	world *World // TODO: change this to columns
+	id    ecs.ID
 }
 
 func (e Entity) IsValid() bool { return e.id != 0 }
@@ -273,17 +268,6 @@ func (e Entity) Clear() {
 	}
 	e.world.Table.ClearRow(e.id)
 }
-
-// TODO: replace with an easy to use thingy for checking whether an entity's
-// script satisfies some interface, and stuff for calling that interface?
-// TODO: return a pointer instead of struct as is?
-func (e Entity) Script() script {
-	return Scripts[reflect.TypeOf(e.world.ScriptState.Load(e.id.Index()))]
-}
-
-func (e Entity) ScriptState() ScriptState { return e.world.ScriptState.Load(e.id.Index()) }
-
-func (e Entity) SetScriptState(v ScriptState) { e.world.ScriptState.Store(e.id.Index(), v) }
 
 func (e Entity) SetNextThink(v Time) { e.world.NextThink.Store(e.id.Index(), v) }
 
