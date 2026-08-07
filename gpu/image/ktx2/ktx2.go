@@ -45,6 +45,15 @@ func enqueueReadAt(jq *gpu.JobQueue, r io.ReaderAt, p gpu.Slice[byte], off int64
 	})
 }
 
+func enqueueWriteAt(jq *gpu.JobQueue, w io.WriterAt, p gpu.Slice[byte], off int64) {
+	enqueueHostCall(jq, func() {
+		if _, err := w.WriteAt(p.Value(), off); err != nil {
+			// We don't really have any way to report read failures for now.
+			panic(err)
+		}
+	})
+}
+
 // TODO: move into gpu?
 // TODO: come up with a better name?
 func enqueueHostCall(jq *gpu.JobQueue, f func()) {
