@@ -11,7 +11,7 @@ import (
 type imageData struct {
 	vkImage vk.Image
 
-	dim    int
+	dim    imageDim
 	format vk.Format
 	extent [3]int
 	layers int
@@ -31,7 +31,7 @@ func newImageData(config ImageConfig) *imageData {
 	imageCreateInfo.Flags |= vk.ImageCreateFlags(vk.IMAGE_CREATE_MUTABLE_FORMAT_BIT)
 	imageCreateInfo.Flags |= vk.ImageCreateFlags(vk.IMAGE_CREATE_EXTENDED_USAGE_BIT)
 	// TODO: actually check if it's compressed instead of checking BlockExtent
-	if formatutil.Describe(config.format).BlockExtent != (vk.Extent3D{Width: 1, Height: 1, Depth: 1}) {
+	if formatutil.Describe(config.format).BlockExtent != ([3]int{1, 1, 1}) {
 		imageCreateInfo.Flags |= vk.ImageCreateFlags(vk.IMAGE_CREATE_BLOCK_TEXEL_VIEW_COMPATIBLE_BIT)
 	}
 	if config.dim.dimensions() == 2 && config.extent[0] == config.extent[1] && config.layers >= 6 {
@@ -101,6 +101,7 @@ func newImageData(config ImageConfig) *imageData {
 	return &imageData{
 		vkImage: vkImage,
 
+		dim:    config.dim,
 		format: config.format,
 		extent: config.extent,
 		layers: config.layers,
@@ -115,6 +116,7 @@ func newImageDataFromVkImage(vkImage vk.Image, config ImageConfig) *imageData {
 	return &imageData{
 		vkImage: vkImage,
 
+		dim:    config.dim,
 		format: config.format,
 		extent: config.extent,
 		layers: config.layers,

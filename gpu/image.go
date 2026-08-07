@@ -65,7 +65,7 @@ type Image struct {
 
 	// precomputed stuff
 
-	extent vk.Extent3D
+	extent vk.Extent3D // TODO: replace with [3]uint32
 
 	// ownsData specifies whether this *Image owns the data and Destroy should
 	// actually destroy it.
@@ -99,7 +99,7 @@ func newImage(data *imageData, config subImageConfig) *Image {
 		// 1, 1, 1.
 		// TODO: check that formatClass is uncompressed, while baseFormatClass
 		// is compressed instead of this hack
-		if formatBlockExtent(config.format) != ([3]int{1, 1, 1}) {
+		if formatutil.Describe(config.format).BlockExtent != ([3]int{1, 1, 1}) {
 			panic(fmt.Sprintf("cannot create a %v view of a %v class image", config.format, baseFormatClass))
 		}
 		extent = divByBlockExtentRoundUp(extent, data.format)
@@ -192,8 +192,4 @@ func (img *Image) Destroy() {
 	if img.ownsData {
 		img.data.destroy()
 	}
-}
-
-func formatBlockExtent(format vk.Format) [3]int {
-	return int3FromVkExtent3D(formatutil.Describe(format).BlockExtent)
 }

@@ -4,6 +4,7 @@ import (
 	"runtime"
 
 	"worldspawn/gpu/vk"
+	"worldspawn/gpu/vk/formatutil"
 )
 
 // TODO: should rowLength and imageHeight arguments be in bytes rather than texels?
@@ -319,7 +320,7 @@ func chooseQueueFamiliesForImageCopy(
 func copyRectInTexels(
 	data *imageData, bounds imageBounds,
 	offsetBlocks, extentBlocks [3]int) ([3]int, [3]int) {
-	blockExtent := formatBlockExtent(data.format)
+	blockExtent := formatutil.Describe(data.format).BlockExtent
 	levelExtent := minify3(data.extent, bounds.FirstMip())
 
 	offset := mul3(offsetBlocks, blockExtent)
@@ -330,7 +331,7 @@ func copyRectInTexels(
 // TODO: optimize for block sides? We don't need the general division here.
 
 func divByBlockExtent(x [3]int, yFormat vk.Format) [3]int {
-	y := formatBlockExtent(yFormat)
+	y := formatutil.Describe(yFormat).BlockExtent
 	return [3]int{
 		x[0] / y[0],
 		x[1] / y[1],
@@ -339,7 +340,7 @@ func divByBlockExtent(x [3]int, yFormat vk.Format) [3]int {
 }
 
 func divByBlockExtentRoundUp(x [3]int, yFormat vk.Format) [3]int {
-	y := formatBlockExtent(yFormat)
+	y := formatutil.Describe(yFormat).BlockExtent
 	return [3]int{
 		(x[0] + y[0] - 1) / y[0],
 		(x[1] + y[1] - 1) / y[1],

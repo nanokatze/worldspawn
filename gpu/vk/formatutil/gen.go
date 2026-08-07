@@ -66,7 +66,7 @@ func main() {
 			fmt.Fprintf(out, "Class: %v,\n", formatClassName(format.Class))
 			fmt.Fprintf(out, "BlockSize: %v,\n", format.BlockSize)
 			blockExtent := strings.Split(or(format.BlockExtent, "1,1,1"), ",")
-			fmt.Fprintf(out, "BlockExtent: vk.Extent3D{Width: %v, Height: %v, Depth: %v},\n", blockExtent[0], blockExtent[1], blockExtent[2])
+			fmt.Fprintf(out, "BlockExtent: [3]int{%v, %v, %v},\n", blockExtent[0], blockExtent[1], blockExtent[2])
 			// format.Compressed
 			fmt.Fprintf(out, "},\n")
 		}
