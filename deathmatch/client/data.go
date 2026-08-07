@@ -43,35 +43,11 @@ var texturecache = cache.New(func(filename unique.Handle[string]) *renderer.Text
 	}
 	defer f.Close()
 
-	d, err := ktx2.NewDecoder(f.(io.ReaderAt))
+	t := new(renderer.Texture)
+	t.Image, err = ktx2.Decode(f.(io.ReaderAt), vk.ImageUsageFlags(vk.IMAGE_USAGE_SAMPLED_BIT))
 	if err != nil {
 		panic(err)
 	}
-
-	conf := d.Config()
-
-	t := new(renderer.Texture)
-	t.Image = gpu.NewImage(conf.WithUsage(vk.IMAGE_USAGE_SAMPLED_BIT))
-
-	var wg gpu.WaitGroup
-	for i := range conf.Mips() {
-		wg.Add(1)
-
-		jq := new(gpu.JobQueue)
-
-		img := t.Image.SubImage(gpu.SliceMips{i, i + 1})
-		img.EnqueueInit(jq)
-
-		d.EnqueueDecode(jq, img, i)
-
-		jq.Cleanup(img.Destroy)
-
-		wg.EnqueueDone(jq)
-	}
-	// Wait for upload to complete before closing the file. TODO: spawn a
-	// goroutine to close the file instead, and just have the renderer block
-	// on fence.
-	wg.Wait()
 
 	return t
 })
