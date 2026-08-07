@@ -1,17 +1,20 @@
 package renderer
 
 import (
-	"fmt"
-	"image"
-	"image/png"
+	"bytes"
+	_ "embed"
 	"os"
 	"structs"
 	"sync"
 
 	"worldspawn/gpu"
+	"worldspawn/gpu/image/ktx2"
 	"worldspawn/gpu/vk"
 	"worldspawn/internal/gmath"
 )
+
+//go:embed noise_lut.ktx2
+var noiseLUT []byte
 
 // TODO: make Scene, Camera and Film interfaces eventually?
 
@@ -46,61 +49,12 @@ type frameParams struct {
 	Quality Quality
 }
 
-var blueNoise = sync.OnceValue(func() *gpu.Image {
-	var wg gpu.WaitGroup
-
-	jq := new(gpu.JobQueue)
-
-	// TODO: we actually only use RG at most
-	gpuImg := gpu.NewImage(
-		gpu.MakeImageConfig(vk.FORMAT_R16G16B16A16_UNORM, []int{256, 256}).
-			WithLayers(8).
-			WithUsage(vk.IMAGE_USAGE_SAMPLED_BIT))
-	gpuImg.EnqueueInit(jq)
-
-	// TODO: can we please not use png
-	for i := range gpuImg.Layers() {
-		wg.Add(1)
-
-		jq := gpu.Fork(jq)
-
-		func() {
-			// TODO: come up where non-game data should live. Maybe embed this?
-			f, err := os.Open(fmt.Sprintf("BlueNoise/2D/256_256/HDR_RGBA_%d.png", i))
-			if err != nil {
-				panic(err)
-			}
-			defer f.Close()
-
-			img, err := png.Decode(f)
-			if err != nil {
-				panic(err)
-			}
-
-			imgNRGBA := img.(*image.NRGBA64)
-
-			for i := 0; i < len(imgNRGBA.Pix); i += 2 {
-				imgNRGBA.Pix[i+0], imgNRGBA.Pix[i+1] = imgNRGBA.Pix[i+1], imgNRGBA.Pix[i+0]
-			}
-
-			staging := gpu.MakeSliceUncached[byte](len(imgNRGBA.Pix))
-			defer jq.Cleanup(func() { gpu.Free(gpu.UnsafePointer(gpu.SliceData(staging))) })
-
-			copy(staging.Value(), imgNRGBA.Pix)
-
-			gpu.EnqueueCopyMemoryToImage(
-				jq,
-				gpuImg.SubImage(gpu.SliceLayers{i, i + 1}), nil,
-				staging, 0, 0,
-				[]int{imgNRGBA.Rect.Max.X, imgNRGBA.Rect.Max.Y})
-
-			wg.EnqueueDone(jq)
-		}()
+var noiseImage = sync.OnceValue(func() *gpu.Image {
+	img, err := ktx2.Decode(bytes.NewReader(noiseLUT), vk.ImageUsageFlags(vk.IMAGE_USAGE_SAMPLED_BIT))
+	if err != nil {
+		panic(err)
 	}
-
-	wg.Wait()
-
-	return gpuImg
+	return img
 })
 
 var raygen = sync.OnceValue(func() *gpu.RayTracingShaderGroup {
@@ -116,10 +70,10 @@ func mustReadFile(filename string) []byte {
 }
 
 func (scene *Scene) EnqueueRender(jq *gpu.JobQueue, film Film, camera *Camera, cameraTransform gmath.Mat4x4f32, frameNumber uint32, quality *Quality) {
-	bn := blueNoise()
+	noise := noiseImage()
 
-	bnLayer := bn.SubImage(gpu.SliceLayers{int(frameNumber) % bn.Layers(), int(frameNumber)%bn.Layers() + 1})
-	defer jq.Cleanup(bnLayer.Destroy)
+	noiseLayer := noise.SubImage(gpu.SliceLayers{int(frameNumber) % noise.Layers(), int(frameNumber)%noise.Layers() + 1})
+	defer jq.Cleanup(noiseLayer.Destroy)
 
 	dscene := gpu.NewUncached[Scene]()
 	*dscene.Value() = *scene
@@ -166,7 +120,7 @@ func (scene *Scene) EnqueueRender(jq *gpu.JobQueue, film Film, camera *Camera, c
 
 			Number: frameNumber,
 
-			BlueNoise: bnLayer.Descriptor(),
+			BlueNoise: noiseLayer.Descriptor(),
 
 			Quality: *quality,
 		}
