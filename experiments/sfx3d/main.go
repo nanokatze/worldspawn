@@ -437,11 +437,11 @@ eventLoop:
 			currentExtent := [2]int{int(e.Data1), int(e.Data2)}
 
 			swapchain = wsi.NewSwapchain(&wsi.SwapchainConfig{
-				Window:     window,
-				ColorSpace: vk.COLOR_SPACE_SRGB_NONLINEAR_KHR,
-				ImageConfig: gpu.MakeImageConfig(vk.FORMAT_R8G8B8A8_UNORM, currentExtent[:]).
-					WithUsage(vk.IMAGE_USAGE_COLOR_ATTACHMENT_BIT).
-					WithUsage(vk.IMAGE_USAGE_STORAGE_BIT),
+				Window:      window,
+				ColorSpace:  vk.COLOR_SPACE_SRGB_NONLINEAR_KHR,
+				ImageConfig: gpu.MakeImageConfig(vk.FORMAT_R8G8B8A8_UNORM, currentExtent[:]),
+				ImageUsage: vk.ImageUsageFlags(vk.IMAGE_USAGE_STORAGE_BIT) |
+					vk.ImageUsageFlags(vk.IMAGE_USAGE_COLOR_ATTACHMENT_BIT),
 				OldSwapchain: swapchain,
 			})
 

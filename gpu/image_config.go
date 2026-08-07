@@ -11,7 +11,6 @@ type ImageConfig struct {
 	extent [3]int
 	layers int
 	mips   int
-	usage  vk.ImageUsageFlags
 }
 
 func MakeImageConfig(format vk.Format, extent []int) ImageConfig {
@@ -46,12 +45,6 @@ func (config ImageConfig) WithMips(mips int) ImageConfig {
 	return config
 }
 
-// TODO: make this take a mask after all
-func (config ImageConfig) WithUsage(usage vk.ImageUsageFlagBits) ImageConfig {
-	config.usage |= vk.ImageUsageFlags(usage)
-	return config
-}
-
 func (config ImageConfig) Format() vk.Format { return config.format }
 
 func (config ImageConfig) IsCube() bool { return config.dim.isCube() }
@@ -64,8 +57,6 @@ func (config ImageConfig) Extent() []int {
 func (config ImageConfig) Layers() int { return config.layers }
 
 func (config ImageConfig) Mips() int { return config.mips }
-
-func (config ImageConfig) Usage() vk.ImageUsageFlags { return config.usage }
 
 type subImageConfig struct {
 	dim        imageDim

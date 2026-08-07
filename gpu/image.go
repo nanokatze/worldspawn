@@ -76,17 +76,17 @@ type Image struct {
 	cleanup runtime.Cleanup
 }
 
-func NewImage(config ImageConfig) *Image {
+func NewImage(config ImageConfig, usage vk.ImageUsageFlags) *Image {
 	gpuInit()
 
-	img := newImage(newImageData(config), subImageConfigFromImageConfig(config))
+	img := newImage(newImageData(config, usage), subImageConfigFromImageConfig(config))
 	img.ownsData = true
 	// TODO: runtime.AddCleanup
 	return img
 }
 
-func NewImageFromVkImage(vkImage vk.Image, config ImageConfig) *Image {
-	return newImage(newImageDataFromVkImage(vkImage, config), subImageConfigFromImageConfig(config))
+func NewImageFromVkImage(config ImageConfig, usage vk.ImageUsageFlags, vkImage vk.Image) *Image {
+	return newImage(newImageDataFromVkImage(config, usage, vkImage), subImageConfigFromImageConfig(config))
 }
 
 func newImage(data *imageData, config subImageConfig) *Image {
@@ -147,7 +147,6 @@ func (img *Image) Config() ImageConfig {
 		extent: int3FromVkExtent3D(img.extent),
 		layers: img.bounds.Layers(),
 		mips:   img.bounds.Mips(),
-		usage:  img.data.usage, // TODO: we might need to coerce things here
 	}
 }
 

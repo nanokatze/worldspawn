@@ -96,9 +96,9 @@ func Decode(r io.ReaderAt, usage vk.ImageUsageFlags) (*gpu.Image, error) {
 		return nil, err
 	}
 
-	config := dec.Config().WithUsage(vk.ImageUsageFlagBits(usage))
+	config := dec.Config()
 
-	img := gpu.NewImage(config)
+	img := gpu.NewImage(config, usage)
 
 	var wg gpu.WaitGroup
 	for i := range config.Mips() {

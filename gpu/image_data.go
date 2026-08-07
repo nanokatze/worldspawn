@@ -21,7 +21,7 @@ type imageData struct {
 	memory *deviceMemory // TODO: replace with an UnsafePointer and length
 }
 
-func newImageData(config ImageConfig) *imageData {
+func newImageData(config ImageConfig, usage vk.ImageUsageFlags) *imageData {
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
 
@@ -43,7 +43,7 @@ func newImageData(config ImageConfig) *imageData {
 	imageCreateInfo.MipLevels = uint32(config.mips)
 	imageCreateInfo.ArrayLayers = uint32(config.layers)
 	imageCreateInfo.Samples = 1
-	imageCreateInfo.Usage = config.usage | vk.ImageUsageFlags(vk.IMAGE_USAGE_TRANSFER_DST_BIT) | vk.ImageUsageFlags(vk.IMAGE_USAGE_TRANSFER_SRC_BIT)
+	imageCreateInfo.Usage = usage | vk.ImageUsageFlags(vk.IMAGE_USAGE_TRANSFER_DST_BIT) | vk.ImageUsageFlags(vk.IMAGE_USAGE_TRANSFER_SRC_BIT)
 	imageCreateInfo.SharingMode = vk.SHARING_MODE_CONCURRENT
 	imageCreateInfo.QueueFamilyIndexCount = uint32(len(topology.probe))
 	imageCreateInfo.PQueueFamilyIndices = unsafe.SliceData(topology.probe)
@@ -106,13 +106,13 @@ func newImageData(config ImageConfig) *imageData {
 		extent: config.extent,
 		layers: config.layers,
 		mips:   config.mips,
-		usage:  config.usage,
+		usage:  usage,
 
 		memory: memory,
 	}
 }
 
-func newImageDataFromVkImage(vkImage vk.Image, config ImageConfig) *imageData {
+func newImageDataFromVkImage(config ImageConfig, usage vk.ImageUsageFlags, vkImage vk.Image) *imageData {
 	return &imageData{
 		vkImage: vkImage,
 
@@ -121,7 +121,7 @@ func newImageDataFromVkImage(vkImage vk.Image, config ImageConfig) *imageData {
 		extent: config.extent,
 		layers: config.layers,
 		mips:   config.mips,
-		usage:  config.usage,
+		usage:  usage,
 	}
 }
 
