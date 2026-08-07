@@ -1,12 +1,11 @@
 package ktx2
 
+import "slices"
+
 // Like slices.Index, but returns len(s) instead of -1.
-func index[S ~[]E, E comparable](s S, e E) int {
-	i := 0
-	for ; i < len(s); i++ {
-		if s[i] == e {
-			break
-		}
+func index[S ~[]E, E comparable](s S, v E) int {
+	if i := slices.Index(s, v); i >= 0 {
+		return i
 	}
-	return i
+	return len(s)
 }

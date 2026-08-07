@@ -21,16 +21,27 @@ type Decoder struct {
 }
 
 func NewDecoder(r io.ReaderAt) (*Decoder, error) {
+	dec := new(Decoder)
+	if err := dec.Reset(r); err != nil {
+		return nil, err
+	}
+	return dec, nil
+}
+
+func (dec *Decoder) Reset(r io.ReaderAt) error {
 	sr := io.NewSectionReader(r, 0, math.MaxInt64)
 
 	var header fileHeader
 	if err := binary.Read(sr, binary.LittleEndian, &header); err != nil {
-		return nil, err
+		return err
 	}
 
+	// TODO: validation
+
+	// TODO: reuse dec.levelIndex when possible
 	levelIndex := make([]levelIndexEntry, max(header.LevelCount, 1))
 	if err := binary.Read(sr, binary.LittleEndian, levelIndex); err != nil {
-		return nil, err
+		return err
 	}
 
 	dim := uint8(index(header.Extent[:], 0))
@@ -38,7 +49,7 @@ func NewDecoder(r io.ReaderAt) (*Decoder, error) {
 		dim |= 0x80
 	}
 
-	return &Decoder{
+	*dec = Decoder{
 		r: r,
 
 		dim:    dim,
@@ -47,7 +58,8 @@ func NewDecoder(r io.ReaderAt) (*Decoder, error) {
 		layers: max(header.LayerCount, 1) * header.FaceCount,
 
 		levelIndex: levelIndex,
-	}, nil
+	}
+	return nil
 }
 
 func (dec *Decoder) Config() gpu.ImageConfig {
@@ -57,12 +69,10 @@ func (dec *Decoder) Config() gpu.ImageConfig {
 		int(dec.extent[2]),
 	}
 
-	config := gpu.MakeImageConfig(dec.format, extent[:dec.dim&0x7f]).
+	return gpu.MakeImageConfig(dec.format, extent[:dec.dim&0x7f]).
 		AsCube(dec.dim&0x80 != 0).
 		WithLayers(int(dec.layers)).
 		WithMips(len(dec.levelIndex))
-
-	return config
 }
 
 // TODO: support decoding at smaller granularity
@@ -79,7 +89,9 @@ func (dec *Decoder) EnqueueDecode(jq *gpu.JobQueue, dst *gpu.Image, mipIndex int
 }
 
 func Decode(r io.ReaderAt, usage vk.ImageUsageFlags) (*gpu.Image, error) {
-	dec, err := NewDecoder(r)
+	var dec Decoder
+
+	err := dec.Reset(r)
 	if err != nil {
 		return nil, err
 	}
