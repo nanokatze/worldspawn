@@ -12,42 +12,56 @@ import (
 type Decoder struct {
 	r io.ReaderAt
 
-	header fileHeader // don't just keep the entire header around
+	dim    uint8
+	extent [3]uint32
+	format vk.Format
+	layers uint32
 
 	levelIndex []levelIndexEntry
 }
 
 func NewDecoder(r io.ReaderAt) (*Decoder, error) {
+	sr := io.NewSectionReader(r, 0, math.MaxInt64)
+
 	var header fileHeader
-	if err := binary.Read(io.NewSectionReader(r, 0, math.MaxInt64), binary.LittleEndian, &header); err != nil {
+	if err := binary.Read(sr, binary.LittleEndian, &header); err != nil {
 		return nil, err
 	}
 
 	levelIndex := make([]levelIndexEntry, max(header.LevelCount, 1))
-	if err := binary.Read(io.NewSectionReader(r, 80, math.MaxInt64), binary.LittleEndian, levelIndex); err != nil {
+	if err := binary.Read(sr, binary.LittleEndian, levelIndex); err != nil {
 		return nil, err
 	}
 
+	dim := uint8(index(header.Extent[:], 0))
+	if header.FaceCount == 6 {
+		dim |= 0x80
+	}
+
 	return &Decoder{
-		r:          r,
-		header:     header,
+		r: r,
+
+		dim:    dim,
+		extent: header.Extent,
+		format: vk.Format(header.Format),
+		layers: max(header.LayerCount, 1) * header.FaceCount,
+
 		levelIndex: levelIndex,
 	}, nil
 }
 
 func (dec *Decoder) Config() gpu.ImageConfig {
 	extent := [3]int{
-		int(dec.header.Extent[0]),
-		int(dec.header.Extent[1]),
-		int(dec.header.Extent[2]),
+		int(dec.extent[0]),
+		int(dec.extent[1]),
+		int(dec.extent[2]),
 	}
 
-	dim := index(extent[:], 0)
-
-	config := gpu.MakeImageConfig(vk.Format(dec.header.Format), extent[:dim]).
-		AsCube(dec.header.FaceCount == 6).
-		WithLayers(max(int(dec.header.LayerCount), 1) * int(dec.header.FaceCount)).
+	config := gpu.MakeImageConfig(dec.format, extent[:dec.dim&0x7f]).
+		AsCube(dec.dim&0x80 != 0).
+		WithLayers(int(dec.layers)).
 		WithMips(len(dec.levelIndex))
+
 	return config
 }
 
