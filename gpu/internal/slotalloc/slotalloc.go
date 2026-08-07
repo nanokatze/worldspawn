@@ -8,53 +8,51 @@ import (
 	"worldspawn/gpu/internal/bitset"
 )
 
-type SlotAlloc struct{ bs bitset.Bitset }
+type Slotalloc struct{ bs bitset.Bitset }
 
-func New(len int) SlotAlloc {
+func New(len int) Slotalloc {
 	bs := bitset.Make(len)
 	bs.Set(0)
-	return SlotAlloc{bs: bs}
+	return Slotalloc{bs: bs}
 }
 
-// TODO: can we somehow make hint per-g/per-m?
 // TODO: we need to be able to alloc a run of N bits
-func (a SlotAlloc) Alloc(hint *int64) int {
-	h := atomic.LoadInt64(hint)
+func (a Slotalloc) Alloc(hintp *int64) int {
+	hint := atomic.LoadInt64(hintp)
 
-	i0 := int(h)
-	if i0 == 0 {
-		// Hint is uninitialized. Choose the start index at random in hopes that
-		// we won't contend with others.
-		i0 = rand.IntN(a.bs.Len())
+	i := int(hint)
+	if i == 0 {
+		// Hint was uninitialized. Choose the start index at random in hopes
+		// that we won't contend with others.
+		i = rand.IntN(a.bs.Len())
 	}
 	// Round down the start index to the bitset's word boundary.
-	i0 = i0 / 64 * 64
+	i = i / 64 * 64
 
-	i := a.bs.FindAndSet(i0)
+	i = a.bs.FindAndSet(i)
 	if i < 0 {
 		// Try again, starting at 0.
 		i = a.bs.FindAndSet(0)
 	}
-
+	if i < 0 {
+		panic("out of free slots")
+	}
 	if i == 0 {
 		// Slot 0 is reserved
 		panic("unreachable")
 	}
-	if i < 0 {
-		panic("out of free slots")
-	}
 
-	if h != int64(i) {
+	if hint != int64(i) {
 		// We picked an index different from the hint. Try to update the hint,
 		// but don't bother if someone already has done so, to avoid cache line
 		// ping-pong.
-		atomic.CompareAndSwapInt64(hint, h, int64(i))
+		atomic.CompareAndSwapInt64(hintp, hint, int64(i))
 	}
 
 	return i
 }
 
-func (a SlotAlloc) Free(i int) {
+func (a Slotalloc) Free(i int) {
 	if i == 0 {
 		return
 	}
