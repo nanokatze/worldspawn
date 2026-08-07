@@ -8,25 +8,26 @@ import (
 	"worldspawn/gpu/vk/formatutil"
 )
 
-// Bits 0:1 specify number of dimensions, which is always at least 1.
+const maxDimensions = 3
+
+// Bits 0:6 specify number of dimensions, which is always at least 1.
 // Bit 7 specifies cube flag. Only valid for 2D images.
-//
-// TODO: make this private
-type ImageDim uint8
+type imageDim uint8
 
-const (
-	_ ImageDim = iota
-	ImageDim1D
-	ImageDim2D
-	ImageDim3D
-	ImageDimCube = ImageDim2D | 0x80
-)
-
-func (dim ImageDim) dimensions() int {
-	return int(dim & 0b11)
+func makeImageDim(dimensions int) imageDim {
+	if !(1 <= dimensions && dimensions <= maxDimensions) {
+		panic("bad number of dimensions")
+	}
+	return imageDim(uint8(dimensions))
 }
 
-func (dim ImageDim) vkImageType() vk.ImageType {
+func (dim imageDim) dimensions() int {
+	return int(dim &^ 0x80)
+}
+
+func (dim imageDim) isCube() bool { return dim&0x80 != 0 }
+
+func (dim imageDim) vkImageType() vk.ImageType {
 	switch dim.dimensions() {
 	case 1:
 		return vk.IMAGE_TYPE_1D
@@ -39,15 +40,15 @@ func (dim ImageDim) vkImageType() vk.ImageType {
 	}
 }
 
-func (dim ImageDim) vkImageViewType() vk.ImageViewType {
+func (dim imageDim) vkImageViewType() vk.ImageViewType {
 	switch dim {
-	case ImageDim1D:
+	case 1:
 		return vk.IMAGE_VIEW_TYPE_1D_ARRAY
-	case ImageDim2D:
+	case 2:
 		return vk.IMAGE_VIEW_TYPE_2D_ARRAY
-	case ImageDimCube:
+	case 2 | 0x80:
 		return vk.IMAGE_VIEW_TYPE_CUBE_ARRAY
-	case ImageDim3D:
+	case 3:
 		return vk.IMAGE_VIEW_TYPE_3D
 	default:
 		panic("unreachable")
@@ -58,7 +59,7 @@ type Image struct {
 	data       *imageData
 	descriptor ImageDescriptor
 
-	dim    ImageDim
+	dim    imageDim
 	format vk.Format
 	bounds imageBounds
 
@@ -152,14 +153,12 @@ func (img *Image) Config() ImageConfig {
 
 // TODO: kill some of these in favor of (*Image).Config()
 
-// TODO: kill this *definitely*.
-func (img *Image) Dim() ImageDim { return img.dim }
-
 func (img *Image) Format() vk.Format { return img.format }
 
 func (img *Image) Extent() []int {
+	d := img.dim.dimensions()
 	tmp := int3FromVkExtent3D(img.extent)
-	return tmp[:img.dim.dimensions()]
+	return tmp[:d]
 }
 
 func (img *Image) Layers() int { return img.bounds.Layers() }
@@ -177,8 +176,8 @@ func (img *Image) Descriptor() ImageDescriptor {
 	return img.descriptor
 }
 
-func (img *Image) VkImage() (vk.Image, vk.ImageSubresourceRange) {
-	return img.data.vkImage, img.bounds.VkImageSubresourceRange(img.format)
+func (img *Image) VkImage() (vk.Image, vk.ImageViewType, vk.ImageSubresourceRange) {
+	return img.data.vkImage, img.dim.vkImageViewType(), img.bounds.VkImageSubresourceRange(img.format)
 }
 
 // TODO: rename to "Free" or something like that and document that it's not

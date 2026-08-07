@@ -34,10 +34,10 @@ func newImageData(config ImageConfig) *imageData {
 	if formatutil.Describe(config.format).BlockExtent != (vk.Extent3D{Width: 1, Height: 1, Depth: 1}) {
 		imageCreateInfo.Flags |= vk.ImageCreateFlags(vk.IMAGE_CREATE_BLOCK_TEXEL_VIEW_COMPATIBLE_BIT)
 	}
-	if config.dim == 2 && config.extent[0] == config.extent[1] && config.layers >= 6 {
+	if config.dim.dimensions() == 2 && config.extent[0] == config.extent[1] && config.layers >= 6 {
 		imageCreateInfo.Flags |= vk.ImageCreateFlags(vk.IMAGE_CREATE_CUBE_COMPATIBLE_BIT)
 	}
-	imageCreateInfo.ImageType = ImageDim(config.dim).vkImageType()
+	imageCreateInfo.ImageType = config.dim.vkImageType()
 	imageCreateInfo.Format = config.format
 	imageCreateInfo.Extent = vkExtent3DFromInt3(config.extent)
 	imageCreateInfo.MipLevels = uint32(config.mips)

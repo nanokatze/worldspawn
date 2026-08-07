@@ -5,9 +5,8 @@ import (
 	"worldspawn/gpu/vk/formatutil"
 )
 
-// TODO: use a more compact representation
 type ImageConfig struct {
-	dim    ImageDim
+	dim    imageDim
 	format vk.Format
 	extent [3]int
 	layers int
@@ -17,7 +16,7 @@ type ImageConfig struct {
 
 func MakeImageConfig(format vk.Format, extent []int) ImageConfig {
 	return ImageConfig{
-		dim:    ImageDim(len(extent)),
+		dim:    makeImageDim(len(extent)),
 		format: format,
 		extent: extent3(extent),
 		layers: 1,
@@ -26,6 +25,7 @@ func MakeImageConfig(format vk.Format, extent []int) ImageConfig {
 }
 
 // TODO: rename pls
+// TODO: I wish we could just kill this
 func (config ImageConfig) AsCube(cube bool) ImageConfig {
 	// TODO: make this a method on ImageDim
 	if cube {
@@ -46,6 +46,7 @@ func (config ImageConfig) WithMips(mips int) ImageConfig {
 	return config
 }
 
+// TODO: make this take a mask after all
 func (config ImageConfig) WithUsage(usage vk.ImageUsageFlagBits) ImageConfig {
 	config.usage |= vk.ImageUsageFlags(usage)
 	return config
@@ -53,8 +54,11 @@ func (config ImageConfig) WithUsage(usage vk.ImageUsageFlagBits) ImageConfig {
 
 func (config ImageConfig) Format() vk.Format { return config.format }
 
+func (config ImageConfig) IsCube() bool { return config.dim.isCube() }
+
 func (config ImageConfig) Extent() []int {
-	return config.extent[:config.dim.dimensions()]
+	d := config.dim.dimensions()
+	return config.extent[:d]
 }
 
 func (config ImageConfig) Layers() int { return config.layers }
@@ -64,7 +68,7 @@ func (config ImageConfig) Mips() int { return config.mips }
 func (config ImageConfig) Usage() vk.ImageUsageFlags { return config.usage }
 
 type subImageConfig struct {
-	dim        ImageDim
+	dim        imageDim
 	format     vk.Format
 	firstLayer int
 	layers     int
@@ -98,10 +102,10 @@ type SubImageOption interface {
 
 // TODO: rename?
 // TODO: ViewAsCube{} variant
-type ViewAs ImageDim
+type ViewAs int
 
 func (dim ViewAs) apply(config *subImageConfig) {
-	config.dim = ImageDim(dim)
+	config.dim = makeImageDim(int(dim))
 }
 
 type Reinterpret vk.Format

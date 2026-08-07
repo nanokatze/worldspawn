@@ -12,53 +12,80 @@ import (
 type Decoder struct {
 	r io.ReaderAt
 
-	header fileHeader // don't just keep the entire header around.
-	mips   []mipHeader
+	header fileHeader // don't just keep the entire header around
+
+	levelIndex []levelIndexEntry
 }
 
 func NewDecoder(r io.ReaderAt) (*Decoder, error) {
-	var h fileHeader
-	if err := binary.Read(io.NewSectionReader(r, 0, math.MaxInt64), binary.LittleEndian, &h); err != nil {
+	var header fileHeader
+	if err := binary.Read(io.NewSectionReader(r, 0, math.MaxInt64), binary.LittleEndian, &header); err != nil {
 		return nil, err
 	}
 
-	mips := make([]mipHeader, max(h.MipLevelCount, 1))
-	if err := binary.Read(io.NewSectionReader(r, 80, math.MaxInt64), binary.LittleEndian, mips); err != nil {
+	levelIndex := make([]levelIndexEntry, max(header.LevelCount, 1))
+	if err := binary.Read(io.NewSectionReader(r, 80, math.MaxInt64), binary.LittleEndian, levelIndex); err != nil {
 		return nil, err
 	}
 
 	return &Decoder{
-		r:      r,
-		header: h,
-		mips:   mips,
+		r:          r,
+		header:     header,
+		levelIndex: levelIndex,
 	}, nil
 }
 
-func (d *Decoder) Config() gpu.ImageConfig {
+func (dec *Decoder) Config() gpu.ImageConfig {
 	extent := [3]int{
-		int(d.header.Extent[0]),
-		int(d.header.Extent[1]),
-		int(d.header.Extent[2]),
+		int(dec.header.Extent[0]),
+		int(dec.header.Extent[1]),
+		int(dec.header.Extent[2]),
 	}
 
 	dim := index(extent[:], 0)
 
-	config := gpu.MakeImageConfig(vk.Format(d.header.Format), extent[:dim]).
-		AsCube(d.header.FaceCount == 6).
-		WithLayers(max(int(d.header.LayerCount), 1) * int(d.header.FaceCount)).
-		WithMips(len(d.mips))
+	config := gpu.MakeImageConfig(vk.Format(dec.header.Format), extent[:dim]).
+		AsCube(dec.header.FaceCount == 6).
+		WithLayers(max(int(dec.header.LayerCount), 1) * int(dec.header.FaceCount)).
+		WithMips(len(dec.levelIndex))
 	return config
 }
 
 // TODO: support decoding at smaller granularity
 // TODO: allow users to pass scratch data explicitly
-func (d *Decoder) EnqueueDecode(jq *gpu.JobQueue, dst *gpu.Image, mipIndex int) {
-	mipHeader := d.mips[mipIndex]
+func (dec *Decoder) EnqueueDecode(jq *gpu.JobQueue, dst *gpu.Image, mipIndex int) {
+	levelEntry := dec.levelIndex[mipIndex]
 
-	tmp := gpu.MakeSliceUncached[byte](int(mipHeader.Length))
+	tmp := gpu.MakeSliceUncached[byte](int(levelEntry.Length))
 	defer jq.Cleanup(func() { gpu.Free(gpu.UnsafePointer(gpu.SliceData(tmp))) })
 
-	enqueueReadAt(jq, d.r, tmp, int64(mipHeader.Offset))
+	enqueueReadAt(jq, dec.r, tmp, int64(levelEntry.Offset))
 
 	gpu.EnqueueCopyMemoryToImage(jq, dst, nil, tmp, 0, 0, dst.Extent())
+}
+
+func Decode(r io.ReaderAt, usage vk.ImageUsageFlags) (*gpu.Image, error) {
+	dec, err := NewDecoder(r)
+	if err != nil {
+		return nil, err
+	}
+
+	config := dec.Config().WithUsage(vk.ImageUsageFlagBits(usage))
+
+	img := gpu.NewImage(config)
+
+	var wg gpu.WaitGroup
+	for i := range config.Mips() {
+		wg.Add(1)
+
+		jq := new(gpu.JobQueue)
+		mip := img.SubImage(gpu.SliceMips{i, i + 1})
+		mip.EnqueueInit(jq)
+		dec.EnqueueDecode(jq, mip, i)
+		jq.Cleanup(mip.Destroy)
+		wg.EnqueueDone(jq)
+	}
+	wg.Wait()
+
+	return img, nil
 }

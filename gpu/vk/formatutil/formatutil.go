@@ -9,8 +9,8 @@ type Class int
 
 type Description struct {
 	Class       Class
-	BlockSize   uint32
-	BlockExtent vk.Extent3D
+	BlockSize   int
+	BlockExtent vk.Extent3D // TODO: change to [3]int tbh
 }
 
 func Describe(format vk.Format) Description {

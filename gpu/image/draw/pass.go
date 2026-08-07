@@ -283,23 +283,8 @@ func (pass *Pass) End() {
 	*pass = Pass{}
 }
 
-func vkImageViewType(dim gpu.ImageDim) vk.ImageViewType {
-	switch dim {
-	case gpu.ImageDim1D:
-		return vk.IMAGE_VIEW_TYPE_1D_ARRAY
-	case gpu.ImageDim2D:
-		return vk.IMAGE_VIEW_TYPE_2D_ARRAY
-	case gpu.ImageDimCube:
-		return vk.IMAGE_VIEW_TYPE_CUBE_ARRAY
-	case gpu.ImageDim3D:
-		return vk.IMAGE_VIEW_TYPE_3D
-	default:
-		panic("unreachable")
-	}
-}
-
 func newRenderingVkImageView(img *gpu.Image, usage vk.ImageUsageFlags) vk.ImageView {
-	vkImage, vkImageSubresourceRange := img.VkImage()
+	vkImage, vkImageViewType, vkImageSubresourceRange := img.VkImage()
 
 	var vkImageView vk.ImageView
 	must(vkFns.CreateImageView(device, &vk.ImageViewCreateInfo{
@@ -309,7 +294,7 @@ func newRenderingVkImageView(img *gpu.Image, usage vk.ImageUsageFlags) vk.ImageV
 			Usage: usage,
 		}),
 		Image:            vkImage,
-		ViewType:         vkImageViewType(img.Dim()), // TODO: I think only VK_IMAGE_VIEW_TYPE_2D_ARRAY is possible?
+		ViewType:         vkImageViewType,
 		Format:           img.Format(),
 		SubresourceRange: vkImageSubresourceRange,
 	}, nil, &vkImageView))
