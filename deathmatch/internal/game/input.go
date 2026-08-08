@@ -4,20 +4,13 @@ import (
 	"reflect"
 )
 
-// TODO: rename this file
-
 type TimestampedInputCmd struct {
 	Time Time
 	Cmd  InputCmd
 }
 
-// TODO: replace most input commands with a simple axis
-
-// TODO: we need two types of InputCmds: passthrough to Character, and
-// administrative things like Respawn, etc.
 type InputCmd any
 
-// TODO: kill Button?
 type Button int8
 
 const (
@@ -28,8 +21,6 @@ const (
 	ButtonReload
 	ButtonDash
 )
-
-// TODO: use SNORM for movement velocity and look direction?
 
 type (
 	InputCmdDLookXY       float32
