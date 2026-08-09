@@ -86,7 +86,6 @@ func (e Entity) SetParentBone(v unique.Handle[string]) {
 
 func (e Entity) Transform() gmath.TRS3f64 {
 	e.mustBeValid()
-	// TODO: validate that the transform is invertible? We might wanna ban non-invertible transforms
 
 	tr := e.world.TransformTR.Load(e.id.Index())
 	s := e.world.TransformS.Load(e.id.Index())
@@ -94,7 +93,9 @@ func (e Entity) Transform() gmath.TRS3f64 {
 }
 
 func (e Entity) SetTransform(v gmath.TRS3f64) {
-	// TODO: validate the transform
+	e.mustBeValid()
+
+	// TODO: validate that the transform is invertible? We might wanna ban non-invertible transforms
 
 	e.world.TransformTR.Store(e.id.Index(), TR3f64{v.T, v.R})
 	e.world.TransformS.Store(e.id.Index(), v.S)
