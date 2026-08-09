@@ -16,8 +16,8 @@ const (
 
 // TODO: give this a better name pls
 type WeaponHint struct {
-	DrawDuration time.Duration
-	HideDuration time.Duration
+	DrawDurationMultiplier float32
+	HideDurationMultiplier float32
 
 	// TODO: this should choose the animation set basically. Or maybe we should
 	// split this into more stuff
@@ -34,3 +34,6 @@ const (
 	_ WeaponButtons = 1 << iota
 	WeaponTrigger
 )
+
+const weaponBaseDrawDuration = 500 * time.Millisecond
+const weaponBaseHideDuration = 500 * time.Millisecond

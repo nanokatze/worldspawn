@@ -18,8 +18,8 @@ func init() {
 	Scripts[reflect.TypeFor[WeaponAssaultRifle]()] = script{
 		Weapon_Hint: func(info *UpdateParams, world *World, entity ecs.ID) WeaponHint {
 			return WeaponHint{
-				DrawDuration: 500 * time.Millisecond,
-				HideDuration: 500 * time.Millisecond,
+				DrawDurationMultiplier: 1,
+				HideDurationMultiplier: 1,
 
 				FirstPersonPropTransform: gmath.TRS3f64{
 					T: gmath.Vec3f64{0.18, 0.5, -0.2},

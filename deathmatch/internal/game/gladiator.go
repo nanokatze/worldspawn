@@ -178,7 +178,8 @@ func init() {
 							hint := weaponScript.Weapon_Hint(stx.UpdateParams, world, switchToWeapon.ID())
 							state.HeldWeapon.Entity = switchToWeapon
 							state.HeldWeapon.State = 1
-							state.HeldWeapon.StateTransition = stx.Now.Add(hint.DrawDuration)
+							drawDuration := time.Duration(float64(weaponBaseDrawDuration) * float64(hint.DrawDurationMultiplier))
+							state.HeldWeapon.StateTransition = stx.Now.Add(drawDuration)
 
 							if !stx.Speculating && weaponScript.Weapon_CreateProp != nil {
 								for i := range 2 {
@@ -214,7 +215,9 @@ func init() {
 							if state.HeldWeapon.Entity != switchToWeapon {
 								state.HeldWeapon.State = 2
 								if state.HeldWeapon.Entity.IsValid() {
-									state.HeldWeapon.StateTransition = stx.Now.Add(state.HeldWeapon.Entity.Script().Weapon_Hint(stx.UpdateParams, world, switchToWeapon.ID()).HideDuration)
+									hint := state.HeldWeapon.Entity.Script().Weapon_Hint(stx.UpdateParams, world, switchToWeapon.ID())
+									hideDuration := time.Duration(float64(weaponBaseHideDuration) * float64(hint.HideDurationMultiplier))
+									state.HeldWeapon.StateTransition = stx.Now.Add(hideDuration)
 								}
 							}
 						}
