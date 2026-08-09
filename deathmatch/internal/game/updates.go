@@ -75,13 +75,14 @@ func (world *World) processUpdates(info *UpdateParams) {
 			}
 
 			world.entityUpdates2[index] = nil
+
+			progress = true
 		}
 
 		if len(world.globalUpdates) > 0 {
 			for _, f := range world.globalUpdates {
 				f(info, world)
 			}
-
 			world.globalUpdates = nil
 
 			progress = true
