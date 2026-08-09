@@ -28,7 +28,7 @@ func init() {
 			const fuse = 1400 * time.Millisecond
 
 			state := grenade.ScriptState().(GrenadeInFlight)
-			if state.LaunchedAt.Add(fuse).After(stx.Now) && !state.ExplodeNow {
+			if state.LaunchedAt.Add(fuse).Compare(stx.Now) > 0 && !state.ExplodeNow {
 				return
 			}
 

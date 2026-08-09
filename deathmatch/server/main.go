@@ -363,7 +363,7 @@ func (s *Server) sendUpdates(u *user) {
 
 		n := 0
 		for i, mtime := range s.mtimes.Entities {
-			if mtime.Before(u.time) {
+			if mtime.Compare(u.time) < 0 {
 				continue
 			}
 
@@ -402,7 +402,7 @@ func (s *Server) sendUpdates(u *user) {
 		n := 0
 		v := reflect.New(column.ElemType())
 		for i, mtime := range s.mtimes.Columns[columnIndex] {
-			if mtime.Before(u.time) {
+			if mtime.Compare(u.time) < 0 {
 				continue
 			}
 

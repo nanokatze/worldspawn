@@ -31,7 +31,7 @@ func (world *World) Step(updateParams UpdateParams) {
 
 	for id, a := range ecs.All(&world.SoundEffectState) {
 		soundEffect, _ := world.SoundEffect.Get(id)
-		if soundEffect.PlayTime.Add(time.Duration(a.LengthInSamples * 1e9 / 48000)).After(world.Now) {
+		if soundEffect.PlayTime.Add(time.Duration(a.LengthInSamples*1e9/48000)).Compare(updateParams.Now) > 0 {
 			continue
 		}
 
@@ -61,7 +61,7 @@ func (world *World) think(updateParams *UpdateParams) {
 
 		// TODO: we'll want a timer wheel of sorts to make this fast
 		nextThink, _ := world.NextThink.Get(id)
-		if updateParams.Now.Before(nextThink) {
+		if nextThink.Compare(updateParams.Now) > 0 {
 			continue
 		}
 
