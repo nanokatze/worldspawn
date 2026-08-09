@@ -344,10 +344,12 @@ func (s *Server) sendUpdates(u *user) {
 		return
 	}
 
+	opts := replication.NiceOptions2(s.world)
+
 	// TODO: we could use our own Buffer with Seek depending on how we're going
 	// to arrange things (where compression will happen etc)
 	buf := new(bytes.Buffer)
-	enc := nice.NewEncoder(buf, replication.NiceOptions)
+	enc := nice.NewEncoder(buf, opts)
 
 	if err := nice.MarshalEncode(enc, &s.world.Now); err != nil {
 		panic(err)
@@ -359,7 +361,7 @@ func (s *Server) sendUpdates(u *user) {
 		// TODO: we should seek instead of doing extra allocations I think...
 
 		buf2 := new(bytes.Buffer)
-		enc2 := nice.NewEncoder(buf2, replication.NiceOptions)
+		enc2 := nice.NewEncoder(buf2, opts)
 
 		n := 0
 		for i, mtime := range s.mtimes.Entities {
@@ -397,7 +399,7 @@ func (s *Server) sendUpdates(u *user) {
 		column := reflect.ValueOf(&s.world.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
 
 		buf2 := new(bytes.Buffer)
-		enc2 := nice.NewEncoder(buf2, replication.NiceOptions)
+		enc2 := nice.NewEncoder(buf2, opts)
 
 		n := 0
 		v := reflect.New(column.ElemType())
@@ -466,7 +468,7 @@ func (w *CountingWriter) Write(b []byte) (int, error) {
 // TODO: remove this function in favor of just having the caller use
 // nice directly?
 func readInputCmds(r io.Reader, cmds *[]game.TimestampedInputCmd) error {
-	dec := nice.NewDecoder(r, replication.NiceOptions)
+	dec := nice.NewDecoder(r, replication.NiceOptions3)
 	return nice.UnmarshalDecode(dec, cmds)
 }
 

@@ -186,7 +186,9 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 
 	r := bytes.NewReader(buf)
 
-	dec := nice.NewDecoder(r, replication.NiceOptions)
+	opts := replication.NiceOptions2(s.world)
+
+	dec := nice.NewDecoder(r, opts)
 
 	if err := nice.UnmarshalDecode(dec, &s.world.Now); err != nil {
 		return err
@@ -315,7 +317,7 @@ func (s *Client) tick(Δt time.Duration) {
 
 // TODO: remove this func in favor of the caller just using nice directly?
 func writeInputCmds(w io.Writer, cmds []game.TimestampedInputCmd) error {
-	enc := nice.NewEncoder(w, replication.NiceOptions)
+	enc := nice.NewEncoder(w, replication.NiceOptions3)
 	return nice.MarshalEncode(enc, &cmds)
 }
 
