@@ -137,9 +137,13 @@ func (re *gameRendererVideo) Update(world *game.World, playerID ecs.ID, t0, t1 g
 
 		update.sky = texturecache.Get(world.Entity(1).ScriptState().(game.Worldspawn).Sky).Image
 
+		// TODO: we actually only need to do this for camera and the entities
+		// that are rendered
 		for id := range ecs.All(&world.TransformTR) {
 			i := id.Index()
 
+			// TODO:
+			// https://github.com/nanokatze/worldspawn-deathmatch/issues/65#issuecomment-5219027866
 			transformT1 := world.GetRenderingTransform(world.Entity(id)).Convert[float32]()
 
 			transformT0 := re.transform[i]

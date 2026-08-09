@@ -25,8 +25,9 @@ import (
 // program that way? This Renderer interface would be moved there as well.
 
 type Renderer interface {
-	// TODO: rename to Update
 	Reset(n int)
+	// TODO: stop using game.Time here. We'll first need to address how our
+	// sounds work though.
 	Update(world *game.World, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration)
 	UpdateSubtick(world *game.World, playerID ecs.ID)
 }
@@ -190,10 +191,6 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 
 	dec := nice.NewDecoder(r, opts)
 
-	if err := nice.UnmarshalDecode(dec, &s.world.Now); err != nil {
-		return err
-	}
-
 	{
 		var n int
 		if err := nice.UnmarshalDecode(dec, &n); err != nil {
@@ -261,7 +258,8 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 
 			id := s.world.Table.IDs().Index(int(index))
 			if id == 0 {
-				logger.Warn("snapshot refers to a non-existent object", "t", s.world.Now, "index", index, "column", reflect.TypeFor[game.Columns]().Field(columnIndex).Name)
+				// TODO: figure out how to get the time
+				logger.Warn("snapshot refers to a non-existent object", "t", game.Time{}, "index", index, "column", reflect.TypeFor[game.Columns]().Field(columnIndex).Name)
 				continue
 			}
 
@@ -310,9 +308,9 @@ func (s *Client) tick(Δt time.Duration) {
 		msg.Next()
 	}
 
-	t0 := s.world.Now
+	t0 := s.world.Entity(1).ScriptState().(game.Worldspawn).Now
 	s.world.Step(game.UpdateParams{Δt: Δt, Speculating: true})
-	s.renderer.Update(s.world, s.player, t0, s.world.Now, Δt)
+	s.renderer.Update(s.world, s.player, t0, s.world.Entity(1).ScriptState().(game.Worldspawn).Now, Δt)
 }
 
 // TODO: remove this func in favor of the caller just using nice directly?

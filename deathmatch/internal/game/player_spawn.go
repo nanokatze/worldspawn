@@ -25,7 +25,7 @@ func (world *World) findPlayerSpawn() gmath.TRS3f64 {
 		}
 	})
 
-	rnd := Rand(world.Now) // TODO: pass info explicitly I guess
+	rnd := Rand(42) // TODO: pass info explicitly I guess
 
 	for {
 		// TODO: perform collision queries to make sure the spawn point is free.

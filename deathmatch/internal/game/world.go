@@ -138,9 +138,6 @@ type Columns struct {
 // replication to World first.
 // TODO: I'm really tempted to stick logger onto World atp
 type World struct {
-	// TODO: don't use this, use info.Now instead
-	Now Time
-
 	NextID            ecs.ID
 	NextIDSpeculative ecs.ID
 
@@ -197,7 +194,7 @@ func (world *World) CreateEntity(info *UpdateParams) Entity {
 
 	if info.Speculating {
 		id := world.Table.CreateRowAuto(900, 999, &world.NextIDSpeculative)
-		world.Speculation.Set(id, world.Now)
+		world.Speculation.Set(id, info.Now)
 		return Entity{world, id}
 	}
 

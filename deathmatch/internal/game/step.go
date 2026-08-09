@@ -18,10 +18,10 @@ type UpdateParams struct {
 // TODO: do not accept updateParams here but raw Δt and flags. We should
 // construct UpdateParams ourselves
 func (world *World) Step(updateParams UpdateParams) {
-	world.Now = world.Now.Add(updateParams.Δt)
 
 	updateParams.Worldspawn = world.Entity(1).ScriptState().(Worldspawn)
-	updateParams.Now = world.Now
+	updateParams.Now = updateParams.Now.Add(updateParams.Δt)
+	world.Entity(1).SetScriptState(updateParams.Worldspawn)
 
 	world.think(&updateParams)
 

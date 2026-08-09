@@ -271,13 +271,15 @@ func (s *Server) handleInputPackets(u *user, stream io.Reader) error {
 
 // TODO: nuke this actually
 func (mtimes *modTimes) update(prevWorld, world *game.World) {
+	now := world.Entity(1).ScriptState().(game.Worldspawn).Now
+
 	{
 		a := prevWorld.Table.IDs()
 		b := world.Table.IDs()
 
 		for i := range b.Cap() {
 			if a.Index(i) != b.Index(i) {
-				mtimes.Entities[i] = world.Now
+				mtimes.Entities[i] = now
 			}
 		}
 	}
@@ -300,7 +302,7 @@ func (mtimes *modTimes) update(prevWorld, world *game.World) {
 				equal = reflect.DeepEqual(oldc.Interface(), curc.Interface())
 			}
 			if !equal {
-				mtimes.Columns[columnIndex][id.Index()] = world.Now
+				mtimes.Columns[columnIndex][id.Index()] = now
 			}
 		}
 	}
@@ -324,7 +326,6 @@ func (s *Server) tick(Δt time.Duration) {
 	// Copy the current s.World to s.PrevWorld
 
 	// TODO: move this into a method on the World
-	s.prevWorld.Now = s.world.Now
 	s.prevWorld.Table.Copy(s.world.Table)
 	for _, columnIndex := range game.ReplicatedColumns {
 		dst := reflect.ValueOf(&s.prevWorld.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
@@ -344,16 +345,14 @@ func (s *Server) sendUpdates(u *user) {
 		return
 	}
 
+	now := s.world.Entity(1).ScriptState().(game.Worldspawn).Now
+
 	opts := replication.NiceOptions2(s.world)
 
 	// TODO: we could use our own Buffer with Seek depending on how we're going
 	// to arrange things (where compression will happen etc)
 	buf := new(bytes.Buffer)
 	enc := nice.NewEncoder(buf, opts)
-
-	if err := nice.MarshalEncode(enc, &s.world.Now); err != nil {
-		panic(err)
-	}
 
 	// Send everything that changed since u.latestAcked
 
@@ -441,7 +440,7 @@ func (s *Server) sendUpdates(u *user) {
 	// Because we're sending stuff reliably, we can do this.
 	//
 	// TODO: set this if we're actually sending stuff.
-	u.time = s.world.Now
+	u.time = now
 
 	// TODO: we could compress now or later. Compressing now means we increase
 	// the server's critical section, compressing later means our memory usage
@@ -558,9 +557,13 @@ func main() {
 	s.world.InstantinateCollections()
 
 	// Reset mtimes
-	for _, comp := range s.mtimes.Columns {
-		for j := range comp {
-			comp[j] = s.world.Now
+	{
+		now := s.world.Entity(1).ScriptState().(game.Worldspawn).Now
+
+		for _, comp := range s.mtimes.Columns {
+			for j := range comp {
+				comp[j] = now
+			}
 		}
 	}
 

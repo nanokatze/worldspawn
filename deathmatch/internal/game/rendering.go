@@ -85,13 +85,14 @@ func (a *LoopedSound) Init() {
 	a.LengthInSamples = off / int64(config.Channels*siz)
 }
 
-// TODO: rewrite this so that it reuses GetGlobalTransform
+// TODO: kill this
+// https://github.com/nanokatze/worldspawn-deathmatch/issues/65#issuecomment-5219027866
 func (world *World) GetRenderingTransform(entity Entity) gmath.Affine3f64 {
 	getEntityTransform := func(entity Entity) gmath.Affine3f64 {
 		trs := entity.Transform()
 
 		// TODO: don't add cosmetic offset if it's disabled in the config
-		offset := entity.world.CosmeticOffset.Load(entity.ID().Index()).Eval(world.Now)
+		offset := entity.world.CosmeticOffset.Load(entity.ID().Index()).Eval(world.Entity(1).ScriptState().(Worldspawn).Now)
 		trs.T = trs.T.Add(offset.Convert[float64]())
 
 		return trs.Affine()
