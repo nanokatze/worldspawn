@@ -125,14 +125,6 @@ func init() {
 					panic("unreachable")
 				}
 			}
-
-			// TODO: factor this out?
-			gladiator.FirstPersonCamera.
-				SetTransform(gmath.TRS3f64{
-					T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
-					R: e01.Pow(4 * gladiator.Input.LookDir[0]).Mul(e12.Pow(4 * gladiator.Input.LookDir[1])),
-					S: gmath.Mat3x3UOne[float32](),
-				})
 		},
 
 		Think: func(stx ScriptContext, world *World, gladiator Entity) {
@@ -282,6 +274,27 @@ func init() {
 					}
 
 					gladiator.SetVelocity(velocity)
+
+					stx.Update(state.FirstPersonCamera, func(stx ScriptContext, camera Entity) {
+						camera.SetTransform(gmath.TRS3f64{
+							T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
+							R: e01.Pow(4 * state.Input.LookDir[0]).Mul(e12.Pow(4 * state.Input.LookDir[1])),
+							S: gmath.Mat3x3UOne[float32](),
+						})
+					})
+
+					{
+
+						stx.Update(state.FirstPersonHands,
+							func(stx ScriptContext, hands Entity) {
+								hands.SetTransform(gmath.TRS3f64{
+									T: gmath.Vec3f64{0, 1, 0}.
+										Scale(math.Sin(float64(stx.Now.Sub(Time{}))/1e9*6) * 0.03 * min(float64(v.Linear.Length()/6), 1)),
+									R: gmath.Rot3One(),
+									S: gmath.Mat3x3UOne[float32](),
+								})
+							})
+					}
 
 					{
 						anim := animationCache.Get(unique.Make("testcharacter4/animations/look"))
