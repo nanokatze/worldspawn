@@ -27,7 +27,9 @@ func init() {
 			attacker Entity,
 			T_attack gmath.Affine3f64,
 			v_attack Velocity,
-			buttons WeaponButtons) {
+			buttons WeaponButtons,
+			recoil func(stx ScriptContext, recoil [2]float32),
+		) {
 			state := weapon.ScriptState().(WeaponPhysgun)
 
 			holdingEntity := world.Entity(state.HeldEntity).IsValid()

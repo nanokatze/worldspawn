@@ -78,7 +78,7 @@ type script struct {
 		T_attack gmath.Affine3f64,
 		v_attack Velocity,
 		buttons WeaponButtons,
-		// recoil func(stx ScriptContext, weapon Entity2, recoil [2]float32),
+		recoil func(stx ScriptContext, recoil [2]float32),
 	)
 
 	// TODO: for composability reasons, this should probably take a continuation

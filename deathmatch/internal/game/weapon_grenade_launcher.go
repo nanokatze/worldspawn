@@ -71,6 +71,9 @@ func init() {
 	Scripts[reflect.TypeFor[WeaponGrenadeLauncher]()] = script{
 		Weapon_Hint: func(info *UpdateParams, world *World, entity ecs.ID) WeaponHint {
 			return WeaponHint{
+				DrawDuration: 500 * time.Millisecond,
+				HideDuration: 0,
+
 				FirstPersonPropTransform: gmath.TRS3f64{
 					T: gmath.Vec3f64{0.18, 0.5, -0.2},
 					R: gmath.Rot3One(),
@@ -99,10 +102,11 @@ func init() {
 			T_attack gmath.Affine3f64,
 			v_attack Velocity,
 			buttons WeaponButtons,
+			recoil func(stx ScriptContext, recoil [2]float32),
 		) {
 			state := weapon.ScriptState().(WeaponGrenadeLauncher)
 
-			if buttons&WeaponTrigger != 0 && !state.CycleEnds.After(stx.Now) {
+			if buttons&WeaponTrigger != 0 && state.CycleEnds.Compare(stx.Now) <= 0 {
 				stx.Update(attacker, func(stx ScriptContext, mag Entity) {
 					if mag.Script().Magazine_Pull(stx, mag, AmmoGrenades, 1, 1) <= 0 {
 						return
