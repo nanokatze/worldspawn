@@ -2,16 +2,17 @@ package gpu
 
 import (
 	"unsafe"
+
 	"worldspawn/gpu/vk"
 )
 
 var imageViews = make([]vk.ImageView, 1e6)
 
-// TODO: rename to singular ImageDescriptor tbh
 type ImageDescriptor struct {
-	// TODO: explain how things are packed
 	bits uint32
 }
+
+// TODO: add (*Image).Supports(usage)
 
 func newImageDescriptor(data *imageData, config subImageConfig) ImageDescriptor {
 	formatProps := getFormatImageProperties(config.format)
@@ -19,12 +20,12 @@ func newImageDescriptor(data *imageData, config subImageConfig) ImageDescriptor 
 		panic("unsupported format")
 	}
 
-	usages := data.usage & formatProps.SupportedUsages
+	usage := data.usage & formatProps.SupportedUsage
 
-	// TODO: factor things into a mask of shader usages and then do a loop
+	// TODO: factor things into a mask of shader usage bits and then do a loop
 	// creating a descriptor for every usage.
-	sampling := usages&vk.ImageUsageFlags(vk.IMAGE_USAGE_SAMPLED_BIT) != 0
-	loadStore := usages&vk.ImageUsageFlags(vk.IMAGE_USAGE_STORAGE_BIT) != 0
+	sampling := usage&vk.ImageUsageFlags(vk.IMAGE_USAGE_SAMPLED_BIT) != 0
+	loadStore := usage&vk.ImageUsageFlags(vk.IMAGE_USAGE_STORAGE_BIT) != 0
 	if !(sampling || loadStore) {
 		return ImageDescriptor{}
 	}

@@ -10,8 +10,8 @@ import (
 
 const maxDimensions = 3
 
-// Bits 0:6 specify number of dimensions, which is always at least 1.
-// Bit 7 specifies cube flag. Only valid for 2D images.
+// Bits 0:6 indicate the number of dimensions, which is always at least 1.
+// Bit 7 indicates the cube flag. Only valid for 2D images.
 type imageDim uint8
 
 func makeImageDim(dimensions int) imageDim {

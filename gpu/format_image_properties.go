@@ -8,8 +8,8 @@ import (
 )
 
 type formatImageProperties struct {
-	Supported       bool
-	SupportedUsages vk.ImageUsageFlags
+	Supported      bool
+	SupportedUsage vk.ImageUsageFlags
 }
 
 var getFormatImageProperties = cached(func(format vk.Format) formatImageProperties {
@@ -28,23 +28,26 @@ var getFormatImageProperties = cached(func(format vk.Format) formatImageProperti
 			PNext: unsafe.Pointer(props3),
 		})
 
-	if !testAllSet(props3.OptimalTilingFeatures, vk.FormatFeatureFlags2(vk.FORMAT_FEATURE_2_TRANSFER_SRC_BIT)|vk.FormatFeatureFlags2(vk.FORMAT_FEATURE_2_TRANSFER_DST_BIT)) {
+	const requiredFeatures = 0 |
+		vk.FormatFeatureFlags2(vk.FORMAT_FEATURE_2_TRANSFER_SRC_BIT) |
+		vk.FormatFeatureFlags2(vk.FORMAT_FEATURE_2_TRANSFER_DST_BIT)
+
+	supported := props3.OptimalTilingFeatures&requiredFeatures == requiredFeatures
+
+	if !supported {
 		return formatImageProperties{}
 	}
 
-	var supportedUsages vk.ImageUsageFlags
-	if testAllSet(props3.OptimalTilingFeatures, vk.FormatFeatureFlags2(vk.FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT)) {
-		supportedUsages |= vk.ImageUsageFlags(vk.IMAGE_USAGE_SAMPLED_BIT)
+	var supportedUsage vk.ImageUsageFlags
+	if props3.OptimalTilingFeatures&vk.FormatFeatureFlags2(vk.FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT) != 0 {
+		supportedUsage |= vk.ImageUsageFlags(vk.IMAGE_USAGE_SAMPLED_BIT)
 	}
-	if testAllSet(props3.OptimalTilingFeatures, vk.FormatFeatureFlags2(vk.FORMAT_FEATURE_2_STORAGE_IMAGE_BIT)) {
-		supportedUsages |= vk.ImageUsageFlags(vk.IMAGE_USAGE_STORAGE_BIT)
+	if props3.OptimalTilingFeatures&vk.FormatFeatureFlags2(vk.FORMAT_FEATURE_2_STORAGE_IMAGE_BIT) != 0 {
+		supportedUsage |= vk.ImageUsageFlags(vk.IMAGE_USAGE_STORAGE_BIT)
 	}
 
 	return formatImageProperties{
-		Supported:       true,
-		SupportedUsages: supportedUsages,
+		Supported:      true,
+		SupportedUsage: supportedUsage,
 	}
 })
-
-// TODO: rename this to something else
-func testAllSet[T ~uint64](x, y T) bool { return x&y == y }
