@@ -59,7 +59,7 @@ func (world *World) Camera(playerID ecs.ID) ecs.ID {
 		return 0
 	}
 
-	return pawnState.FirstPersonCamera
+	return pawnState.FirstPersonCamera.ID()
 }
 
 // TODO: this should not take UpdateParams *at all* I think. Actually we still

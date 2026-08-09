@@ -63,16 +63,16 @@ type Gladiator struct {
 	}
 
 	// Always a descendant of the Character,
-	FirstPersonCamera ecs.ID
+	FirstPersonCamera Entity
 
 	// Always a descendant of Character.
-	FirstPersonHands ecs.ID
+	FirstPersonHands Entity
 
 	HeldWeapon struct {
 		State           int8 // 0=idle, 1=drawing, 2=hiding
 		StateTransition Time
 
-		Entity ecs.ID
+		Entity Entity
 
 		// TODO: should we have a prop per weapon all the time? Or create them
 		// when we switch to the weapon. Having props all the time would be
@@ -84,12 +84,12 @@ type Gladiator struct {
 		// TODO: define a enum instead of writing indices out manually
 		// TODO: it should be parented to camera instead of hands. We'll use IK
 		// to position hands where we need things to be.
-		Props [2]ecs.ID
+		Props [2]Entity
 	}
 
 	// TODO: put it into a proper struct
 	Inventory struct {
-		Slots [4]ecs.ID
+		Slots [4]Entity
 
 		Ammo [10]int8
 	}
@@ -127,7 +127,7 @@ func init() {
 			}
 
 			// TODO: factor this out?
-			world.Entity(gladiator.FirstPersonCamera).
+			gladiator.FirstPersonCamera.
 				SetTransform(gmath.TRS3f64{
 					T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
 					R: e01.Pow(4 * gladiator.Input.LookDir[0]).Mul(e12.Pow(4 * gladiator.Input.LookDir[1])),
@@ -138,12 +138,7 @@ func init() {
 		Think: func(stx ScriptContext, world *World, gladiator Entity) {
 			state := gladiator.ScriptState().(Gladiator)
 
-			if weapon := world.Entity(state.HeldWeapon.Entity); weapon.IsValid() {
-				var props [len(state.HeldWeapon.Props)]Entity // TODO: this is horrible to read, we should introduce a enum.
-				for i, propID := range state.HeldWeapon.Props {
-					props[i] = world.Entity(propID)
-				}
-
+			if weapon := state.HeldWeapon.Entity; weapon.IsValid() {
 				T_attack := world.GetGlobalTransform2(gladiator).
 					Mul(gmath.TRS3f64{
 						T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
@@ -163,7 +158,7 @@ func init() {
 					// TODO: implement
 				}
 
-				weapon.Script().Weapon_Think(stx, world, weapon, props[:], gladiator, T_attack, v_attack, buttons, recoil)
+				weapon.Script().Weapon_Think(stx, world, weapon, state.HeldWeapon.Props[:], gladiator, T_attack, v_attack, buttons, recoil)
 			}
 
 			stx.Update(gladiator,
@@ -176,60 +171,58 @@ func init() {
 
 					if state.HeldWeapon.StateTransition.Compare(stx.Now) <= 0 {
 						switch state.HeldWeapon.State {
-						case 0:
-							if state.HeldWeapon.Entity != switchToWeapon {
-								state.HeldWeapon.State = 2
-								if world.Entity(state.HeldWeapon.Entity).IsValid() {
-									state.HeldWeapon.StateTransition = stx.Now.Add(world.Entity(state.HeldWeapon.Entity).Script().Weapon_Hint(stx.UpdateParams, world, switchToWeapon).HideDuration)
-								}
-							}
-
-						case 1:
-							state.HeldWeapon.State = 0
-
 						case 2:
-							for _, propID := range state.HeldWeapon.Props {
-								prop := world.Entity(propID)
-								if !prop.IsValid() {
-									continue
+							for _, prop := range state.HeldWeapon.Props {
+								if prop.IsValid() {
+									stx.Update(prop, func(stx ScriptContext, prop Entity) { prop.MarkForDeletion() })
 								}
-								stx.Update(prop, func(stx ScriptContext, prop Entity) { prop.MarkForDeletion() })
 							}
 							clear(state.HeldWeapon.Props[:])
 
 							// BUG: we can only really query Weapon_Hint inside a
 							// Think. I guess we could make Weapon_Hint be a
 							// non-thinker, that would be pretty nice I think.
-							weaponScript := world.Entity(switchToWeapon).Script()
-							hint := weaponScript.Weapon_Hint(stx.UpdateParams, world, switchToWeapon)
+							weaponScript := switchToWeapon.Script()
+							hint := weaponScript.Weapon_Hint(stx.UpdateParams, world, switchToWeapon.ID())
 							state.HeldWeapon.Entity = switchToWeapon
 							state.HeldWeapon.State = 1
 							state.HeldWeapon.StateTransition = stx.Now.Add(hint.DrawDuration)
 
 							if !stx.Speculating && weaponScript.Weapon_CreateProp != nil {
 								for i := range 2 {
-									weaponScript.Weapon_CreateProp(stx, world.Entity(switchToWeapon), func(stx ScriptContext, prop Entity) {
+									weaponScript.Weapon_CreateProp(stx, switchToWeapon, func(stx ScriptContext, prop Entity) {
 										switch i {
 										case 0:
 											// TODO: parent it directly to the camera instead.
-											prop.SetParent(state.FirstPersonHands)
+											prop.SetParent(state.FirstPersonHands.ID())
 											prop.SetTransform(hint.FirstPersonPropTransform)
-											prop.SetVisibilityCondition(VisibilityCondition{Mask: 0b01, Camera: state.FirstPersonCamera})
+											prop.SetVisibilityCondition(VisibilityCondition{Mask: 0b01, Camera: state.FirstPersonCamera.ID()})
 
 										case 1:
 											prop.SetParent(gladiator.ID())
 											prop.SetParentBone(unique.Make("hand.R"))
 											prop.SetTransform(gmath.TRS3One[float64]())
-											prop.SetVisibilityCondition(VisibilityCondition{Mask: 0b10, Camera: state.FirstPersonCamera})
+											prop.SetVisibilityCondition(VisibilityCondition{Mask: 0b10, Camera: state.FirstPersonCamera.ID()})
 										}
 
 										stx.Update(gladiator, func(stx ScriptContext, entity Entity) {
 											state := entity.ScriptState().(Gladiator)
 											defer func() { entity.SetScriptState(state) }()
 
-											state.HeldWeapon.Props[i] = prop.ID()
+											state.HeldWeapon.Props[i] = prop
 										})
 									})
+								}
+							}
+
+						case 1:
+							state.HeldWeapon.State = 0
+
+						case 0:
+							if state.HeldWeapon.Entity != switchToWeapon {
+								state.HeldWeapon.State = 2
+								if state.HeldWeapon.Entity.IsValid() {
+									state.HeldWeapon.StateTransition = stx.Now.Add(state.HeldWeapon.Entity.Script().Weapon_Hint(stx.UpdateParams, world, switchToWeapon.ID()).HideDuration)
 								}
 							}
 						}
@@ -380,8 +373,8 @@ func (world *World) spawnGladiator(T gmath.TRS3f64, info *UpdateParams) ecs.ID {
 	hands.SetRenderingGeometry(unique.Make("testcharacter4/geometries/Hands"))
 
 	s := Gladiator{
-		FirstPersonCamera: camera.ID(),
-		FirstPersonHands:  hands.ID(),
+		FirstPersonCamera: camera,
+		FirstPersonHands:  hands,
 	}
 	s.Vitals.Health = 100
 	// TODO: define loadout somehow better so that ammo pickup knows what to do
@@ -397,21 +390,21 @@ func (world *World) spawnGladiator(T gmath.TRS3f64, info *UpdateParams) ecs.ID {
 		weapon := world.CreateEntity(info)
 		weapon.SetScriptState(WeaponGrenadeLauncher{})
 
-		world.GiveWeapon(gladiator.ID(), weapon.ID())
+		world.GiveWeapon(gladiator, weapon)
 	}
 
 	{
 		weapon := world.CreateEntity(info)
 		weapon.SetScriptState(WeaponAssaultRifle{})
 
-		world.GiveWeapon(gladiator.ID(), weapon.ID())
+		world.GiveWeapon(gladiator, weapon)
 	}
 
 	{
 		weapon := world.CreateEntity(info)
 		weapon.SetScriptState(WeaponPhysgun{})
 
-		world.GiveWeapon(gladiator.ID(), weapon.ID())
+		world.GiveWeapon(gladiator, weapon)
 	}
 
 	return gladiator.ID()
@@ -527,12 +520,11 @@ func (gladiator *Gladiator) asdasd(world *World, id ecs.ID, velocity gmath.Vec3f
 }
 
 // TODO: delete this
-func (world *World) GiveWeapon(id ecs.ID, weapon ecs.ID) {
-	entity := world.Entity(id)
+func (world *World) GiveWeapon(entity Entity, weapon Entity) {
 	char := entity.ScriptState().(Gladiator)
-	freeSlot := slices.Index(char.Inventory.Slots[:], 0)
+	freeSlot := slices.Index(char.Inventory.Slots[:], Entity{})
 	char.Inventory.Slots[freeSlot] = weapon
 	entity.SetScriptState(char)
 
-	world.SetParent(weapon, id)
+	weapon.SetParent(entity.ID())
 }
