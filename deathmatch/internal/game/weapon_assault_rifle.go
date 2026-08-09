@@ -76,7 +76,7 @@ func init() {
 						if rayHit.Entity.IsValid() {
 							impact := Impact{
 								Attacker: attacker,
-								Type:     BulletImpact,
+								Type:     ImpactTypeBullet,
 								Damage:   7,
 								Δv: Velocity{
 									Linear: T_attack.M.Mulv(forward).Normalize().Scale(1),

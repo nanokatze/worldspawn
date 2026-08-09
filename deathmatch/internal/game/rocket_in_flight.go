@@ -30,7 +30,7 @@ func init() {
 				stx,
 				Impact{
 					Attacker: world.Entity(state.Attacker),
-					Type:     BlastImpactWithFragmentation,
+					Type:     ImpactTypeBlast,
 					Damage:   1200,
 				},
 				world.GetGlobalTransform2(rocket),

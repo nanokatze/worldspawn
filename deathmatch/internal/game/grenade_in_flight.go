@@ -36,7 +36,7 @@ func init() {
 				stx,
 				Impact{
 					Attacker: world.Entity(state.Attacker),
-					Type:     BlastImpactWithFragmentation,
+					Type:     ImpactTypeBlast,
 					Damage:   1500,
 				},
 				world.GetGlobalTransform2(grenade),

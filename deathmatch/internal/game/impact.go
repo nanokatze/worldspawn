@@ -5,16 +5,14 @@ type ImpactType int
 // TODO: it would be nice if we could register these at runtime
 const (
 	_ ImpactType = iota
-	BlastImpact
-	BlastImpactWithFragmentation
-	BlastImpactWithNoDamage // TODO: implement this
-	BulletImpact
+	ImpactTypeBlast
+	ImpactTypeBlastNoDamage // TODO: implement this
+	ImpactTypeBullet
 )
 
 // TODO: make this more structured and possibly pull this from json
 var impactForceFactor = map[ImpactType]float32{
-	BlastImpact:                  0.2,
-	BlastImpactWithFragmentation: 0.2,
+	ImpactTypeBlast: 0.2,
 }
 
 // TODO: reorder the fields in here
