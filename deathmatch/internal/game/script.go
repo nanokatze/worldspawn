@@ -31,7 +31,7 @@ type script struct {
 	// TODO: this should be a Thinker and get IO. Client will just call
 	// processUpdates immediately. We could expose two HandleInputs, one would
 	// be for server and one for client.
-	Input func(info *UpdateParams, world *World, entity ecs.ID, cmd InputCmd)
+	Input func(info *UpdateParams, world *World, entity ecs.ID, cmd TimestampedInputCmd)
 
 	// Think may not perform any mutations, but may read states of entities,
 	// perform physics queries and enqueue updates.
