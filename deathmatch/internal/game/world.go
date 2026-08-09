@@ -280,10 +280,6 @@ func (e Entity) SetShouldSetOffFuseOnImpact(v bool) {
 	}
 }
 
-func (e Entity) SetPhysicsMassOverride(v float32) {
-	e.world.PhysicsMassOverride.Store(e.id.Index(), v)
-}
-
 func (e Entity) MarkForDeletion() { e.world.Columns.delete.Store(e.id.Index(), true) }
 
 func (e Entity) Logger() *slog.Logger { return e.world.logger.With("id", e.ID()) }

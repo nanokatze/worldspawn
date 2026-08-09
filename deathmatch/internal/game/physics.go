@@ -31,6 +31,10 @@ func (e Entity) Velocity() Velocity { return e.world.Velocity.Load(e.id.Index())
 
 func (e Entity) SetVelocity(v Velocity) { e.world.Velocity.Store(e.id.Index(), v) }
 
+func (e Entity) SetPhysicsMassOverride(v float32) {
+	e.world.PhysicsMassOverride.Store(e.id.Index(), v)
+}
+
 // Always run this before performing physics queries!!!
 //
 // TODO: move out of this file kinda? I'm thinking into step.go
