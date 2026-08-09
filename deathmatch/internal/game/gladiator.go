@@ -69,6 +69,9 @@ type Gladiator struct {
 	FirstPersonHands ecs.ID
 
 	HeldWeapon struct {
+		State           int8 // 0=idle, 1=drawing, 2=hiding
+		StateTransition Time
+
 		Entity ecs.ID
 
 		// TODO: should we have a prop per weapon all the time? Or create them
@@ -123,59 +126,6 @@ func init() {
 				}
 			}
 
-			// TODO: autoselect the gun here
-
-			switchToWeaponID := gladiator.Inventory.Slots[gladiator.Input.Slot] // TODO: be safe with the values Slot might have
-
-			// TODO: make weapon switching predicted
-			if !info.Speculating && gladiator.HeldWeapon.Entity != switchToWeaponID {
-				for _, propID := range gladiator.HeldWeapon.Props {
-					if prop := world.Entity(propID); prop.IsValid() {
-						prop.MarkForDeletion()
-					}
-				}
-				clear(gladiator.HeldWeapon.Props[:])
-
-				// Now we can switch the weapons
-
-				gladiator.HeldWeapon.Entity = switchToWeaponID
-
-				if newWeapon := world.Entity(gladiator.HeldWeapon.Entity); newWeapon.IsValid() {
-					// We've switched to the new weapon, create the new weapon props
-
-					script := newWeapon.Script()
-					if script.Weapon_CreateProp != nil {
-						hint := script.Weapon_Hint(info, world, newWeapon.ID())
-
-						for i := range 2 {
-							script.Weapon_CreateProp(ScriptContext{info, IO{world, uint64(id.Index())}}, newWeapon,
-								func(stx ScriptContext, prop Entity) {
-									switch i {
-									case 0:
-										// TODO: parent it directly to the camera instead.
-										prop.SetParent(gladiator.FirstPersonHands)
-										prop.SetTransform(hint.FirstPersonPropTransform)
-										prop.SetVisibilityCondition(VisibilityCondition{Mask: 0b01, Camera: gladiator.FirstPersonCamera})
-
-									case 1:
-										prop.SetParent(id)
-										prop.SetParentBone(unique.Make("hand.R"))
-										prop.SetTransform(gmath.TRS3One[float64]())
-										prop.SetVisibilityCondition(VisibilityCondition{Mask: 0b10, Camera: gladiator.FirstPersonCamera})
-									}
-
-									stx.Update(entity, func(stx ScriptContext, entity Entity) {
-										state := entity.ScriptState().(Gladiator)
-										defer func() { entity.SetScriptState(state) }()
-
-										state.HeldWeapon.Props[i] = prop.ID()
-									})
-								})
-						}
-					}
-				}
-			}
-
 			// TODO: factor this out?
 			world.Entity(gladiator.FirstPersonCamera).
 				SetTransform(gmath.TRS3f64{
@@ -186,8 +136,6 @@ func init() {
 		},
 
 		Think: func(stx ScriptContext, world *World, gladiator Entity) {
-			// TODO: sort this out pls and make it obey Think rules, i.e. put all mutations into lambdas.
-
 			state := gladiator.ScriptState().(Gladiator)
 
 			if weapon := world.Entity(state.HeldWeapon.Entity); weapon.IsValid() {
@@ -205,47 +153,87 @@ func init() {
 				v_attack := gladiator.Velocity()
 
 				var buttons WeaponButtons
-				if state.Input.HeldButtons&uint64(1<<ButtonAttack) != 0 {
-					buttons |= WeaponTrigger
+				if state.HeldWeapon.State == 0 {
+					if state.Input.HeldButtons&uint64(1<<ButtonAttack) != 0 {
+						buttons |= WeaponTrigger
+					}
 				}
 
-				weapon.Script().Weapon_Think(stx, world, weapon, props[:], gladiator, T_attack, v_attack, buttons)
-			}
+				recoil := func(stx ScriptContext, recoil [2]float32) {
+					// TODO: implement
+				}
 
-			// TODO: redo sway animation
-			{
-				velocity := gladiator.Velocity()
-
-				hands := world.Entity(state.FirstPersonHands)
-
-				stx.Update(hands,
-					func(stx ScriptContext, hands Entity) {
-						hands.SetTransform(gmath.TRS3f64{
-							T: gmath.Vec3f64{0, 1, 0}.
-								Scale(math.Sin(float64(stx.Now.Sub(Time{}))/1e9*6) * 0.03 * min(float64(velocity.Linear.Length()/6), 1)),
-							R: gmath.Rot3One(),
-							S: gmath.Mat3x3UOne[float32](),
-						})
-					})
-			}
-
-			{
-				camera := world.Entity(state.FirstPersonCamera)
-
-				stx.Update(camera,
-					func(stx ScriptContext, camera Entity) {
-						camera.SetTransform(gmath.TRS3f64{
-							T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
-							R: e01.Pow(4 * state.Input.LookDir[0]).Mul(e12.Pow(4 * state.Input.LookDir[1])),
-							S: gmath.Mat3x3UOne[float32](),
-						})
-					})
+				weapon.Script().Weapon_Think(stx, world, weapon, props[:], gladiator, T_attack, v_attack, buttons, recoil)
 			}
 
 			stx.Update(gladiator,
 				func(stx ScriptContext, gladiator Entity) {
 					state := gladiator.ScriptState().(Gladiator)
 					defer func() { gladiator.SetScriptState(state) }()
+
+					// TODO: be safe with the values Slot might have
+					switchToWeapon := state.Inventory.Slots[state.Input.Slot]
+
+					if state.HeldWeapon.StateTransition.Compare(stx.Now) <= 0 {
+						switch state.HeldWeapon.State {
+						case 0:
+							if state.HeldWeapon.Entity != switchToWeapon {
+								state.HeldWeapon.State = 2
+								if world.Entity(state.HeldWeapon.Entity).IsValid() {
+									state.HeldWeapon.StateTransition = stx.Now.Add(world.Entity(state.HeldWeapon.Entity).Script().Weapon_Hint(stx.UpdateParams, world, switchToWeapon).HideDuration)
+								}
+							}
+
+						case 1:
+							state.HeldWeapon.State = 0
+
+						case 2:
+							for _, propID := range state.HeldWeapon.Props {
+								prop := world.Entity(propID)
+								if !prop.IsValid() {
+									continue
+								}
+								stx.Update(prop, func(stx ScriptContext, prop Entity) { prop.MarkForDeletion() })
+							}
+							clear(state.HeldWeapon.Props[:])
+
+							// BUG: we can only really query Weapon_Hint inside a
+							// Think. I guess we could make Weapon_Hint be a
+							// non-thinker, that would be pretty nice I think.
+							weaponScript := world.Entity(switchToWeapon).Script()
+							hint := weaponScript.Weapon_Hint(stx.UpdateParams, world, switchToWeapon)
+							state.HeldWeapon.Entity = switchToWeapon
+							state.HeldWeapon.State = 1
+							state.HeldWeapon.StateTransition = stx.Now.Add(hint.DrawDuration)
+
+							if !stx.Speculating && weaponScript.Weapon_CreateProp != nil {
+								for i := range 2 {
+									weaponScript.Weapon_CreateProp(stx, world.Entity(switchToWeapon), func(stx ScriptContext, prop Entity) {
+										switch i {
+										case 0:
+											// TODO: parent it directly to the camera instead.
+											prop.SetParent(state.FirstPersonHands)
+											prop.SetTransform(hint.FirstPersonPropTransform)
+											prop.SetVisibilityCondition(VisibilityCondition{Mask: 0b01, Camera: state.FirstPersonCamera})
+
+										case 1:
+											prop.SetParent(gladiator.ID())
+											prop.SetParentBone(unique.Make("hand.R"))
+											prop.SetTransform(gmath.TRS3One[float64]())
+											prop.SetVisibilityCondition(VisibilityCondition{Mask: 0b10, Camera: state.FirstPersonCamera})
+										}
+
+										stx.Update(gladiator, func(stx ScriptContext, entity Entity) {
+											state := entity.ScriptState().(Gladiator)
+											defer func() { entity.SetScriptState(state) }()
+
+											state.HeldWeapon.Props[i] = prop.ID()
+										})
+									})
+								}
+							}
+						}
+					}
 
 					velocity := gladiator.Velocity()
 
