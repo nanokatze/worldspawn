@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"iter"
 	"math"
-	"unique"
 
 	"worldspawn/internal/ecs"
 	"worldspawn/internal/physics"
@@ -79,12 +78,6 @@ const (
 
 var collisionLayerToBroadPhaseLayer = [numCollisionLayers]uint8{
 	CollisionLayerBackground: broadPhaseLayerNonMoving,
-}
-
-func (e Entity) SetCollisionLayer(v CollisionLayer) { e.world.CollisionLayer.Store(e.id.Index(), v) }
-
-func (e Entity) SetCollisionGeometry(v unique.Handle[string]) {
-	e.world.CollisionGeometry.Store(e.id.Index(), v)
 }
 
 type RayHit struct {

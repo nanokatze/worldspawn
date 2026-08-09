@@ -87,9 +87,3 @@ type script struct {
 
 // Public only so that replication can load/store things. We'll eventually make this private.
 var Scripts = map[reflect.Type]script{}
-
-// TODO: remove this, the users should look up the script associated with a
-// particular script state by themselves
-func (e Entity) Script() script {
-	return Scripts[reflect.TypeOf(e.world.ScriptState.Load(e.id.Index()))]
-}

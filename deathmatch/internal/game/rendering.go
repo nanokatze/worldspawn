@@ -85,18 +85,6 @@ func (a *LoopedSound) Init() {
 	a.LengthInSamples = off / int64(config.Channels*siz)
 }
 
-func (e Entity) SetVisibilityCondition(v VisibilityCondition) {
-	e.world.VisibilityCondition.Store(e.id.Index(), v)
-}
-
-func (e Entity) SetCosmeticOffset(v CosmeticOffset) { e.world.CosmeticOffset.Store(e.id.Index(), v) }
-
-func (e Entity) SetRenderingGeometry(v unique.Handle[string]) {
-	e.world.RenderingGeometry.Store(e.id.Index(), v)
-}
-
-func (e Entity) SetSoundEffect(v SoundEmitter) { e.world.SoundEffect.Store(e.id.Index(), v) }
-
 // TODO: rewrite this so that it reuses GetGlobalTransform
 func (world *World) GetRenderingTransform(entity Entity) gmath.Affine3f64 {
 	getEntityTransform := func(entity Entity) gmath.Affine3f64 {

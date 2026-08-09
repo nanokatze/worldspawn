@@ -10,17 +10,6 @@ import (
 	"worldspawn/internal/loaders/skeleton"
 )
 
-func (e Entity) Skeleton() unique.Handle[string] { return e.world.Skeleton.Load(e.id.Index()) }
-
-func (e Entity) SetSkeleton(v unique.Handle[string]) { e.world.Skeleton.Store(e.id.Index(), v) }
-
-func (e Entity) Pose() skeleton.Pose { return e.world.Columns.pose[e.id.Index()] }
-
-// Note that pose is not replicated
-//
-// TODO: change up the api to encourage slice reuse
-func (e Entity) SetPose(v skeleton.Pose) { e.world.Columns.pose[e.id.Index()] = v }
-
 var animationCache = cache.New(func(key unique.Handle[string]) *animation.Animation {
 	f, err := Data.Open(key.Value())
 	if err != nil {
