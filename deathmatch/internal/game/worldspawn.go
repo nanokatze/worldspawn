@@ -10,11 +10,8 @@ import (
 type Worldspawn struct {
 	Now Time
 
-	// TODO: replace it with sky material
 	Sky unique.Handle[string]
 
-	// TODO: create a separate "physics world" entity/component and move this
-	// stuff there
 	Gravity gmath.Vec3f32
 }
 
