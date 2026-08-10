@@ -45,7 +45,7 @@ type gameRendererVideo struct {
 	scene2             *sceneUpdate
 	gsdata             []gsdata
 	scene              *renderer.Scene
-	hudState           hud.State
+	hudState           [256]byte
 }
 
 func (re *gameRendererVideo) Reset(n int) {
@@ -56,9 +56,7 @@ func (re *gameRendererVideo) Reset(n int) {
 type sceneUpdate struct {
 	tm timeMapping
 
-	// TODO: this doesn't really need to be here, I think? We can just update it
-	// directly (but it would have to be mutex protected.)
-	hudState hud.State
+	hudState [256]byte
 
 	camera          renderer.Camera
 	cameraTransform int
@@ -133,7 +131,7 @@ func (re *gameRendererVideo) Update(world *game.World, playerID ecs.ID, t0, t1 g
 	camera := world.Camera(playerID)
 
 	{
-		update.hudState.Update(world, playerID)
+		hud.Progs["hud"].Pack(world, playerID, update.hudState[:])
 
 		update.sky = texturecache.Get(world.Entity(1).ScriptState().(game.Worldspawn).Sky).Image
 
@@ -325,7 +323,7 @@ func (re *gameRendererVideo) Redraw(jq *gpu.JobQueue, dst *gpu.Image, sdlNow uin
 			RussianRouletteThreshold: conf.Quality.RussianRouletteThreshold,
 		})
 
-	re.hudState.Draw(jq, dst)
+	hud.Progs["hud"].Draw(jq, dst, re.hudState[:])
 
 	re.frameNumber++
 }
