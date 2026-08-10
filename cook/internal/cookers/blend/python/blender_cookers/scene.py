@@ -34,6 +34,9 @@ class __Cooker:
 
 
     def add_entity(self, comps):
+        # TODO: we should not set parent here
+        if self.entity != 1 and 'Parent' not in comps:
+            comps['Parent'] = 1
         cooked = self.cooked
         for k, v in comps.items():
             if k not in cooked:
@@ -79,7 +82,14 @@ def cook(context, scene):
     tmp.cooked = {}
     tmp.entity = 1
 
-    tmp.add_entity({'ScriptState': {'Worldspawn': cooked_scene}})
+    tmp.add_entity({
+        'TransformTR': {
+            'T': [0, 0, 0],
+            'R': [0, 0, 0, 1],
+        },
+        'TransformS': [1, 0, 0, 1, 0, 1],
+        'ScriptState': {'Worldspawn': cooked_scene},
+    })
 
     __handle_collection(context, tmp, scene.collection, Matrix())
 
