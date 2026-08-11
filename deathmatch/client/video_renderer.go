@@ -21,11 +21,11 @@ type hudState struct {
 	Bleed  int32
 }
 
-type gameRendererVideo struct {
+type videoRenderer struct {
 	n int
 
-	// TODO: instead of idGen, look at whether T_0 + velocity * dt is
-	// too far from T_1
+	// TODO: instead of idGen, look at whether T_0 + velocity * dt is too far
+	// from T_1. We'll want to keep the hierarchy in mind as well.
 	idGen     []uint32
 	transform []gmath.Affine3f32
 
@@ -48,7 +48,7 @@ type gameRendererVideo struct {
 	hudState           [256]byte
 }
 
-func (re *gameRendererVideo) Reset(n int) {
+func (re *videoRenderer) Reset(n int) {
 	// NOTE: this is called concurrently with Redraw. Keep that in mind when
 	// implementing this function.
 }
@@ -99,7 +99,7 @@ type timeMapping struct {
 
 // TODO: remove this in favor of merging updates at commitUpdate time. I.e.
 // we'll start off with a clean update every time.
-func (re *gameRendererVideo) beginUpdate() *sceneUpdate {
+func (re *videoRenderer) beginUpdate() *sceneUpdate {
 	if re.stagingUpdate == nil {
 		// TODO: pool this stuff
 		return newSceneDirty(re.n)
@@ -110,20 +110,22 @@ func (re *gameRendererVideo) beginUpdate() *sceneUpdate {
 }
 
 // TODO: rename to enqueueUpdate?
-func (re *gameRendererVideo) commitUpdate(update *sceneUpdate) {
+func (re *videoRenderer) commitUpdate(update *sceneUpdate) {
 	select {
 	case re.updates <- update:
 	default:
 	}
 }
 
-func (re *gameRendererVideo) Update(world *game.World, playerID game.EntityID, t0, t1 game.Time, frameDuration time.Duration) {
+func (re *videoRenderer) Update(world *game.World, playerID game.EntityID, t0, t1 game.Time, frameDuration time.Duration) {
 	// TODO: pass the bits that interest us explicitly
 	//conf := config.Load()
 
 	// TODO: move most of this code into game. We should introduce a
 	// World.Render method which could either return a pile of bytes, or be fed
 	// an interface.
+
+	// TODO: ideally Update would start gpu work immediately rather than enqueue something over channel
 
 	update := re.beginUpdate()
 	defer re.commitUpdate(update)
@@ -133,6 +135,7 @@ func (re *gameRendererVideo) Update(world *game.World, playerID game.EntityID, t
 	{
 		hud.Progs["hud"].Pack(world, playerID, update.hudState[:])
 
+		// TODO: use a material for the sky
 		update.sky = texturecache.Get(world.Entity(1).ScriptState().(game.Worldspawn).Sky).Image
 
 		// TODO: we actually only need to do this for camera and the entities
@@ -218,7 +221,7 @@ func (re *gameRendererVideo) Update(world *game.World, playerID game.EntityID, t
 	}
 }
 
-func (re *gameRendererVideo) UpdateSubtick(world *game.World, playerID game.EntityID) {
+func (re *videoRenderer) UpdateSubtick(world *game.World, playerID game.EntityID) {
 	// TODO: this will need to enqueue an update and not modify any fields directly!
 
 	// re.stuffMu.Lock()
@@ -252,7 +255,7 @@ var worldspawnToRenderer = gmath.Mat4x4f32{
 	0, 0, 0, 1,
 }
 
-func (re *gameRendererVideo) Redraw(jq *gpu.JobQueue, dst *gpu.Image, sdlNow uint64) {
+func (re *videoRenderer) Redraw(jq *gpu.JobQueue, dst *gpu.Image, sdlNow uint64) {
 	conf := config.Load()
 
 	select {
