@@ -20,7 +20,7 @@ type ExplosiveBarrel struct {
 
 func init() {
 	Scripts[reflect.TypeFor[ExplosiveBarrel]()] = script{
-		Think: func(stx ScriptContext, world *World, entity Entity) {
+		Think: func(stx ScriptContext, entity Entity, world *World) {
 			// TODO: we should do a SetNextThink to forever and have Impact
 			// SetNextThink asap otherwise
 

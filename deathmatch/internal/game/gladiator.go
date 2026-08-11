@@ -98,7 +98,7 @@ type Gladiator struct {
 
 func init() {
 	Scripts[reflect.TypeFor[Gladiator]()] = script{
-		Input: func(info *UpdateParams, world *World, id ecs.ID, cmd TimestampedInputCmd) {
+		Input: func(info *UpdateParams, id ecs.ID, world *World, cmd TimestampedInputCmd) {
 			entity := world.Entity(id)
 
 			gladiator := entity.ScriptState().(Gladiator)
@@ -136,7 +136,7 @@ func init() {
 				})
 		},
 
-		Think: func(stx ScriptContext, world *World, gladiator Entity) {
+		Think: func(stx ScriptContext, gladiator Entity, world *World) {
 			state := gladiator.ScriptState().(Gladiator)
 
 			if weapon := world.Entity(state.HeldWeapon.Entity); weapon.IsValid() {
@@ -164,7 +164,7 @@ func init() {
 					// TODO: implement
 				}
 
-				weapon.Script().Weapon_Think(stx, world, weapon, props[:], gladiator, T_attack, v_attack, buttons, recoil)
+				weapon.Script().Weapon_Think(stx, weapon, props[:], world, gladiator, T_attack, v_attack, buttons, recoil)
 			}
 
 			stx.Update(gladiator,
@@ -189,7 +189,7 @@ func init() {
 							// Think. I guess we could make Weapon_Hint be a
 							// non-thinker, that would be pretty nice I think.
 							weaponScript := switchToWeapon.Script()
-							hint := weaponScript.Weapon_Hint(stx.UpdateParams, world, switchToWeapon.ID())
+							hint := weaponScript.Weapon_Hint(stx.UpdateParams, switchToWeapon)
 							state.HeldWeapon.Entity = switchToWeapon.ID()
 							state.HeldWeapon.State = 1
 							drawDuration := time.Duration(float64(weaponBaseDrawDuration) * float64(hint.DrawDurationMultiplier))
@@ -229,7 +229,7 @@ func init() {
 							if state.HeldWeapon.Entity != switchToWeapon.ID() {
 								state.HeldWeapon.State = 2
 								if heldWeapon := world.Entity(state.HeldWeapon.Entity); heldWeapon.IsValid() {
-									hint := heldWeapon.Script().Weapon_Hint(stx.UpdateParams, world, switchToWeapon.ID())
+									hint := heldWeapon.Script().Weapon_Hint(stx.UpdateParams, switchToWeapon)
 									hideDuration := time.Duration(float64(weaponBaseHideDuration) * float64(hint.HideDurationMultiplier))
 									state.HeldWeapon.StateTransition = stx.Now.Add(hideDuration)
 								}

@@ -67,7 +67,7 @@ func (world *World) Camera(playerID ecs.ID) ecs.ID {
 func (world *World) HandleInput(playerID ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
 	playerState := world.Entity(playerID).ScriptState().(Player)
 	if pawn := world.Entity(playerState.Pawn); pawn.IsValid() {
-		pawn.Script().Input(info, world, pawn.ID(), cmd)
+		pawn.Script().Input(info, pawn.ID(), world, cmd)
 	} else {
 		if !info.Speculating {
 			spawnPoint := world.findPlayerSpawn()

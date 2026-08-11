@@ -7,7 +7,6 @@ import (
 	"unique"
 
 	"worldspawn/internal/animation"
-	"worldspawn/internal/ecs"
 	"worldspawn/internal/gmath"
 	"worldspawn/internal/loaders/skeleton"
 )
@@ -38,7 +37,7 @@ type Testburger struct {
 
 func init() {
 	Scripts[reflect.TypeFor[Testburger]()] = script{
-		Think: func(stx ScriptContext, world *World, entity Entity) {
+		Think: func(stx ScriptContext, entity Entity, world *World) {
 			state := entity.ScriptState().(Testburger)
 
 			if state.Animation != (unique.Handle[string]{}) {
@@ -69,7 +68,7 @@ func init() {
 	}
 
 	Scripts[reflect.TypeFor[WeaponGrenadeLauncher]()] = script{
-		Weapon_Hint: func(info *UpdateParams, world *World, entity ecs.ID) WeaponHint {
+		Weapon_Hint: func(info *UpdateParams, entity Entity) WeaponHint {
 			return WeaponHint{
 				DrawDurationMultiplier: 1,
 				HideDurationMultiplier: 1,
@@ -95,9 +94,9 @@ func init() {
 
 		Weapon_Think: func(
 			stx ScriptContext,
-			world *World,
 			weapon Entity,
 			weaponProps []Entity,
+			world *World,
 			attacker Entity,
 			T_attack gmath.Affine3f64,
 			v_attack Velocity,

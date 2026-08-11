@@ -19,7 +19,7 @@ type Animtest struct {
 
 func init() {
 	Scripts[reflect.TypeFor[Animtest]()] = script{
-		Think: func(stx ScriptContext, world *World, entity Entity) {
+		Think: func(stx ScriptContext, entity Entity, world *World) {
 			stx.Update(entity, func(stx ScriptContext, entity Entity) {
 				state := entity.ScriptState().(Animtest)
 

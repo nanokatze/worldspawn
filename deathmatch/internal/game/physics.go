@@ -188,24 +188,24 @@ func (world *World) physicsStep(updateParams *UpdateParams) {
 			// we'll probably change these entry points to be pure thinkers. At
 			// that point we'll want to make the key be the entire pair rather
 			// than just one entity.
-			stx1 := ScriptContext{updateParams, IO{world, uint64(entityID1.Index())}}
-			stx2 := ScriptContext{updateParams, IO{world, uint64(entityID2.Index())}}
+			stx1 := ScriptContext{updateParams, IO{world, uint64(entityID1.Index())}, world.logger}
+			stx2 := ScriptContext{updateParams, IO{world, uint64(entityID2.Index())}, world.logger}
 
 			switch ce.Type {
 			case 1:
 				if script := entity1.Script(); script.ContactAdded != nil {
-					script.ContactAdded(stx1, world, entity1, entity2)
+					script.ContactAdded(stx1, entity1, entity2)
 				}
 				if script := entity2.Script(); script.ContactAdded != nil {
-					script.ContactAdded(stx2, world, entity2, entity1)
+					script.ContactAdded(stx2, entity2, entity1)
 				}
 
 			case 2:
 				if script := entity1.Script(); script.ContactRemoved != nil {
-					script.ContactRemoved(stx1, world, entity1, entityID2)
+					script.ContactRemoved(stx1, entity1, entityID2)
 				}
 				if script := entity2.Script(); script.ContactRemoved != nil {
-					script.ContactRemoved(stx2, world, entity2, entityID1)
+					script.ContactRemoved(stx2, entity2, entityID1)
 				}
 			}
 		}

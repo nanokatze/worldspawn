@@ -24,7 +24,7 @@ type GrenadeInFlight struct {
 
 func init() {
 	Scripts[reflect.TypeFor[GrenadeInFlight]()] = script{
-		Think: func(stx ScriptContext, world *World, grenade Entity) {
+		Think: func(stx ScriptContext, grenade Entity, world *World) {
 			const fuse = 1400 * time.Millisecond
 
 			state := grenade.ScriptState().(GrenadeInFlight)
@@ -63,7 +63,7 @@ func init() {
 				})
 		},
 
-		ContactAdded: func(stx ScriptContext, world *World, grenade, entity2 Entity) {
+		ContactAdded: func(stx ScriptContext, grenade, entity2 Entity) {
 			state := grenade.ScriptState().(GrenadeInFlight)
 
 			if entity2.ID() == state.Attacker {
@@ -72,11 +72,11 @@ func init() {
 				return
 			}
 
-			if _, ok := world.CosmeticOffset.Get(grenade.ID()); ok {
-				world.CosmeticOffset.Delete(grenade.ID())
+			if _, ok := grenade.world.CosmeticOffset.Get(grenade.ID()); ok {
+				grenade.world.CosmeticOffset.Delete(grenade.ID())
 			}
 
-			if _, ok := world.ShouldSetOffFuseOnImpact.Get(entity2.ID()); ok {
+			if _, ok := grenade.world.ShouldSetOffFuseOnImpact.Get(entity2.ID()); ok {
 				state.ExplodeNow = true
 				grenade.SetScriptState(state)
 			}

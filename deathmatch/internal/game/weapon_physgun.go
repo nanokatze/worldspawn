@@ -15,15 +15,15 @@ type WeaponPhysgun struct {
 
 func init() {
 	Scripts[reflect.TypeFor[WeaponPhysgun]()] = script{
-		Weapon_Hint: func(info *UpdateParams, world *World, weapon ecs.ID) WeaponHint {
+		Weapon_Hint: func(info *UpdateParams, weapon Entity) WeaponHint {
 			return WeaponHint{}
 		},
 
 		Weapon_Think: func(
 			stx ScriptContext,
-			world *World,
 			weapon Entity,
 			weaponProps []Entity,
+			world *World,
 			attacker Entity,
 			T_attack gmath.Affine3f64,
 			v_attack Velocity,

@@ -16,7 +16,7 @@ type WeaponAssaultRifle struct {
 
 func init() {
 	Scripts[reflect.TypeFor[WeaponAssaultRifle]()] = script{
-		Weapon_Hint: func(info *UpdateParams, world *World, entity ecs.ID) WeaponHint {
+		Weapon_Hint: func(info *UpdateParams, entity Entity) WeaponHint {
 			return WeaponHint{
 				DrawDurationMultiplier: 1,
 				HideDurationMultiplier: 1,
@@ -42,9 +42,9 @@ func init() {
 
 		Weapon_Think: func(
 			stx ScriptContext,
-			world *World,
 			weapon Entity,
 			weaponProps []Entity,
+			world *World,
 			attacker Entity,
 			T_attack gmath.Affine3f64,
 			v_attack Velocity,

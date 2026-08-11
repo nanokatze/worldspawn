@@ -18,7 +18,7 @@ type RocketInFlight struct {
 
 func init() {
 	Scripts[reflect.TypeFor[RocketInFlight]()] = script{
-		Think: func(stx ScriptContext, world *World, rocket Entity) {
+		Think: func(stx ScriptContext, rocket Entity, world *World) {
 			const fuse = 5000 * time.Millisecond
 
 			state := rocket.ScriptState().(RocketInFlight)
@@ -56,7 +56,7 @@ func init() {
 				})
 		},
 
-		ContactAdded: func(stx ScriptContext, world *World, rocket, entity2 Entity) {
+		ContactAdded: func(stx ScriptContext, rocket, entity2 Entity) {
 			state := rocket.ScriptState().(RocketInFlight)
 			if entity2.ID() == state.Attacker {
 				// TODO: filter this in ShouldCollide. This should never be reached

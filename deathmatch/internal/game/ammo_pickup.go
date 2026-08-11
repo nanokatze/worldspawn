@@ -11,7 +11,7 @@ type AmmoPickup struct{}
 
 func init() {
 	Scripts[reflect.TypeFor[AmmoPickup]()] = script{
-		Think: func(stx ScriptContext, world *World, entity Entity) {
+		Think: func(stx ScriptContext, entity Entity, world *World) {
 			// TODO: we should implement this instead by spawning a pickup that
 			// then gets picked up by the player. When that entity gets picked
 			// up, we'll eventually respawn a new one.
