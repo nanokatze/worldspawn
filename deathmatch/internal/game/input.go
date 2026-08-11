@@ -11,35 +11,28 @@ type TimestampedInputCmd struct {
 
 type InputCmd any
 
-type Button int8
-
-const (
-	_ Button = iota
-	ButtonJump
-	ButtonCrouch
-	ButtonAttack
-	ButtonReload
-	ButtonDash
-)
-
 type (
-	InputCmdDLookXY       float32
-	InputCmdDLookYZ       float32
-	InputCmdMoveX         float32
-	InputCmdMoveY         float32
-	InputCmdPressButton   Button
-	InputCmdReleaseButton Button
+	InputCmdDLookXY      float32
+	InputCmdDLookYZ      float32
+	InputCmdMoveX        float32
+	InputCmdMoveY        float32
+	InputCmdJump         bool
+	InputCmdCrouch       bool
+	InputCmdAttack       bool
+	InputCmdReload       bool
+	InputCmdDash         bool
+	InputCmdSwitchWeapon int8
 )
-
-// TODO: replace with buttons?
-type Slot int8
 
 var InputCmdTypes = []reflect.Type{
 	reflect.TypeFor[InputCmdDLookXY](),
 	reflect.TypeFor[InputCmdDLookYZ](),
 	reflect.TypeFor[InputCmdMoveX](),
 	reflect.TypeFor[InputCmdMoveY](),
-	reflect.TypeFor[InputCmdPressButton](),
-	reflect.TypeFor[InputCmdReleaseButton](),
-	reflect.TypeFor[Slot](),
+	reflect.TypeFor[InputCmdJump](),
+	reflect.TypeFor[InputCmdCrouch](),
+	reflect.TypeFor[InputCmdAttack](),
+	reflect.TypeFor[InputCmdReload](),
+	reflect.TypeFor[InputCmdDash](),
+	reflect.TypeFor[InputCmdSwitchWeapon](),
 }

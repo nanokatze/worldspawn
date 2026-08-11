@@ -45,7 +45,11 @@ type Gladiator struct {
 
 		WalkVel gmath.Vec2f32
 
-		HeldButtons uint64
+		Jump   bool
+		Crouch bool
+		Attack bool
+		Reload bool
+		Dash   bool
 
 		Slot int8
 	}
@@ -112,10 +116,16 @@ func init() {
 				gladiator.Input.WalkVel[0] = float32(cmd)
 			case InputCmdMoveY:
 				gladiator.Input.WalkVel[1] = float32(cmd)
-			case InputCmdPressButton:
-				gladiator.Input.HeldButtons |= uint64(1) << cmd
-			case InputCmdReleaseButton:
-				gladiator.Input.HeldButtons &^= uint64(1) << cmd
+			case InputCmdJump:
+				gladiator.Input.Jump = bool(cmd)
+			case InputCmdCrouch:
+				gladiator.Input.Crouch = bool(cmd)
+			case InputCmdAttack:
+				gladiator.Input.Attack = bool(cmd)
+			case InputCmdReload:
+				gladiator.Input.Reload = bool(cmd)
+			case InputCmdDash:
+				gladiator.Input.Dash = bool(cmd)
 			case InputCmdSwitchWeapon:
 				gladiator.Input.Slot = int8(cmd)
 
@@ -154,7 +164,7 @@ func init() {
 
 				var buttons WeaponButtons
 				if state.HeldWeapon.State == 0 {
-					if state.Input.HeldButtons&uint64(1<<ButtonAttack) != 0 {
+					if state.Input.Attack {
 						buttons |= WeaponTrigger
 					}
 				}
@@ -252,7 +262,7 @@ func init() {
 					if state.Motion.Supported {
 						v_local[0] = move[0] * gladiatorStats.WalkSpeed
 						v_local[1] = move[1] * gladiatorStats.WalkSpeed
-						if state.Input.HeldButtons&(1<<ButtonJump) != 0 {
+						if state.Input.Jump {
 							v_local[2] = 4
 						}
 					}
