@@ -71,7 +71,7 @@ func (world *World) processUpdates(info *UpdateParams) {
 			id := world.Table.IDs().Index(index)
 
 			for _, u := range updates {
-				u.f(ScriptContext{info, IO{world, uint64(index)}}, Entity{world, id})
+				u.f(ScriptContext{info, IO{world, uint64(index)}}, Entity{&world.Columns, id})
 			}
 
 			world.entityUpdates2[index] = nil

@@ -280,7 +280,7 @@ func init() {
 					// and therefore decide whether we want to spawn gibs or just
 					// drop a ragdoll.
 					if state.Vitals.Health <= 0 {
-						gladiator.Logger().Info("killing myself!!!")
+						world.logger.Info("killing myself!!!", "id", gladiator)
 
 						// TODO: spawn ragdoll or gibs
 
@@ -491,7 +491,7 @@ func (gladiator *Gladiator) asdasd(world *World, id ecs.ID, velocity gmath.Vec3f
 			Pos:                   trs.T,
 			Rot:                   trs.R,
 			Scale:                 gmath.Vec3Ones[float32](),
-			Shape:                 getShape(Entity{world, id}),
+			Shape:                 getShape(Entity{&world.Columns, id}),
 			MovementDirection:     velocity.Normalize(),
 			MaxSeparationDistance: 0.1,
 		},

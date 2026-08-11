@@ -92,7 +92,7 @@ type QueryFilters struct {
 }
 
 // TODO: have it return (RayHit, bool) actually?
-func (world *World) TraceRay(ray physics.Ray, filters QueryFilters) RayHit {
+func (world *Columns) TraceRay(ray physics.Ray, filters QueryFilters) RayHit {
 	var collector closestHitCollector
 	collector.world = world
 	collector.filters = filters
@@ -112,12 +112,12 @@ func (world *World) TraceRay(ray physics.Ray, filters QueryFilters) RayHit {
 }
 
 // The user can just break the loop after the first hit to achieve "terminate on first hit"
-func (world *World) TraceRayAllHits(ray physics.Ray) iter.Seq[RayHit] {
+func (world *Columns) TraceRayAllHits(ray physics.Ray) iter.Seq[RayHit] {
 	panic("not implemented")
 }
 
 type closestHitCollector struct {
-	world   *World
+	world   *Columns
 	filters QueryFilters
 
 	closestHit physics.SceneRayHit

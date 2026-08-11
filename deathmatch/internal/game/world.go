@@ -29,6 +29,8 @@ var Data fs.FS
 // entity ID validation into GetEntity2/3 into.
 
 type Columns struct {
+	Table *ecs.Table // TODO: replace with a simple array of generations
+
 	// Entity programmability
 
 	Name ecs.Column[unique.Handle[string]]
@@ -141,7 +143,6 @@ type World struct {
 	NextID            ecs.ID
 	NextIDSpeculative ecs.ID
 
-	Table *ecs.Table
 	// TODO: stop embedding this and make it private
 	Columns
 
@@ -194,12 +195,13 @@ func (world *World) CreateEntity(info *UpdateParams) Entity {
 
 	if info.Speculating {
 		id := world.Table.CreateRowAuto(900, 999, &world.NextIDSpeculative)
+		// TODO: parent these newly created entites to 1?
 		world.Speculation.Set(id, info.Now)
-		return Entity{world, id}
+		return Entity{&world.Columns, id}
 	}
 
 	id := world.Table.CreateRowAuto(1, 899, &world.NextID)
-	return Entity{world, id}
+	return Entity{&world.Columns, id}
 }
 
 // This is used by client networking to remove entities.
@@ -213,12 +215,12 @@ func (world *World) DeleteEntityImmediately(id ecs.ID) {
 
 // TODO: kill all of these helpers
 
-func (world *World) GetParent(id ecs.ID) ecs.ID {
+func (world *Columns) GetParent(id ecs.ID) ecs.ID {
 	parent, _ := world.Parent.Get(id)
 	return parent
 }
 
-func (world *World) SetParent(id, parent ecs.ID) {
+func (world *Columns) SetParent(id, parent ecs.ID) {
 	if parent != 0 {
 		world.Parent.Set(id, parent)
 	} else {
@@ -228,18 +230,17 @@ func (world *World) SetParent(id, parent ecs.ID) {
 	}
 }
 
-func (world *World) GetSkeleton(id ecs.ID) *skeleton.Skeleton {
+func (world *Columns) GetSkeleton(id ecs.ID) *skeleton.Skeleton {
 	skellyName, _ := world.Skeleton.Get(id)
-	if skellyName.Value() == "" {
+	if skellyName == (unique.Handle[string]{}) {
 		return nil
 	}
 	return skeletonCache.Get(skellyName)
 }
 
-// TODO: https://github.com/nanokatze/worldspawn-deathmatch/issues/68
 func (world *World) Entity(id ecs.ID) Entity {
 	if !world.Table.IDs().Exists(id) {
 		return Entity{}
 	}
-	return Entity{world, id}
+	return Entity{&world.Columns, id}
 }

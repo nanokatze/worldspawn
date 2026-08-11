@@ -66,7 +66,7 @@ func (world *World) think(updateParams *UpdateParams) {
 			continue
 		}
 
-		script.Think(ScriptContext{updateParams, IO{world, uint64(id.Index())}}, world, Entity{world, id})
+		script.Think(ScriptContext{updateParams, IO{world, uint64(id.Index())}}, world, Entity{&world.Columns, id})
 	}
 
 	// Process the enqueued updates

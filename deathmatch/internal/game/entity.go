@@ -2,7 +2,6 @@ package game
 
 import (
 	"fmt"
-	"log/slog"
 	"reflect"
 	"unique"
 
@@ -14,7 +13,7 @@ import (
 
 // Entity represents a reference to an entity
 type Entity struct {
-	world *World // TODO: change this to columns
+	world *Columns // TODO: change this to columns
 	id    ecs.ID
 }
 
@@ -108,14 +107,14 @@ func (e Entity) SetSkeleton(v unique.Handle[string]) {
 }
 
 func (e Entity) Pose() skeleton.Pose {
-	return e.world.Columns.pose[e.id.Index()]
+	return e.world.pose[e.id.Index()]
 }
 
 // Note that pose is not replicated
 //
 // TODO: change up the api to encourage slice reuse
 func (e Entity) SetPose(v skeleton.Pose) {
-	e.world.Columns.pose[e.id.Index()] = v
+	e.world.pose[e.id.Index()] = v
 }
 
 func (e Entity) SetShouldSetOffFuseOnImpact(v bool) {
@@ -164,9 +163,5 @@ func (e Entity) SetSoundEffect(v SoundEmitter) {
 }
 
 func (e Entity) MarkForDeletion() {
-	e.world.Columns.delete.Store(e.id.Index(), true)
-}
-
-func (e Entity) Logger() *slog.Logger {
-	return e.world.logger.With("id", e)
+	e.world.delete.Store(e.id.Index(), true)
 }
