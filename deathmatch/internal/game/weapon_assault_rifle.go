@@ -5,7 +5,6 @@ import (
 	"time"
 	"unique"
 
-	"worldspawn/internal/ecs"
 	"worldspawn/internal/gmath"
 	"worldspawn/internal/physics"
 )
@@ -63,7 +62,7 @@ func init() {
 						TMax:      1000,
 					},
 					QueryFilters{
-						Entity: func(entity ecs.ID) bool { return entity != attacker.ID() },
+						Entity: func(entity EntityID) bool { return entity != attacker.ID() },
 					})
 
 				stx.Update(attacker, func(stx ScriptContext, mag Entity) {

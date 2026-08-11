@@ -17,7 +17,7 @@ func init() {
 // TODO: we need to pass more data here to choose the spawn point
 // TODO: we should also perform collision queries to ensure free space
 func (world *World) findPlayerSpawn() gmath.TRS3f64 {
-	candidates := slices.Collect(func(yield func(ecs.ID) bool) {
+	candidates := slices.Collect(func(yield func(EntityID) bool) {
 		for id, entity := range ecs.All(&world.ScriptState) {
 			if _, ok := entity.(PlayerSpawn); ok {
 				yield(id)

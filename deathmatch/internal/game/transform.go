@@ -3,7 +3,6 @@ package game
 import (
 	"unique"
 
-	"worldspawn/internal/ecs"
 	"worldspawn/internal/gmath"
 )
 
@@ -64,6 +63,6 @@ func (world *World) GetGlobalTransform2(entity Entity) gmath.Affine3f64 {
 	return A
 }
 
-func (world *World) GetGlobalTransform(id ecs.ID) gmath.Affine3f64 {
+func (world *World) GetGlobalTransform(id EntityID) gmath.Affine3f64 {
 	return world.GetGlobalTransform2(world.Entity(id))
 }

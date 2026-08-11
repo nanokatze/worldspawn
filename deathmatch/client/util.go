@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"worldspawn/deathmatch/internal/game"
-	"worldspawn/internal/ecs"
 )
 
 type multiRenderer []Renderer
@@ -15,13 +14,13 @@ func (multi multiRenderer) Reset(n int) {
 	}
 }
 
-func (multi multiRenderer) Update(world *game.World, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration) {
+func (multi multiRenderer) Update(world *game.World, playerID game.EntityID, t0, t1 game.Time, frameDuration time.Duration) {
 	for _, re := range multi {
 		re.Update(world, playerID, t0, t1, frameDuration)
 	}
 }
 
-func (multi multiRenderer) UpdateSubtick(world *game.World, playerID ecs.ID) {
+func (multi multiRenderer) UpdateSubtick(world *game.World, playerID game.EntityID) {
 	for _, re := range multi {
 		re.UpdateSubtick(world, playerID)
 	}

@@ -5,7 +5,6 @@ import (
 	"log"
 	"unique"
 
-	"worldspawn/internal/ecs"
 	"worldspawn/internal/gmath"
 	"worldspawn/internal/loaders/audio"
 	"worldspawn/internal/loaders/audio/wav"
@@ -15,8 +14,8 @@ import (
 type VisibilityCondition struct {
 	Mask uint8
 	// TODO: replace with an arbitrary int64 id so we can have the same cameras
-	// share visibility sets? Or should this be a set of ids/ecs.IDs?
-	Camera ecs.ID
+	// share visibility sets? Or should this be a set of ids?
+	Camera EntityID
 }
 
 // TODO: make it more general and implement viewshake through this?

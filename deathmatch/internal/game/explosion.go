@@ -3,7 +3,6 @@ package game
 import (
 	"math"
 
-	"worldspawn/internal/ecs"
 	"worldspawn/internal/gmath"
 	"worldspawn/internal/physics"
 )
@@ -41,7 +40,7 @@ func (world *World) explosion(
 		dmg  float32
 	}
 
-	results := make(map[ecs.ID]result)
+	results := make(map[EntityID]result)
 
 	for u := range fibonacciLattice(int64(nrays)) {
 		d, pdf := df(u)

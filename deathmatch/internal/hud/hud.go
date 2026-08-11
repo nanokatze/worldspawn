@@ -8,16 +8,15 @@ import (
 	"worldspawn/gpu"
 	"worldspawn/gpu/image/draw"
 	"worldspawn/gpu/vk"
-	"worldspawn/internal/ecs"
 )
 
 // TODO: replace this with actual texture programs
 var Progs = map[string]struct {
-	Pack func(world *game.World, playerID ecs.ID, out []byte)
+	Pack func(world *game.World, playerID game.EntityID, out []byte)
 	Draw func(jq *gpu.JobQueue, dst *gpu.Image, data []byte)
 }{
 	"hud": {
-		Pack: func(world *game.World, playerID ecs.ID, out []byte) {
+		Pack: func(world *game.World, playerID game.EntityID, out []byte) {
 			binary.LittleEndian.PutUint32(out[0:4], 0)
 
 			player := world.Entity(playerID)

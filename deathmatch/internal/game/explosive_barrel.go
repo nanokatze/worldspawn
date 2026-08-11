@@ -5,8 +5,6 @@ import (
 	"reflect"
 	"time"
 	"unique"
-
-	"worldspawn/internal/ecs"
 )
 
 // TODO: rename to something better, e.g. ExplodingProp
@@ -15,7 +13,7 @@ type ExplosiveBarrel struct {
 
 	Health float32
 
-	Attacker ecs.ID // who is using us to cause damage
+	Attacker EntityID // who is using us to cause damage
 }
 
 func init() {
@@ -48,7 +46,7 @@ func init() {
 					5,
 					4*math.Pi/500,
 					QueryFilters{
-						Entity: func(id ecs.ID) bool {
+						Entity: func(id EntityID) bool {
 							return id != entity.ID()
 						},
 					})

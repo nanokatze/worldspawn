@@ -2,8 +2,6 @@ package game
 
 import (
 	"reflect"
-
-	"worldspawn/internal/ecs"
 )
 
 type Player struct {
@@ -16,7 +14,7 @@ type Player struct {
 		Deaths int32
 	}
 
-	Pawn ecs.ID
+	Pawn EntityID
 }
 
 func init() {
@@ -27,20 +25,20 @@ func init() {
 // really need to poke this when new client joins. We could also rename Player
 // to Client or Connection or User or idk.
 // TODO: see if we can somehow defer things with updates, so that as much stuff is kept in parallel
-func (world *World) SpawnPlayer(info *UpdateParams) ecs.ID {
+func (world *World) SpawnPlayer(info *UpdateParams) EntityID {
 	player := world.CreateEntity(info)
 	player.SetScriptState(Player{})
 	return player.ID()
 }
 
-// TODO: returning ecs.ID is kinda meh, ideally we'd return a pile of data that
+// TODO: returning EntityID is kinda meh, ideally we'd return a pile of data that
 // can be fed straight into pathtracer
 // TODO: We need to think how to handle the case when Camera is independent of
 // player input (e.g. when we're flying along some track.) In that case, the
 // client should not set T0 and T1 to whatever value we return
 // TODO: delegate this stuff to script somehow? So that it would work like
 // HandleInput.
-func (world *World) Camera(playerID ecs.ID) ecs.ID {
+func (world *World) Camera(playerID EntityID) EntityID {
 	player := world.Entity(playerID)
 	if !player.IsValid() {
 		return 0
@@ -64,7 +62,7 @@ func (world *World) Camera(playerID ecs.ID) ecs.ID {
 
 // TODO: this should not take UpdateParams *at all* I think. Actually we still
 // need flags, but not Δt.
-func (world *World) HandleInput(playerID ecs.ID, cmd TimestampedInputCmd, info *UpdateParams) {
+func (world *World) HandleInput(playerID EntityID, cmd TimestampedInputCmd, info *UpdateParams) {
 	playerState := world.Entity(playerID).ScriptState().(Player)
 	if pawn := world.Entity(playerState.Pawn); pawn.IsValid() {
 		pawn.Script().Input(info, pawn.ID(), world, cmd)

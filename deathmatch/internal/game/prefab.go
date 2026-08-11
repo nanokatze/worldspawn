@@ -94,7 +94,7 @@ func (world *World) SpawnPrefab(io IO, filename string) {
 }
 
 // TODO: this should follow SpawnPrefab above
-func (world *World) InstanceCollectionAt(id ecs.ID, prefabRef PrefabRef) {
+func (world *World) InstanceCollectionAt(id EntityID, prefabRef PrefabRef) {
 	T := world.Entity(id).Transform()
 
 	world.CopyEntities(id, prefab(Data, prefabRef.Filename))
@@ -105,7 +105,7 @@ func (world *World) InstanceCollectionAt(id ecs.ID, prefabRef PrefabRef) {
 }
 
 // TODO: reorganize collection instantination and remove this
-func (dst *Columns) CopyEntities(id ecs.ID, src *Columns) {
+func (dst *Columns) CopyEntities(id EntityID, src *Columns) {
 	// TODO: rewrite using reflect
 
 	if v, ok := src.ScriptState.Get(1); ok {

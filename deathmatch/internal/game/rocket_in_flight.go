@@ -5,13 +5,11 @@ import (
 	"reflect"
 	"time"
 	"unique"
-
-	"worldspawn/internal/ecs"
 )
 
 type RocketInFlight struct {
-	Attacker   ecs.ID // who to attribute this damage to
-	LaunchedAt Time   // when the fuse was ignited
+	Attacker   EntityID // who to attribute this damage to
+	LaunchedAt Time     // when the fuse was ignited
 
 	ExplodeNow bool // whether we should explode now
 }
@@ -38,7 +36,7 @@ func init() {
 				3,
 				4*math.Pi/500,
 				QueryFilters{
-					Entity: func(id ecs.ID) bool { return id != rocket.ID() },
+					Entity: func(id EntityID) bool { return id != rocket.ID() },
 				})
 
 			stx.Update(rocket,

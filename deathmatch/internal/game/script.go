@@ -4,7 +4,6 @@ import (
 	"log/slog"
 	"reflect"
 
-	"worldspawn/internal/ecs"
 	"worldspawn/internal/gmath"
 )
 
@@ -26,14 +25,14 @@ type script struct {
 
 	// TODO: the following should be shadows of Funcs basically
 
-	// OutOfBounds func(stx ScriptContext, world *World, entity ecs.ID)
+	// OutOfBounds func(stx ScriptContext, world *World, entity EntityID)
 
 	// TODO: rename to HandleInput?
 	// TODO: allow this to return error, in which case the server would drop the player?
 	// TODO: this should be a Thinker and get IO. Client will just call
 	// processUpdates immediately. We could expose two HandleInputs, one would
 	// be for server and one for client.
-	Input func(info *UpdateParams, entity ecs.ID, world *World, cmd TimestampedInputCmd)
+	Input func(info *UpdateParams, entity EntityID, world *World, cmd TimestampedInputCmd)
 
 	// Think may not perform any mutations, but may read states of entities,
 	// perform physics queries and enqueue updates.
@@ -57,7 +56,7 @@ type script struct {
 	// TODO: inout parameter which lets the script edit the contact
 	// TODO: should this be thinker or mutator? I'm inclined towards the thinker...
 	ContactAdded   func(stx ScriptContext, entity, entity2 Entity)
-	ContactRemoved func(stx ScriptContext, entity Entity, entity2 ecs.ID)
+	ContactRemoved func(stx ScriptContext, entity Entity, entity2 EntityID)
 
 	// Impact may not perform any queries, but may mutate the entity.
 	Impact func(stx ScriptContext, entity Entity, impact Impact)

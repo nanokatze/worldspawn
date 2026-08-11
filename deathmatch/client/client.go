@@ -28,8 +28,8 @@ type Renderer interface {
 	Reset(n int)
 	// TODO: stop using game.Time here. We'll first need to address how our
 	// sounds work though.
-	Update(world *game.World, playerID ecs.ID, t0, t1 game.Time, frameDuration time.Duration)
-	UpdateSubtick(world *game.World, playerID ecs.ID)
+	Update(world *game.World, playerID game.EntityID, t0, t1 game.Time, frameDuration time.Duration)
+	UpdateSubtick(world *game.World, playerID game.EntityID)
 }
 
 type Client struct {
@@ -45,7 +45,7 @@ type Client struct {
 	tickPeriod time.Duration
 	world      *game.World
 
-	player ecs.ID
+	player game.EntityID
 
 	renderer Renderer
 }
@@ -142,7 +142,7 @@ func newClient(renderer Renderer, addr string) (*Client, error) {
 				}
 
 			case replication.SetPlayer:
-				var player ecs.ID
+				var player game.EntityID
 				binary.Read(deframer, binary.LittleEndian, &player)
 				s.mu.Lock()
 				s.player = player

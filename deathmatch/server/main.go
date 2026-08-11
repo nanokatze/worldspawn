@@ -69,7 +69,7 @@ type user struct {
 	// would be kinda inverse...)
 	//
 	// TODO: actually use this field
-	player ecs.ID
+	player game.EntityID
 
 	// time is the latest timestamp (in game time) that we know the user
 	// has the state for

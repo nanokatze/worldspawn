@@ -8,7 +8,6 @@ import (
 	"unique"
 
 	"worldspawn/internal/animation"
-	"worldspawn/internal/ecs"
 	"worldspawn/internal/gmath"
 	"worldspawn/internal/loaders/skeleton"
 	"worldspawn/internal/physics"
@@ -63,17 +62,17 @@ type Gladiator struct {
 	}
 
 	// Always a descendant of the Character,
-	FirstPersonCamera ecs.ID
+	FirstPersonCamera EntityID
 
 	// Always a descendant of Character.
 	// TODO: rename to HandsFirstPersonProp
-	FirstPersonHands ecs.ID
+	FirstPersonHands EntityID
 
 	HeldWeapon struct {
 		State           int8 // 0=idle, 1=drawing, 2=hiding
 		StateTransition Time
 
-		Entity ecs.ID
+		Entity EntityID
 
 		// TODO: should we have a prop per weapon all the time? Or create them
 		// when we switch to the weapon. Having props all the time would be
@@ -85,12 +84,12 @@ type Gladiator struct {
 		// TODO: define a enum instead of writing indices out manually
 		// TODO: it should be parented to camera instead of hands. We'll use IK
 		// to position hands where we need things to be.
-		Props [2]ecs.ID
+		Props [2]EntityID
 	}
 
 	// TODO: put it into a proper struct
 	Inventory struct {
-		Slots [4]ecs.ID
+		Slots [4]EntityID
 
 		Ammo [10]int8
 	}
@@ -98,7 +97,7 @@ type Gladiator struct {
 
 func init() {
 	Scripts[reflect.TypeFor[Gladiator]()] = script{
-		Input: func(info *UpdateParams, id ecs.ID, world *World, cmd TimestampedInputCmd) {
+		Input: func(info *UpdateParams, id EntityID, world *World, cmd TimestampedInputCmd) {
 			entity := world.Entity(id)
 
 			gladiator := entity.ScriptState().(Gladiator)
@@ -382,7 +381,7 @@ func init() {
 }
 
 // TODO: rewrite this so that it uses IO.Create
-func (world *World) spawnGladiator(T gmath.TRS3f64, info *UpdateParams) ecs.ID {
+func (world *World) spawnGladiator(T gmath.TRS3f64, info *UpdateParams) EntityID {
 	gladiator := world.CreateEntity(info)
 	gladiator.SetTransform(T)
 	gladiator.SetSkeleton(unique.Make("testcharacter4/skeletons/metarig"))
@@ -472,7 +471,7 @@ func (a *gladiatorMovementQueryPipeline) Hit(x physics.SceneIntersection[physics
 	return physics.IgnoreHit
 }
 
-func (gladiator *Gladiator) asdasd(world *World, id ecs.ID, velocity gmath.Vec3f32, Δt time.Duration) gmath.Vec3f32 {
+func (gladiator *Gladiator) asdasd(world *World, id EntityID, velocity gmath.Vec3f32, Δt time.Duration) gmath.Vec3f32 {
 	trs := world.Entity(id).Transform()
 
 	up := gmath.Vec3f32{0, 0, 1}

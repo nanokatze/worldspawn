@@ -48,7 +48,7 @@ func (impact Impact) Apply(stx ScriptContext, entity Entity) {
 }
 
 /*
-func enqueueImpact(io *IO, target ecs.ID, impact Impact) {
+func enqueueImpact(io *IO, target EntityID, impact Impact) {
 
 }
 */

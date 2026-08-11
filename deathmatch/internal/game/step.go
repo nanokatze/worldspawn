@@ -83,9 +83,9 @@ func (world *World) deleteMarkedEntities() {
 	// TODO: make this less gross. We could do a probe whether there's any
 	// deletions at all right now.
 	{
-		var f func(id ecs.ID) bool
+		var f func(id EntityID) bool
 		// TODO: we could also rotate this
-		f = func(id ecs.ID) bool {
+		f = func(id EntityID) bool {
 			if id == 0 {
 				return false
 			}

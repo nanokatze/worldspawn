@@ -5,8 +5,6 @@ import (
 	"reflect"
 	"time"
 	"unique"
-
-	"worldspawn/internal/ecs"
 )
 
 // TODO: projectiles should not rely on the physics engine to figure out
@@ -16,8 +14,8 @@ import (
 // energy transfer, we could switch back to using physics engine for contacts.
 
 type GrenadeInFlight struct {
-	Attacker   ecs.ID // who to attribute the damage to
-	LaunchedAt Time   // when the fuse was ignited
+	Attacker   EntityID // who to attribute the damage to
+	LaunchedAt Time     // when the fuse was ignited
 
 	ExplodeNow bool // whether we should explode now
 }
@@ -44,7 +42,7 @@ func init() {
 				5,
 				4*math.Pi/500,
 				QueryFilters{
-					Entity: func(id ecs.ID) bool { return id != grenade.ID() },
+					Entity: func(id EntityID) bool { return id != grenade.ID() },
 				})
 
 			// TODO: create a new entity instead?

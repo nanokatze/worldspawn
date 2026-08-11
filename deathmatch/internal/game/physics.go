@@ -162,7 +162,7 @@ func (world *World) physicsStep(updateParams *UpdateParams) {
 	world.physics.Update(float32(durationToFloatSeconds(updateParams.Δt)), updateParams.Gravity)
 
 	for _, bodyID := range world.physics.ActiveBodies() {
-		entityID := ecs.ID(bodyID) // BUG: this is not correct anymore because the generations do not match!!!
+		entityID := EntityID(bodyID) // BUG: this is not correct anymore because the generations do not match!!!
 		entity := world.Entity(entityID)
 
 		pos, rot, linVel, angVel := world.physics.WritebackBody(bodyID)
@@ -175,8 +175,8 @@ func (world *World) physicsStep(updateParams *UpdateParams) {
 
 	for _, ce := range world.physics.ContactEvents() {
 		// TODO: properly translate bodyID to entityID
-		entityID1 := ecs.ID(ce.Body1.BodyID)
-		entityID2 := ecs.ID(ce.Body2.BodyID)
+		entityID1 := EntityID(ce.Body1.BodyID)
+		entityID2 := EntityID(ce.Body2.BodyID)
 
 		// TODO: https://github.com/nanokatze/worldspawn-deathmatch/issues/60
 		// TODO: https://github.com/nanokatze/worldspawn-deathmatch/issues/61
