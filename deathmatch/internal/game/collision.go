@@ -106,7 +106,7 @@ func (world *Columns) TraceRay(ray physics.Ray, filters QueryFilters) RayHit {
 
 	var result RayHit
 	if collector.closestHit.BodyID != 0xffffffff {
-		result.Entity = Entity{world, world.Table.IDs().Index(int(collector.closestHit.BodyID))}
+		result.Entity = Entity{world: world, id: world.Table.IDs().Index(int(collector.closestHit.BodyID))}
 	}
 	return result
 }

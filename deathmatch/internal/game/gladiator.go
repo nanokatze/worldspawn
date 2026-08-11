@@ -355,7 +355,7 @@ func init() {
 		Impact: func(stx ScriptContext, gladiator Entity, impact Impact) {
 			// TODO: be verbose when computing the modifier
 			modifier := float32(1.0)
-			if gladiator == impact.Attacker {
+			if gladiator.ID() == impact.Attacker.ID() {
 				modifier /= 2
 			}
 
@@ -491,7 +491,7 @@ func (gladiator *Gladiator) asdasd(world *World, id ecs.ID, velocity gmath.Vec3f
 			Pos:                   trs.T,
 			Rot:                   trs.R,
 			Scale:                 gmath.Vec3Ones[float32](),
-			Shape:                 getShape(Entity{&world.Columns, id}),
+			Shape:                 getShape(Entity{world: &world.Columns, id: id}),
 			MovementDirection:     velocity.Normalize(),
 			MaxSeparationDistance: 0.1,
 		},

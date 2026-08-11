@@ -197,11 +197,11 @@ func (world *World) CreateEntity(info *UpdateParams) Entity {
 		id := world.Table.CreateRowAuto(900, 999, &world.NextIDSpeculative)
 		// TODO: parent these newly created entites to 1?
 		world.Speculation.Set(id, info.Now)
-		return Entity{&world.Columns, id}
+		return Entity{world: &world.Columns, id: id}
 	}
 
 	id := world.Table.CreateRowAuto(1, 899, &world.NextID)
-	return Entity{&world.Columns, id}
+	return Entity{world: &world.Columns, id: id}
 }
 
 // This is used by client networking to remove entities.
@@ -242,5 +242,5 @@ func (world *World) Entity(id ecs.ID) Entity {
 	if !world.Table.IDs().Exists(id) {
 		return Entity{}
 	}
-	return Entity{&world.Columns, id}
+	return Entity{world: &world.Columns, id: id}
 }

@@ -13,6 +13,7 @@ import (
 
 // Entity represents a reference to an entity
 type Entity struct {
+	_     [0]func()
 	world *Columns // TODO: change this to columns
 	id    ecs.ID
 }

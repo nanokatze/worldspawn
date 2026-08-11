@@ -54,7 +54,7 @@ func (world *World) updatePhysicsShadow(updateParams *UpdateParams) {
 			gravityFactor = 1
 		}
 
-		shape2 := getShape(Entity{world, id})
+		shape2 := getShape(Entity{world: &world.Columns, id: id})
 
 		mass, overrideMass := world.PhysicsMassOverride.Get(id)
 		if !overrideMass {
