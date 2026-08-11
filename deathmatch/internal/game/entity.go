@@ -22,15 +22,10 @@ func (e Entity) String() string { return fmt.Sprintf("%d", e.id) }
 
 func (e Entity) IsValid() bool { return e.id != 0 }
 
-func (e Entity) mustBeValid() {
-	// TODO: we can check e.world instead I guess
-	if !e.IsValid() {
-		panic("must be valid")
-	}
-}
-
 func (e Entity) ID() ecs.ID {
-	e.mustBeValid()
+	if !e.IsValid() {
+		return ecs.NullID
+	}
 	return e.id
 }
 
