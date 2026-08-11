@@ -63,22 +63,22 @@ func init() {
 				})
 		},
 
-		ContactAdded: func(stx ScriptContext, world *World, grenade, entity2 ecs.ID) {
-			state := world.Entity(grenade).ScriptState().(GrenadeInFlight)
+		ContactAdded: func(stx ScriptContext, world *World, grenade, entity2 Entity) {
+			state := grenade.ScriptState().(GrenadeInFlight)
 
-			if entity2 == state.Attacker {
+			if entity2.ID() == state.Attacker {
 				// TODO: this should not be reachable, but for now it is. We
 				// should ignore this contact in ShouldCollide.
 				return
 			}
 
-			if _, ok := world.CosmeticOffset.Get(grenade); ok {
-				world.CosmeticOffset.Delete(grenade)
+			if _, ok := world.CosmeticOffset.Get(grenade.ID()); ok {
+				world.CosmeticOffset.Delete(grenade.ID())
 			}
 
-			if _, ok := world.ShouldSetOffFuseOnImpact.Get(entity2); ok {
+			if _, ok := world.ShouldSetOffFuseOnImpact.Get(entity2.ID()); ok {
 				state.ExplodeNow = true
-				world.Entity(grenade).SetScriptState(state)
+				grenade.SetScriptState(state)
 			}
 		},
 	}

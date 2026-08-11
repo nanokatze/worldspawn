@@ -8,7 +8,6 @@ import (
 	"unique"
 
 	"worldspawn/deathmatch/internal/game"
-	"worldspawn/internal/ecs"
 	"worldspawn/internal/nice"
 )
 
@@ -43,22 +42,6 @@ func NiceOptions2(world *game.World) nice.Options {
 				return nil
 			},
 		),
-		nice.MakeArshaler[game.Entity](
-			func(enc *nice.Encoder, v *game.Entity) error {
-				var id ecs.ID
-				if v.IsValid() {
-					id = v.ID()
-				}
-				return nice.MarshalEncode(enc, &id)
-			},
-			func(dec *nice.Decoder, v *game.Entity) error {
-				var id ecs.ID
-				if err := nice.UnmarshalDecode(dec, &id); err != nil {
-					return err
-				}
-				*v = world.Entity(id)
-				return nil
-			}),
 		// nice.MakeInterfaceArshaler2[game.ScriptState](
 		// 	func(typ reflect.Type) [32]byte {
 		// 		if _, ok := game.Scripts[typ]; !ok {

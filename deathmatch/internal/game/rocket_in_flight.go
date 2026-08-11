@@ -56,13 +56,13 @@ func init() {
 				})
 		},
 
-		ContactAdded: func(stx ScriptContext, world *World, rocket, entity2 ecs.ID) {
-			state := world.Entity(rocket).ScriptState().(RocketInFlight)
-			if entity2 == state.Attacker {
+		ContactAdded: func(stx ScriptContext, world *World, rocket, entity2 Entity) {
+			state := rocket.ScriptState().(RocketInFlight)
+			if entity2.ID() == state.Attacker {
 				// TODO: filter this in ShouldCollide. This should never be reached
 				return
 			}
-			defer func() { world.Entity(rocket).SetScriptState(state) }()
+			defer func() { rocket.SetScriptState(state) }()
 
 			state.ExplodeNow = true
 		},

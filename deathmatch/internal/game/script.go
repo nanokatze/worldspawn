@@ -44,7 +44,7 @@ type script struct {
 	//
 	// TODO: naming
 	// TODO: pass JPH::CollideShapeResult
-	ShouldCollide func(stx ScriptContext, world *World, entity1, entity2 ecs.ID) int // TODO: return a enum that corresponds to JPH::ValidateResult
+	ShouldCollide func(stx ScriptContext, world *World, entity, entity2 Entity) int // TODO: return a enum that corresponds to JPH::ValidateResult
 
 	// Note that ContactAdded and ContactRemoved are not called
 	// deterministically, it's thus necessary to pay extra care so that the
@@ -54,25 +54,25 @@ type script struct {
 	// ContactAdded but I'm not sure what to rename ContactRemoved to.
 	// TODO: inout parameter which lets the script edit the contact
 	// TODO: should this be thinker or mutator? I'm inclined towards the thinker...
-	ContactAdded   func(stx ScriptContext, world *World, entity1, entity2 ecs.ID)
-	ContactRemoved func(stx ScriptContext, world *World, entity1, entity2 ecs.ID)
+	ContactAdded   func(stx ScriptContext, world *World, entity, entity2 Entity)
+	ContactRemoved func(stx ScriptContext, world *World, entity Entity, entity2 ecs.ID)
 
 	// Impact may not perform any queries, but may mutate the entity.
 	Impact func(stx ScriptContext, entity Entity, impact Impact)
 
 	// TODO: rename this, this is not a hint but provides some info which is the
 	// responsibility of the thing using the weapon to implement
+	// TODO: this should not take any arguments mayhaps
 	Weapon_Hint func(info *UpdateParams, world *World, weapon ecs.ID) WeaponHint
 
-	Weapon_CreateProp func(stx ScriptContext, weapon Entity, f func(stx ScriptContext, prop Entity))
+	Weapon_CreateProp func(stx ScriptContext, entity Entity, f func(stx ScriptContext, prop Entity))
 
 	// TODO: I think we need to split Weapon_Think into two, one subtick/Input
 	// thing and other the equivalent of Think basically.
-	// TODO: pass a continuation for recoil
 	Weapon_Think func(
 		stx ScriptContext,
 		world *World,
-		weapon Entity,
+		entity Entity,
 		weaponProps []Entity,
 		attacker Entity,
 		T_attack gmath.Affine3f64,

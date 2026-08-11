@@ -32,7 +32,7 @@ func init() {
 								state.Inventory.Ammo[0] = 10
 								state.Inventory.Ammo[1] = 100
 
-								entity.Logger().Info("resupplied", "player", player.ID())
+								entity.Logger().Info("resupplied", "player", player)
 							})
 
 						stx.Update(entity,
