@@ -91,9 +91,9 @@ type QueryFilters struct {
 }
 
 // TODO: have it return (RayHit, bool) actually?
-func (world *Columns) TraceRay(ray physics.Ray, filters QueryFilters) RayHit {
+func (entities *Entities) TraceRay(ray physics.Ray, filters QueryFilters) RayHit {
 	var collector closestHitCollector
-	collector.world = world
+	collector.entities = entities
 	collector.filters = filters
 	collector.closestHit = physics.SceneRayHit{
 		BodyID: 0xffffffff,
@@ -101,23 +101,23 @@ func (world *Columns) TraceRay(ray physics.Ray, filters QueryFilters) RayHit {
 			T: float32(math.Inf(1)),
 		},
 	}
-	world.physics.TraceRay(ray, &collector)
+	entities.physics.TraceRay(ray, &collector)
 
 	var result RayHit
 	if collector.closestHit.BodyID != 0xffffffff {
-		result.Entity = Entity{world: world, id: world.Table.IDs().Index(int(collector.closestHit.BodyID))}
+		result.Entity = Entity{entities: entities, id: entities.Table.IDs().Index(int(collector.closestHit.BodyID))}
 	}
 	return result
 }
 
 // The user can just break the loop after the first hit to achieve "terminate on first hit"
-func (world *Columns) TraceRayAllHits(ray physics.Ray) iter.Seq[RayHit] {
+func (entities *Entities) TraceRayAllHits(ray physics.Ray) iter.Seq[RayHit] {
 	panic("not implemented")
 }
 
 type closestHitCollector struct {
-	world   *Columns
-	filters QueryFilters
+	entities *Entities
+	filters  QueryFilters
 
 	closestHit physics.SceneRayHit
 }
@@ -126,7 +126,7 @@ func (collector *closestHitCollector) FilterBody(body physics.BodyID) bool {
 	if collector.filters.Entity == nil {
 		return true
 	}
-	return collector.filters.Entity(collector.world.Table.IDs().Index(int(body)))
+	return collector.filters.Entity(collector.entities.Table.IDs().Index(int(body)))
 }
 
 func (collector *closestHitCollector) FilterLayer(layer int) bool {

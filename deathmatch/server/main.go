@@ -285,8 +285,8 @@ func (mtimes *modTimes) update(prevWorld, world *game.World) {
 	}
 
 	for _, columnIndex := range game.ReplicatedColumns {
-		old := reflect.ValueOf(&prevWorld.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
-		cur := reflect.ValueOf(&world.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
+		old := reflect.ValueOf(&prevWorld.Entities).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
+		cur := reflect.ValueOf(&world.Entities).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
 
 		t := cur.ElemType()
 
@@ -328,8 +328,8 @@ func (s *Server) tick(Δt time.Duration) {
 	// TODO: move this into a method on the World
 	s.prevWorld.Table.Copy(s.world.Table)
 	for _, columnIndex := range game.ReplicatedColumns {
-		dst := reflect.ValueOf(&s.prevWorld.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
-		src := reflect.ValueOf(&s.world.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
+		dst := reflect.ValueOf(&s.prevWorld.Entities).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
+		src := reflect.ValueOf(&s.world.Entities).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
 		dst.Copy(src)
 	}
 }
@@ -395,7 +395,7 @@ func (s *Server) sendUpdates(u *user) {
 	// TODO: insert various canaries to make debugging easier
 
 	for _, columnIndex := range game.ReplicatedColumns {
-		column := reflect.ValueOf(&s.world.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
+		column := reflect.ValueOf(&s.world.Entities).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
 
 		buf2 := new(bytes.Buffer)
 		enc2 := nice.NewEncoder(buf2, opts)
@@ -521,7 +521,7 @@ func main() {
 	s.world.Reset(maxEntities)
 	s.prevWorld = new(game.World)
 	s.prevWorld.Reset(maxEntities)
-	s.mtimes.Init(maxEntities, reflect.TypeFor[game.Columns]().NumField())
+	s.mtimes.Init(maxEntities, reflect.TypeFor[game.Entities]().NumField())
 
 	sceneFile, err := game.Data.Open(conf.MapRotation[0])
 	if err := s.world.Restore(sceneFile); err != nil {

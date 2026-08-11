@@ -54,7 +54,7 @@ func (world *World) updatePhysicsShadow(updateParams *UpdateParams) {
 			gravityFactor = 1
 		}
 
-		shape2 := getShape(Entity{world: &world.Columns, id: id})
+		shape2 := getShape(Entity{entities: &world.Entities, id: id})
 
 		mass, overrideMass := world.PhysicsMassOverride.Get(id)
 		if !overrideMass {
@@ -129,8 +129,8 @@ var proceduralShapes = map[string]func(entity Entity) shape{
 
 func getShape(entity Entity) *physics.Shape {
 	// TOOD: introduce proper accessors for these?
-	layer := entity.world.CollisionLayer.Load(entity.id.Index())
-	geometry := entity.world.CollisionGeometry.Load(entity.id.Index())
+	layer := entity.entities.CollisionLayer.Load(entity.id.Index())
+	geometry := entity.entities.CollisionGeometry.Load(entity.id.Index())
 
 	motionType2 := collisionLayerMotionType[layer]
 

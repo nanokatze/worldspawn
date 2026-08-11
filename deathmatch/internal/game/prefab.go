@@ -68,7 +68,7 @@ func (world *World) InstantinateCollections() {
 
 // TODO: pass fs explicitly, etc. We'll make Data fs and caches per-World,
 // likely
-func prefab(fsys fs.FS, filename string) *Columns {
+func prefab(fsys fs.FS, filename string) *Entities {
 	// TODO: we shouldn't need to be doing filepath.Clean here, the exporter should export stuff properly by itself
 	f, err := fsys.Open(filepath.Clean(filename))
 	if err != nil {
@@ -78,7 +78,7 @@ func prefab(fsys fs.FS, filename string) *Columns {
 
 	// TODO: we'll want a rather very custom deserialization code here
 
-	w := new(Columns)
+	w := new(Entities)
 	if err := json.UnmarshalRead(f, w, JSONOptions); err != nil {
 		log.Fatalf("prefab: %v", err)
 	}
@@ -105,31 +105,31 @@ func (world *World) InstanceCollectionAt(id EntityID, prefabRef PrefabRef) {
 }
 
 // TODO: reorganize collection instantination and remove this
-func (dst *Columns) CopyEntities(id EntityID, src *Columns) {
+func (entities *Entities) CopyEntities(id EntityID, src *Entities) {
 	// TODO: rewrite using reflect
 
 	if v, ok := src.ScriptState.Get(1); ok {
-		dst.ScriptState.Set(id, v)
+		entities.ScriptState.Set(id, v)
 	}
 	if v, ok := src.TransformTR.Get(1); ok {
-		dst.TransformTR.Set(id, v)
+		entities.TransformTR.Set(id, v)
 	}
 	if v, ok := src.TransformS.Get(1); ok {
-		dst.TransformS.Set(id, v)
+		entities.TransformS.Set(id, v)
 	}
 	if v, ok := src.RenderingGeometry.Get(1); ok {
-		dst.RenderingGeometry.Set(id, v)
+		entities.RenderingGeometry.Set(id, v)
 	}
 	if v, ok := src.CollisionGeometry.Get(1); ok {
-		dst.CollisionGeometry.Set(id, v)
+		entities.CollisionGeometry.Set(id, v)
 	}
 	if v, ok := src.PhysicsMassOverride.Get(1); ok {
-		dst.PhysicsMassOverride.Set(id, v)
+		entities.PhysicsMassOverride.Set(id, v)
 	}
 	if v, ok := src.PhysicsInertiaOverride.Get(1); ok {
-		dst.PhysicsInertiaOverride.Set(id, v)
+		entities.PhysicsInertiaOverride.Set(id, v)
 	}
 	if v, ok := src.GravityFactor.Get(1); ok {
-		dst.GravityFactor.Set(id, v)
+		entities.GravityFactor.Set(id, v)
 	}
 }

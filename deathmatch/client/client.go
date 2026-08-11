@@ -234,7 +234,7 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 	// TODO: clean this horrible mess up
 
 	for _, columnIndex := range game.ReplicatedColumns {
-		column := reflect.ValueOf(&s.world.Columns).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
+		column := reflect.ValueOf(&s.world.Entities).Elem().Field(columnIndex).Addr().Interface().(ecs.AnyColumn).Reflect()
 
 		v := reflect.New(column.ElemType())
 
@@ -259,7 +259,7 @@ func (s *Client) handleUpdate(buf []byte, logger *slog.Logger) error {
 			id := s.world.Table.IDs().Index(int(index))
 			if id == 0 {
 				// TODO: figure out how to get the time
-				logger.Warn("snapshot refers to a non-existent object", "t", game.Time{}, "index", index, "column", reflect.TypeFor[game.Columns]().Field(columnIndex).Name)
+				logger.Warn("snapshot refers to a non-existent entity", "t", game.Time{}, "index", index, "column", reflect.TypeFor[game.Entities]().Field(columnIndex).Name)
 				continue
 			}
 

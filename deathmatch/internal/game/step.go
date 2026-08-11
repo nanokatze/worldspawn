@@ -66,7 +66,7 @@ func (world *World) think(updateParams *UpdateParams) {
 			continue
 		}
 
-		script.Think(ScriptContext{updateParams, IO{world, uint64(id.Index())}, world.logger}, Entity{world: &world.Columns, id: id}, world)
+		script.Think(ScriptContext{updateParams, IO{world, uint64(id.Index())}, world.logger}, Entity{entities: &world.Entities, id: id}, world)
 	}
 
 	// Process the enqueued updates
@@ -90,13 +90,13 @@ func (world *World) deleteMarkedEntities() {
 				return false
 			}
 
-			if world.Columns.delete.Load(id.Index()) {
+			if world.Entities.delete.Load(id.Index()) {
 				return true
 			}
 
 			delet := f(world.GetParent(id))
 			if delet {
-				world.Columns.delete.Store(id.Index(), true)
+				world.Entities.delete.Store(id.Index(), true)
 			}
 			return delet
 		}
@@ -107,10 +107,10 @@ func (world *World) deleteMarkedEntities() {
 	}
 
 	// Remove entities that were scheduled for removal
-	for index := range world.Columns.delete.Ones() {
+	for index := range world.Entities.delete.Ones() {
 		id := world.Table.IDs().Index(index)
 
 		world.DeleteEntityImmediately(id)
 	}
-	world.Columns.delete.Reset()
+	world.Entities.delete.Reset()
 }

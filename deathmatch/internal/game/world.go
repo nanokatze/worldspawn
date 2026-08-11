@@ -24,7 +24,7 @@ type World struct {
 	NextIDSpeculative EntityID // TODO: this could be made private
 
 	// TODO: stop embedding this and make it private
-	Columns
+	Entities
 
 	entityUpdates, entityUpdates2 [][]updatef
 	globalUpdates                 []func(*UpdateParams, *World)
@@ -35,7 +35,7 @@ type World struct {
 func (world *World) Reset(n int) {
 	world.Table = ecs.NewTable(n)
 
-	columns := reflect.ValueOf(&world.Columns).Elem()
+	columns := reflect.ValueOf(&world.Entities).Elem()
 	for i := range columns.Type().NumField() {
 		if !columns.Type().Field(i).IsExported() {
 			continue
@@ -46,19 +46,19 @@ func (world *World) Reset(n int) {
 		}
 	}
 
-	world.Columns.pose = make([]skeleton.Pose, n)
+	world.Entities.pose = make([]skeleton.Pose, n)
 
 	world.entityUpdates = make([][]updatef, n)
 	world.entityUpdates2 = make([][]updatef, n)
 
 	// TODO: we could expose an OptimizeBroadPhase call on physicsSystem I suppose.
-	world.Columns.physics = physics.NewSystem(
+	world.Entities.physics = physics.NewSystem(
 		int(numCollisionLayers),
 		collisionLayerToBroadPhaseLayer[:],
 		collisionLayerRules)
-	world.Columns.physicsBodyExists.Init(world.Table)
+	world.Entities.physicsBodyExists.Init(world.Table)
 
-	world.Columns.delete = bitset.Make(n)
+	world.Entities.delete = bitset.Make(n)
 
 	// TODO: the user should pass this
 	world.logger = slog.Default()
@@ -77,16 +77,16 @@ func (world *World) CreateEntity(info *UpdateParams) Entity {
 		id := world.Table.CreateRowAuto(900, 999, &world.NextIDSpeculative)
 		// TODO: parent these newly created entites to 1?
 		world.Speculation.Set(id, info.Now)
-		return Entity{world: &world.Columns, id: id}
+		return Entity{entities: &world.Entities, id: id}
 	}
 
 	id := world.Table.CreateRowAuto(1, 899, &world.NextID)
-	return Entity{world: &world.Columns, id: id}
+	return Entity{entities: &world.Entities, id: id}
 }
 
 // This is used by client networking to remove entities.
 func (world *World) DeleteEntityImmediately(id EntityID) {
-	world.Columns.pose[id.Index()] = skeleton.Pose{}
+	world.Entities.pose[id.Index()] = skeleton.Pose{}
 	if _, ok := world.physicsBodyExists.Get(id); ok {
 		world.physics.RemoveBody(physics.BodyID(id.Index()))
 	}
@@ -95,23 +95,23 @@ func (world *World) DeleteEntityImmediately(id EntityID) {
 
 // TODO: kill all of these helpers
 
-func (world *Columns) GetParent(id EntityID) EntityID {
-	parent, _ := world.Parent.Get(id)
+func (entities *Entities) GetParent(id EntityID) EntityID {
+	parent, _ := entities.Parent.Get(id)
 	return parent
 }
 
-func (world *Columns) SetParent(id, parent EntityID) {
+func (entities *Entities) SetParent(id, parent EntityID) {
 	if parent != 0 {
-		world.Parent.Set(id, parent)
+		entities.Parent.Set(id, parent)
 	} else {
 		// TODO: our panic behavior should be the same as if we tried to Set
 		// this id. I.e. if this id isn't valid, we should crash.
-		world.Parent.Delete(id)
+		entities.Parent.Delete(id)
 	}
 }
 
-func (world *Columns) GetSkeleton(id EntityID) *skeleton.Skeleton {
-	skellyName, _ := world.Skeleton.Get(id)
+func (entities *Entities) GetSkeleton(id EntityID) *skeleton.Skeleton {
+	skellyName, _ := entities.Skeleton.Get(id)
 	if skellyName == (unique.Handle[string]{}) {
 		return nil
 	}
@@ -122,5 +122,5 @@ func (world *World) Entity(id EntityID) Entity {
 	if !world.Table.IDs().Exists(id) {
 		return Entity{}
 	}
-	return Entity{world: &world.Columns, id: id}
+	return Entity{entities: &world.Entities, id: id}
 }

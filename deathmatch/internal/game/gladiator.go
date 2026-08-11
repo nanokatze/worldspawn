@@ -490,7 +490,7 @@ func (gladiator *Gladiator) asdasd(world *World, id EntityID, velocity gmath.Vec
 			Pos:                   trs.T,
 			Rot:                   trs.R,
 			Scale:                 gmath.Vec3Ones[float32](),
-			Shape:                 getShape(Entity{world: &world.Columns, id: id}),
+			Shape:                 getShape(Entity{entities: &world.Entities, id: id}),
 			MovementDirection:     velocity.Normalize(),
 			MaxSeparationDistance: 0.1,
 		},

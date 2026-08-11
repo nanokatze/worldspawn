@@ -7,7 +7,7 @@ import (
 
 var ReplicatedColumns = slices.Collect(
 	func(yield func(int) bool) {
-		ty := reflect.TypeFor[Columns]()
+		ty := reflect.TypeFor[Entities]()
 		for i := range ty.NumField() {
 			if ty.Field(i).Tag.Get("worldspawn") == "dontreplicate" {
 				continue

@@ -70,11 +70,11 @@ func init() {
 				return
 			}
 
-			if _, ok := grenade.world.CosmeticOffset.Get(grenade.ID()); ok {
-				grenade.world.CosmeticOffset.Delete(grenade.ID())
+			if _, ok := grenade.entities.CosmeticOffset.Get(grenade.ID()); ok {
+				grenade.entities.CosmeticOffset.Delete(grenade.ID())
 			}
 
-			if _, ok := grenade.world.ShouldSetOffFuseOnImpact.Get(entity2.ID()); ok {
+			if _, ok := grenade.entities.ShouldSetOffFuseOnImpact.Get(entity2.ID()); ok {
 				state.ExplodeNow = true
 				grenade.SetScriptState(state)
 			}
