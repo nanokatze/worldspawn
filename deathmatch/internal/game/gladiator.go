@@ -43,6 +43,8 @@ type Gladiator struct {
 		// TODO: change this to be fixed point in [0, 1)?
 		LookDir [2]float32
 
+		ΔLookDir [2]float32
+
 		WalkVel gmath.Vec2f32
 
 		Jump   bool
@@ -89,9 +91,10 @@ type Gladiator struct {
 		// TODO: it should be parented to camera instead of hands. We'll use IK
 		// to position hands where we need things to be.
 		Props [2]EntityID
+
+		ViewmodelSway float32
 	}
 
-	// TODO: put it into a proper struct
 	Inventory struct {
 		Slots [4]EntityID
 
@@ -110,8 +113,11 @@ func init() {
 			switch cmd := cmd.Cmd.(type) {
 			case InputCmdDLookXY:
 				gladiator.Input.LookDir[0] = float32(math.Mod(float64(gladiator.Input.LookDir[0]-float32(cmd)), 1))
+				gladiator.Input.ΔLookDir[0] -= float32(cmd)
 			case InputCmdDLookYZ:
+				old := gladiator.Input.LookDir[1]
 				gladiator.Input.LookDir[1] = min(max(gladiator.Input.LookDir[1]-float32(cmd), -0.25), 0.25)
+				gladiator.Input.ΔLookDir[1] += gladiator.Input.LookDir[1] - old
 			case InputCmdMoveX:
 				gladiator.Input.WalkVel[0] = float32(cmd)
 			case InputCmdMoveY:
@@ -128,12 +134,8 @@ func init() {
 				gladiator.Input.Dash = bool(cmd)
 			case InputCmdSwitchWeapon:
 				gladiator.Input.Slot = int8(cmd)
-
 			default:
-				// TODO: we should not hit this with nil either
-				if cmd != nil {
-					panic("unreachable")
-				}
+				panic("unreachable")
 			}
 
 			// TODO: factor this out?
@@ -311,18 +313,36 @@ func init() {
 						})
 					})
 
-					{
+					func() {
+						weapon := world.Entity(state.HeldWeapon.Entity)
+						if !weapon.IsValid() {
+							return
+						}
 
-						stx.Update(world.Entity(state.FirstPersonHands),
-							func(stx ScriptContext, hands Entity) {
-								hands.SetTransform(gmath.TRS3f64{
-									T: gmath.Vec3f64{0, 1, 0}.
-										Scale(math.Sin(float64(stx.Now.Sub(Time{}))/1e9*6) * 0.03 * min(float64(v.Linear.Length()/6), 1)),
-									R: gmath.Rot3One(),
-									S: gmath.Mat3x3UOne[float32](),
-								})
+						firstPersonProp := world.Entity(state.HeldWeapon.Props[0])
+						if !firstPersonProp.IsValid() {
+							return
+						}
+
+						weaponScript := weapon.Script()
+						hint := weaponScript.Weapon_Hint(stx.UpdateParams, weapon)
+
+						lookDirVelXY := 0.05 * state.Input.ΔLookDir[0] / float32(durationToFloatSeconds(stx.Δt))
+
+						state.HeldWeapon.ViewmodelSway = mix(state.HeldWeapon.ViewmodelSway, -lookDirVelXY, min(1, 8*float32(durationToFloatSeconds(stx.Δt))))
+						state.HeldWeapon.ViewmodelSway = min(max(state.HeldWeapon.ViewmodelSway, -0.1), 0.1)
+
+						stx.Update(firstPersonProp,
+							func(stx ScriptContext, prop Entity) {
+								prop.SetTransform(
+									hint.FirstPersonPropTransform.Affine().Mul(
+										gmath.TRS3f64{
+											T: gmath.Vec3f64{},
+											R: gmath.Rot3AToB(up, right).Pow(state.HeldWeapon.ViewmodelSway),
+											S: gmath.Mat3x3UOne[float32](),
+										}.Affine()).TRS())
 							})
-					}
+					}()
 
 					{
 						anim := animationCache.Get(unique.Make("testcharacter4/animations/look"))
@@ -358,6 +378,9 @@ func init() {
 
 						gladiator.SetPose(pose)
 					}
+
+					state.Input.ΔLookDir[0] = 0
+					state.Input.ΔLookDir[1] = 0
 				})
 		},
 
