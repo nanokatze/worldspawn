@@ -92,7 +92,7 @@ type Gladiator struct {
 		// to position hands where we need things to be.
 		Props [2]EntityID
 
-		ViewmodelSway float32
+		FirstPersonPropSway float32
 	}
 
 	Inventory struct {
@@ -327,10 +327,14 @@ func init() {
 						weaponScript := weapon.Script()
 						hint := weaponScript.Weapon_Hint(stx.UpdateParams, weapon)
 
+						// TODO: specify inertia in the weapon hint so that
+						// weapons can control how "heavy" they feel?
+
 						lookDirVelXY := 0.05 * state.Input.ΔLookDir[0] / float32(durationToFloatSeconds(stx.Δt))
 
-						state.HeldWeapon.ViewmodelSway = mix(state.HeldWeapon.ViewmodelSway, -lookDirVelXY, min(1, 8*float32(durationToFloatSeconds(stx.Δt))))
-						state.HeldWeapon.ViewmodelSway = min(max(state.HeldWeapon.ViewmodelSway, -0.1), 0.1)
+						state.HeldWeapon.FirstPersonPropSway = mix(state.HeldWeapon.FirstPersonPropSway, -lookDirVelXY,
+							min(1, 5*float32(durationToFloatSeconds(stx.Δt))))
+						state.HeldWeapon.FirstPersonPropSway = min(max(state.HeldWeapon.FirstPersonPropSway, -0.5), 0.5)
 
 						stx.Update(firstPersonProp,
 							func(stx ScriptContext, prop Entity) {
@@ -338,7 +342,7 @@ func init() {
 									hint.FirstPersonPropTransform.Affine().Mul(
 										gmath.TRS3f64{
 											T: gmath.Vec3f64{},
-											R: gmath.Rot3AToB(up, right).Pow(state.HeldWeapon.ViewmodelSway),
+											R: gmath.Rot3AToB(up, right).Pow(state.HeldWeapon.FirstPersonPropSway),
 											S: gmath.Mat3x3UOne[float32](),
 										}.Affine()).TRS())
 							})
