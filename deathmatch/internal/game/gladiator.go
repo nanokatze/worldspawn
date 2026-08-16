@@ -43,9 +43,9 @@ type Gladiator struct {
 		// spherical vector following the (e01, e12) convention, in turns.
 		//
 		// TODO: change this to be fixed point in [0, 1)?
-		LookDir [2]float32
+		Head [2]float32
 
-		WalkVel gmath.Vec2f32
+		Move gmath.Vec2f32
 
 		Jump   bool
 		Crouch bool
@@ -68,7 +68,7 @@ type Gladiator struct {
 	}
 
 	// Always a descendant of the Character,
-	FirstPersonCamera EntityID
+	Head EntityID
 
 	// Always a descendant of Character.
 	// TODO: rename to HandsFirstPersonProp
@@ -88,11 +88,11 @@ type Gladiator struct {
 		// The third person prop (1) is always a descendant of Gladiator.
 		//
 		// TODO: define a enum instead of writing indices out manually
-		// TODO: it should be parented to camera instead of hands. We'll use IK
-		// to position hands where we need things to be.
+		// TODO: the first person prop should be parented to the head instead of
+		// hands. We'll use IK to position hands where we need things to be.
 		Props [2]EntityID
 
-		FirstPersonPropSway float32
+		FirstPersonPropBob float32
 	}
 
 	Inventory struct {
@@ -112,13 +112,13 @@ func init() {
 
 			switch cmd := cmd.Cmd.(type) {
 			case InputCmdDLookXY:
-				gladiator.Input.LookDir[0] = float32(math.Mod(float64(gladiator.Input.LookDir[0]-float32(cmd)), 1))
+				gladiator.Input.Head[0] = float32(math.Mod(float64(gladiator.Input.Head[0]-float32(cmd)), 1))
 			case InputCmdDLookYZ:
-				gladiator.Input.LookDir[1] = min(max(gladiator.Input.LookDir[1]-float32(cmd), -0.25), 0.25)
+				gladiator.Input.Head[1] = min(max(gladiator.Input.Head[1]-float32(cmd), -0.25), 0.25)
 			case InputCmdMoveX:
-				gladiator.Input.WalkVel[0] = float32(cmd)
+				gladiator.Input.Move[0] = float32(cmd)
 			case InputCmdMoveY:
-				gladiator.Input.WalkVel[1] = float32(cmd)
+				gladiator.Input.Move[1] = float32(cmd)
 			case InputCmdJump:
 				gladiator.Input.Jump = bool(cmd)
 			case InputCmdCrouch:
@@ -141,8 +141,8 @@ func init() {
 
 			// TODO: when we move input processing here we won't need to consult
 			// the transform of state.Head anymore.
-			R_head_0 := world.Entity(state.FirstPersonCamera).Transform().R
-			R_head_1 := e01.Pow(4 * state.Input.LookDir[0]).Mul(e12.Pow(4 * state.Input.LookDir[1]))
+			R_head_0 := world.Entity(state.Head).Transform().R
+			R_head_1 := e01.Pow(4 * state.Input.Head[0]).Mul(e12.Pow(4 * state.Input.Head[1]))
 			ΔR_head := R_head_1.Mul(R_head_0.Inv())
 			// Ω_head is the angular velocity of the head.
 			// NOTE: this is not really a Vec3 but rather a bivector.
@@ -159,7 +159,7 @@ func init() {
 				T_attack := world.GetGlobalTransform2(gladiator).
 					Mul(gmath.TRS3f64{
 						T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
-						R: e01.Pow(4 * state.Input.LookDir[0]).Mul(e12.Pow(4 * state.Input.LookDir[1])),
+						R: e01.Pow(4 * state.Input.Head[0]).Mul(e12.Pow(4 * state.Input.Head[1])),
 						S: gmath.Mat3x3UOne[float32](),
 					}.Affine())
 				v_attack := gladiator.Velocity()
@@ -214,13 +214,13 @@ func init() {
 											// TODO: parent it directly to the camera instead.
 											prop.SetParent(state.FirstPersonHands)
 											prop.SetTransform(hint.FirstPersonPropTransform)
-											prop.SetVisibilityCondition(VisibilityCondition{Mask: 0b01, Camera: state.FirstPersonCamera})
+											prop.SetVisibilityCondition(VisibilityCondition{Mask: 0b01, Camera: state.Head})
 
 										case 1:
 											prop.SetParent(gladiator.ID())
 											prop.SetParentBone(unique.Make("hand.R"))
 											prop.SetTransform(gmath.TRS3One[float64]())
-											prop.SetVisibilityCondition(VisibilityCondition{Mask: 0b10, Camera: state.FirstPersonCamera})
+											prop.SetVisibilityCondition(VisibilityCondition{Mask: 0b10, Camera: state.Head})
 										}
 
 										stx.Update(gladiator, func(stx ScriptContext, entity Entity) {
@@ -253,9 +253,9 @@ func init() {
 					v := gladiator.Velocity()
 					defer func() { gladiator.SetVelocity(v) }()
 
-					rotation := T.R.Mul(e01.Pow(4 * state.Input.LookDir[0]))
+					rotation := T.R.Mul(e01.Pow(4 * state.Input.Head[0]))
 
-					move := state.Input.WalkVel
+					move := state.Input.Move
 					if lengthSqr := move.Dot(move); lengthSqr > 1 {
 						move = move.Scale(1 / float32(math.Sqrt(float64(lengthSqr))))
 					}
@@ -305,10 +305,10 @@ func init() {
 						gladiator.MarkForDeletion()
 					}
 
-					stx.Update(world.Entity(state.FirstPersonCamera), func(stx ScriptContext, camera Entity) {
+					stx.Update(world.Entity(state.Head), func(stx ScriptContext, camera Entity) {
 						camera.SetTransform(gmath.TRS3f64{
 							T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
-							R: e01.Pow(4 * state.Input.LookDir[0]).Mul(e12.Pow(4 * state.Input.LookDir[1])),
+							R: e01.Pow(4 * state.Input.Head[0]).Mul(e12.Pow(4 * state.Input.Head[1])),
 							S: gmath.Mat3x3UOne[float32](),
 						})
 					})
@@ -330,9 +330,9 @@ func init() {
 						// TODO: specify inertia in the weapon hint so that
 						// weapons can control how "heavy" they feel?
 
-						state.HeldWeapon.FirstPersonPropSway = mix(state.HeldWeapon.FirstPersonPropSway, -Ω_head[2]/float32(math.Pi)*0.05,
+						state.HeldWeapon.FirstPersonPropBob = mix(state.HeldWeapon.FirstPersonPropBob, -Ω_head[2]/float32(math.Pi)*0.05,
 							min(1, 5*float32(durationToFloatSeconds(stx.Δt))))
-						state.HeldWeapon.FirstPersonPropSway = min(max(state.HeldWeapon.FirstPersonPropSway, -0.5), 0.5)
+						state.HeldWeapon.FirstPersonPropBob = min(max(state.HeldWeapon.FirstPersonPropBob, -0.5), 0.5)
 
 						stx.Update(firstPersonProp,
 							func(stx ScriptContext, prop Entity) {
@@ -340,7 +340,7 @@ func init() {
 									hint.FirstPersonPropTransform.Affine().Mul(
 										gmath.TRS3f64{
 											T: gmath.Vec3f64{},
-											R: gmath.Rot3AToB(up, right).Pow(state.HeldWeapon.FirstPersonPropSway),
+											R: gmath.Rot3AToB(up, right).Pow(state.HeldWeapon.FirstPersonPropBob),
 											S: gmath.Mat3x3UOne[float32](),
 										}.Affine()).TRS())
 							})
@@ -352,7 +352,7 @@ func init() {
 						// TODO: introduce affine1 helper so that we can do remaps from one range to another
 
 						v := make([]float32, len(anim.Channels()))
-						animation.SampleNormalized(anim, 0.5+2*state.Input.LookDir[1], v)
+						animation.SampleNormalized(anim, 0.5+2*state.Input.Head[1], v)
 
 						sk := skeletonCache.Get(gladiator.Skeleton())
 
@@ -368,7 +368,7 @@ func init() {
 						localTransforms[b_spine] =
 							sk.BindPoseInv[b_spine].
 								Mul(gmath.TRS3f32{
-									R: gmath.Rot3AToB(right, forward).Pow(4 * state.Input.LookDir[0]),
+									R: gmath.Rot3AToB(right, forward).Pow(4 * state.Input.Head[0]),
 									S: gmath.Mat3x3UOne[float32](),
 								}.Affine()).
 								Mul(sk.BindPose[b_spine]).
@@ -434,8 +434,8 @@ func (world *World) spawnGladiator(T gmath.TRS3f64, info *UpdateParams) EntityID
 	hands.SetRenderingGeometry(unique.Make("testcharacter4/geometries/Hands"))
 
 	s := Gladiator{
-		FirstPersonCamera: camera.ID(),
-		FirstPersonHands:  hands.ID(),
+		Head:             camera.ID(),
+		FirstPersonHands: hands.ID(),
 	}
 	s.Vitals.Health = 100
 	// TODO: define loadout somehow better so that ammo pickup knows what to do
