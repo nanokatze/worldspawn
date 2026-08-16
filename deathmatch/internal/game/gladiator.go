@@ -36,14 +36,14 @@ var gladiatorStats = struct {
 }
 
 type Gladiator struct {
+	// TODO: things don't group cleanly under "Input" so we should think of
+	// something else.
 	Input struct {
-		// Direction we're looking towards. In spherical coordinates following
-		// the (e01, e12) convention, in turns.
+		// The direction that the gladiator's head is facing. Represented as a
+		// spherical vector following the (e01, e12) convention, in turns.
 		//
 		// TODO: change this to be fixed point in [0, 1)?
 		LookDir [2]float32
-
-		ΔLookDir [2]float32
 
 		WalkVel gmath.Vec2f32
 
@@ -113,11 +113,8 @@ func init() {
 			switch cmd := cmd.Cmd.(type) {
 			case InputCmdDLookXY:
 				gladiator.Input.LookDir[0] = float32(math.Mod(float64(gladiator.Input.LookDir[0]-float32(cmd)), 1))
-				gladiator.Input.ΔLookDir[0] -= float32(cmd)
 			case InputCmdDLookYZ:
-				old := gladiator.Input.LookDir[1]
 				gladiator.Input.LookDir[1] = min(max(gladiator.Input.LookDir[1]-float32(cmd), -0.25), 0.25)
-				gladiator.Input.ΔLookDir[1] += gladiator.Input.LookDir[1] - old
 			case InputCmdMoveX:
 				gladiator.Input.WalkVel[0] = float32(cmd)
 			case InputCmdMoveY:
@@ -137,18 +134,21 @@ func init() {
 			default:
 				panic("unreachable")
 			}
-
-			// TODO: factor this out?
-			world.Entity(gladiator.FirstPersonCamera).
-				SetTransform(gmath.TRS3f64{
-					T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
-					R: e01.Pow(4 * gladiator.Input.LookDir[0]).Mul(e12.Pow(4 * gladiator.Input.LookDir[1])),
-					S: gmath.Mat3x3UOne[float32](),
-				})
 		},
 
 		Think: func(stx ScriptContext, gladiator Entity, world *World) {
 			state := gladiator.ScriptState().(Gladiator)
+
+			// TODO: when we move input processing here we won't need to consult
+			// the transform of state.Head anymore.
+			R_head_0 := world.Entity(state.FirstPersonCamera).Transform().R
+			R_head_1 := e01.Pow(4 * state.Input.LookDir[0]).Mul(e12.Pow(4 * state.Input.LookDir[1]))
+			ΔR_head := R_head_1.Mul(R_head_0.Inv())
+			// Ω_head is the angular velocity of the head.
+			// NOTE: this is not really a Vec3 but rather a bivector.
+			Ω_head := gmath.Vec3f32(ΔR_head[0:3]).
+				Scale(float32(math.Copysign(1, float64(ΔR_head[3])))).
+				Scale(1 / float32(durationToFloatSeconds(stx.Δt)))
 
 			if weapon := world.Entity(state.HeldWeapon.Entity); weapon.IsValid() {
 				var props [len(state.HeldWeapon.Props)]Entity
@@ -330,9 +330,7 @@ func init() {
 						// TODO: specify inertia in the weapon hint so that
 						// weapons can control how "heavy" they feel?
 
-						lookDirVelXY := 0.05 * state.Input.ΔLookDir[0] / float32(durationToFloatSeconds(stx.Δt))
-
-						state.HeldWeapon.FirstPersonPropSway = mix(state.HeldWeapon.FirstPersonPropSway, -lookDirVelXY,
+						state.HeldWeapon.FirstPersonPropSway = mix(state.HeldWeapon.FirstPersonPropSway, -Ω_head[2]/float32(math.Pi)*0.05,
 							min(1, 5*float32(durationToFloatSeconds(stx.Δt))))
 						state.HeldWeapon.FirstPersonPropSway = min(max(state.HeldWeapon.FirstPersonPropSway, -0.5), 0.5)
 
@@ -370,8 +368,7 @@ func init() {
 						localTransforms[b_spine] =
 							sk.BindPoseInv[b_spine].
 								Mul(gmath.TRS3f32{
-									R: gmath.Rot3AToB(gmath.Vec3f32{1, 0, 0}, gmath.Vec3f32{0, 1, 0}).
-										Pow(4 * state.Input.LookDir[0]),
+									R: gmath.Rot3AToB(right, forward).Pow(4 * state.Input.LookDir[0]),
 									S: gmath.Mat3x3UOne[float32](),
 								}.Affine()).
 								Mul(sk.BindPose[b_spine]).
@@ -382,9 +379,6 @@ func init() {
 
 						gladiator.SetPose(pose)
 					}
-
-					state.Input.ΔLookDir[0] = 0
-					state.Input.ΔLookDir[1] = 0
 				})
 		},
 
