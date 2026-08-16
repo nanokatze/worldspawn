@@ -87,10 +87,10 @@ func makePoseMapper(a *animation.Animation, sk *skeleton.Skeleton) func(v []floa
 				lookupchannel("pose.bones[\"" + sk.JointNames[i].Value() + "\"].location[2]"),
 			},
 			R: [4]int{
+				lookupchannel("pose.bones[\"" + sk.JointNames[i].Value() + "\"].rotation_quaternion[0]"),
 				lookupchannel("pose.bones[\"" + sk.JointNames[i].Value() + "\"].rotation_quaternion[1]"),
 				lookupchannel("pose.bones[\"" + sk.JointNames[i].Value() + "\"].rotation_quaternion[2]"),
 				lookupchannel("pose.bones[\"" + sk.JointNames[i].Value() + "\"].rotation_quaternion[3]"),
-				lookupchannel("pose.bones[\"" + sk.JointNames[i].Value() + "\"].rotation_quaternion[0]"),
 			},
 		}
 	}

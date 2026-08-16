@@ -41,7 +41,7 @@ def asdasd(o):
         case Vector():
             return [str(e) for e in o]
         case Quaternion():
-            return [str(o[i]) for i in [1, 2, 3, 0]]
+            return [str(o[i]) for i in [0, 1, 2, 3]]
     return None
 
 

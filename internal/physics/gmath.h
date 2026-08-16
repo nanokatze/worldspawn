@@ -17,5 +17,5 @@ struct mat4 {
 
 typedef struct Rot3 Rot3;
 struct Rot3 {
-	float yz, zx, xy, scalar;
+	float scalar, yz, zx, xy;
 };

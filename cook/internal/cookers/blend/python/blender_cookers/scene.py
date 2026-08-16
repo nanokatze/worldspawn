@@ -85,7 +85,7 @@ def cook(context, scene):
     tmp.add_entity({
         'TransformTR': {
             'T': [0, 0, 0],
-            'R': [0, 0, 0, 1],
+            'R': [1, 0, 0, 0],
         },
         'TransformS': [1, 0, 0, 1, 0, 1],
         'ScriptState': {'Worldspawn': cooked_scene},

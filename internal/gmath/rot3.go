@@ -19,23 +19,23 @@ import (
 
 // TODO: introduce methods to get pointers to the parts of Rot3
 
-// TODO: move scalar to be at [0]
 type Rot3 [4]float32
 
 func Rot3One() Rot3 {
 	var R Rot3
-	R[3] = 1
+	*R.Scalar() = 1
 	return R
 }
 
 // Rot3AToB constructs a rotation R such that R.Rotate(a) == b. a and b must be
 // unit.
+// TODO: rename to Rot3AB?
 func Rot3AToB(a, b Vec3f32) Rot3 {
 	// TODO: handle the case when a.Dot(b) == -1?
 
 	var RR Rot3
-	RR[3] = a.Dot(b)
-	*(*[3]float32)(RR[0:3]) = a.Cross(b)
+	*RR.Scalar() = a.Dot(b)
+	*RR.Bivector() = a.Cross(b)
 	return RR.Sqrt()
 }
 
@@ -89,12 +89,16 @@ func Rot3FromMat(m Mat3x3f32) Rot3 {
 		y = (r12 + r21) * s
 	}
 
-	return Rot3{x, y, z, w}.Renormalize()
+	return Rot3{w, x, y, z}.Renormalize()
 }
 
 func Rot3FromQuaternion(w, x, y, z float32) Rot3 {
-	return Rot3{x, y, z, w}
+	return Rot3{w, x, y, z}
 }
+
+func (R *Rot3) Scalar() *float32 { return &R[0] }
+
+func (R *Rot3) Bivector() *Vec3f32 { return (*Vec3f32)(R[1:4]) }
 
 func (R Rot3) Renormalize() Rot3 {
 	// TODO: quit relying on VecN
@@ -116,8 +120,8 @@ func (R Rot3) Inv() Rot3 {
 func (R Rot3) Pow(p float32) Rot3 {
 	// TODO: naming
 
-	φ := float32(math.Acos(float64(R[3])))
-	B := Vec3f32(R[0:3]).Normalize()
+	φ := float32(math.Acos(float64(R[0])))
+	B := Vec3f32(R[1:4]).Normalize()
 
 	pφ := p * φ
 
@@ -125,16 +129,21 @@ func (R Rot3) Pow(p float32) Rot3 {
 
 	B2 := B.Scale(float32(sinpφ))
 
-	return Rot3{B2[0], B2[1], B2[2], float32(cospφ)}
+	return Rot3{float32(cospφ), B2[0], B2[1], B2[2]}
 }
 
 func (R Rot3) Sqrt() Rot3 {
 	return Rot3{
-		0.5 * R[0],
+		0.5*R[0] + float32(math.Copysign(0.5, float64(R[0]))),
 		0.5 * R[1],
 		0.5 * R[2],
-		0.5*R[3] + float32(math.Copysign(0.5, float64(R[3]))),
+		0.5 * R[3],
 	}.Renormalize()
+}
+
+func (R Rot3) Rotate[T constraints.Float](v Vec3[T]) Vec3[T] {
+	q := quat[T](Vec4f32(R).Convert[T]())
+	return q.Mul(quatFromVec3(v)).Mul(q.Conj()).Imag()
 }
 
 func (R Rot3) Mat() Mat3x3f32 {
@@ -148,9 +157,4 @@ func (R Rot3) Mat() Mat3x3f32 {
 		}
 	}
 	return M
-}
-
-func (R Rot3) Rotate[T constraints.Float](v Vec3[T]) Vec3[T] {
-	q := quat[T](Vec4f32(R).Convert[T]())
-	return q.Mul(quatFromVec3(v)).Mul(q.Conj()).Imag()
 }

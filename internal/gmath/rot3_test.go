@@ -55,7 +55,7 @@ func TestRot3Pow(t *testing.T) {
 
 				t.Logf("R_%d = %v", p, R)
 				t.Logf("S_%d = %v", p, S)
-				if cosPhaseDiff := R.Mul(S.Inv())[3]; cosPhaseDiff != 1 {
+				if cosPhaseDiff := R.Mul(S.Inv())[0]; cosPhaseDiff != 1 {
 					t.Error("significant difference")
 				}
 

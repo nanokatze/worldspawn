@@ -146,8 +146,8 @@ func init() {
 			ΔR_head := R_head_1.Mul(R_head_0.Inv())
 			// Ω_head is the angular velocity of the head.
 			// NOTE: this is not really a Vec3 but rather a bivector.
-			Ω_head := gmath.Vec3f32(ΔR_head[0:3]).
-				Scale(float32(math.Copysign(1, float64(ΔR_head[3])))).
+			Ω_head := ΔR_head.Bivector().
+				Scale(float32(math.Copysign(1, float64(*ΔR_head.Scalar())))).
 				Scale(1 / float32(durationToFloatSeconds(stx.Δt)))
 
 			if weapon := world.Entity(state.HeldWeapon.Entity); weapon.IsValid() {
