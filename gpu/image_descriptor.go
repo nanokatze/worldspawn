@@ -1,12 +1,11 @@
 package gpu
 
 import (
+	"runtime"
 	"unsafe"
 
 	"worldspawn/gpu/vk"
 )
-
-var imageViews = make([]vk.ImageView, 1e6)
 
 type ImageDescriptor struct {
 	bits uint32
@@ -30,93 +29,53 @@ func newImageDescriptor(data *imageData, config subImageConfig) ImageDescriptor 
 		return ImageDescriptor{}
 	}
 
-	index := 2 * resourceDescAlloc.Alloc(&resourceDescAllocHint)
+	rd := ResourceDescriptor(resourceHeap.Alloc(&resourceDescAllocHint))
+	rdMap := rd.Map().Value()
 	var tag uint32
 	if sampling {
-		initVulkanImageDescriptor(
-			data,
-			config,
-			vk.DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-			&imageViews[index+0],
-			pointerToDescriptor{
-				Set:          descriptorSet,
-				Binding:      1,
-				ArrayElement: uint32(index + 0),
-			})
+		initVulkanImageDescriptor(rdMap, data, config, vk.DESCRIPTOR_TYPE_SAMPLED_IMAGE)
 		tag |= 1 << 0
 	}
 	if loadStore {
-		initVulkanImageDescriptor(
-			data,
-			config,
-			vk.DESCRIPTOR_TYPE_STORAGE_IMAGE,
-			&imageViews[index+1],
-			pointerToDescriptor{
-				Set:          descriptorSet,
-				Binding:      2,
-				ArrayElement: uint32(index + 1),
-			})
+		initVulkanImageDescriptor(rdMap[resourceHeap.elemSize/2:], data, config, vk.DESCRIPTOR_TYPE_STORAGE_IMAGE)
 		tag |= 1 << 1
 	}
 
-	return ImageDescriptor{uint32(index) | tag<<20}
+	return ImageDescriptor{uint32(2*rd) | tag<<20}
 }
 
-func destroyImageDescriptor(descriptors ImageDescriptor) {
-	index := int(descriptors.bits & (1<<20 - 1))
-	tag := descriptors.bits >> 20
+func destroyImageDescriptor(descriptor ImageDescriptor) {
+	index := int(descriptor.bits & (1<<20 - 1))
+	tag := descriptor.bits >> 20
 
 	if tag&(1<<0) != 0 {
-		vkFns.DestroyImageView(device, imageViews[index+0], nil)
 	}
 	if tag&(1<<1) != 0 {
-		vkFns.DestroyImageView(device, imageViews[index+1], nil)
 	}
-	resourceDescAlloc.Free(index / 2)
+	resourceHeap.Free(index / 2)
 }
 
-type pointerToDescriptor struct {
-	Set          vk.DescriptorSet
-	Binding      uint32
-	ArrayElement uint32
-}
+func initVulkanImageDescriptor(dst []byte, data *imageData, config subImageConfig, descriptorType vk.DescriptorType) {
+	var pinner runtime.Pinner
+	defer pinner.Unpin()
 
-func initVulkanImageDescriptor(data *imageData, config subImageConfig, descriptorType vk.DescriptorType, imageView *vk.ImageView, descriptor pointerToDescriptor) {
-	must(vkFns.CreateImageView(device, &vk.ImageViewCreateInfo{
-		SType: vk.STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-		PNext: unsafe.Pointer(&vk.ImageViewUsageCreateInfo{
-			SType: vk.STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO,
-			Usage: imageUsageFromDescriptorType(descriptorType),
-		}),
-		Image:            data.vkImage,
-		ViewType:         config.dim.vkImageViewType(),
-		Format:           config.format,
-		SubresourceRange: config.bounds().VkImageSubresourceRange(config.format),
-	}, nil, imageView))
+	pinner.Pin(unsafe.SliceData(dst))
 
-	vkFns.UpdateDescriptorSets(device,
-		1, &vk.WriteDescriptorSet{
-			SType:           vk.STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-			DstSet:          descriptor.Set,
-			DstBinding:      descriptor.Binding,
-			DstArrayElement: descriptor.ArrayElement,
-			DescriptorCount: 1,
-			DescriptorType:  descriptorType,
-			PImageInfo: &vk.DescriptorImageInfo{
-				ImageView:   *imageView,
-				ImageLayout: vk.IMAGE_LAYOUT_GENERAL,
-			},
+	vkFns.WriteResourceDescriptorsEXT(device, 1,
+		&vk.ResourceDescriptorInfoEXT{
+			SType: vk.STRUCTURE_TYPE_RESOURCE_DESCRIPTOR_INFO_EXT,
+			Type:  descriptorType,
+			Data: vk.ResourceDescriptorDataEXT(pinned(&pinner, &vk.ImageDescriptorInfoEXT{
+				SType: vk.STRUCTURE_TYPE_IMAGE_DESCRIPTOR_INFO_EXT,
+				PView: pinned(&pinner, &vk.ImageViewCreateInfo{
+					SType:            vk.STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+					Image:            data.vkImage,
+					ViewType:         config.dim.vkImageViewType(),
+					Format:           config.format,
+					SubresourceRange: config.bounds().VkImageSubresourceRange(config.format),
+				}),
+				Layout: vk.IMAGE_LAYOUT_GENERAL,
+			})),
 		},
-		0, nil)
-}
-
-func imageUsageFromDescriptorType(descriptorType vk.DescriptorType) vk.ImageUsageFlags {
-	switch descriptorType {
-	case vk.DESCRIPTOR_TYPE_SAMPLED_IMAGE:
-		return vk.ImageUsageFlags(vk.IMAGE_USAGE_SAMPLED_BIT)
-	case vk.DESCRIPTOR_TYPE_STORAGE_IMAGE:
-		return vk.ImageUsageFlags(vk.IMAGE_USAGE_STORAGE_BIT)
-	default:
-		panic("unreachable")
-	}
+		new(byteSliceToHostAddressRange(dst)))
 }

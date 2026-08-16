@@ -302,6 +302,8 @@ type DeviceFuncs struct {
 	C_CmdBindDescriptorSets                    *[0]byte
 	C_CmdBindIndexBuffer3KHR                   *[0]byte
 	C_CmdBindPipeline                          *[0]byte
+	C_CmdBindResourceHeapEXT                   *[0]byte
+	C_CmdBindSamplerHeapEXT                    *[0]byte
 	C_CmdBindShadersEXT                        *[0]byte
 	C_CmdBuildAccelerationStructuresKHR        *[0]byte
 	C_CmdClearAttachments                      *[0]byte
@@ -316,6 +318,7 @@ type DeviceFuncs struct {
 	C_CmdExecuteCommands                       *[0]byte
 	C_CmdPipelineBarrier2                      *[0]byte
 	C_CmdPushConstants                         *[0]byte
+	C_CmdPushDataEXT                           *[0]byte
 	C_CmdSetAlphaToCoverageEnableEXT           *[0]byte
 	C_CmdSetAlphaToOneEnableEXT                *[0]byte
 	C_CmdSetColorBlendEnableEXT                *[0]byte
@@ -382,6 +385,8 @@ type DeviceFuncs struct {
 	C_UpdateDescriptorSets                     *[0]byte
 	C_WaitForFences                            *[0]byte
 	C_WaitSemaphores                           *[0]byte
+	C_WriteResourceDescriptorsEXT              *[0]byte
+	C_WriteSamplerDescriptorsEXT               *[0]byte
 }
 
 func getDeviceProcAddr(device Device, name string) *[0]byte {
@@ -492,8 +497,20 @@ func (funcs *DeviceFuncs) CmdPipelineBarrier2(commandBuffer CommandBuffer, depen
 	C.vkcall_void_uintptr_ptr(funcs.C_CmdPipelineBarrier2, C.uintptr_t(commandBuffer), unsafe.Pointer(dependencyInfo))
 }
 
+func (funcs *DeviceFuncs) CmdBindSamplerHeapEXT(commandBuffer CommandBuffer, pBindInfo *BindHeapInfoEXT) {
+	C.vkcall_void_uintptr_ptr(funcs.C_CmdBindSamplerHeapEXT, C.uintptr_t(commandBuffer), unsafe.Pointer(pBindInfo))
+}
+
+func (funcs *DeviceFuncs) CmdBindResourceHeapEXT(commandBuffer CommandBuffer, pBindInfo *BindHeapInfoEXT) {
+	C.vkcall_void_uintptr_ptr(funcs.C_CmdBindResourceHeapEXT, C.uintptr_t(commandBuffer), unsafe.Pointer(pBindInfo))
+}
+
 func (funcs *DeviceFuncs) CmdPushConstants(commandBuffer CommandBuffer, layout PipelineLayout, stageFlags ShaderStageFlags, offset uint32, size uint32, pValues unsafe.Pointer) {
 	C.vkcall_void_uintptr_64_32_32_32_ptr(funcs.C_CmdPushConstants, C.uintptr_t(commandBuffer), C.uint64_t(layout), C.uint32_t(stageFlags), C.uint32_t(offset), C.uint32_t(size), unsafe.Pointer(pValues))
+}
+
+func (funcs *DeviceFuncs) CmdPushDataEXT(commandBuffer CommandBuffer, pPushDataInfo *PushDataInfoEXT) {
+	C.vkcall_void_uintptr_ptr(funcs.C_CmdPushDataEXT, C.uintptr_t(commandBuffer), unsafe.Pointer(pPushDataInfo))
 }
 
 func (funcs *DeviceFuncs) CmdSetAlphaToCoverageEnableEXT(commandBuffer CommandBuffer, alphaToCoverageEnable Bool32) {
@@ -750,4 +767,12 @@ func (funcs *DeviceFuncs) WaitForFences(device Device, fenceCount uint32, pFence
 
 func (funcs *DeviceFuncs) WaitSemaphores(device Device, pWaitInfo *SemaphoreWaitInfo, timeout uint64) error {
 	return resultErr(Result(C.vkcall_32_uintptr_ptr_64_noescape_nocallback(funcs.C_WaitSemaphores, C.uintptr_t(device), unsafe.Pointer(pWaitInfo), C.uint64_t(timeout))))
+}
+
+func (funcs *DeviceFuncs) WriteSamplerDescriptorsEXT(device Device, samplerCount uint32, pSamplers *SamplerCreateInfo, pDescriptors *HostAddressRangeEXT) {
+	C.vkcall_void_uintptr_32_ptr_ptr(funcs.C_WriteSamplerDescriptorsEXT, C.uintptr_t(device), C.uint32_t(samplerCount), unsafe.Pointer(pSamplers), unsafe.Pointer(pDescriptors))
+}
+
+func (funcs *DeviceFuncs) WriteResourceDescriptorsEXT(device Device, resourceCount uint32, pResources *ResourceDescriptorInfoEXT, pDescriptors *HostAddressRangeEXT) {
+	C.vkcall_void_uintptr_32_ptr_ptr(funcs.C_WriteResourceDescriptorsEXT, C.uintptr_t(device), C.uint32_t(resourceCount), unsafe.Pointer(pResources), unsafe.Pointer(pDescriptors))
 }

@@ -121,7 +121,7 @@ func Begin(jq *gpu.JobQueue, config *Config) *Pass {
 
 	vkFns.CmdBeginRendering(pass.cb, renderingInfo)
 
-	gpu.BindDescriptorSet(pass.cb, vk.PIPELINE_BIND_POINT_GRAPHICS)
+	gpu.BindDescriptorHeaps(pass.cb)
 
 	// Graphics state we don't map from our abstraction goes here
 
@@ -253,7 +253,10 @@ func (pass *Pass) setShader(stage vk.ShaderStageFlagBits, shader *Shader) {
 }
 
 func (pass *Pass) SetShaderArgs(p any) {
-	gpu.PushConstants(pass.cb, asbytes(p))
+	panic("not implemented")
+	vkFns.CmdPushDataEXT(pass.cb, &vk.PushDataInfoEXT{
+		SType: vk.STRUCTURE_TYPE_PUSH_DATA_INFO_EXT,
+	})
 }
 
 func (pass *Pass) Draw(vertexCount uint32, instanceCount uint32, firstVertex uint32, firstInstance uint32) {

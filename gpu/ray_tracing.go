@@ -47,7 +47,12 @@ func NewRayTracingFunc(blob []byte, stage vk.ShaderStageFlagBits, entry string) 
 		vk.SHADER_STAGE_CALLABLE_BIT_KHR:
 		var vkPipeline vk.Pipeline
 		must(vkFns.CreateRayTracingPipelinesKHR(device, vk.NULL_HANDLE, vk.NULL_HANDLE, 1, &vk.RayTracingPipelineCreateInfoKHR{
-			SType:      vk.STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR,
+			SType: vk.STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR,
+			PNext: unsafe.Pointer(pinned(&pinner, &vk.PipelineCreateFlags2CreateInfo{
+				SType: vk.STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO,
+				Flags: vk.PipelineCreateFlags2(vk.PIPELINE_CREATE_2_LIBRARY_BIT_KHR) |
+					vk.PipelineCreateFlags2(vk.PIPELINE_CREATE_2_DESCRIPTOR_HEAP_BIT_EXT),
+			})),
 			Flags:      vk.PipelineCreateFlags(vk.PIPELINE_CREATE_LIBRARY_BIT_KHR),
 			StageCount: uint32(1),
 			PStages: pinned(&pinner, &vk.PipelineShaderStageCreateInfo{
@@ -65,7 +70,6 @@ func NewRayTracingFunc(blob []byte, stage vk.ShaderStageFlagBits, entry string) 
 				MaxPipelineRayPayloadSize:      maxPipelineRayPayloadSize,      // TODO: should be specified by the user
 				MaxPipelineRayHitAttributeSize: maxPipelineRayHitAttributeSize, // TODO: should be specified by the user
 			}),
-			Layout:                       pipelineLayout,
 			MaxPipelineRayRecursionDepth: 1, // part of the lib interface. Just make it dynamic
 		}, nil, &vkPipeline))
 		return &RayTracingFunc{stage: stage, vk: vkPipeline, entry: entry}
@@ -141,8 +145,12 @@ func newRayTracingShaderGroup(_type vk.RayTracingShaderGroupTypeKHR,
 
 	var vkPipeline vk.Pipeline
 	must(vkFns.CreateRayTracingPipelinesKHR(device, vk.NULL_HANDLE, vk.NULL_HANDLE, 1, &vk.RayTracingPipelineCreateInfoKHR{
-		SType:      vk.STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR,
-		Flags:      vk.PipelineCreateFlags(vk.PIPELINE_CREATE_LIBRARY_BIT_KHR),
+		SType: vk.STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR,
+		PNext: unsafe.Pointer(pinned(&pinner, &vk.PipelineCreateFlags2CreateInfo{
+			SType: vk.STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO,
+			Flags: vk.PipelineCreateFlags2(vk.PIPELINE_CREATE_2_LIBRARY_BIT_KHR) |
+				vk.PipelineCreateFlags2(vk.PIPELINE_CREATE_2_DESCRIPTOR_HEAP_BIT_EXT),
+		})),
 		GroupCount: 1,
 		PGroups:    pinned(&pinner, group),
 		PLibraryInfo: pinned(&pinner, &vk.PipelineLibraryCreateInfoKHR{
@@ -155,7 +163,6 @@ func newRayTracingShaderGroup(_type vk.RayTracingShaderGroupTypeKHR,
 			MaxPipelineRayPayloadSize:      maxPipelineRayPayloadSize,
 			MaxPipelineRayHitAttributeSize: maxPipelineRayHitAttributeSize,
 		}),
-		Layout:                       pipelineLayout,
 		MaxPipelineRayRecursionDepth: 1, // part of the lib interface
 	}, nil, &vkPipeline))
 
@@ -198,6 +205,10 @@ func LinkRayTracingShaderGroups(shaderGroups ...*RayTracingShaderGroup) *RayTrac
 	var vkPipeline vk.Pipeline
 	must(vkFns.CreateRayTracingPipelinesKHR(device, vk.NULL_HANDLE, vk.NULL_HANDLE, 1, &vk.RayTracingPipelineCreateInfoKHR{
 		SType: vk.STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR,
+		PNext: unsafe.Pointer(pinned(&pinner, &vk.PipelineCreateFlags2CreateInfo{
+			SType: vk.STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO,
+			Flags: vk.PipelineCreateFlags2(vk.PIPELINE_CREATE_2_DESCRIPTOR_HEAP_BIT_EXT),
+		})),
 		PLibraryInfo: pinned(&pinner, &vk.PipelineLibraryCreateInfoKHR{
 			SType:        vk.STRUCTURE_TYPE_PIPELINE_LIBRARY_CREATE_INFO_KHR,
 			LibraryCount: uint32(len(libs)),
@@ -208,7 +219,6 @@ func LinkRayTracingShaderGroups(shaderGroups ...*RayTracingShaderGroup) *RayTrac
 			MaxPipelineRayPayloadSize:      maxPipelineRayPayloadSize,
 			MaxPipelineRayHitAttributeSize: maxPipelineRayHitAttributeSize,
 		}),
-		Layout:                       pipelineLayout,
 		MaxPipelineRayRecursionDepth: 1, // this would have to be user-provided
 	}, nil, &vkPipeline))
 
@@ -297,17 +307,18 @@ func (job *traceRaysJob) Exec(q *DeviceQueue) {
 		var pinner runtime.Pinner
 		defer pinner.Unpin()
 
-		BindDescriptorSet(cb, vk.PIPELINE_BIND_POINT_RAY_TRACING_KHR)
+		BindDescriptorHeaps(cb)
 
 		vkFns.CmdBindPipeline(cb, vk.PIPELINE_BIND_POINT_RAY_TRACING_KHR, job.pipeline.vk)
 
 		pinner.Pin(unsafe.SliceData(job.args))
-		vkFns.CmdPushConstants(
-			cb,
-			pipelineLayout,
-			vk.ShaderStageFlags(vk.SHADER_STAGE_ALL),
-			0,
-			uint32(len(job.args)), unsafe.Pointer(unsafe.SliceData(job.args)))
+		vkFns.CmdPushDataEXT(cb, &vk.PushDataInfoEXT{
+			SType: vk.STRUCTURE_TYPE_PUSH_DATA_INFO_EXT,
+			Data: vk.HostAddressRangeConstEXT{
+				Address: unsafe.Pointer(unsafe.SliceData(job.args)),
+				Size:    len(job.args),
+			},
+		})
 
 		vkFns.CmdTraceRaysKHR(cb,
 			&vk.StridedDeviceAddressRegionKHR{

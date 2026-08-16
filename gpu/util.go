@@ -67,6 +67,14 @@ func byteSliceToString(s []byte) string {
 	return string(s[:bytes.IndexByte(s, 0)])
 }
 
+// TODO: make this generic?
+func byteSliceToHostAddressRange(s []byte) vk.HostAddressRangeEXT {
+	return vk.HostAddressRangeEXT{
+		Address: unsafe.Pointer(unsafe.SliceData(s)),
+		Size:    len(s),
+	}
+}
+
 // TODO: rename
 func asbytes(q any) []byte {
 	p := reflect.ValueOf(q)

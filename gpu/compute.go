@@ -24,20 +24,13 @@ func CompileComputeShader[T any](blob []byte, entry string) *ComputeShader[T] {
 
 	var vkShader vk.ShaderEXT
 	must(vkFns.CreateShadersEXT(device, 1, &vk.ShaderCreateInfoEXT{
-		SType:                  vk.STRUCTURE_TYPE_SHADER_CREATE_INFO_EXT,
-		Stage:                  vk.SHADER_STAGE_COMPUTE_BIT,
-		CodeType:               vk.SHADER_CODE_TYPE_SPIRV_EXT,
-		CodeSize:               len(blob),
-		PCode:                  unsafe.Pointer(pinnedSliceData(&pinner, blob)),
-		PName:                  pinnedCString(&pinner, entry),
-		SetLayoutCount:         1,
-		PSetLayouts:            pinned(&pinner, &DescriptorSetLayout),
-		PushConstantRangeCount: 1,
-		PPushConstantRanges: pinned(&pinner, &vk.PushConstantRange{
-			StageFlags: vk.ShaderStageFlags(vk.SHADER_STAGE_ALL),
-			Offset:     0,
-			Size:       maxShaderArgsSize,
-		}),
+		SType:    vk.STRUCTURE_TYPE_SHADER_CREATE_INFO_EXT,
+		Flags:    vk.ShaderCreateFlagsEXT(vk.SHADER_CREATE_DESCRIPTOR_HEAP_BIT_EXT),
+		Stage:    vk.SHADER_STAGE_COMPUTE_BIT,
+		CodeType: vk.SHADER_CODE_TYPE_SPIRV_EXT,
+		CodeSize: len(blob),
+		PCode:    unsafe.Pointer(pinnedSliceData(&pinner, blob)),
+		PName:    pinnedCString(&pinner, entry),
 	}, nil, &vkShader))
 
 	// TODO: stick a cleanup func on the resulting object once we properly
@@ -93,7 +86,10 @@ func (*dispatchJob) Info() JobInfo {
 
 func (job *dispatchJob) Exec(q *DeviceQueue) {
 	q.Commands(func(cb vk.CommandBuffer) {
-		BindDescriptorSet(cb, vk.PIPELINE_BIND_POINT_COMPUTE)
+		var pinner runtime.Pinner
+		defer pinner.Unpin()
+
+		BindDescriptorHeaps(cb)
 
 		vkFns.CmdBindShadersEXT(
 			cb,
@@ -101,12 +97,15 @@ func (job *dispatchJob) Exec(q *DeviceQueue) {
 			unsafe.SliceData([]vk.ShaderStageFlagBits{vk.SHADER_STAGE_COMPUTE_BIT}),
 			unsafe.SliceData([]vk.ShaderEXT{job.kernel}))
 
-		vkFns.CmdPushConstants(
-			cb,
-			pipelineLayout,
-			vk.ShaderStageFlags(vk.SHADER_STAGE_ALL),
-			0,
-			uint32(len(job.args)), unsafe.Pointer(unsafe.SliceData(job.args[:])))
+		pinner.Pin(unsafe.SliceData(job.args))
+
+		vkFns.CmdPushDataEXT(cb, &vk.PushDataInfoEXT{
+			SType: vk.STRUCTURE_TYPE_PUSH_DATA_INFO_EXT,
+			Data: vk.HostAddressRangeConstEXT{
+				Address: unsafe.Pointer(unsafe.SliceData(job.args)),
+				Size:    len(job.args),
+			},
+		})
 
 		vkFns.CmdDispatch(cb, job.groups[0], job.groups[1], job.groups[2])
 	})

@@ -4,7 +4,6 @@ import (
 	"runtime"
 	"unsafe"
 
-	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
 )
 
@@ -30,21 +29,14 @@ func NewShader(blob []byte, stage vk.ShaderStageFlagBits, entry string) *Shader 
 
 	var vkShader vk.ShaderEXT
 	must(vkFns.CreateShadersEXT(device, 1, &vk.ShaderCreateInfoEXT{
-		SType:                  vk.STRUCTURE_TYPE_SHADER_CREATE_INFO_EXT,
-		Stage:                  stage,
-		NextStage:              nextStages(stage),
-		CodeType:               vk.SHADER_CODE_TYPE_SPIRV_EXT,
-		CodeSize:               len(blob),
-		PCode:                  unsafe.Pointer(pinnedSliceData(&pinner, blob)),
-		PName:                  pinnedCString(&pinner, entry),
-		SetLayoutCount:         1,
-		PSetLayouts:            pinned(&pinner, &gpu.DescriptorSetLayout),
-		PushConstantRangeCount: 1,
-		PPushConstantRanges: pinned(&pinner, &vk.PushConstantRange{
-			StageFlags: vk.ShaderStageFlags(vk.SHADER_STAGE_ALL),
-			Offset:     0,
-			Size:       maxShaderArgsSize,
-		}),
+		SType:     vk.STRUCTURE_TYPE_SHADER_CREATE_INFO_EXT,
+		Flags:     vk.ShaderCreateFlagsEXT(vk.SHADER_CREATE_DESCRIPTOR_HEAP_BIT_EXT),
+		Stage:     stage,
+		NextStage: nextStages(stage),
+		CodeType:  vk.SHADER_CODE_TYPE_SPIRV_EXT,
+		CodeSize:  len(blob),
+		PCode:     unsafe.Pointer(pinnedSliceData(&pinner, blob)),
+		PName:     pinnedCString(&pinner, entry),
 	}, nil, &vkShader))
 	return &Shader{stage: stage, vk: vkShader, entry: entry}
 }

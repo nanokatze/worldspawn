@@ -1,43 +1,39 @@
-package bitset
+package bitslice
 
 import (
 	"math/bits"
 	"sync/atomic"
 )
 
-type Bitset struct {
+type BitSlice struct {
 	words []uint64
 	len   int
 }
 
-func Make(len int) Bitset {
-	return Bitset{
+func Make(len int) BitSlice {
+	return BitSlice{
 		words: make([]uint64, divRoundUp(len, 64)),
 		len:   len,
 	}
 }
 
-func (bs Bitset) Len() int { return bs.len }
+func (bs BitSlice) Len() int { return bs.len }
 
-func (bs Bitset) Set(i int) bool {
+func (bs BitSlice) Swap(i int, v bool) (previous bool) {
 	// TODO: bounds checking
 
 	mask := uint64(1) << (i % 64)
 
-	old := atomic.OrUint64(&bs.words[i/64], mask)
+	var old uint64
+	if v {
+		old = atomic.OrUint64(&bs.words[i/64], mask)
+	} else {
+		old = atomic.AndUint64(&bs.words[i/64], ^mask)
+	}
 	return old&mask != 0
 }
 
-func (bs Bitset) Unset(i int) bool {
-	// TODO: bounds checking
-
-	mask := uint64(1) << (i % 64)
-
-	old := atomic.AndUint64(&bs.words[i/64], ^mask)
-	return old&mask != 0
-}
-
-func (bs Bitset) FindAndSet(i int) int {
+func (bs BitSlice) FindAndSet(i int) int {
 	if i%64 != 0 {
 		panic("not implemented")
 	}

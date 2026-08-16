@@ -113,13 +113,14 @@ func BufferAndOffset(p UnsafePointer) (buffer vk.Buffer, offset vk.DeviceSize) {
 	return vk.NULL_HANDLE, 0
 }
 
+// TODO: replace flags with func arguments
+
 // TODO: make these flags private
 const (
-	hostLocal    = 1 << 0 // TODO: do we need this flag?
-	hostMapped   = 1 << 1 // TODO: remove/hide this flag later and have it be always-on for buffers.
-	hostUncached = 1 << 2
-
-	// TODO: a flag for descriptor buffer
+	hostLocal            = 1 << 0 // TODO: do we need this flag?
+	hostMapped           = 1 << 1 // TODO: remove/hide this flag later and have it be always-on for buffers.
+	hostUncached         = 1 << 2
+	mallocDescriptorHeap = 1 << 3
 )
 
 // TODO: see if we can/should pass unsafe.Pointer for hostAddr
@@ -144,8 +145,6 @@ func malloc(size int, flags uint32) UnsafePointer {
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
 
-	gpuInit()
-
 	bufferCreateInfo := pinned(&pinner, &vk.BufferCreateInfo{
 		SType: vk.STRUCTURE_TYPE_BUFFER_CREATE_INFO,
 		Size:  vk.DeviceSize(size),
@@ -160,6 +159,9 @@ func malloc(size int, flags uint32) UnsafePointer {
 				vk.BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
 				vk.BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR),
 	})
+	if flags&mallocDescriptorHeap != 0 {
+		bufferCreateInfo.Usage |= vk.BufferUsageFlags(vk.BUFFER_USAGE_DESCRIPTOR_HEAP_BIT_EXT)
+	}
 
 	requirements := &vk.MemoryRequirements2{
 		SType: vk.STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2,
@@ -234,6 +236,8 @@ func malloc(size int, flags uint32) UnsafePointer {
 // increasing sizes probably
 
 func NewUncached[T any]() Pointer[T] {
+	gpuInit()
+
 	return (Pointer[T])(malloc(int(unsafe.Sizeof(*new(T))), hostMapped /*|hostUncached*/))
 }
 
@@ -246,6 +250,8 @@ type Slice[T any] struct {
 }
 
 func MakeSliceUncached[T any](n int) Slice[T] {
+	gpuInit()
+
 	return Slice[T]{
 		data: Pointer[T](malloc(int(unsafe.Sizeof(*new(T)))*n, hostMapped /*|hostUncached*/)),
 		len:  n,
@@ -323,7 +329,7 @@ func findMemoryTypeIndex(memoryTypeBits uint32, flags uint32) int {
 	vkFns.GetPhysicalDeviceMemoryProperties2(physicalDevice, memProps)
 
 	var try []vk.MemoryPropertyFlags
-	switch flags &^ hostLocal {
+	switch flags &^ (hostLocal | mallocDescriptorHeap) {
 	case 0:
 		try = []vk.MemoryPropertyFlags{
 			vk.MemoryPropertyFlags(vk.MEMORY_PROPERTY_DEVICE_LOCAL_BIT),

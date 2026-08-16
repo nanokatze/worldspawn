@@ -80,10 +80,6 @@ var physicalDevice vk.PhysicalDevice
 var topology *deviceTopology
 var device vk.Device
 
-var DescriptorSetLayout vk.DescriptorSetLayout
-var descriptorSet vk.DescriptorSet
-var pipelineLayout vk.PipelineLayout
-
 var vkFns struct {
 	vk.InstanceFuncs
 	vk.DeviceFuncs
@@ -147,12 +143,12 @@ func gpuInit() {
 		must(err)
 		physicalDevice = physicalDevices[0]
 
-		props := vk.PhysicalDeviceProperties2{
+		coreProps_1_0 := vk.PhysicalDeviceProperties2{
 			SType: vk.STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
 		}
-		vkFns.GetPhysicalDeviceProperties2(physicalDevice, &props)
+		vkFns.GetPhysicalDeviceProperties2(physicalDevice, &coreProps_1_0)
 
-		println("GPU:", byteSliceToString(props.DeviceName[:]))
+		println("GPU:", byteSliceToString(coreProps_1_0.DeviceName[:]))
 
 		// TODO: move default feature enables somewhere else.
 		// TODO: request almost all core features probably. Or consult a profile
@@ -209,6 +205,9 @@ func gpuInit() {
 
 		wantDeviceExts.Add("VK_KHR_internally_synchronized_queues", true)
 		wantDeviceFeatures.Add("InternallySynchronizedQueues", true)
+
+		wantDeviceExts.Add("VK_EXT_descriptor_heap", true)
+		wantDeviceFeatures.Add("DescriptorHeap", true)
 
 		wantDeviceExts.Add("VK_EXT_shader_object", true)
 		wantDeviceFeatures.Add("ShaderObject", true)
@@ -321,72 +320,20 @@ func gpuInit() {
 			}
 		}
 
-		must(vkFns.CreateDescriptorSetLayout(device, &vk.DescriptorSetLayoutCreateInfo{
-			SType: vk.STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-			PNext: unsafe.Pointer(pinned(&pinner, &vk.DescriptorSetLayoutBindingFlagsCreateInfo{
-				SType:        vk.STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO,
-				BindingCount: 3,
-				PBindingFlags: pinnedSliceData(&pinner, []vk.DescriptorBindingFlags{
-					vk.DescriptorBindingFlags(vk.DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT | vk.DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT | vk.DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT),
-					vk.DescriptorBindingFlags(vk.DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT | vk.DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT | vk.DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT),
-					vk.DescriptorBindingFlags(vk.DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT | vk.DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT | vk.DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT),
-				}),
-			})),
-			Flags:        vk.DescriptorSetLayoutCreateFlags(vk.DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT),
-			BindingCount: 3,
-			PBindings: pinnedSliceData(&pinner, []vk.DescriptorSetLayoutBinding{
-				{
-					Binding:         0,
-					DescriptorType:  vk.DESCRIPTOR_TYPE_SAMPLER,
-					DescriptorCount: 2e3,
-					StageFlags:      vk.ShaderStageFlags(vk.SHADER_STAGE_ALL),
-				},
-				{
-					Binding:         1,
-					DescriptorType:  vk.DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-					DescriptorCount: 1e6,
-					StageFlags:      vk.ShaderStageFlags(vk.SHADER_STAGE_ALL),
-				},
-				{
-					Binding:         2,
-					DescriptorType:  vk.DESCRIPTOR_TYPE_STORAGE_IMAGE,
-					DescriptorCount: 1e6,
-					StageFlags:      vk.ShaderStageFlags(vk.SHADER_STAGE_ALL),
-				},
-			}),
-		}, nil, &DescriptorSetLayout))
+		{
+			heapProps := vk.PhysicalDeviceDescriptorHeapPropertiesEXT{
+				SType: vk.STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_HEAP_PROPERTIES_EXT,
+			}
+			vkFns.GetPhysicalDeviceProperties2(physicalDevice,
+				&vk.PhysicalDeviceProperties2{
+					SType: vk.STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
+					PNext: unsafe.Pointer(pinned(&pinner, &heapProps)),
+				})
 
-		must(vkFns.CreatePipelineLayout(device, &vk.PipelineLayoutCreateInfo{
-			SType:                  vk.STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-			SetLayoutCount:         1,
-			PSetLayouts:            pinned(&pinner, &DescriptorSetLayout),
-			PushConstantRangeCount: 1,
-			PPushConstantRanges: pinned(&pinner, &vk.PushConstantRange{
-				StageFlags: vk.ShaderStageFlags(vk.SHADER_STAGE_ALL),
-				Offset:     0,
-				Size:       maxShaderArgsSize,
-			}),
-		}, nil, &pipelineLayout))
-
-		var descriptorPool vk.DescriptorPool
-		must(vkFns.CreateDescriptorPool(device, &vk.DescriptorPoolCreateInfo{
-			SType:         vk.STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-			Flags:         vk.DescriptorPoolCreateFlags(vk.DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT),
-			MaxSets:       1,
-			PoolSizeCount: 3,
-			PPoolSizes: pinnedSliceData(&pinner, []vk.DescriptorPoolSize{
-				{Type: vk.DESCRIPTOR_TYPE_SAMPLER, DescriptorCount: 2e3},
-				{Type: vk.DESCRIPTOR_TYPE_SAMPLED_IMAGE, DescriptorCount: 1e6},
-				{Type: vk.DESCRIPTOR_TYPE_STORAGE_IMAGE, DescriptorCount: 1e6},
-			}),
-		}, nil, &descriptorPool))
-
-		must(vkFns.AllocateDescriptorSets(device, &vk.DescriptorSetAllocateInfo{
-			SType:              vk.STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-			DescriptorPool:     descriptorPool,
-			DescriptorSetCount: 1,
-			PSetLayouts:        pinned(&pinner, &DescriptorSetLayout),
-		}, &descriptorSet))
+			// TODO: make it 1e6 again when we teach slotalloc how to allocate runs of bits at once
+			resourceHeap.init(2*int(heapProps.ImageDescriptorSize), 5e5)
+			samplerHeap.init(int(heapProps.SamplerDescriptorSize), 2e3)
+		}
 	})
 }
 

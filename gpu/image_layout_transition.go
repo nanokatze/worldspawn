@@ -31,16 +31,16 @@ var transitionToPresentSrcOnTransferQueueIsBroken = sync.OnceValue(func() bool {
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
 
-	props_1_2 := vk.PhysicalDeviceVulkan12Properties{
+	coreProps_1_2 := vk.PhysicalDeviceVulkan12Properties{
 		SType: vk.STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_PROPERTIES,
 	}
-	props_1_0 := vk.PhysicalDeviceProperties2{
-		SType: vk.STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
-		PNext: unsafe.Pointer(pinned(&pinner, &props_1_2)),
-	}
-	vkFns.GetPhysicalDeviceProperties2(physicalDevice, &props_1_0)
+	vkFns.GetPhysicalDeviceProperties2(physicalDevice,
+		&vk.PhysicalDeviceProperties2{
+			SType: vk.STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
+			PNext: unsafe.Pointer(pinned(&pinner, &coreProps_1_2)),
+		})
 
-	return props_1_2.DriverID == vk.DRIVER_ID_MESA_RADV
+	return coreProps_1_2.DriverID == vk.DRIVER_ID_MESA_RADV
 })
 
 func (job *transitionImageLayoutJob) Info() JobInfo {

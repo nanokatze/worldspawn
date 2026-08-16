@@ -1,4 +1,4 @@
-package bitset
+package bitslice
 
 import (
 	"testing"
@@ -6,7 +6,7 @@ import (
 
 func TestFindAndSet(t *testing.T) {
 	bs := Make(1)
-	bs.Set(0)
+	bs.Swap(0, true)
 	if bs.FindAndSet(0) != -1 {
 		t.Errorf("want -1")
 	}
