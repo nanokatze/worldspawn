@@ -6,15 +6,9 @@ import (
 	"time"
 
 	"worldspawn/internal/gmath"
-)
 
-// TODO: kill this
-func mustOk[T any](v T, ok bool) T {
-	if !ok {
-		panic("not ok")
-	}
-	return v
-}
+	"golang.org/x/exp/constraints"
+)
 
 func durationToFloatSeconds(d time.Duration) float64 {
 	return float64(d/1e9) + float64(d%1e9)/1e9
@@ -46,4 +40,11 @@ func fibonacciLattice(n int64) iter.Seq[gmath.Vec2f32] {
 			}
 		}
 	}
+}
+
+func mix[T constraints.Float](a, b, c T) T {
+	if c == 1 {
+		return b
+	}
+	return a + (b-a)*c
 }
