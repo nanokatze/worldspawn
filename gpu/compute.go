@@ -14,6 +14,11 @@ type ComputeShader[T any] struct {
 	vk vk.ShaderEXT
 }
 
+type ComputeClosure[T any] struct {
+	shader *ComputeShader[T]
+	env    T
+}
+
 // TODO: also specify type of the blob. We could encode the type into Go's
 // typesystem (i.e. just newtype []byte.)
 func CompileComputeShader[T any](blob []byte, entry string) *ComputeShader[T] {
@@ -38,14 +43,6 @@ func CompileComputeShader[T any](blob []byte, entry string) *ComputeShader[T] {
 	return &ComputeShader[T]{vk: vkShader}
 }
 
-// TODO: make the internals private? This would allow things to syntactically
-// appear the same (always use the Bind method) while the object could be
-// whatever (e.g. some kind of LazyComputeShader[T] implemented whereever)
-type ComputeClosure[T any] struct {
-	Shader *ComputeShader[T]
-	Env    T
-}
-
 func (shader *ComputeShader[T]) Bind(env T) ComputeClosure[T] {
 	return ComputeClosure[T]{shader, env}
 }
@@ -59,7 +56,7 @@ type dispatchJob struct {
 // TODO: play with the order of arguments?
 // TODO: should take an interface rather than be generic. Or maybe not.
 func ParallelFor[T any](jq *JobQueue, groups []int, f ComputeClosure[T]) {
-	if err := validateDispatchGrid2(groups); err != nil {
+	if err := validateGrid(groups); err != nil {
 		if err == errEmptyGrid {
 			return
 		}
@@ -73,8 +70,8 @@ func ParallelFor[T any](jq *JobQueue, groups []int, f ComputeClosure[T]) {
 
 	jq.Enqueue(&dispatchJob{
 		groups: groups32,
-		kernel: f.Shader.vk,
-		args:   slices.Clone(asbytes(&f.Env)),
+		kernel: f.shader.vk,
+		args:   slices.Clone(asbytes(&f.env)),
 	})
 }
 
@@ -113,30 +110,9 @@ func (job *dispatchJob) Exec(q *DeviceQueue) {
 
 var errEmptyGrid = errors.New("empty grid")
 
-// TODO: kill
-func validateDispatchGrid(validated []uint32, grid []int) error {
-	empty := false
-	for i, d := range grid {
-		if d < 0 {
-			return errors.New("bad")
-		}
-		if d == 0 {
-			empty = true
-		}
-		validated[i] = uint32(d)
-	}
-	for i := len(grid); i < len(validated); i++ {
-		validated[i] = 1
-	}
-	if empty {
-		return errEmptyGrid
-	}
-	return nil
-}
-
 // TODO: limits etc validation
 // TODO: rename just to validateGrid
-func validateDispatchGrid2(grid []int) error {
+func validateGrid(grid []int) error {
 	product := 1
 	for _, d := range grid {
 		if d < 0 {

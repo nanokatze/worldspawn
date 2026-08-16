@@ -276,7 +276,7 @@ func EnqueueTraceRays(
 	pipeline *RayTracingPipeline,
 	sbt ShaderBindingTable,
 	args any) {
-	if err := validateDispatchGrid2(threads); err != nil {
+	if err := validateGrid(threads); err != nil {
 		if err == errEmptyGrid {
 			return
 		}
