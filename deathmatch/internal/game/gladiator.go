@@ -178,208 +178,206 @@ func init() {
 				weapon.Script().Weapon_Think(stx, weapon, props[:], world, gladiator, T_attack, v_attack, buttons, recoil)
 			}
 
-			stx.Update(gladiator,
-				func(stx ScriptContext, gladiator Entity) {
-					state := gladiator.ScriptState().(Gladiator)
-					defer func() { gladiator.SetScriptState(state) }()
+			stx.Update(gladiator, func(stx ScriptContext, gladiator Entity) {
+				state := gladiator.ScriptState().(Gladiator)
+				defer func() { gladiator.SetScriptState(state) }()
 
-					// TODO: be safe with the values Slot might have
-					switchToWeapon := world.Entity(state.Inventory.Slots[state.Input.Slot])
+				// TODO: be safe with the values Slot might have
+				switchToWeapon := world.Entity(state.Inventory.Slots[state.Input.Slot])
 
-					if state.HeldWeapon.StateTransition.Compare(stx.Now) <= 0 {
-						switch state.HeldWeapon.State {
-						case 2:
-							for _, propID := range state.HeldWeapon.Props {
-								if prop := world.Entity(propID); prop.IsValid() {
-									stx.Update(prop, func(stx ScriptContext, prop Entity) { prop.MarkForDeletion() })
-								}
+				if state.HeldWeapon.StateTransition.Compare(stx.Now) <= 0 {
+					switch state.HeldWeapon.State {
+					case 2:
+						for _, propID := range state.HeldWeapon.Props {
+							if prop := world.Entity(propID); prop.IsValid() {
+								stx.Update(prop, func(stx ScriptContext, prop Entity) { prop.MarkForDeletion() })
 							}
-							clear(state.HeldWeapon.Props[:])
+						}
+						clear(state.HeldWeapon.Props[:])
 
-							// BUG: we can only really query Weapon_Hint inside a
-							// Think. I guess we could make Weapon_Hint be a
-							// non-thinker, that would be pretty nice I think.
-							weaponScript := switchToWeapon.Script()
-							hint := weaponScript.Weapon_Hint(stx.UpdateParams, switchToWeapon)
-							state.HeldWeapon.Entity = switchToWeapon.ID()
-							state.HeldWeapon.State = 1
-							drawDuration := time.Duration(float64(weaponBaseDrawDuration) * float64(hint.DrawDurationMultiplier))
-							state.HeldWeapon.StateTransition = stx.Now.Add(drawDuration)
+						// BUG: we can only really query Weapon_Hint inside a
+						// Think. I guess we could make Weapon_Hint be a
+						// non-thinker, that would be pretty nice I think.
+						weaponScript := switchToWeapon.Script()
+						hint := weaponScript.Weapon_Hint(stx.UpdateParams, switchToWeapon)
+						state.HeldWeapon.Entity = switchToWeapon.ID()
+						state.HeldWeapon.State = 1
+						drawDuration := time.Duration(float64(weaponBaseDrawDuration) * float64(hint.DrawDurationMultiplier))
+						state.HeldWeapon.StateTransition = stx.Now.Add(drawDuration)
 
-							if !stx.Speculating && weaponScript.Weapon_CreateProp != nil {
-								for i := range 2 {
-									weaponScript.Weapon_CreateProp(stx, switchToWeapon, func(stx ScriptContext, prop Entity) {
-										switch i {
-										case 0:
-											// TODO: parent it directly to the camera instead.
-											prop.SetParent(state.FirstPersonHands)
-											prop.SetTransform(hint.FirstPersonPropTransform)
-											prop.SetVisibilityCondition(VisibilityCondition{Mask: 0b01, Camera: state.Head})
+						if !stx.Speculating && weaponScript.Weapon_CreateProp != nil {
+							for i := range 2 {
+								weaponScript.Weapon_CreateProp(stx, switchToWeapon, func(stx ScriptContext, prop Entity) {
+									switch i {
+									case 0:
+										// TODO: parent it directly to the camera instead.
+										prop.SetParent(state.FirstPersonHands)
+										prop.SetTransform(hint.FirstPersonPropTransform)
+										prop.SetVisibilityCondition(VisibilityCondition{Mask: 0b01, Camera: state.Head})
 
-										case 1:
-											prop.SetParent(gladiator.ID())
-											prop.SetParentBone(unique.Make("hand.R"))
-											prop.SetTransform(gmath.TRS3One[float64]())
-											prop.SetVisibilityCondition(VisibilityCondition{Mask: 0b10, Camera: state.Head})
-										}
+									case 1:
+										prop.SetParent(gladiator.ID())
+										prop.SetParentBone(unique.Make("hand.R"))
+										prop.SetTransform(gmath.TRS3One[float64]())
+										prop.SetVisibilityCondition(VisibilityCondition{Mask: 0b10, Camera: state.Head})
+									}
 
-										stx.Update(gladiator, func(stx ScriptContext, entity Entity) {
-											state := entity.ScriptState().(Gladiator)
-											defer func() { entity.SetScriptState(state) }()
+									stx.Update(gladiator, func(stx ScriptContext, entity Entity) {
+										state := entity.ScriptState().(Gladiator)
+										defer func() { entity.SetScriptState(state) }()
 
-											state.HeldWeapon.Props[i] = prop.ID()
-										})
+										state.HeldWeapon.Props[i] = prop.ID()
 									})
-								}
+								})
 							}
+						}
 
-						case 1:
-							state.HeldWeapon.State = 0
+					case 1:
+						state.HeldWeapon.State = 0
 
-						case 0:
-							if state.HeldWeapon.Entity != switchToWeapon.ID() {
-								state.HeldWeapon.State = 2
-								if heldWeapon := world.Entity(state.HeldWeapon.Entity); heldWeapon.IsValid() {
-									hint := heldWeapon.Script().Weapon_Hint(stx.UpdateParams, switchToWeapon)
-									hideDuration := time.Duration(float64(weaponBaseHideDuration) * float64(hint.HideDurationMultiplier))
-									state.HeldWeapon.StateTransition = stx.Now.Add(hideDuration)
-								}
+					case 0:
+						if state.HeldWeapon.Entity != switchToWeapon.ID() {
+							state.HeldWeapon.State = 2
+							if heldWeapon := world.Entity(state.HeldWeapon.Entity); heldWeapon.IsValid() {
+								hint := heldWeapon.Script().Weapon_Hint(stx.UpdateParams, switchToWeapon)
+								hideDuration := time.Duration(float64(weaponBaseHideDuration) * float64(hint.HideDurationMultiplier))
+								state.HeldWeapon.StateTransition = stx.Now.Add(hideDuration)
 							}
 						}
 					}
+				}
 
-					T := gladiator.Transform()
+				T := gladiator.Transform()
 
-					v := gladiator.Velocity()
-					defer func() { gladiator.SetVelocity(v) }()
+				v := gladiator.Velocity()
+				defer func() { gladiator.SetVelocity(v) }()
 
-					rotation := T.R.Mul(e01.Pow(4 * state.Input.Head[0]))
+				rotation := T.R.Mul(e01.Pow(4 * state.Input.Head[0]))
 
-					move := state.Input.Move
-					if lengthSqr := move.Dot(move); lengthSqr > 1 {
-						move = move.Scale(1 / float32(math.Sqrt(float64(lengthSqr))))
+				move := state.Input.Move
+				if lengthSqr := move.Dot(move); lengthSqr > 1 {
+					move = move.Scale(1 / float32(math.Sqrt(float64(lengthSqr))))
+				}
+
+				v_local := rotation.Inv().Rotate(v.Linear)
+				if state.Motion.Supported {
+					v_local[0] = move[0] * gladiatorStats.WalkSpeed
+					v_local[1] = move[1] * gladiatorStats.WalkSpeed
+					if state.Input.Jump {
+						v_local[2] = 4
 					}
+				}
+				v.Linear = rotation.Rotate(v_local)
+				if !state.Motion.Supported {
+					v.Linear = v.Linear.Add(stx.Gravity.Scale(float32(durationToFloatSeconds(stx.Δt))))
+				}
+				v.Linear = state.asdasd(stx.world, gladiator.ID(), v.Linear, stx.Δt)
 
-					v_local := rotation.Inv().Rotate(v.Linear)
-					if state.Motion.Supported {
-						v_local[0] = move[0] * gladiatorStats.WalkSpeed
-						v_local[1] = move[1] * gladiatorStats.WalkSpeed
-						if state.Input.Jump {
-							v_local[2] = 4
-						}
-					}
-					v.Linear = rotation.Rotate(v_local)
-					if !state.Motion.Supported {
-						v.Linear = v.Linear.Add(stx.Gravity.Scale(float32(durationToFloatSeconds(stx.Δt))))
-					}
-					v.Linear = state.asdasd(stx.world, gladiator.ID(), v.Linear, stx.Δt)
-
-					if state.Motion.Supported {
-						state.Motion.Steps += float64(v.Linear.Length()) * durationToFloatSeconds(stx.Δt)
-					}
-					if state.Motion.Steps > 3 {
-						gladiator.SetSoundEffect(SoundEmitter{
-							Effect:      unique.Make("Step"),
-							Attenuation: 1,
-							PlayTime:    stx.Now,
-						})
-						state.Motion.Steps = 0
-					}
-
-					// TODO: we should probably enqueue the death so that it happens
-					// after all impacts. That way we can see how far we are below 1
-					// and therefore decide whether we want to spawn gibs or just
-					// drop a ragdoll.
-					if state.Vitals.Health <= 0 {
-						world.logger.Info("killing myself!!!", "entity", gladiator)
-
-						// TODO: spawn ragdoll or gibs
-
-						// TODO: bump the death counter and also attribute kill and/or assist to
-						// other players. We'll need to keep a damage log for that (even if
-						// limited)
-
-						// TODO: don't delete ourselves actually. Let's have
-						// functioning revival instead. Deleting ourselves also
-						// interferes with damage attribution.
-						gladiator.MarkForDeletion()
-					}
-
-					stx.Update(world.Entity(state.Head), func(stx ScriptContext, camera Entity) {
-						camera.SetTransform(gmath.TRS3f64{
-							T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
-							R: e01.Pow(4 * state.Input.Head[0]).Mul(e12.Pow(4 * state.Input.Head[1])),
-							S: gmath.Mat3x3UOne[float32](),
-						})
+				if state.Motion.Supported {
+					state.Motion.Steps += float64(v.Linear.Length()) * durationToFloatSeconds(stx.Δt)
+				}
+				if state.Motion.Steps > 3 {
+					gladiator.SetSoundEffect(SoundEmitter{
+						Effect:      unique.Make("Step"),
+						Attenuation: 1,
+						PlayTime:    stx.Now,
 					})
+					state.Motion.Steps = 0
+				}
 
-					func() {
-						weapon := world.Entity(state.HeldWeapon.Entity)
-						if !weapon.IsValid() {
-							return
-						}
+				// TODO: we should probably enqueue the death so that it happens
+				// after all impacts. That way we can see how far we are below 1
+				// and therefore decide whether we want to spawn gibs or just
+				// drop a ragdoll.
+				if state.Vitals.Health <= 0 {
+					world.logger.Info("killing myself!!!", "entity", gladiator)
 
-						firstPersonProp := world.Entity(state.HeldWeapon.Props[0])
-						if !firstPersonProp.IsValid() {
-							return
-						}
+					// TODO: spawn ragdoll or gibs
 
-						weaponScript := weapon.Script()
-						hint := weaponScript.Weapon_Hint(stx.UpdateParams, weapon)
+					// TODO: bump the death counter and also attribute kill and/or assist to
+					// other players. We'll need to keep a damage log for that (even if
+					// limited)
 
-						// TODO: specify inertia in the weapon hint so that
-						// weapons can control how "heavy" they feel?
+					// TODO: don't delete ourselves actually. Let's have
+					// functioning revival instead. Deleting ourselves also
+					// interferes with damage attribution.
+					gladiator.MarkForDeletion()
+				}
 
-						state.HeldWeapon.FirstPersonPropBob = mix(state.HeldWeapon.FirstPersonPropBob, -Ω_head[2]/float32(math.Pi)*0.05,
-							min(1, 5*float32(durationToFloatSeconds(stx.Δt))))
-						state.HeldWeapon.FirstPersonPropBob = min(max(state.HeldWeapon.FirstPersonPropBob, -0.5), 0.5)
-
-						stx.Update(firstPersonProp,
-							func(stx ScriptContext, prop Entity) {
-								prop.SetTransform(
-									hint.FirstPersonPropTransform.Affine().Mul(
-										gmath.TRS3f64{
-											T: gmath.Vec3f64{},
-											R: gmath.Rot3AToB(up, right).Pow(state.HeldWeapon.FirstPersonPropBob),
-											S: gmath.Mat3x3UOne[float32](),
-										}.Affine()).TRS())
-							})
-					}()
-
-					{
-						anim := animationCache.Get(unique.Make("testcharacter4/animations/look"))
-
-						// TODO: introduce affine1 helper so that we can do remaps from one range to another
-
-						v := make([]float32, len(anim.Channels()))
-						animation.SampleNormalized(anim, 0.5+2*state.Input.Head[1], v)
-
-						sk := skeletonCache.Get(gladiator.Skeleton())
-
-						localTransforms := make([]gmath.Affine3f32, sk.NumJoints())
-						for i := range localTransforms {
-							localTransforms[i] = gmath.Affine3One[float32]()
-						}
-
-						poseMapperCache.Get(poseMapperKey{anim, sk})(v, localTransforms)
-
-						b_spine := sk.JointByName(unique.Make("spine"))
-
-						localTransforms[b_spine] =
-							sk.BindPoseInv[b_spine].
-								Mul(gmath.TRS3f32{
-									R: gmath.Rot3AToB(right, forward).Pow(4 * state.Input.Head[0]),
-									S: gmath.Mat3x3UOne[float32](),
-								}.Affine()).
-								Mul(sk.BindPose[b_spine]).
-								Mul(localTransforms[b_spine])
-
-						pose := make(skeleton.Pose, sk.NumJoints())
-						sk.ForwardKinematics(localTransforms, pose)
-
-						gladiator.SetPose(pose)
-					}
+				stx.Update(world.Entity(state.Head), func(stx ScriptContext, camera Entity) {
+					camera.SetTransform(gmath.TRS3f64{
+						T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
+						R: e01.Pow(4 * state.Input.Head[0]).Mul(e12.Pow(4 * state.Input.Head[1])),
+						S: gmath.Mat3x3UOne[float32](),
+					})
 				})
+
+				func() {
+					weapon := world.Entity(state.HeldWeapon.Entity)
+					if !weapon.IsValid() {
+						return
+					}
+
+					firstPersonProp := world.Entity(state.HeldWeapon.Props[0])
+					if !firstPersonProp.IsValid() {
+						return
+					}
+
+					weaponScript := weapon.Script()
+					hint := weaponScript.Weapon_Hint(stx.UpdateParams, weapon)
+
+					// TODO: specify inertia in the weapon hint so that
+					// weapons can control how "heavy" they feel?
+
+					state.HeldWeapon.FirstPersonPropBob = mix(state.HeldWeapon.FirstPersonPropBob, -Ω_head[2]/float32(math.Pi)*0.05,
+						min(1, 5*float32(durationToFloatSeconds(stx.Δt))))
+					state.HeldWeapon.FirstPersonPropBob = min(max(state.HeldWeapon.FirstPersonPropBob, -0.5), 0.5)
+
+					stx.Update(firstPersonProp, func(stx ScriptContext, prop Entity) {
+						prop.SetTransform(
+							hint.FirstPersonPropTransform.Affine().Mul(
+								gmath.TRS3f64{
+									T: gmath.Vec3f64{},
+									R: gmath.Rot3AToB(up, right).Pow(state.HeldWeapon.FirstPersonPropBob),
+									S: gmath.Mat3x3UOne[float32](),
+								}.Affine()).TRS())
+					})
+				}()
+
+				{
+					anim := animationCache.Get(unique.Make("testcharacter4/animations/look"))
+
+					// TODO: introduce affine1 helper so that we can do remaps from one range to another
+
+					v := make([]float32, len(anim.Channels()))
+					animation.SampleNormalized(anim, 0.5+2*state.Input.Head[1], v)
+
+					sk := skeletonCache.Get(gladiator.Skeleton())
+
+					localTransforms := make([]gmath.Affine3f32, sk.NumJoints())
+					for i := range localTransforms {
+						localTransforms[i] = gmath.Affine3One[float32]()
+					}
+
+					poseMapperCache.Get(poseMapperKey{anim, sk})(v, localTransforms)
+
+					b_spine := sk.JointByName(unique.Make("spine"))
+
+					localTransforms[b_spine] =
+						sk.BindPoseInv[b_spine].
+							Mul(gmath.TRS3f32{
+								R: gmath.Rot3AToB(right, forward).Pow(4 * state.Input.Head[0]),
+								S: gmath.Mat3x3UOne[float32](),
+							}.Affine()).
+							Mul(sk.BindPose[b_spine]).
+							Mul(localTransforms[b_spine])
+
+					pose := make(skeleton.Pose, sk.NumJoints())
+					sk.ForwardKinematics(localTransforms, pose)
+
+					gladiator.SetPose(pose)
+				}
+			})
 		},
 
 		Impact: func(stx ScriptContext, gladiator Entity, impact Impact) {
