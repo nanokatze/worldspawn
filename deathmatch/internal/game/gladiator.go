@@ -329,16 +329,16 @@ func init() {
 					// TODO: specify inertia in the weapon hint so that
 					// weapons can control how "heavy" they feel?
 
-					state.HeldWeapon.FirstPersonPropBob = mix(state.HeldWeapon.FirstPersonPropBob, -Ω_head[2]/float32(math.Pi)*0.05,
-						min(1, 5*float32(durationToFloatSeconds(stx.Δt))))
-					state.HeldWeapon.FirstPersonPropBob = min(max(state.HeldWeapon.FirstPersonPropBob, -0.5), 0.5)
+					state.HeldWeapon.FirstPersonPropBob = mix(state.HeldWeapon.FirstPersonPropBob, -Ω_head[2]*0.05,
+						min(1, 2*float32(durationToFloatSeconds(stx.Δt))))
+					state.HeldWeapon.FirstPersonPropBob = min(max(state.HeldWeapon.FirstPersonPropBob, -math.Pi/2), math.Pi/2)
 
 					stx.Update(firstPersonProp, func(stx ScriptContext, prop Entity) {
 						prop.SetTransform(
 							hint.FirstPersonPropTransform.Affine().Mul(
 								gmath.TRS3f64{
 									T: gmath.Vec3f64{},
-									R: gmath.Rot3AToB(up, right).Pow(state.HeldWeapon.FirstPersonPropBob),
+									R: gmath.Rot3AToB(up, right).Pow(state.HeldWeapon.FirstPersonPropBob / math.Pi),
 									S: gmath.Mat3x3UOne[float32](),
 								}.Affine()).TRS())
 					})
