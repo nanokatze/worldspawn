@@ -33,33 +33,52 @@ func (bs BitSlice) Swap(i int, v bool) (previous bool) {
 	return old&mask != 0
 }
 
-func (bs BitSlice) FindAndSet(i int) int {
-	if i%64 != 0 {
+func (bs BitSlice) FindAndSet(start, n int) int {
+	if start%64 != 0 {
 		panic("not implemented")
 	}
 
-WordLoop:
-	for ; i < bs.len; i += 64 {
-		shift := 0
+	for i := start; i < bs.len; i += 64 {
 		for {
-			mask := uint64(1) << shift
+			word := atomic.LoadUint64(&bs.words[i/64])
 
-			old := atomic.OrUint64(&bs.words[i/64], mask)
-			if old == ^uint64(0) {
-				continue WordLoop
+			shift := findZeros(word, n)
+			if shift == -1 {
+				break
 			}
-			if old&mask == 0 {
+
+			if atomic.CompareAndSwapUint64(&bs.words[i/64], word, word|(mask(n)<<shift)) {
 				return i + shift
-			}
-
-			shift = bits.TrailingZeros64(^old)
-			if i+shift >= bs.len {
-				return -1
 			}
 		}
 	}
 
 	return -1
+}
+
+func mask(n int) uint64 {
+	return uint64(1)<<n - 1
+}
+
+// findZeros finds a run of n zeros in w.
+func findZeros(w uint64, n int) int {
+	i := 0
+	for {
+		// Advance to the next zero
+		i = i + bits.TrailingZeros64(^(w >> i))
+		if i+n > 64 {
+			return -1
+		}
+
+		// Find the next one
+		j := i + bits.TrailingZeros64(w>>i)
+		if i+n <= j {
+			// We fit!
+			return i
+		}
+		// i:j doesn't work for us, continue looking starting at i
+		i = j
+	}
 }
 
 func divRoundUp(x, y int) int {

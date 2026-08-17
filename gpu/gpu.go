@@ -331,7 +331,7 @@ func gpuInit() {
 				})
 
 			// TODO: make it 1e6 again when we teach slotalloc how to allocate runs of bits at once
-			resourceHeap.init(2*int(heapProps.ImageDescriptorSize), 5e5)
+			resourceHeap.init(int(heapProps.ImageDescriptorSize), 1e6)
 			samplerHeap.init(int(heapProps.SamplerDescriptorSize), 2e3)
 		}
 	})

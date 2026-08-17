@@ -15,8 +15,6 @@ import (
 // doesn't use the heaps it can avoid paying the cost for them, which can help
 // if the app's footprint is otherwise tiny.
 
-// TODO: the hints should be per-thread or similar
-
 // TODO: we'll need a public api for allocating resource and sampler
 // descriptors, getting a pointer to their bytes, etc. We could do that by
 // introducing a type ResourceDescriptor int and a similar SamplerDescriptor
@@ -42,7 +40,7 @@ func (heap *descriptorHeap) init(elemSize int, len int) {
 	heap.len = len
 }
 
-func (heap *descriptorHeap) Alloc(hintp *int64) int {
+func (heap *descriptorHeap) Alloc(n int, hintp *int64) int {
 	hint := atomic.LoadInt64(hintp)
 
 	i := int(hint)
@@ -54,10 +52,10 @@ func (heap *descriptorHeap) Alloc(hintp *int64) int {
 	// Round down the start index to the bitset's word boundary.
 	i = i / 64 * 64
 
-	i = heap.alloc.FindAndSet(i)
+	i = heap.alloc.FindAndSet(i, n)
 	if i < 0 {
 		// Try again, starting at 0.
-		i = heap.alloc.FindAndSet(0)
+		i = heap.alloc.FindAndSet(0, n)
 	}
 
 	if i < 0 {
@@ -97,11 +95,8 @@ func (heap *descriptorHeap) Map(i int) Slice[byte] {
 }
 
 var (
-	resourceDescAllocHint int64
-	resourceHeap          descriptorHeap
-
-	samplerAllocHint int64
-	samplerHeap      descriptorHeap
+	resourceHeap descriptorHeap
+	samplerHeap  descriptorHeap
 )
 
 type ResourceDescriptor int

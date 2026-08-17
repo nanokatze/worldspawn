@@ -8,6 +8,8 @@ import (
 
 type ImageSampler struct{ descriptor uint32 }
 
+var samplerHint int64
+
 // TODO: return a pointer?
 func NewSampler(config *vk.SamplerCreateInfo) ImageSampler {
 	var pinner runtime.Pinner
@@ -15,7 +17,7 @@ func NewSampler(config *vk.SamplerCreateInfo) ImageSampler {
 
 	heap := &samplerHeap
 
-	index := heap.Alloc(&samplerAllocHint)
+	index := heap.Alloc(1, &samplerHint)
 
 	dst := heap.Map(index)
 

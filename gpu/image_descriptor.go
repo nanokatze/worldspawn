@@ -13,6 +13,11 @@ type ImageDescriptor struct {
 
 // TODO: add (*Image).Supports(usage)
 
+// TODO: the hints should be per-thread or similar.
+// TODO: keep separate hints for 1 and 2 -descriptor allocations?
+
+var imageHint int64
+
 func newImageDescriptor(data *imageData, config subImageConfig) ImageDescriptor {
 	formatProps := getFormatImageProperties(config.format)
 	if !formatProps.Supported {
@@ -29,19 +34,18 @@ func newImageDescriptor(data *imageData, config subImageConfig) ImageDescriptor 
 		return ImageDescriptor{}
 	}
 
-	rd := ResourceDescriptor(resourceHeap.Alloc(&resourceDescAllocHint))
-	rdMap := rd.Map().Value()
+	rd := ResourceDescriptor(resourceHeap.Alloc(2, &imageHint))
 	var tag uint32
 	if sampling {
-		initVulkanImageDescriptor(rdMap, data, config, vk.DESCRIPTOR_TYPE_SAMPLED_IMAGE)
+		initVulkanImageDescriptor(rd.Map().Value(), data, config, vk.DESCRIPTOR_TYPE_SAMPLED_IMAGE)
 		tag |= 1 << 0
 	}
 	if loadStore {
-		initVulkanImageDescriptor(rdMap[resourceHeap.elemSize/2:], data, config, vk.DESCRIPTOR_TYPE_STORAGE_IMAGE)
+		initVulkanImageDescriptor((rd + 1).Map().Value(), data, config, vk.DESCRIPTOR_TYPE_STORAGE_IMAGE)
 		tag |= 1 << 1
 	}
 
-	return ImageDescriptor{uint32(2*rd) | tag<<20}
+	return ImageDescriptor{uint32(rd) | tag<<20}
 }
 
 func destroyImageDescriptor(descriptor ImageDescriptor) {
@@ -52,7 +56,8 @@ func destroyImageDescriptor(descriptor ImageDescriptor) {
 	}
 	if tag&(1<<1) != 0 {
 	}
-	resourceHeap.Free(index / 2)
+	resourceHeap.Free(index)
+	resourceHeap.Free(index + 1)
 }
 
 func initVulkanImageDescriptor(dst []byte, data *imageData, config subImageConfig, descriptorType vk.DescriptorType) {
