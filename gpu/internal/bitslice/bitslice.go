@@ -76,7 +76,7 @@ func findZeros(w uint64, n int) int {
 			// We fit!
 			return i
 		}
-		// i:j doesn't work for us, continue looking starting at i
+		// We don't fit i:j, continue looking starting at j
 		i = j
 	}
 }
