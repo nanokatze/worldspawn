@@ -1,6 +1,7 @@
 package gpu
 
 import (
+	"math/bits"
 	"runtime"
 	"unsafe"
 
@@ -26,23 +27,31 @@ func newImageDescriptor(data *imageData, config subImageConfig) ImageDescriptor 
 
 	usage := data.usage & formatProps.SupportedUsage
 
-	// TODO: factor things into a mask of shader usage bits and then do a loop
-	// creating a descriptor for every usage.
-	sampling := usage&vk.ImageUsageFlags(vk.IMAGE_USAGE_SAMPLED_BIT) != 0
-	loadStore := usage&vk.ImageUsageFlags(vk.IMAGE_USAGE_STORAGE_BIT) != 0
-	if !(sampling || loadStore) {
+	var tag uint32
+	if usage&vk.ImageUsageFlags(vk.IMAGE_USAGE_SAMPLED_BIT) != 0 {
+		tag |= 1 << 0
+	}
+	if usage&vk.ImageUsageFlags(vk.IMAGE_USAGE_STORAGE_BIT) != 0 {
+		tag |= 1 << 1
+	}
+
+	if tag == 0 {
 		return ImageDescriptor{}
 	}
 
-	rd := ResourceDescriptor(resourceHeap.Alloc(2, &imageHint))
-	var tag uint32
-	if sampling {
-		initVulkanImageDescriptor(rd.Map().Value(), data, config, vk.DESCRIPTOR_TYPE_SAMPLED_IMAGE)
-		tag |= 1 << 0
-	}
-	if loadStore {
-		initVulkanImageDescriptor((rd + 1).Map().Value(), data, config, vk.DESCRIPTOR_TYPE_STORAGE_IMAGE)
-		tag |= 1 << 1
+	// TODO: switch to bits.OnesCount32(tag) eventually
+
+	rd := ResourceDescriptor(resourceHeap.Alloc(bits.Len32(tag), &imageHint))
+	for i := range ones32(tag) {
+		dst := (rd + ResourceDescriptor(i)).Map().Value()
+		switch i {
+		case 0:
+			initVulkanImageDescriptor(dst, data, config, vk.DESCRIPTOR_TYPE_SAMPLED_IMAGE)
+		case 1:
+			initVulkanImageDescriptor(dst, data, config, vk.DESCRIPTOR_TYPE_STORAGE_IMAGE)
+		default:
+			panic("unreachable")
+		}
 	}
 
 	return ImageDescriptor{uint32(rd) | tag<<20}
@@ -52,12 +61,9 @@ func destroyImageDescriptor(descriptor ImageDescriptor) {
 	index := int(descriptor.bits & (1<<20 - 1))
 	tag := descriptor.bits >> 20
 
-	if tag&(1<<0) != 0 {
+	for i := range bits.Len32(tag) {
+		resourceHeap.Free(index + i)
 	}
-	if tag&(1<<1) != 0 {
-	}
-	resourceHeap.Free(index)
-	resourceHeap.Free(index + 1)
 }
 
 func initVulkanImageDescriptor(dst []byte, data *imageData, config subImageConfig, descriptorType vk.DescriptorType) {
