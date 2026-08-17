@@ -1,7 +1,11 @@
 package gpu
 
 import (
-	"worldspawn/gpu/internal/slotalloc"
+	"fmt"
+	"math/rand/v2"
+	"sync/atomic"
+
+	"worldspawn/gpu/internal/bitslice"
 	"worldspawn/gpu/vk"
 )
 
@@ -19,10 +23,11 @@ import (
 // with a pile of methods that use resourceHeap underneath. That would allow us
 // to avoid exposing the heap objects directly, as well as the hints.
 
+// TODO: rename this to something else
 type descriptorHeap struct {
 	elemSize int
 	memory   UnsafePointer
-	alloc    slotalloc.Slotalloc
+	alloc    bitslice.BitSlice
 	len      int // TODO: we could remove it and use alloc.Cap() instead
 	// TODO: reserved range stuff
 }
@@ -31,19 +36,44 @@ func (heap *descriptorHeap) init(elemSize int, len int) {
 	*heap = descriptorHeap{}
 	heap.elemSize = elemSize
 	heap.memory = malloc(len*elemSize, hostMapped|mallocDescriptorHeap)
-	heap.alloc = slotalloc.Make(len)
-	heap.alloc.AllocAt(0)
-	// TODO: AllocAt over the reserved heap range
+	heap.alloc = bitslice.Make(len)
+	heap.alloc.Swap(0, true)
+	// TODO: Set the reserved heap range to true here
 	heap.len = len
 }
 
 func (heap *descriptorHeap) Alloc(hintp *int64) int {
-	i := heap.alloc.Alloc(hintp)
+	hint := atomic.LoadInt64(hintp)
+
+	i := int(hint)
+	if i == 0 {
+		// Hint was uninitialized. Choose the start index at random in hopes
+		// that we won't contend with others.
+		i = rand.IntN(heap.alloc.Len())
+	}
+	// Round down the start index to the bitset's word boundary.
+	i = i / 64 * 64
+
+	i = heap.alloc.FindAndSet(i)
+	if i < 0 {
+		// Try again, starting at 0.
+		i = heap.alloc.FindAndSet(0)
+	}
+
 	if i < 0 {
 		panic("out of free slots")
 	}
 	if i == 0 {
 		panic("unreachable")
+	}
+
+	// Ok
+
+	if hint != int64(i) {
+		// We succeeded and picked an index different from the hint. Try to
+		// update the hint, but don't bother if someone already has done so,
+		// to avoid cache line ping-pong.
+		atomic.CompareAndSwapInt64(hintp, hint, int64(i))
 	}
 	return i
 }
@@ -52,7 +82,9 @@ func (heap *descriptorHeap) Free(i int) {
 	if i == 0 {
 		return
 	}
-	heap.alloc.Free(i)
+	if heap.alloc.Swap(i, false) != true {
+		panic(fmt.Sprintf("tried to free slot %d that was not allocated", i))
+	}
 }
 
 // TODO: panic when the user tries to map 0th, reserved or unallocated

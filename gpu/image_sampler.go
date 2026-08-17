@@ -8,8 +8,6 @@ import (
 
 type ImageSampler struct{ descriptor uint32 }
 
-// var samplerObjects = make([]vk.Sampler, 2e3)
-
 // TODO: return a pointer?
 func NewSampler(config *vk.SamplerCreateInfo) ImageSampler {
 	var pinner runtime.Pinner
