@@ -330,9 +330,21 @@ func gpuInit() {
 					PNext: unsafe.Pointer(pinned(&pinner, &heapProps)),
 				})
 
-			// TODO: make it 1e6 again when we teach slotalloc how to allocate runs of bits at once
-			resourceHeap.init(int(heapProps.ImageDescriptorSize), 1e6)
-			samplerHeap.init(int(heapProps.SamplerDescriptorSize), 2e3)
+			vulkanImageDescriptorSize = int(heapProps.ImageDescriptorSize)
+			vulkanSamplerDescriptorSize = int(heapProps.SamplerDescriptorSize)
+
+			resourceHeapReservedSize := int(heapProps.MinResourceHeapReservedRange)
+			// TODO: when we teach the allocator to allocate arbitrary sizes
+			// make the size be
+			// 1e6*max(ImageDescriptorSize, BufferDescriptorSize)
+			resourceHeapSize := 1e6*int(heapProps.ImageDescriptorSize) + resourceHeapReservedSize
+
+			resourceHeap.init(int(heapProps.ImageDescriptorSize), resourceHeapSize, resourceHeapReservedSize)
+
+			samplerHeapReservedSize := int(heapProps.MinSamplerHeapReservedRangeWithEmbedded)
+			samplerHeapSize := 2048*int(heapProps.SamplerDescriptorSize) + samplerHeapReservedSize
+
+			samplerHeap.init(int(heapProps.SamplerDescriptorSize), samplerHeapSize, samplerHeapReservedSize)
 		}
 	})
 }

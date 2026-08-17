@@ -8,6 +8,15 @@ import (
 	"worldspawn/gpu/vk"
 )
 
+// Filled at init
+//
+// TODO: move this closer to where it's inited once we move this whole pile of
+// code into image/
+var (
+	vulkanImageDescriptorSize   int
+	vulkanSamplerDescriptorSize int
+)
+
 type ImageDescriptor struct {
 	bits uint32
 }
@@ -41,9 +50,11 @@ func newImageDescriptor(data *imageData, config subImageConfig) ImageDescriptor 
 
 	// TODO: switch to bits.OnesCount32(tag) eventually
 
-	rd := ResourceDescriptor(resourceHeap.Alloc(bits.Len32(tag), &imageHint))
+	offset := resourceHeap.Alloc(bits.Len32(tag)*vulkanImageDescriptorSize, &imageHint)
+
+	dst0 := resourceHeap.Base().Value()[offset:]
 	for i := range ones32(tag) {
-		dst := (rd + ResourceDescriptor(i)).Map().Value()
+		dst := dst0[i*vulkanImageDescriptorSize:]
 		switch i {
 		case 0:
 			initVulkanImageDescriptor(dst, data, config, vk.DESCRIPTOR_TYPE_SAMPLED_IMAGE)
@@ -54,16 +65,16 @@ func newImageDescriptor(data *imageData, config subImageConfig) ImageDescriptor 
 		}
 	}
 
-	return ImageDescriptor{uint32(rd) | tag<<20}
+	return ImageDescriptor{uint32(offset/vulkanImageDescriptorSize) | tag<<20}
 }
 
 func destroyImageDescriptor(descriptor ImageDescriptor) {
-	index := int(descriptor.bits & (1<<20 - 1))
-	tag := descriptor.bits >> 20
+	off := int(descriptor.bits&(1<<20-1)) * vulkanImageDescriptorSize
 
-	for i := range bits.Len32(tag) {
-		resourceHeap.Free(index + i)
-	}
+	tag := descriptor.bits >> 20
+	len := bits.Len32(tag) * vulkanImageDescriptorSize
+
+	resourceHeap.Free(off, len)
 }
 
 func initVulkanImageDescriptor(dst []byte, data *imageData, config subImageConfig, descriptorType vk.DescriptorType) {

@@ -15,15 +15,12 @@ func NewSampler(config *vk.SamplerCreateInfo) ImageSampler {
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
 
-	heap := &samplerHeap
+	offset := samplerHeap.Alloc(vulkanSamplerDescriptorSize, &samplerHint)
 
-	index := heap.Alloc(1, &samplerHint)
+	dst := samplerHeap.Base().Value()[offset:]
+	vkFns.WriteSamplerDescriptorsEXT(device, 1, config, new(byteSliceToHostAddressRange(dst)))
 
-	dst := heap.Map(index)
-
-	vkFns.WriteSamplerDescriptorsEXT(device, 1, config, new(byteSliceToHostAddressRange(dst.Value())))
-
-	return ImageSampler{descriptor: uint32(index) << 20}
+	return ImageSampler{descriptor: uint32(offset/vulkanSamplerDescriptorSize) << 20}
 }
 
 // func (sampler ImageSampler) Descriptor() uint32 { return sampler.descriptor }
@@ -35,5 +32,5 @@ func (sampler ImageSampler) Destroy() {
 		return
 	}
 
-	samplerHeap.Free(index)
+	samplerHeap.Free(index*vulkanSamplerDescriptorSize, vulkanSamplerDescriptorSize)
 }
