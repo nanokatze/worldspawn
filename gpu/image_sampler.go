@@ -6,7 +6,7 @@ import (
 	"worldspawn/gpu/vk"
 )
 
-type ImageSampler struct{ descriptor uint32 }
+type ImageSampler struct{ bits uint32 }
 
 var samplerHint int64
 
@@ -20,14 +20,14 @@ func NewSampler(config *vk.SamplerCreateInfo) ImageSampler {
 	dst := samplerHeap.Base().Value()[offset:]
 	vkFns.WriteSamplerDescriptorsEXT(device, 1, config, new(byteSliceToHostAddressRange(dst)))
 
-	return ImageSampler{descriptor: uint32(offset/vulkanSamplerDescriptorSize) << 20}
+	return ImageSampler{bits: uint32(offset/vulkanSamplerDescriptorSize) << 20}
 }
 
 // func (sampler ImageSampler) Descriptor() uint32 { return sampler.descriptor }
 
 func (sampler ImageSampler) Destroy() {
 	// TODO: check that the low bits are all zeros
-	index := int(sampler.descriptor >> 20)
+	index := int(sampler.bits >> 20)
 	if index == 0 {
 		return
 	}

@@ -46,13 +46,11 @@ func newImageDescriptor(data *imageData, config subImageConfig) ImageDescriptor 
 		return ImageDescriptor{}
 	}
 
-	// TODO: switch to bits.OnesCount32(tag) eventually
-
-	offset := resourceHeap.Alloc(bits.Len32(tag)*vulkanImageDescriptorSize, &imageHint)
+	offset := resourceHeap.Alloc(bits.OnesCount32(tag)*vulkanImageDescriptorSize, &imageHint)
 
 	dst0 := resourceHeap.Base().Value()[offset:]
 	for i := range ones32(tag) {
-		dst := dst0[i*vulkanImageDescriptorSize:]
+		dst := dst0[bits.OnesCount32(tag&((1<<i)-1))*vulkanImageDescriptorSize:]
 		switch i {
 		case 0:
 			initVulkanImageDescriptor(dst, data, config, vk.DESCRIPTOR_TYPE_SAMPLED_IMAGE)
@@ -63,16 +61,14 @@ func newImageDescriptor(data *imageData, config subImageConfig) ImageDescriptor 
 		}
 	}
 
-	return ImageDescriptor{uint32(offset/vulkanImageDescriptorSize) | tag<<20}
+	return ImageDescriptor{bits: uint32(offset/vulkanImageDescriptorSize) | tag<<20}
 }
 
 func destroyImageDescriptor(descriptor ImageDescriptor) {
 	off := int(descriptor.bits&(1<<20-1)) * vulkanImageDescriptorSize
-
 	tag := descriptor.bits >> 20
-	len := bits.Len32(tag) * vulkanImageDescriptorSize
 
-	resourceHeap.Free(off, len)
+	resourceHeap.Free(off, bits.OnesCount32(tag)*vulkanImageDescriptorSize)
 }
 
 func initVulkanImageDescriptor(dst []byte, data *imageData, config subImageConfig, descriptorType vk.DescriptorType) {
