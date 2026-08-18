@@ -171,8 +171,10 @@ vkcall_void_uintptr_32_ptr_32_ptr_noescape_nocallback(void (*VKAPI_PTR fn)(uintp
 	fn(a0, a1, a2, a3, a4);
 }
 
+#cgo noescape vkcall_void_uintptr_32_ptr_ptr_noescape_nocallback
+#cgo nocallback vkcall_void_uintptr_32_ptr_ptr_noescape_nocallback
 void
-vkcall_void_uintptr_32_ptr_ptr(void (*VKAPI_PTR fn)(uintptr_t, uint32_t, void*, void*), uintptr_t a0, uint32_t a1, void *a2, void *a3)
+vkcall_void_uintptr_32_ptr_ptr_noescape_nocallback(void (*VKAPI_PTR fn)(uintptr_t, uint32_t, void*, void*), uintptr_t a0, uint32_t a1, void *a2, void *a3)
 {
 	fn(a0, a1, a2, a3);
 }
@@ -446,11 +448,11 @@ func (funcs *DeviceFuncs) CmdBindPipeline(commandBuffer CommandBuffer, pipelineB
 }
 
 func (funcs *DeviceFuncs) CmdBindShadersEXT(commandBuffer CommandBuffer, stageCount uint32, pStages *ShaderStageFlagBits, pShaders *ShaderEXT) {
-	C.vkcall_void_uintptr_32_ptr_ptr(funcs.C_CmdBindShadersEXT, C.uintptr_t(commandBuffer), C.uint32_t(stageCount), unsafe.Pointer(pStages), unsafe.Pointer(pShaders))
+	C.vkcall_void_uintptr_32_ptr_ptr_noescape_nocallback(funcs.C_CmdBindShadersEXT, C.uintptr_t(commandBuffer), C.uint32_t(stageCount), unsafe.Pointer(pStages), unsafe.Pointer(pShaders))
 }
 
 func (funcs *DeviceFuncs) CmdBuildAccelerationStructuresKHR(commandBuffer CommandBuffer, infoCount uint32, pInfos *AccelerationStructureBuildGeometryInfoKHR, ppBuildRangeInfos **AccelerationStructureBuildRangeInfoKHR) {
-	C.vkcall_void_uintptr_32_ptr_ptr(funcs.C_CmdBuildAccelerationStructuresKHR, C.uintptr_t(commandBuffer), C.uint32_t(infoCount), unsafe.Pointer(pInfos), unsafe.Pointer(ppBuildRangeInfos))
+	C.vkcall_void_uintptr_32_ptr_ptr_noescape_nocallback(funcs.C_CmdBuildAccelerationStructuresKHR, C.uintptr_t(commandBuffer), C.uint32_t(infoCount), unsafe.Pointer(pInfos), unsafe.Pointer(ppBuildRangeInfos))
 }
 
 func (funcs *DeviceFuncs) CmdClearAttachments(commandBuffer CommandBuffer, attachmentCount uint32, attachments *ClearAttachment, rectCount uint32, rects *ClearRect) {
@@ -770,9 +772,9 @@ func (funcs *DeviceFuncs) WaitSemaphores(device Device, pWaitInfo *SemaphoreWait
 }
 
 func (funcs *DeviceFuncs) WriteSamplerDescriptorsEXT(device Device, samplerCount uint32, pSamplers *SamplerCreateInfo, pDescriptors *HostAddressRangeEXT) {
-	C.vkcall_void_uintptr_32_ptr_ptr(funcs.C_WriteSamplerDescriptorsEXT, C.uintptr_t(device), C.uint32_t(samplerCount), unsafe.Pointer(pSamplers), unsafe.Pointer(pDescriptors))
+	C.vkcall_void_uintptr_32_ptr_ptr_noescape_nocallback(funcs.C_WriteSamplerDescriptorsEXT, C.uintptr_t(device), C.uint32_t(samplerCount), unsafe.Pointer(pSamplers), unsafe.Pointer(pDescriptors))
 }
 
 func (funcs *DeviceFuncs) WriteResourceDescriptorsEXT(device Device, resourceCount uint32, pResources *ResourceDescriptorInfoEXT, pDescriptors *HostAddressRangeEXT) {
-	C.vkcall_void_uintptr_32_ptr_ptr(funcs.C_WriteResourceDescriptorsEXT, C.uintptr_t(device), C.uint32_t(resourceCount), unsafe.Pointer(pResources), unsafe.Pointer(pDescriptors))
+	C.vkcall_void_uintptr_32_ptr_ptr_noescape_nocallback(funcs.C_WriteResourceDescriptorsEXT, C.uintptr_t(device), C.uint32_t(resourceCount), unsafe.Pointer(pResources), unsafe.Pointer(pDescriptors))
 }

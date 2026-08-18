@@ -2,8 +2,6 @@ package gpu
 
 import (
 	"math/bits"
-	"runtime"
-	"unsafe"
 
 	"worldspawn/gpu/vk"
 )
@@ -78,26 +76,21 @@ func destroyImageDescriptor(descriptor ImageDescriptor) {
 }
 
 func initVulkanImageDescriptor(dst []byte, data *imageData, config subImageConfig, descriptorType vk.DescriptorType) {
-	var pinner runtime.Pinner
-	defer pinner.Unpin()
-
-	pinner.Pin(unsafe.SliceData(dst))
-
 	vkFns.WriteResourceDescriptorsEXT(device, 1,
 		&vk.ResourceDescriptorInfoEXT{
 			SType: vk.STRUCTURE_TYPE_RESOURCE_DESCRIPTOR_INFO_EXT,
 			Type:  descriptorType,
-			Data: vk.ResourceDescriptorDataEXT(pinned(&pinner, &vk.ImageDescriptorInfoEXT{
+			Data: vk.ResourceDescriptorDataEXT(&vk.ImageDescriptorInfoEXT{
 				SType: vk.STRUCTURE_TYPE_IMAGE_DESCRIPTOR_INFO_EXT,
-				PView: pinned(&pinner, &vk.ImageViewCreateInfo{
+				PView: &vk.ImageViewCreateInfo{
 					SType:            vk.STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 					Image:            data.vkImage,
 					ViewType:         config.dim.vkImageViewType(),
 					Format:           config.format,
 					SubresourceRange: config.bounds().VkImageSubresourceRange(config.format),
-				}),
+				},
 				Layout: vk.IMAGE_LAYOUT_GENERAL,
-			})),
+			}),
 		},
 		new(byteSliceToHostAddressRange(dst)))
 }
