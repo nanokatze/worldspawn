@@ -4,7 +4,7 @@ struct gfxParams {
     float4x4 projInv;
     float4x4 viewInv;
     Accel tlas;
-    ImageDescriptors output;
+    ImageDescriptor output;
 }
 
 [[vk::push_constant]] gfxParams gfxPush;
