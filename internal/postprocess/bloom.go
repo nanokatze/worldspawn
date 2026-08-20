@@ -3,13 +3,18 @@ package postprocess
 // TODO: move different postprocessing operators into subpackages?
 
 import (
-	"os"
+	_ "embed"
 	"structs"
 	"sync"
 
 	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
 )
+
+//go:generate slangc -target spirv -profile spirv_1_6 -fvk-use-entrypoint-name -fvk-use-c-layout -matrix-layout-row-major -capability vk_mem_model -capability spvDescriptorHeapEXT -o _shaders.spv bloom.slang
+
+//go:embed _shaders.spv
+var _shaders []byte
 
 // TODO: allow the user to provide temporary storage
 func Bloom(jq *gpu.JobQueue, dst, src *gpu.Image) {
@@ -58,7 +63,7 @@ type bloomDownsampleShaderEnv struct {
 	SamplerDescriptor gpu.ImageSampler
 }
 
-var bloomDownsampleShader = lazySpvFileComputeShader[bloomDownsampleShaderEnv]{filename: "shaders/postprocess_bloom.spv", entry: "bloomDownsample"}
+var bloomDownsampleShader = lazySpvFileComputeShader[bloomDownsampleShaderEnv]{entry: "bloomDownsample"}
 
 var downsampleSampler = sync.OnceValue(func() gpu.ImageSampler {
 	return gpu.NewSampler(&vk.SamplerCreateInfo{
@@ -101,7 +106,7 @@ type bloomUpsampleShaderEnv struct {
 	Radius            float32
 }
 
-var bloomUpsampleShader = lazySpvFileComputeShader[bloomUpsampleShaderEnv]{filename: "shaders/postprocess_bloom.spv", entry: "bloomUpsample"}
+var bloomUpsampleShader = lazySpvFileComputeShader[bloomUpsampleShaderEnv]{entry: "bloomUpsample"}
 
 var upsampleSampler = sync.OnceValue(func() gpu.ImageSampler {
 	return gpu.NewSampler(&vk.SamplerCreateInfo{
@@ -139,21 +144,12 @@ type lazySpvFileComputeShader[T any] struct {
 
 	shader *gpu.ComputeShader[T]
 
-	filename string
-	entry    string
+	entry string
 }
 
 func (lazyShader *lazySpvFileComputeShader[T]) Bind(env T) gpu.ComputeClosure[T] {
 	lazyShader.once.Do(func() {
-		lazyShader.shader = gpu.CompileComputeShader[T](mustReadFile(lazyShader.filename), lazyShader.entry)
+		lazyShader.shader = gpu.CompileComputeShader[T](_shaders, lazyShader.entry)
 	})
 	return lazyShader.shader.Bind(env)
-}
-
-func mustReadFile(filename string) []byte {
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		panic(err)
-	}
-	return data
 }

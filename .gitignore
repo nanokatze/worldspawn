@@ -5,3 +5,4 @@ __pycache__
 /shaders
 /slang-stdlib.bin
 /subprojects
+_shaders.spv

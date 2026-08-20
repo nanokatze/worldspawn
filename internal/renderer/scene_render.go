@@ -3,7 +3,6 @@ package renderer
 import (
 	"bytes"
 	_ "embed"
-	"os"
 	"structs"
 	"sync"
 
@@ -12,6 +11,11 @@ import (
 	"worldspawn/gpu/vk"
 	"worldspawn/internal/gmath"
 )
+
+//go:generate slangc -target spirv -profile spirv_1_6 -fvk-use-entrypoint-name -fvk-use-c-layout -matrix-layout-row-major -capability vk_mem_model -capability spvDescriptorHeapEXT -o _shaders.spv scene_render.slang
+
+//go:embed _shaders.spv
+var _shaders []byte
 
 //go:embed noise_lut.ktx2
 var noiseLUT []byte
@@ -58,16 +62,8 @@ var noiseImage = sync.OnceValue(func() *gpu.Image {
 })
 
 var raygen = sync.OnceValue(func() *gpu.RayTracingShaderGroup {
-	return gpu.NewGeneralRayTracingShaderGroup(gpu.NewRayTracingFunc(mustReadFile("shaders/renderer_scene_render.spv"), vk.SHADER_STAGE_RAYGEN_BIT_KHR, "raygen"))
+	return gpu.NewGeneralRayTracingShaderGroup(gpu.NewRayTracingFunc(_shaders, vk.SHADER_STAGE_RAYGEN_BIT_KHR, "raygen"))
 })
-
-func mustReadFile(filename string) []byte {
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		panic(err)
-	}
-	return data
-}
 
 func (scene *Scene) EnqueueRender(jq *gpu.JobQueue, film Film, camera *Camera, cameraTransform gmath.Mat4x4f32, frameNumber uint32, quality *Quality) {
 	noise := noiseImage()

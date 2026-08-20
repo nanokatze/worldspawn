@@ -23,10 +23,10 @@ import (
 	"worldspawn/internal/sdl"
 )
 
-//go:generate slangc -target spirv -profile spirv_1_6 -fvk-use-entrypoint-name -fvk-use-c-layout -matrix-layout-row-major -capability vk_mem_model -capability spvDescriptorHeapEXT -o shaders.spv main.slang
+//go:generate slangc -target spirv -profile spirv_1_6 -fvk-use-entrypoint-name -fvk-use-c-layout -matrix-layout-row-major -capability vk_mem_model -capability spvDescriptorHeapEXT -o _shaders.spv main.slang
 
-//go:embed shaders.spv
-var shaders []byte
+//go:embed _shaders.spv
+var _shaders []byte
 
 //go:embed room.bin
 var room []byte
@@ -76,7 +76,7 @@ var blenderToPathTracer = gmath.Mat4x4f32{
 }
 
 var gfxView = sync.OnceValues(func() (*gpu.RayTracingPipeline, gpu.ShaderBindingTable) {
-	raygen := gpu.NewGeneralRayTracingShaderGroup(gpu.NewRayTracingFunc(shaders, vk.SHADER_STAGE_RAYGEN_BIT_KHR, "gfxView"))
+	raygen := gpu.NewGeneralRayTracingShaderGroup(gpu.NewRayTracingFunc(_shaders, vk.SHADER_STAGE_RAYGEN_BIT_KHR, "gfxView"))
 
 	raygenRecord := gpu.NewUncached[gpu.RayTracingShaderGroupHandle]()
 	*raygenRecord.Value() = raygen.Handle()
@@ -89,7 +89,7 @@ var gfxView = sync.OnceValues(func() (*gpu.RayTracingPipeline, gpu.ShaderBinding
 })
 
 var tracePipeline = sync.OnceValues(func() (*gpu.RayTracingPipeline, gpu.ShaderBindingTable) {
-	raygen := gpu.NewGeneralRayTracingShaderGroup(gpu.NewRayTracingFunc(shaders, vk.SHADER_STAGE_RAYGEN_BIT_KHR, "trace"))
+	raygen := gpu.NewGeneralRayTracingShaderGroup(gpu.NewRayTracingFunc(_shaders, vk.SHADER_STAGE_RAYGEN_BIT_KHR, "trace"))
 
 	raygenRecord := gpu.NewUncached[gpu.RayTracingShaderGroupHandle]()
 	*raygenRecord.Value() = raygen.Handle()

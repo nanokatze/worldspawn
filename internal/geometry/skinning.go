@@ -3,13 +3,18 @@
 package geometry
 
 import (
-	"os"
+	_ "embed"
 	"structs"
 	"sync"
 
 	"worldspawn/gpu"
 	"worldspawn/internal/gmath"
 )
+
+//go:generate slangc -target spirv -profile spirv_1_6 -fvk-use-entrypoint-name -fvk-use-c-layout -matrix-layout-row-major -capability vk_mem_model -capability spvDescriptorHeapEXT -o _shaders.spv skinning.slang
+
+//go:embed _shaders.spv
+var _shaders []byte
 
 type Uhh struct {
 	_      structs.HostLayout
@@ -35,7 +40,7 @@ type skinMeshEnv struct {
 }
 
 var skinMesh = sync.OnceValue(func() *gpu.ComputeShader[skinMeshEnv] {
-	return gpu.CompileComputeShader[skinMeshEnv](mustReadFile("shaders/geometry_skinning.spv"), "skinMesh")
+	return gpu.CompileComputeShader[skinMeshEnv](_shaders, "skinMesh")
 })
 
 func EnqueueSkinMesh(
@@ -68,12 +73,4 @@ func EnqueueSkinMesh(
 
 			Pose: gpu.SliceData(pose),
 		}))
-}
-
-func mustReadFile(filename string) []byte {
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		panic(err)
-	}
-	return data
 }
