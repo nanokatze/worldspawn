@@ -32,18 +32,19 @@ public struct AccelInstance {
 };
 
 public struct ImageDescriptor {
-	public uint32_t bits;
+	uint32_t bits;
 
-	public bool supports(int i) {
-		uint32_t tag = bits >> 20;
-		return (tag & (1 << i)) != 0;
+	int unscaledOffsetBase() { return bits & ((1 << 20) - 1); }
+
+	uint32_t tag() { return bits >> 20; }
+
+	bool supports(int i) {
+		return (tag() & (1 << i)) != 0;
 	}
 
-	// TODO: rename this
-	public uint32_t descriptor(int i) {
-		uint32_t index = bits & ((1 << 20) - 1);
-		uint32_t tag = bits >> 20;
-		return index + countbits(tag & ((1 << i) - 1));
+	// Has to be uint32_t because of an apparent Slang bug.
+	uint32_t unscaledOffset(int i) {
+		return unscaledOffsetBase() + rank32(tag(), i);
 	}
 
 	[require(spirv, nonuniformqualifier)]
@@ -52,10 +53,10 @@ public struct ImageDescriptor {
 		extent.x = 1000;
 		extent.y = 1000;
 		if (supports(0)) {
-			let image = DescriptorHandle<Texture2D>(descriptor(0));
+			let image = DescriptorHandle<Texture2D>(unscaledOffset(0));
 			image.GetDimensions(extent.x, extent.y);
 		} else if (supports(1)) {
-			let image = DescriptorHandle<RWTexture2D>(descriptor(1));
+			let image = DescriptorHandle<RWTexture2D>(unscaledOffset(1));
 			image.GetDimensions(extent.x, extent.y);
 		} else {
 			/* assert(0) */
@@ -66,33 +67,35 @@ public struct ImageDescriptor {
 	// TODO: all of these should take array index
 	[require(spirv, nonuniformqualifier)]
 	public float4 Load2D(int2 P) {
-		let image = DescriptorHandle<RWTexture2D>(descriptor(1));
+		let image = DescriptorHandle<RWTexture2D>(unscaledOffset(1));
 		return image[P];
 	}
 
 	[require(spirv, nonuniformqualifier)]
 	public void Store2D(int2 P, float4 v) {
-		let image = DescriptorHandle<RWTexture2D>(descriptor(1));
+		let image = DescriptorHandle<RWTexture2D>(unscaledOffset(1));
 		image[P] = v;
 	}
 
 	[require(spirv, nonuniformqualifier)]
 	public float4 Sample2DLod(uint32_t samplerDescriptor, float2 P) {
-		let image = DescriptorHandle<Texture2D>(descriptor(0));
+		let image = DescriptorHandle<Texture2D>(unscaledOffset(0));
 		let sampler = DescriptorHandle<SamplerState>(samplerDescriptor >> 20);
 		return image.SampleLevel(sampler, P, 0);
 	}
 
 	[require(spirv, nonuniformqualifier)]
 	public float4 SampleCubeLOD(uint32_t samplerDescriptor, float3 P, float level) {
-		let image = DescriptorHandle<TextureCube>(descriptor(0));
+		let image = DescriptorHandle<TextureCube>(unscaledOffset(0));
 		let sampler = DescriptorHandle<SamplerState>(samplerDescriptor >> 20);
 		return image.SampleLevel(sampler, P, level);
 	}
 
 	[require(spirv, nonuniformqualifier)]
 	public float4 Fetch2D(int2 P) {
-		let image = DescriptorHandle<Texture2DArray>(descriptor(0));
+		let image = DescriptorHandle<Texture2DArray>(unscaledOffset(0));
 		return image.Load(int4(P, 0, 0));
 	}
 }
+
+int rank32(uint32_t x, int i) { return countbits(x & ((1 << i) - 1)); }

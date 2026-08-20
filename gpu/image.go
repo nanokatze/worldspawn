@@ -114,7 +114,7 @@ func newImage(data *imageData, config subImageConfig) *Image {
 		extent:     vkExtent3DFromInt3(extent),
 	}
 	if img.descriptor != (ImageDescriptor{}) {
-		img.cleanup = runtime.AddCleanup(img, destroyImageDescriptor, img.descriptor)
+		img.cleanup = runtime.AddCleanup(img, cleanupImageDescriptor, img.descriptor)
 	}
 
 	return img
@@ -186,7 +186,7 @@ func (img *Image) Destroy() {
 	// Stop the cleanup first.
 	img.cleanup.Stop()
 
-	destroyImageDescriptor(img.descriptor)
+	cleanupImageDescriptor(img.descriptor)
 
 	if img.ownsData {
 		img.data.destroy()

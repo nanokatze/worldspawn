@@ -15,11 +15,25 @@ var (
 	vulkanSamplerDescriptorSize int
 )
 
-type ImageDescriptor struct {
-	bits uint32
+type ImageDescriptor struct{ bits uint32 }
+
+func packImageDescriptor(unscaledOffset int, tag uint32) ImageDescriptor {
+	// TODO: validate unscaledOffset and tag
+	return ImageDescriptor{
+		bits: uint32(unscaledOffset) | tag<<20,
+	}
 }
 
-// TODO: add (*Image).Supports(usage)
+func (descriptor ImageDescriptor) unscaledOffsetBase() int {
+	return int(descriptor.bits & ((1 << 20) - 1))
+}
+
+func (descriptor ImageDescriptor) tag() uint32 { return descriptor.bits >> 20 }
+
+// TODO: introduce a function of tag for computing the length of the would-be
+// ImageDescriptor with the said tag. Keep it host-only in case we ever need to
+// read device properties to determine the length of some compound descriptors.
+// The compound descriptors would always have to be at the end.
 
 // TODO: the hints should be per-thread or similar.
 // TODO: keep separate hints for 1 and 2 -descriptor allocations?
@@ -50,28 +64,30 @@ func newImageDescriptor(data *imageData, config subImageConfig) ImageDescriptor 
 
 	dst0 := resourceHeap.Base().Value()[offset:]
 	for i := range ones32(tag) {
-		dst := dst0[bits.OnesCount32(tag&((1<<i)-1))*vulkanImageDescriptorSize:]
+		dst := dst0[rank32(tag, i)*vulkanImageDescriptorSize:]
 		switch i {
 		case 0:
-			initVulkanImageDescriptor(dst, data, config, vk.DESCRIPTOR_TYPE_SAMPLED_IMAGE)
+			marshalVulkanImageDescriptor(dst, data, config, vk.DESCRIPTOR_TYPE_SAMPLED_IMAGE)
 		case 1:
-			initVulkanImageDescriptor(dst, data, config, vk.DESCRIPTOR_TYPE_STORAGE_IMAGE)
+			marshalVulkanImageDescriptor(dst, data, config, vk.DESCRIPTOR_TYPE_STORAGE_IMAGE)
 		default:
 			panic("unreachable")
 		}
 	}
 
-	return ImageDescriptor{bits: uint32(offset/vulkanImageDescriptorSize) | tag<<20}
+	return packImageDescriptor(offset/vulkanImageDescriptorSize, tag)
 }
 
-func destroyImageDescriptor(descriptor ImageDescriptor) {
-	off := int(descriptor.bits&(1<<20-1)) * vulkanImageDescriptorSize
-	tag := descriptor.bits >> 20
+func cleanupImageDescriptor(descriptor ImageDescriptor) {
+	off := descriptor.unscaledOffsetBase() * vulkanImageDescriptorSize
+	len := bits.OnesCount32(descriptor.tag()) * vulkanImageDescriptorSize
 
-	resourceHeap.Free(off, bits.OnesCount32(tag)*vulkanImageDescriptorSize)
+	resourceHeap.Free(off, len)
 }
 
-func initVulkanImageDescriptor(dst []byte, data *imageData, config subImageConfig, descriptorType vk.DescriptorType) {
+func marshalVulkanImageDescriptor(dst []byte, data *imageData, config subImageConfig, descriptorType vk.DescriptorType) {
+	dstHostAddressRange := byteSliceToHostAddressRange(dst)
+
 	vkFns.WriteResourceDescriptorsEXT(device, 1,
 		&vk.ResourceDescriptorInfoEXT{
 			SType: vk.STRUCTURE_TYPE_RESOURCE_DESCRIPTOR_INFO_EXT,
@@ -88,5 +104,7 @@ func initVulkanImageDescriptor(dst []byte, data *imageData, config subImageConfi
 				Layout: vk.IMAGE_LAYOUT_GENERAL,
 			}),
 		},
-		new(byteSliceToHostAddressRange(dst)))
+		&dstHostAddressRange)
 }
+
+func rank32(x uint32, i int) int { return bits.OnesCount32(x & ((1 << i) - 1)) }
