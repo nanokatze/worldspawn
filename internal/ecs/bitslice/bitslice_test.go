@@ -1,4 +1,4 @@
-package bitset
+package bitslice
 
 import (
 	"fmt"
@@ -151,7 +151,7 @@ func BenchmarkUncontendedSetUnset(b *testing.B) {
 			bs := Make(N)
 			for b.Loop() {
 				b.StopTimer()
-				bitsetClearDense(bs, v)
+				bitsliceClearDense(bs, v)
 				b.StartTimer()
 
 				for i := range N {
@@ -166,7 +166,7 @@ func BenchmarkUncontendedSetUnset(b *testing.B) {
 			bs := Make(N)
 			for b.Loop() {
 				b.StopTimer()
-				bitsetClearDense(bs, v)
+				bitsliceClearDense(bs, v)
 				b.StartTimer()
 
 				for i := range N {
@@ -219,7 +219,7 @@ func BenchmarkReset(b *testing.B) {
 			tmp := Make(N)
 
 			for b.Loop() {
-				bitsetCopyDense(tmp, bs)
+				bitsliceCopyDense(tmp, bs)
 
 				tmp.Reset()
 			}
@@ -231,12 +231,12 @@ func BenchmarkReset(b *testing.B) {
 	}
 }
 
-func bitsetCopyDense(dst, src Bitset) {
+func bitsliceCopyDense(dst, src BitSlice) {
 	copy(dst.words, src.words)
 	copy(dst.ctrs0, src.ctrs0)
 }
 
-func bitsetClearDense(bs Bitset, v bool) {
+func bitsliceClearDense(bs BitSlice, v bool) {
 	switch v {
 	case false:
 		clear(bs.words)

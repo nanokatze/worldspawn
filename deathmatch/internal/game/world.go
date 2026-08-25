@@ -7,7 +7,7 @@ import (
 	"unique"
 
 	"worldspawn/internal/ecs"
-	"worldspawn/internal/ecs/bitset"
+	"worldspawn/internal/ecs/bitslice"
 	"worldspawn/internal/loaders/skeleton"
 	"worldspawn/internal/physics"
 )
@@ -58,7 +58,7 @@ func (world *World) Reset(n int) {
 		collisionLayerRules)
 	world.Entities.physicsBodyExists.Init(world.Table)
 
-	world.Entities.delete = bitset.Make(n)
+	world.Entities.delete = bitslice.Make(n)
 
 	// TODO: the user should pass this
 	world.logger = slog.Default()

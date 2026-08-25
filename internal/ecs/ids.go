@@ -1,9 +1,9 @@
 package ecs
 
-import "worldspawn/internal/ecs/bitset"
+import "worldspawn/internal/ecs/bitslice"
 
 type IDs struct {
-	used bitset.Bitset
+	used bitslice.BitSlice
 	gens []uint32
 }
 
@@ -92,6 +92,6 @@ func (ids *IDs) delete(id ID) {
 func (dst *IDs) Copy(src *IDs) {
 	// TODO: ensure sizes match
 
-	bitset.Copy(dst.used, src.used)
+	bitslice.Copy(dst.used, src.used)
 	copy(dst.gens, src.gens)
 }

@@ -1,4 +1,4 @@
-package bitset
+package bitslice
 
 import (
 	"math/bits"

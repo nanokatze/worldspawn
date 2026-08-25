@@ -7,13 +7,13 @@ import (
 	"iter"
 	"reflect"
 
-	"worldspawn/internal/ecs/bitset"
+	"worldspawn/internal/ecs/bitslice"
 )
 
 type Column[T any] struct {
 	table *Table // This is only necessary for json unmarshal garbage, kill
 	ids   *IDs
-	valid bitset.Bitset
+	valid bitslice.BitSlice
 	data  []T
 }
 
@@ -22,14 +22,22 @@ type Column[T any] struct {
 func (c *Column[T]) Init(table *Table) {
 	c.table = table
 	c.ids = table.IDs()
-	c.valid = bitset.Make(table.IDs().Cap())
+	c.valid = bitslice.Make(table.IDs().Cap())
 	c.data = make([]T, table.IDs().Cap())
 	table.columns = append(table.columns, c.Reflect())
 }
 
-func (c *Column[T]) Load(i int) T { return c.data[i] }
+func (c *Column[T]) Load(i int) T {
+	if c.ids.Index(i) == 0 {
+		panic("bad")
+	}
+	return c.data[i]
+}
 
 func (c *Column[T]) Store(i int, v T) {
+	if c.ids.Index(i) == 0 {
+		panic("bad")
+	}
 	c.data[i] = v
 	c.valid.Store(i, true)
 }
@@ -70,7 +78,7 @@ func (dst *Column[T]) Copy(src *Column[T]) {
 	// unnecessarily retain pointers, this would become a little bit more
 	// complicated.
 	// TODO: make sure the capacities are comparable
-	bitset.Copy(dst.valid, src.valid)
+	bitslice.Copy(dst.valid, src.valid)
 	copy(dst.data, src.data)
 }
 
@@ -83,7 +91,7 @@ func (c *Column[T]) Clear() {
 	// TODO: we can peek inside hbitset to find non-zero counters and memzero
 	// the huge range. This should provide decent performance regardless whether
 	// ComponentStore is sparse or dense.
-	for i := range bitset.And(c.valid) {
+	for i := range bitslice.And(c.valid) {
 		c.data[i] = *new(T)
 	}
 
@@ -124,7 +132,7 @@ func (c *reflectedColumn[T]) ElemType() reflect.Type { return reflect.TypeFor[T]
 
 func (c *reflectedColumn[T]) All() iter.Seq[ID] {
 	return func(yield func(ID) bool) {
-		for i := range bitset.And(c.valid) {
+		for i := range bitslice.And(c.valid) {
 			if !yield(MakeID(i, c.ids.gens[i])) {
 				break
 			}
@@ -148,6 +156,15 @@ func (c *reflectedColumn[T]) Delete(id ID) {
 
 func (c *reflectedColumn[T]) Copy(src ReflectedColumn) {
 	(*Column[T])(c).Copy((*Column[T])(src.(*reflectedColumn[T])))
+}
+
+func (c *reflectedColumn[T]) Load(index int, out reflect.Value) {
+	p := mustTypeAssert[*T](out.Addr())
+	*p = (*Column[T])(c).Load(index)
+}
+
+func (c *reflectedColumn[T]) Store(index int, v reflect.Value) {
+	(*Column[T])(c).Store(index, *mustTypeAssert[*T](v.Addr()))
 }
 
 func mustTypeAssert[T any](v reflect.Value) T {

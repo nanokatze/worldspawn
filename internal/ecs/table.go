@@ -1,6 +1,6 @@
 package ecs
 
-import "worldspawn/internal/ecs/bitset"
+import "worldspawn/internal/ecs/bitslice"
 
 // TODO: factor out used and gens into its own object?
 type Table struct {
@@ -11,7 +11,7 @@ type Table struct {
 func NewTable(n int) *Table {
 	return &Table{
 		ids: IDs{
-			used: bitset.Make(n),
+			used: bitslice.Make(n),
 			gens: make([]uint32, n),
 		},
 	}

@@ -1,4 +1,4 @@
-package bitset // TODO: rename this to containers and move it to worldspawn/internal/
+package bitslice // TODO: rename this to containers and move it to worldspawn/internal/
 
 import (
 	"fmt"
@@ -19,9 +19,11 @@ const (
 	ctr0Bits = 32 * wordBits
 )
 
-// All operations on Bitset have the same semantics and no stronger
+// TODO: give this slice semantics?
+
+// All operations on BitSlice have the same semantics and no stronger
 // synchronization requirements than their []bool counterparts.
-type Bitset struct {
+type BitSlice struct {
 	words []word
 	ctrs0 []uint32
 
@@ -32,25 +34,22 @@ type Bitset struct {
 
 // TODO: add append api so that it can be used as an actual []bool?
 
-func Make(len int) Bitset {
-	return Bitset{
+func Make(len int) BitSlice {
+	return BitSlice{
 		words: make([]word, divRoundUp(len, wordBits)),
 		ctrs0: make([]uint32, divRoundUp(len, ctr0Bits)),
 		len:   len,
 	}
 }
 
-func Copy(dst, src Bitset) {
-	// TODO: could be made faster on sparse bitsets by checking the counters
+func Copy(dst, src BitSlice) {
+	// TODO: could be made faster for sparse cases by checking the counters
 
 	copy(dst.words, src.words)
 	copy(dst.ctrs0, src.ctrs0)
 }
 
-// TODO: kill this
-func (bs Bitset) Test(i int) bool { return bs.Load(i) }
-
-func (bs Bitset) Load(i int) bool {
+func (bs BitSlice) Load(i int) bool {
 	if i < 0 || bs.len <= i {
 		panic(boundsError{x: i, y: bs.len})
 	}
@@ -62,7 +61,7 @@ func (bs Bitset) Load(i int) bool {
 	return atomicLoadWord(&bs.words[i/wordBits])&mask != 0
 }
 
-func (bs Bitset) Store(i int, v bool) {
+func (bs BitSlice) Store(i int, v bool) {
 	if i < 0 || i >= bs.len {
 		panic(boundsError{x: i, y: bs.len})
 	}
@@ -84,9 +83,20 @@ func (bs Bitset) Store(i int, v bool) {
 	}
 }
 
+// TODO: rename to Clear
+func (bs BitSlice) Reset() {
+	// TODO: could be made faster on sparse bitsets by checking the counters
+
+	clear(bs.words)
+	clear(bs.ctrs0)
+}
+
+// TODO: kill this
+func (bs BitSlice) Test(i int) bool { return bs.Load(i) }
+
 // Set sets the bit i and returns the old value.
 // TODO: kill in favor of Store
-func (bs Bitset) Set(i int) bool {
+func (bs BitSlice) Set(i int) bool {
 	if i < 0 || i >= bs.len {
 		panic(boundsError{x: i, y: bs.len})
 	}
@@ -103,7 +113,7 @@ func (bs Bitset) Set(i int) bool {
 
 // Unset unsets the bit i and returns the old value.
 // TODO: kill in favor of Store
-func (bs Bitset) Unset(i int) bool {
+func (bs BitSlice) Unset(i int) bool {
 	if i < 0 || bs.len <= i {
 		panic(boundsError{x: i, y: bs.len})
 	}
@@ -118,21 +128,13 @@ func (bs Bitset) Unset(i int) bool {
 	return old&mask != 0
 }
 
-// TODO: rename to Clear
-func (bs Bitset) Reset() {
-	// TODO: could be made faster on sparse bitsets by checking the counters
-
-	clear(bs.words)
-	clear(bs.ctrs0)
-}
-
 // TODO: add a Clear( bool) method?
 
-func (bs Bitset) Ones() iter.Seq[int] { return And(bs) }
+func (bs BitSlice) Ones() iter.Seq[int] { return And(bs) }
 
 // TODO: kill And
 // And returns an iterator over elements present in all bss.
-func And(bss ...Bitset) iter.Seq[int] {
+func And(bss ...BitSlice) iter.Seq[int] {
 	return func(yield func(int) bool) {
 		if len(bss) == 0 {
 			return

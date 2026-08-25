@@ -6,7 +6,7 @@ import (
 	"unique"
 
 	"worldspawn/internal/ecs"
-	"worldspawn/internal/ecs/bitset"
+	"worldspawn/internal/ecs/bitslice"
 	"worldspawn/internal/gmath"
 	"worldspawn/internal/loaders/skeleton"
 	"worldspawn/internal/physics"
@@ -128,7 +128,7 @@ type Entities struct {
 	physicsBodyExists ecs.Column[struct{}] `worldspawn:"dontreplicate"`
 
 	// Entities marked for deletion
-	delete bitset.Bitset `worldspawn:"dontreplicate"`
+	delete bitslice.BitSlice `worldspawn:"dontreplicate"`
 }
 
 // Entity represents a reference to an entity
