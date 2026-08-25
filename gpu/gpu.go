@@ -75,46 +75,19 @@ func WantDeviceFeature(feature string) {
 	wantDeviceFeatures.Add(feature, false)
 }
 
-var instance vk.Instance
-var physicalDevice vk.PhysicalDevice
-var topology *deviceTopology
-var device vk.Device
+var Instance vk.Instance
+var PhysicalDevice vk.PhysicalDevice
+var Topology *deviceTopology
+var Device vk.Device
 
-var vkFns struct {
+var VkFns struct {
 	vk.InstanceFuncs
 	vk.DeviceFuncs
 }
 
 var gpuInitOnce sync.Once
 
-// TODO: should be a method on _Device
-func QueueFamilies(flags vk.QueueFlags) queueFamilyMask {
-	return topology.QueueFamilies(flags)
-}
-
-// TODO: kill
-func BestQueueFamily(flags vk.QueueFlags) int {
-	return topology.MinimumCapable(flags)
-}
-
-// TODO: these should probably folded into Device() and Device() be renamed to Init()
-func Instance() vk.Instance {
-	gpuInit()
-	return instance
-}
-
-func PhysicalDevice() vk.PhysicalDevice {
-	gpuInit()
-	return physicalDevice
-}
-
-// TODO: fix
-func Device() vk.Device {
-	gpuInit()
-	return device
-}
-
-func gpuInit() {
+func GPUInit() {
 	gpuInitOnce.Do(func() {
 		var pinner runtime.Pinner
 		defer pinner.Unpin()
@@ -133,20 +106,20 @@ func gpuInit() {
 			}),
 			EnabledExtensionCount:   uint32(len(instanceExts)),
 			PPEnabledExtensionNames: pinnedCStringSlice(&pinner, instanceExts),
-		}), nil, &instance))
+		}), nil, &Instance))
 
-		vkFns.InstanceFuncs.Init(instance)
+		VkFns.InstanceFuncs.Init(Instance)
 
 		physicalDevices, err := enumerate(func(len *uint32, data *vk.PhysicalDevice) error {
-			return vkFns.EnumeratePhysicalDevices(instance, len, data)
+			return VkFns.EnumeratePhysicalDevices(Instance, len, data)
 		})
 		must(err)
-		physicalDevice = physicalDevices[0]
+		PhysicalDevice = physicalDevices[0]
 
 		coreProps_1_0 := vk.PhysicalDeviceProperties2{
 			SType: vk.STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
 		}
-		vkFns.GetPhysicalDeviceProperties2(physicalDevice, &coreProps_1_0)
+		VkFns.GetPhysicalDeviceProperties2(PhysicalDevice, &coreProps_1_0)
 
 		println("GPU:", byteSliceToString(coreProps_1_0.DeviceName[:]))
 
@@ -244,7 +217,7 @@ func gpuInit() {
 		// WantDeviceExtension("VK_EXT_external_memory_host")
 
 		availableExtensionsSlice, err := enumerate(func(len *uint32, data *vk.ExtensionProperties) error {
-			return vkFns.EnumerateDeviceExtensionProperties(physicalDevice, len, data)
+			return VkFns.EnumerateDeviceExtensionProperties(PhysicalDevice, len, data)
 		})
 		availableExtensions := maps.Collect(func(yield func(string, struct{}) bool) {
 			for _, ext := range availableExtensionsSlice {
@@ -268,7 +241,7 @@ func gpuInit() {
 		var availableFeatures deviceFeatures
 		availableFeatures.init(false)
 		pinner.Pin(&availableFeatures)
-		vkFns.GetPhysicalDeviceFeatures2(physicalDevice, &availableFeatures.PhysicalDeviceFeatures2)
+		VkFns.GetPhysicalDeviceFeatures2(PhysicalDevice, &availableFeatures.PhysicalDeviceFeatures2)
 
 		var enabledFeatures deviceFeatures
 		// TODO: rewrite this to be less ugly
@@ -283,10 +256,10 @@ func gpuInit() {
 		}
 		enabledFeatures.init(true)
 
-		topology = defaultQueues()
+		Topology = defaultQueues()
 
 		queueCreateInfos := slices.Collect(func(yield func(vk.DeviceQueueCreateInfo) bool) {
-			for family, count := range topology.counts {
+			for family, count := range Topology.counts {
 				if count == 0 {
 					continue
 				}
@@ -303,19 +276,19 @@ func gpuInit() {
 
 		pinner.Pin(&enabledFeatures)
 
-		must(vkFns.CreateDevice(physicalDevice, &vk.DeviceCreateInfo{
+		must(VkFns.CreateDevice(PhysicalDevice, &vk.DeviceCreateInfo{
 			SType:                   vk.STRUCTURE_TYPE_DEVICE_CREATE_INFO,
 			PNext:                   unsafe.Pointer(&enabledFeatures.PhysicalDeviceFeatures2),
 			QueueCreateInfoCount:    uint32(len(queueCreateInfos)),
 			PQueueCreateInfos:       pinnedSliceData(&pinner, queueCreateInfos),
 			EnabledExtensionCount:   uint32(len(enabledDeviceExtensionsSlice)),
 			PPEnabledExtensionNames: pinnedCStringSlice(&pinner, enabledDeviceExtensionsSlice),
-		}, &device))
+		}, &Device))
 
-		vkFns.DeviceFuncs.Init(device)
+		VkFns.DeviceFuncs.Init(Device)
 
-		for family := range ones32(QueueFamilies(0)) {
-			for i := range topology.counts[family] {
+		for family := range ones32(Topology.QueueFamilies(0)) {
+			for i := range Topology.counts[family] {
 				newDeviceQueue(family, i)
 			}
 		}
@@ -324,7 +297,7 @@ func gpuInit() {
 			heapProps := vk.PhysicalDeviceDescriptorHeapPropertiesEXT{
 				SType: vk.STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_HEAP_PROPERTIES_EXT,
 			}
-			vkFns.GetPhysicalDeviceProperties2(physicalDevice,
+			VkFns.GetPhysicalDeviceProperties2(PhysicalDevice,
 				&vk.PhysicalDeviceProperties2{
 					SType: vk.STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
 					PNext: unsafe.Pointer(pinned(&pinner, &heapProps)),

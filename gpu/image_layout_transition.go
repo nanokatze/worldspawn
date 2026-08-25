@@ -34,7 +34,7 @@ var transitionToPresentSrcOnTransferQueueIsBroken = sync.OnceValue(func() bool {
 	coreProps_1_2 := vk.PhysicalDeviceVulkan12Properties{
 		SType: vk.STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_PROPERTIES,
 	}
-	vkFns.GetPhysicalDeviceProperties2(physicalDevice,
+	VkFns.GetPhysicalDeviceProperties2(PhysicalDevice,
 		&vk.PhysicalDeviceProperties2{
 			SType: vk.STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
 			PNext: unsafe.Pointer(pinned(&pinner, &coreProps_1_2)),
@@ -47,9 +47,9 @@ func (job *transitionImageLayoutJob) Info() JobInfo {
 	// VUID-vkCmdPipelineBarrier2-commandBuffer-cmdpool
 	// The VkCommandPool that commandBuffer was allocated from must support
 	// transfer, graphics, compute, decode, or encode operations
-	families := topology.QueueFamilies(0b100)
+	families := Topology.QueueFamilies(0b100)
 	if job.newLayout == vk.IMAGE_LAYOUT_PRESENT_SRC_KHR && transitionToPresentSrcOnTransferQueueIsBroken() {
-		families = topology.QueueFamilies(0b010)
+		families = Topology.QueueFamilies(0b010)
 	}
 	return JobInfo{QueueFamilies: families}
 }
@@ -71,7 +71,7 @@ func (job *transitionImageLayoutJob) Exec(q *DeviceQueue) {
 		}
 		pinner.Pin(imageMemoryBarrier)
 
-		vkFns.CmdPipelineBarrier2(cb,
+		VkFns.CmdPipelineBarrier2(cb,
 			&vk.DependencyInfo{
 				SType:                   vk.STRUCTURE_TYPE_DEPENDENCY_INFO,
 				ImageMemoryBarrierCount: 1,

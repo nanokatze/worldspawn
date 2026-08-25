@@ -77,7 +77,7 @@ type Image struct {
 }
 
 func NewImage(config ImageConfig, usage vk.ImageUsageFlags) *Image {
-	gpuInit()
+	GPUInit()
 
 	img := newImage(newImageData(config, usage), subImageConfigFromImageConfig(config))
 	img.ownsData = true
@@ -139,6 +139,8 @@ func (img *Image) SubImage(opts ...SubImageOption) *Image {
 	}
 	return newImage(img.data, config)
 }
+
+// TODO: add (*Image).Supports(usage)
 
 func (img *Image) Config() ImageConfig {
 	return ImageConfig{

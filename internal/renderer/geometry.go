@@ -4,6 +4,7 @@ import (
 	"unsafe"
 
 	"worldspawn/gpu"
+	gpurt "worldspawn/gpu/raytracing"
 	"worldspawn/gpu/vk"
 )
 
@@ -42,12 +43,12 @@ type Geometry struct {
 // TODO: take out parameter instead of returning a new value so that the user
 // can preallocate things if they want to I guess?
 // TODO: make it standalone function rather than a method on Geometry?
-func (m *Geometry) AccelConfig() *gpu.AccelBuildConfig {
+func (m *Geometry) AccelConfig() *gpurt.AccelBuildConfig {
 	positions := m.AttributeBuffers[AttributePosition].(gpu.Slice[[3]float32])
 
-	accelBuildInputs := make([]gpu.AccelBuildInput, len(m.Parts))
+	accelBuildInputs := make([]gpurt.AccelBuildInput, len(m.Parts))
 	for i, part := range m.Parts {
-		accelBuildInputs[i] = &gpu.BLASBuildInputTriangles{
+		accelBuildInputs[i] = &gpurt.BLASBuildInputTriangles{
 			VertexFormat:  vk.FORMAT_R32G32B32_SFLOAT,
 			VertexBuffer:  gpu.UnsafePointer(gpu.SliceData(positions)),
 			VertexCount:   gpu.SliceLen(positions),
@@ -58,7 +59,7 @@ func (m *Geometry) AccelConfig() *gpu.AccelBuildConfig {
 		}
 	}
 
-	return &gpu.AccelBuildConfig{
+	return &gpurt.AccelBuildConfig{
 		Type:   vk.ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
 		Inputs: accelBuildInputs,
 	}

@@ -38,7 +38,7 @@ func (descriptor ImageDescriptor) tag() uint32 { return descriptor.bits >> 20 }
 // TODO: the hints should be per-thread or similar.
 // TODO: keep separate hints for 1 and 2 -descriptor allocations?
 
-var imageHint int64
+var imageDescriptorAllocHint int64
 
 func newImageDescriptor(data *imageData, config subImageConfig) ImageDescriptor {
 	formatProps := getFormatImageProperties(config.format)
@@ -60,7 +60,7 @@ func newImageDescriptor(data *imageData, config subImageConfig) ImageDescriptor 
 		return ImageDescriptor{}
 	}
 
-	offset := resourceHeap.Alloc(bits.OnesCount32(tag)*vulkanImageDescriptorSize, &imageHint)
+	offset := resourceHeap.Alloc(bits.OnesCount32(tag)*vulkanImageDescriptorSize, &imageDescriptorAllocHint)
 
 	dst0 := resourceHeap.Base().Value()[offset:]
 	for i := range ones32(tag) {
@@ -88,7 +88,7 @@ func cleanupImageDescriptor(descriptor ImageDescriptor) {
 func marshalVulkanImageDescriptor(dst []byte, data *imageData, config subImageConfig, descriptorType vk.DescriptorType) {
 	dstHostAddressRange := byteSliceToHostAddressRange(dst)
 
-	vkFns.WriteResourceDescriptorsEXT(device, 1,
+	VkFns.WriteResourceDescriptorsEXT(Device, 1,
 		&vk.ResourceDescriptorInfoEXT{
 			SType: vk.STRUCTURE_TYPE_RESOURCE_DESCRIPTOR_INFO_EXT,
 			Type:  descriptorType,

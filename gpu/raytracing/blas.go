@@ -1,6 +1,9 @@
-package gpu
+package raytracing
 
-import "worldspawn/gpu/vk"
+import (
+	"worldspawn/gpu"
+	"worldspawn/gpu/vk"
+)
 
 type BLAS struct {
 	blas struct{}
@@ -14,14 +17,14 @@ func NewBLAS(size int) BLAS {
 }
 
 // TODO: accept scratch explicitly as a byte slice or something similar
-func (blas *BLAS) EnqueueBuild(jq *JobQueue, config *AccelBuildConfig) {
+func (blas *BLAS) EnqueueBuild(jq *gpu.JobQueue, config *AccelBuildConfig) {
 	sizes := config.CalcSizes()
 	if sizes.Accel > blas.Size() {
 		panic("bad")
 	}
 
-	scratch := UnsafePointer(SliceData(MakeSliceUncached[byte](sizes.BuildScratch)))
-	defer jq.Cleanup(func() { Free(scratch) })
+	scratch := gpu.UnsafePointer(gpu.SliceData(gpu.MakeSliceUncached[byte](sizes.BuildScratch)))
+	defer jq.Cleanup(func() { gpu.Free(scratch) })
 
 	vkGeometries := make([]vk.AccelerationStructureGeometryKHR, len(config.Inputs))
 	vkBuildRanges := make([]vk.AccelerationStructureBuildRangeInfoKHR, len(config.Inputs))

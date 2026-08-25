@@ -95,7 +95,7 @@ func (job *copyImageJob) Exec(q *DeviceQueue) {
 		}
 		pinner.Pin(region)
 
-		vkFns.CmdCopyImage2(cb, &vk.CopyImageInfo2{
+		VkFns.CmdCopyImage2(cb, &vk.CopyImageInfo2{
 			SType:          vk.STRUCTURE_TYPE_COPY_IMAGE_INFO_2,
 			SrcImage:       job.src.vkImage,
 			SrcImageLayout: vk.IMAGE_LAYOUT_GENERAL,
@@ -187,7 +187,7 @@ func (job *copyMemoryToImageJob) Exec(q *DeviceQueue) {
 		}
 		pinner.Pin(region)
 
-		vkFns.CmdCopyMemoryToImageKHR(cb, &vk.CopyDeviceMemoryImageInfoKHR{
+		VkFns.CmdCopyMemoryToImageKHR(cb, &vk.CopyDeviceMemoryImageInfoKHR{
 			SType:       vk.STRUCTURE_TYPE_COPY_DEVICE_MEMORY_IMAGE_INFO_KHR,
 			Image:       job.dst.vkImage,
 			RegionCount: 1,
@@ -268,7 +268,7 @@ func (job *copyImageToMemoryJob) Exec(q *DeviceQueue) {
 		}
 		pinner.Pin(region)
 
-		vkFns.CmdCopyImageToMemoryKHR(cb, &vk.CopyDeviceMemoryImageInfoKHR{
+		VkFns.CmdCopyImageToMemoryKHR(cb, &vk.CopyDeviceMemoryImageInfoKHR{
 			SType:       vk.STRUCTURE_TYPE_COPY_DEVICE_MEMORY_IMAGE_INFO_KHR,
 			Image:       job.src.vkImage,
 			RegionCount: 1,
@@ -285,25 +285,25 @@ func (job *copyImageToMemoryJob) Exec(q *DeviceQueue) {
 // TODO: pass granularities array, queueFamilies explicitly?
 func chooseQueueFamiliesForImageCopy(
 	data *imageData, bounds imageBounds,
-	offsetBlocks, extentBlocks [3]int) queueFamilyMask {
+	offsetBlocks, extentBlocks [3]int) QueueFamilyMask {
 	levelExtent := minify3(data.extent, bounds.FirstMip())
 	levelExtentBlocks := divByBlockExtentRoundUp(levelExtent, data.format)
 
-	families := topology.QueueFamilies(vk.QueueFlags(vk.QUEUE_TRANSFER_BIT))
+	families := Topology.QueueFamilies(vk.QueueFlags(vk.QUEUE_TRANSFER_BIT))
 
 	// TODO: determine this differently
 	aspects := bounds.VkImageSubresourceRange(data.format).AspectMask
 	if aspects&vk.ImageAspectFlags(vk.IMAGE_ASPECT_DEPTH_BIT) != 0 {
-		families &= topology.QueueFamilies(vk.QueueFlags(vk.QUEUE_GRAPHICS_BIT))
+		families &= Topology.QueueFamilies(vk.QueueFlags(vk.QUEUE_GRAPHICS_BIT))
 	}
 	if aspects&vk.ImageAspectFlags(vk.IMAGE_ASPECT_STENCIL_BIT) != 0 {
-		families &= topology.QueueFamilies(vk.QueueFlags(vk.QUEUE_GRAPHICS_BIT))
+		families &= Topology.QueueFamilies(vk.QueueFlags(vk.QUEUE_GRAPHICS_BIT))
 	}
 
 	entire := offsetBlocks == [3]int{} && extentBlocks == levelExtentBlocks
 	if !entire {
-		for family := range ones32(families &^ topology.QueueFamilies(0b010)) {
-			granularity := int3FromVkExtent3D(topology.props[family].MinImageTransferGranularity)
+		for family := range ones32(families &^ Topology.QueueFamilies(0b010)) {
+			granularity := int3FromVkExtent3D(Topology.Props[family].MinImageTransferGranularity)
 
 			if granularity == ([3]int{}) ||
 				mod3(offsetBlocks, granularity) != ([3]int{}) ||

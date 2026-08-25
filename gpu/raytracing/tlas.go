@@ -1,8 +1,9 @@
-package gpu
+package raytracing
 
 import (
 	"structs"
 
+	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
 )
 
@@ -12,11 +13,11 @@ type BLASInstance struct {
 	Transform         [3][4]float32
 	InstanceIDAndMask uint32 // TODO: make packing this more user-friendly.
 	SBTOffsetAndFlags uint32
-	accel             UnsafePointer
+	accel             gpu.UnsafePointer
 }
 
 // TODO: introduce type BLASData struct { p UnsafePointer } or similar and
-// remove this method?
+// provide direct access to BLASInstance.accel?
 func (instance *BLASInstance) SetAccel(blas BLAS) {
 	instance.accel = blas.data
 }
@@ -32,14 +33,14 @@ func NewTLAS(size int) TLAS {
 	}
 }
 
-func (tlas *TLAS) EnqueueBuild(jq *JobQueue, config *AccelBuildConfig) {
+func (tlas *TLAS) EnqueueBuild(jq *gpu.JobQueue, config *AccelBuildConfig) {
 	sizes := config.CalcSizes()
 	if sizes.Accel > tlas.Size() {
 		panic("bad")
 	}
 
-	scratch := UnsafePointer(SliceData(MakeSliceUncached[byte](sizes.BuildScratch)))
-	defer jq.Cleanup(func() { Free(scratch) })
+	scratch := gpu.UnsafePointer(gpu.SliceData(gpu.MakeSliceUncached[byte](sizes.BuildScratch)))
+	defer jq.Cleanup(func() { gpu.Free(scratch) })
 
 	vkGeometries := make([]vk.AccelerationStructureGeometryKHR, len(config.Inputs))
 	vkBuildRanges := make([]vk.AccelerationStructureBuildRangeInfoKHR, len(config.Inputs))

@@ -40,7 +40,7 @@ func EnqueueCopy[T any](jq *JobQueue, dst, src Slice[T]) {
 
 func (*copyJob) Info() JobInfo {
 	return JobInfo{
-		QueueFamilies: topology.QueueFamilies(0b100),
+		QueueFamilies: Topology.QueueFamilies(0b100),
 	}
 }
 
@@ -70,7 +70,7 @@ func (job *copyJob) Exec(q *DeviceQueue) {
 		}
 		pinner.Pin(region)
 
-		vkFns.CmdCopyMemoryKHR(cb, &vk.CopyDeviceMemoryInfoKHR{
+		VkFns.CmdCopyMemoryKHR(cb, &vk.CopyDeviceMemoryInfoKHR{
 			SType:       vk.STRUCTURE_TYPE_COPY_BUFFER_INFO_2,
 			RegionCount: 1,
 			PRegions:    region,

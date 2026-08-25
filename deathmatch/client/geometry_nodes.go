@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"worldspawn/gpu"
+	gpurt "worldspawn/gpu/raytracing"
 	"worldspawn/internal/geometry"
 	"worldspawn/internal/gmath"
 	"worldspawn/internal/loaders/skeleton"
@@ -23,7 +24,7 @@ type gsdata struct {
 	// output
 
 	geometry *renderer.Geometry
-	accel    gpu.BLAS
+	accel    gpurt.BLAS
 }
 
 // TODO: rename this
@@ -39,10 +40,10 @@ type geoNodes struct {
 
 // TODO: rename?
 
-func (gs *geoNodes) Outputs(data *gsdata) (*renderer.Geometry, gpu.BLAS) {
+func (gs *geoNodes) Outputs(data *gsdata) (*renderer.Geometry, gpurt.BLAS) {
 	if len(gs.pose) == 0 {
 		if gs.src == nil {
-			return nil, gpu.BLAS{}
+			return nil, gpurt.BLAS{}
 		}
 		return &gs.src.geometry, gs.src.accel
 	}
@@ -104,7 +105,7 @@ func (gs *geoNodes) EnqueueEvaluate(jq *gpu.JobQueue, data *gsdata) {
 	accelSizes := accelConfig.CalcSizes()
 	if data.accel.Size() < accelSizes.Accel {
 		println("allocating accel", accelSizes.Accel)
-		data.accel = gpu.NewBLAS(accelSizes.Accel)
+		data.accel = gpurt.NewBLAS(accelSizes.Accel)
 	}
 
 	// TODO: we need to run this every frame, interpolating stuff.

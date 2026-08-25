@@ -4,6 +4,7 @@ import (
 	"structs"
 
 	"worldspawn/gpu"
+	gpurt "worldspawn/gpu/raytracing"
 	"worldspawn/gpu/vk"
 	"worldspawn/internal/gmath"
 	"worldspawn/internal/renderer/internal/material"
@@ -78,9 +79,9 @@ type Scene struct {
 
 	materialArgs gpu.Slice[materialParams]
 
-	accelData gpu.Slice[gpu.BLASInstance]
+	accelData gpu.Slice[gpurt.BLASInstance]
 
-	accel gpu.TLAS
+	accel gpurt.TLAS
 
 	lightAccel lightAccel
 
@@ -92,11 +93,11 @@ type Scene struct {
 
 	// TODO: move pipelines + SBT into a separate object that's like a
 	// MaterialLibrary or whatever
-	pipeline *gpu.RayTracingPipeline
-	sbt      gpu.ShaderBindingTable
+	pipeline *gpurt.RayTracingPipeline
+	sbt      gpurt.ShaderBindingTable
 
 	materialParamsHost []materialParams
-	accelInstancesHost []gpu.BLASInstance
+	accelInstancesHost []gpurt.BLASInstance
 }
 
 /*
@@ -114,7 +115,7 @@ func NewScene(n int, maxPartsPerMesh int) *Scene {
 	materialArgs := gpu.MakeSliceUncached[materialParams](n * maxPartsPerMesh)
 	clear(materialArgs.Value())
 
-	accelData := gpu.MakeSliceUncached[gpu.BLASInstance](n)
+	accelData := gpu.MakeSliceUncached[gpurt.BLASInstance](n)
 	clear(accelData.Value())
 
 	lightAccelData := gpu.MakeSliceUncached[emissiveInstance](n)
@@ -122,22 +123,22 @@ func NewScene(n int, maxPartsPerMesh int) *Scene {
 
 	// TODO: make pipeline be relinked when some material is created or removed
 	// or whatever.
-	pipeline := gpu.LinkRayTracingShaderGroups(raygen())
+	pipeline := gpurt.LinkRayTracingShaderGroups(raygen())
 
-	raygenRecord := gpu.NewUncached[gpu.RayTracingShaderGroupHandle]()
+	raygenRecord := gpu.NewUncached[gpurt.RayTracingShaderGroupHandle]()
 	*raygenRecord.Value() = raygen().Handle()
 
 	return &Scene{
 		maxMaterialsPerInstance: maxPartsPerMesh,
 		pipeline:                pipeline, // TODO: relink this after materials change and stuff
-		sbt:                     gpu.MakeShaderBindingTable(raygenRecord, gpu.Slice[struct{}]{}, gpu.Slice[struct{}]{}, gpu.Slice[struct{}]{}),
+		sbt:                     gpurt.MakeShaderBindingTable(raygenRecord, gpu.Slice[struct{}]{}, gpu.Slice[struct{}]{}, gpu.Slice[struct{}]{}),
 		materialArgs:            materialArgs,
 		accelData:               accelData,
-		accel: gpu.NewTLAS(
-			(&gpu.AccelBuildConfig{
+		accel: gpurt.NewTLAS(
+			(&gpurt.AccelBuildConfig{
 				Type: vk.ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
-				Inputs: []gpu.AccelBuildInput{
-					&gpu.TLASBuildInputInstances{
+				Inputs: []gpurt.AccelBuildInput{
+					&gpurt.TLASBuildInputInstances{
 						Instances:     gpu.SliceData(accelData),
 						InstanceCount: uint32(gpu.SliceLen(accelData)),
 					},
@@ -177,9 +178,9 @@ func (scene *Scene) SetInstanceTransform(i int, x [3][4]float32) {
 }
 
 // TODO: this should only exist on the device/in the shader
-func (scene *Scene) SetInstanceGeometry(i int, mask uint8, geometry *Geometry, accel gpu.BLAS, materials []*InterpretedMaterial, materialArgs [][256]byte) {
+func (scene *Scene) SetInstanceGeometry(i int, mask uint8, geometry *Geometry, accel gpurt.BLAS, materials []*InterpretedMaterial, materialArgs [][256]byte) {
 	// TODO: this really begs for a func vararg constructor tbh.
-	var accelInstance gpu.BLASInstance
+	var accelInstance gpurt.BLASInstance
 	accelInstance.InstanceIDAndMask = pack24_8(0, uint32(mask))
 	accelInstance.SBTOffsetAndFlags = pack24_8(uint32(i*scene.maxMaterialsPerInstance), 0)
 	accelInstance.SetAccel(accel)
@@ -208,10 +209,10 @@ func (scene *Scene) SetInstanceGeometry(i int, mask uint8, geometry *Geometry, a
 
 func (scene *Scene) EnqueueUpdateAccel(jq *gpu.JobQueue) {
 	scene.accel.EnqueueBuild(jq,
-		&gpu.AccelBuildConfig{
+		&gpurt.AccelBuildConfig{
 			Type: vk.ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
-			Inputs: []gpu.AccelBuildInput{
-				&gpu.TLASBuildInputInstances{
+			Inputs: []gpurt.AccelBuildInput{
+				&gpurt.TLASBuildInputInstances{
 					Instances:     gpu.SliceData(scene.accelData),
 					InstanceCount: uint32(gpu.SliceLen(scene.accelData)),
 				},

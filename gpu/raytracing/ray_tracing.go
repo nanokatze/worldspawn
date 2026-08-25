@@ -1,11 +1,13 @@
-package gpu
+package raytracing
 
 import (
+	"errors"
 	"runtime"
 	"slices"
 	"structs"
 	"unsafe"
 
+	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
 )
 
@@ -21,6 +23,7 @@ type RayTracingLibraryInterface struct {
 	MaxRayHitAttributeSize int
 }
 
+// TODO: these would be specified in the shaders somehow
 const maxPipelineRayPayloadSize = 32
 const maxPipelineRayHitAttributeSize = 32
 
@@ -34,7 +37,7 @@ func NewRayTracingFunc(blob []byte, stage vk.ShaderStageFlagBits, entry string) 
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
 
-	gpuInit()
+	gpu.GPUInit()
 
 	// TODO: outline the cases into separate functions and clean this up
 
@@ -46,7 +49,7 @@ func NewRayTracingFunc(blob []byte, stage vk.ShaderStageFlagBits, entry string) 
 		vk.SHADER_STAGE_INTERSECTION_BIT_KHR,
 		vk.SHADER_STAGE_CALLABLE_BIT_KHR:
 		var vkPipeline vk.Pipeline
-		must(vkFns.CreateRayTracingPipelinesKHR(device, vk.NULL_HANDLE, vk.NULL_HANDLE, 1, &vk.RayTracingPipelineCreateInfoKHR{
+		must(gpu.VkFns.CreateRayTracingPipelinesKHR(gpu.Device, vk.NULL_HANDLE, vk.NULL_HANDLE, 1, &vk.RayTracingPipelineCreateInfoKHR{
 			SType: vk.STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR,
 			PNext: unsafe.Pointer(pinned(&pinner, &vk.PipelineCreateFlags2CreateInfo{
 				SType: vk.STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO,
@@ -144,7 +147,7 @@ func newRayTracingShaderGroup(_type vk.RayTracingShaderGroupTypeKHR,
 	}
 
 	var vkPipeline vk.Pipeline
-	must(vkFns.CreateRayTracingPipelinesKHR(device, vk.NULL_HANDLE, vk.NULL_HANDLE, 1, &vk.RayTracingPipelineCreateInfoKHR{
+	must(gpu.VkFns.CreateRayTracingPipelinesKHR(gpu.Device, vk.NULL_HANDLE, vk.NULL_HANDLE, 1, &vk.RayTracingPipelineCreateInfoKHR{
 		SType: vk.STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR,
 		PNext: unsafe.Pointer(pinned(&pinner, &vk.PipelineCreateFlags2CreateInfo{
 			SType: vk.STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO,
@@ -167,7 +170,7 @@ func newRayTracingShaderGroup(_type vk.RayTracingShaderGroupTypeKHR,
 	}, nil, &vkPipeline))
 
 	var handle RayTracingShaderGroupHandle
-	must(vkFns.GetRayTracingShaderGroupHandlesKHR(device, vkPipeline, 0, 1, int(unsafe.Sizeof(handle)), unsafe.Pointer(&handle)))
+	must(gpu.VkFns.GetRayTracingShaderGroupHandlesKHR(gpu.Device, vkPipeline, 0, 1, int(unsafe.Sizeof(handle)), unsafe.Pointer(&handle)))
 
 	return &RayTracingShaderGroup{vk: vkPipeline, handle: handle}
 }
@@ -203,7 +206,7 @@ func LinkRayTracingShaderGroups(shaderGroups ...*RayTracingShaderGroup) *RayTrac
 	}
 
 	var vkPipeline vk.Pipeline
-	must(vkFns.CreateRayTracingPipelinesKHR(device, vk.NULL_HANDLE, vk.NULL_HANDLE, 1, &vk.RayTracingPipelineCreateInfoKHR{
+	must(gpu.VkFns.CreateRayTracingPipelinesKHR(gpu.Device, vk.NULL_HANDLE, vk.NULL_HANDLE, 1, &vk.RayTracingPipelineCreateInfoKHR{
 		SType: vk.STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR,
 		PNext: unsafe.Pointer(pinned(&pinner, &vk.PipelineCreateFlags2CreateInfo{
 			SType: vk.STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO,
@@ -227,16 +230,16 @@ func LinkRayTracingShaderGroups(shaderGroups ...*RayTracingShaderGroup) *RayTrac
 
 type shaderRecordSlice struct {
 	_       structs.HostLayout
-	address UnsafePointer
+	address gpu.UnsafePointer
 	size    int
 	stride  int
 }
 
-func makeShaderRecordSlice[T any](s Slice[T]) shaderRecordSlice {
+func makeShaderRecordSlice[T any](s gpu.Slice[T]) shaderRecordSlice {
 	elemSize := int(unsafe.Sizeof(s.Value()[0]))
 	return shaderRecordSlice{
-		address: UnsafePointer(SliceData(s)),
-		size:    SliceLen(s) * elemSize,
+		address: gpu.UnsafePointer(gpu.SliceData(s)),
+		size:    gpu.SliceLen(s) * elemSize,
 		stride:  elemSize,
 	}
 }
@@ -244,18 +247,18 @@ func makeShaderRecordSlice[T any](s Slice[T]) shaderRecordSlice {
 // TODO: rename?
 type ShaderBindingTable struct {
 	_                   structs.HostLayout
-	raygenRecordAddress UnsafePointer // TODO: put these into a struct too?
+	raygenRecordAddress gpu.UnsafePointer // TODO: put these into a struct too?
 	raygenRecordSize    int
 	missRecords         shaderRecordSlice
 	hitRecords          shaderRecordSlice
 	callableRecords     shaderRecordSlice
 }
 
-func MakeShaderBindingTable[A, B, C, D any](raygenRecord Pointer[A], missRecords Slice[B], hitRecords Slice[C], callableRecords Slice[D]) ShaderBindingTable {
+func MakeShaderBindingTable[A, B, C, D any](raygenRecord gpu.Pointer[A], missRecords gpu.Slice[B], hitRecords gpu.Slice[C], callableRecords gpu.Slice[D]) ShaderBindingTable {
 	// TODO: validate that the types are suitable (i.e. their sizes are
 	// multiples of 32) and the resulting sbt is valid
 	return ShaderBindingTable{
-		raygenRecordAddress: UnsafePointer(raygenRecord),
+		raygenRecordAddress: gpu.UnsafePointer(raygenRecord),
 		raygenRecordSize:    int(unsafe.Sizeof(raygenRecord.Value())),
 		missRecords:         makeShaderRecordSlice(missRecords),
 		hitRecords:          makeShaderRecordSlice(hitRecords),
@@ -271,7 +274,7 @@ type traceRaysJob struct {
 }
 
 func EnqueueTraceRays(
-	jq *JobQueue,
+	jq *gpu.JobQueue,
 	threads []int,
 	pipeline *RayTracingPipeline,
 	sbt ShaderBindingTable,
@@ -296,23 +299,23 @@ func EnqueueTraceRays(
 	})
 }
 
-func (*traceRaysJob) Info() JobInfo {
-	return JobInfo{
-		QueueFamilies: topology.QueueFamilies(0b010),
+func (*traceRaysJob) Info() gpu.JobInfo {
+	return gpu.JobInfo{
+		QueueFamilies: gpu.Topology.QueueFamilies(0b010),
 	}
 }
 
-func (job *traceRaysJob) Exec(q *DeviceQueue) {
+func (job *traceRaysJob) Exec(q *gpu.DeviceQueue) {
 	q.Commands(func(cb vk.CommandBuffer) {
 		var pinner runtime.Pinner
 		defer pinner.Unpin()
 
-		BindDescriptorHeaps(cb)
+		gpu.BindDescriptorHeaps(cb)
 
-		vkFns.CmdBindPipeline(cb, vk.PIPELINE_BIND_POINT_RAY_TRACING_KHR, job.pipeline.vk)
+		gpu.VkFns.CmdBindPipeline(cb, vk.PIPELINE_BIND_POINT_RAY_TRACING_KHR, job.pipeline.vk)
 
 		pinner.Pin(unsafe.SliceData(job.args))
-		vkFns.CmdPushDataEXT(cb, &vk.PushDataInfoEXT{
+		gpu.VkFns.CmdPushDataEXT(cb, &vk.PushDataInfoEXT{
 			SType: vk.STRUCTURE_TYPE_PUSH_DATA_INFO_EXT,
 			Data: vk.HostAddressRangeConstEXT{
 				Address: unsafe.Pointer(unsafe.SliceData(job.args)),
@@ -320,7 +323,7 @@ func (job *traceRaysJob) Exec(q *DeviceQueue) {
 			},
 		})
 
-		vkFns.CmdTraceRaysKHR(cb,
+		gpu.VkFns.CmdTraceRaysKHR(cb,
 			&vk.StridedDeviceAddressRegionKHR{
 				DeviceAddress: vk.DeviceAddress(job.sbt.raygenRecordAddress),
 				Stride:        vk.DeviceSize(job.sbt.raygenRecordSize),
@@ -345,4 +348,22 @@ func (job *traceRaysJob) Exec(q *DeviceQueue) {
 			job.threads[1],
 			job.threads[2])
 	})
+}
+
+var errEmptyGrid = errors.New("empty grid")
+
+// TODO: limits etc validation
+// TODO: rename just to validateGrid
+func validateGrid(grid []int) error {
+	product := 1
+	for _, d := range grid {
+		if d < 0 {
+			return errors.New("bad")
+		}
+		product *= d
+	}
+	if product == 0 {
+		return errEmptyGrid
+	}
+	return nil
 }

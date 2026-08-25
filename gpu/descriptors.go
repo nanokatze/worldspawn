@@ -127,9 +127,9 @@ func BindDescriptorHeaps(cb vk.CommandBuffer) {
 		}
 		switch index {
 		case 0:
-			vkFns.CmdBindSamplerHeapEXT(cb, info)
+			VkFns.CmdBindSamplerHeapEXT(cb, info)
 		case 1:
-			vkFns.CmdBindResourceHeapEXT(cb, info)
+			VkFns.CmdBindResourceHeapEXT(cb, info)
 		}
 	}
 }

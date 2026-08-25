@@ -45,7 +45,7 @@ func newDeviceQueue(queueFamily, queueIndex int) *DeviceQueue {
 	defer pinner.Unpin()
 
 	var vkSemaphore vk.Semaphore
-	must(vkFns.CreateSemaphore(device, &vk.SemaphoreCreateInfo{
+	must(VkFns.CreateSemaphore(Device, &vk.SemaphoreCreateInfo{
 		SType: vk.STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
 		PNext: unsafe.Pointer(pinned(&pinner, &vk.SemaphoreTypeCreateInfo{
 			SType:         vk.STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
@@ -55,7 +55,7 @@ func newDeviceQueue(queueFamily, queueIndex int) *DeviceQueue {
 	}, nil, &vkSemaphore))
 
 	var vkQueue vk.Queue
-	vkFns.GetDeviceQueue2(device, &vk.DeviceQueueInfo2{
+	VkFns.GetDeviceQueue2(Device, &vk.DeviceQueueInfo2{
 		SType:            vk.STRUCTURE_TYPE_DEVICE_QUEUE_INFO_2,
 		Flags:            vk.DeviceQueueCreateFlags(vk.DEVICE_QUEUE_CREATE_INTERNALLY_SYNCHRONIZED_BIT_KHR),
 		QueueFamilyIndex: uint32(queueFamily),
@@ -97,7 +97,7 @@ func (q *DeviceQueue) flushbarrier() {
 	defer pinner.Unpin()
 
 	if q.needBarrier {
-		vkFns.CmdPipelineBarrier2(q.cb, &vk.DependencyInfo{
+		VkFns.CmdPipelineBarrier2(q.cb, &vk.DependencyInfo{
 			SType:              vk.STRUCTURE_TYPE_DEPENDENCY_INFO,
 			MemoryBarrierCount: 1,
 			PMemoryBarriers: pinned(&pinner, &vk.MemoryBarrier2{
@@ -126,7 +126,7 @@ func (q *DeviceQueue) ensurecb() {
 
 	// TODO: outline this
 	cb := cbcaches[queueFamily].Get()
-	must(vkFns.BeginCommandBuffer(cb.Vk(), &vk.CommandBufferBeginInfo{
+	must(VkFns.BeginCommandBuffer(cb.Vk(), &vk.CommandBufferBeginInfo{
 		SType: vk.STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
 		Flags: vk.CommandBufferUsageFlags(vk.COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT),
 	}))
@@ -157,7 +157,7 @@ func (q *DeviceQueue) actuallyflushcb() {
 	// TODO: outline this
 	// TODO: defer closing cmdbufs until right before submission? That would
 	// let us prepend barriers nicely
-	must(vkFns.EndCommandBuffer(q.cb))
+	must(VkFns.EndCommandBuffer(q.cb))
 	q.cmdBufs = append(q.cmdBufs,
 		vk.CommandBufferSubmitInfo{
 			SType:         vk.STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
@@ -220,7 +220,7 @@ func (q *DeviceQueue) submit() {
 	// TODO: submit is a bit expensive (on the order of 20 microseconds), we
 	// might want to consider running a separate goroutine for submit calls. Or
 	// for any calls on CommandQueue at all actually.
-	must(vkFns.QueueSubmit2(q.vkQueue, 1, &vk.SubmitInfo2{
+	must(VkFns.QueueSubmit2(q.vkQueue, 1, &vk.SubmitInfo2{
 		SType:                    vk.STRUCTURE_TYPE_SUBMIT_INFO_2,
 		WaitSemaphoreInfoCount:   uint32(len(waits)),
 		PWaitSemaphoreInfos:      pinnedSliceData(&pinner, waits),
@@ -251,7 +251,7 @@ func waitSemaphore(semaphore vk.Semaphore, value uint64) {
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
 
-	must(vkFns.WaitSemaphores(device, &vk.SemaphoreWaitInfo{
+	must(VkFns.WaitSemaphores(Device, &vk.SemaphoreWaitInfo{
 		SType:          vk.STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
 		SemaphoreCount: 1,
 		PSemaphores:    pinned(&pinner, &semaphore),

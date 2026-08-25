@@ -45,8 +45,8 @@ func newImageData(config ImageConfig, usage vk.ImageUsageFlags) *imageData {
 	imageCreateInfo.Samples = 1
 	imageCreateInfo.Usage = usage | vk.ImageUsageFlags(vk.IMAGE_USAGE_TRANSFER_DST_BIT) | vk.ImageUsageFlags(vk.IMAGE_USAGE_TRANSFER_SRC_BIT)
 	imageCreateInfo.SharingMode = vk.SHARING_MODE_CONCURRENT
-	imageCreateInfo.QueueFamilyIndexCount = uint32(len(topology.probe))
-	imageCreateInfo.PQueueFamilyIndices = unsafe.SliceData(topology.probe)
+	imageCreateInfo.QueueFamilyIndexCount = uint32(len(Topology.Probe))
+	imageCreateInfo.PQueueFamilyIndices = unsafe.SliceData(Topology.Probe)
 
 	pinner.Pin(imageCreateInfo)
 	pinner.Pin(imageCreateInfo.PQueueFamilyIndices)
@@ -54,19 +54,17 @@ func newImageData(config ImageConfig, usage vk.ImageUsageFlags) *imageData {
 	requirements := &vk.MemoryRequirements2{
 		SType: vk.STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2,
 	}
-	vkFns.GetDeviceImageMemoryRequirements(device,
+	VkFns.GetDeviceImageMemoryRequirements(Device,
 		&vk.DeviceImageMemoryRequirements{
 			SType:       vk.STRUCTURE_TYPE_DEVICE_IMAGE_MEMORY_REQUIREMENTS,
 			PCreateInfo: imageCreateInfo,
 		},
 		requirements)
 
-	// println(fmt.Sprintf("image %v needs %v aligned to %v", config.Extent, requirements.Size, requirements.Alignment))
-
 	size := roundUpDeviceAllocationSize(int(requirements.Size))
 
 	var vkImage vk.Image
-	must(vkFns.CreateImage(device, imageCreateInfo, nil, &vkImage))
+	must(VkFns.CreateImage(Device, imageCreateInfo, nil, &vkImage))
 
 	memoryTypeIndex := findMemoryTypeIndex(requirements.MemoryTypeBits, 0)
 
@@ -83,7 +81,7 @@ func newImageData(config ImageConfig, usage vk.ImageUsageFlags) *imageData {
 	if memory == nil {
 		var allocation deviceMemory
 		allocation.size = size
-		must(vkFns.AllocateMemory(device, &vk.MemoryAllocateInfo{
+		must(VkFns.AllocateMemory(Device, &vk.MemoryAllocateInfo{
 			SType:           vk.STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
 			AllocationSize:  vk.DeviceSize(size),
 			MemoryTypeIndex: uint32(memoryTypeIndex),
@@ -91,7 +89,7 @@ func newImageData(config ImageConfig, usage vk.ImageUsageFlags) *imageData {
 		memory = &allocation
 	}
 
-	must(vkFns.BindImageMemory2(device, 1, &vk.BindImageMemoryInfo{
+	must(VkFns.BindImageMemory2(Device, 1, &vk.BindImageMemoryInfo{
 		SType:        vk.STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO,
 		Image:        vkImage,
 		Memory:       memory.memory,
@@ -126,7 +124,7 @@ func newImageDataFromVkImage(config ImageConfig, usage vk.ImageUsageFlags, vkIma
 }
 
 func (data *imageData) destroy() {
-	vkFns.DestroyImage(device, data.vkImage, nil)
+	VkFns.DestroyImage(Device, data.vkImage, nil)
 
 	allocPoolMu.Lock()
 	allocPool[data.memory.size] = append(allocPool[data.memory.size], data.memory)

@@ -166,7 +166,7 @@ func malloc(size int, flags uint32) UnsafePointer {
 	requirements := &vk.MemoryRequirements2{
 		SType: vk.STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2,
 	}
-	vkFns.GetDeviceBufferMemoryRequirements(device, &vk.DeviceBufferMemoryRequirements{
+	VkFns.GetDeviceBufferMemoryRequirements(Device, &vk.DeviceBufferMemoryRequirements{
 		SType:       vk.STRUCTURE_TYPE_DEVICE_BUFFER_MEMORY_REQUIREMENTS,
 		PCreateInfo: bufferCreateInfo,
 	}, requirements)
@@ -187,26 +187,26 @@ func malloc(size int, flags uint32) UnsafePointer {
 		MemoryTypeIndex: uint32(memoryTypeIndex),
 	}
 	var memory vk.DeviceMemory
-	must(vkFns.AllocateMemory(device, memoryAllocateInfo, nil, &memory))
+	must(VkFns.AllocateMemory(Device, memoryAllocateInfo, nil, &memory))
 
 	var buffer vk.Buffer
-	must(vkFns.CreateBuffer(device, bufferCreateInfo, nil, &buffer))
+	must(VkFns.CreateBuffer(Device, bufferCreateInfo, nil, &buffer))
 
-	must(vkFns.BindBufferMemory2(device, 1, &vk.BindBufferMemoryInfo{
+	must(VkFns.BindBufferMemory2(Device, 1, &vk.BindBufferMemoryInfo{
 		SType:        vk.STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO,
 		Buffer:       buffer,
 		Memory:       memory,
 		MemoryOffset: 0,
 	}))
 
-	deviceAddr := uint64(vkFns.GetBufferDeviceAddress(device, &vk.BufferDeviceAddressInfo{
+	deviceAddr := uint64(VkFns.GetBufferDeviceAddress(Device, &vk.BufferDeviceAddressInfo{
 		SType:  vk.STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
 		Buffer: buffer,
 	}))
 
 	var hostAddr uintptr
 	if flags&hostMapped != 0 {
-		must(vkFns.MapMemory(device, memory, 0, vk.DeviceSize(size), 0, (*unsafe.Pointer)(unsafe.Pointer(&hostAddr))))
+		must(VkFns.MapMemory(Device, memory, 0, vk.DeviceSize(size), 0, (*unsafe.Pointer)(unsafe.Pointer(&hostAddr))))
 
 		// TODO: an env var for this
 		// TODO: make it work for non-hostMapped allocs too. We'd have to use a
@@ -236,7 +236,7 @@ func malloc(size int, flags uint32) UnsafePointer {
 // increasing sizes probably
 
 func NewUncached[T any]() Pointer[T] {
-	gpuInit()
+	GPUInit()
 
 	return (Pointer[T])(malloc(int(unsafe.Sizeof(*new(T))), hostMapped /*|hostUncached*/))
 }
@@ -250,7 +250,7 @@ type Slice[T any] struct {
 }
 
 func MakeSliceUncached[T any](n int) Slice[T] {
-	gpuInit()
+	GPUInit()
 
 	return Slice[T]{
 		data: Pointer[T](malloc(int(unsafe.Sizeof(*new(T)))*n, hostMapped /*|hostUncached*/)),
@@ -309,8 +309,8 @@ func Free(pointer UnsafePointer) {
 
 	i, _ := slices.BinarySearch(deviceAddrs, uint64(pointer))
 	if deviceAddrs[i] == uint64(pointer) {
-		vkFns.DestroyBuffer(device, allocs[i].buffer, nil)
-		vkFns.FreeMemory(device, allocs[i].memory, nil)
+		VkFns.DestroyBuffer(Device, allocs[i].buffer, nil)
+		VkFns.FreeMemory(Device, allocs[i].memory, nil)
 
 		deviceAddrs = slices.Delete(deviceAddrs, i, i+1)
 		allocs = slices.Delete(allocs, i, i+1)
@@ -326,7 +326,7 @@ func findMemoryTypeIndex(memoryTypeBits uint32, flags uint32) int {
 	memProps := &vk.PhysicalDeviceMemoryProperties2{
 		SType: vk.STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PROPERTIES_2,
 	}
-	vkFns.GetPhysicalDeviceMemoryProperties2(physicalDevice, memProps)
+	VkFns.GetPhysicalDeviceMemoryProperties2(PhysicalDevice, memProps)
 
 	var try []vk.MemoryPropertyFlags
 	switch flags &^ (hostLocal | mallocDescriptorHeap) {

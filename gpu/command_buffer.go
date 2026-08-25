@@ -13,7 +13,7 @@ type commandBuffer struct {
 
 func newCommandBuffer(queueFamily uint32) *commandBuffer {
 	var vkCommandPool vk.CommandPool
-	must(vkFns.CreateCommandPool(device, &vk.CommandPoolCreateInfo{
+	must(VkFns.CreateCommandPool(Device, &vk.CommandPoolCreateInfo{
 		SType: vk.STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
 		// TODO: I don't think we need either of these flags. remove?
 		Flags:            vk.CommandPoolCreateFlags(vk.COMMAND_POOL_CREATE_TRANSIENT_BIT | vk.COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT),
@@ -21,7 +21,7 @@ func newCommandBuffer(queueFamily uint32) *commandBuffer {
 	}, nil, &vkCommandPool))
 
 	var vkCommandBuffer vk.CommandBuffer
-	must(vkFns.AllocateCommandBuffers(device, &vk.CommandBufferAllocateInfo{
+	must(VkFns.AllocateCommandBuffers(Device, &vk.CommandBufferAllocateInfo{
 		SType:              vk.STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
 		CommandPool:        vkCommandPool,
 		Level:              vk.COMMAND_BUFFER_LEVEL_PRIMARY,

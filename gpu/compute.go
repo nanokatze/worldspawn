@@ -25,10 +25,10 @@ func CompileComputeShader[T any](blob []byte, entry string) *ComputeShader[T] {
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
 
-	gpuInit()
+	GPUInit()
 
 	var vkShader vk.ShaderEXT
-	must(vkFns.CreateShadersEXT(device, 1, &vk.ShaderCreateInfoEXT{
+	must(VkFns.CreateShadersEXT(Device, 1, &vk.ShaderCreateInfoEXT{
 		SType:    vk.STRUCTURE_TYPE_SHADER_CREATE_INFO_EXT,
 		Flags:    vk.ShaderCreateFlagsEXT(vk.SHADER_CREATE_DESCRIPTOR_HEAP_BIT_EXT),
 		Stage:    vk.SHADER_STAGE_COMPUTE_BIT,
@@ -77,7 +77,7 @@ func ParallelFor[T any](jq *JobQueue, groups []int, f ComputeClosure[T]) {
 
 func (*dispatchJob) Info() JobInfo {
 	return JobInfo{
-		QueueFamilies: topology.QueueFamilies(vk.QueueFlags(vk.QUEUE_COMPUTE_BIT)),
+		QueueFamilies: Topology.QueueFamilies(vk.QueueFlags(vk.QUEUE_COMPUTE_BIT)),
 	}
 }
 
@@ -88,7 +88,7 @@ func (job *dispatchJob) Exec(q *DeviceQueue) {
 
 		BindDescriptorHeaps(cb)
 
-		vkFns.CmdBindShadersEXT(
+		VkFns.CmdBindShadersEXT(
 			cb,
 			1,
 			unsafe.SliceData([]vk.ShaderStageFlagBits{vk.SHADER_STAGE_COMPUTE_BIT}),
@@ -96,7 +96,7 @@ func (job *dispatchJob) Exec(q *DeviceQueue) {
 
 		pinner.Pin(unsafe.SliceData(job.args))
 
-		vkFns.CmdPushDataEXT(cb, &vk.PushDataInfoEXT{
+		VkFns.CmdPushDataEXT(cb, &vk.PushDataInfoEXT{
 			SType: vk.STRUCTURE_TYPE_PUSH_DATA_INFO_EXT,
 			Data: vk.HostAddressRangeConstEXT{
 				Address: unsafe.Pointer(unsafe.SliceData(job.args)),
@@ -104,7 +104,7 @@ func (job *dispatchJob) Exec(q *DeviceQueue) {
 			},
 		})
 
-		vkFns.CmdDispatch(cb, job.groups[0], job.groups[1], job.groups[2])
+		VkFns.CmdDispatch(cb, job.groups[0], job.groups[1], job.groups[2])
 	})
 }
 

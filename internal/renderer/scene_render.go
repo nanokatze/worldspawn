@@ -8,6 +8,7 @@ import (
 
 	"worldspawn/gpu"
 	"worldspawn/gpu/image/ktx2"
+	gpurt "worldspawn/gpu/raytracing"
 	"worldspawn/gpu/vk"
 	"worldspawn/internal/gmath"
 )
@@ -61,8 +62,8 @@ var noiseImage = sync.OnceValue(func() *gpu.Image {
 	return img
 })
 
-var raygen = sync.OnceValue(func() *gpu.RayTracingShaderGroup {
-	return gpu.NewGeneralRayTracingShaderGroup(gpu.NewRayTracingFunc(_shaders, vk.SHADER_STAGE_RAYGEN_BIT_KHR, "raygen"))
+var raygen = sync.OnceValue(func() *gpurt.RayTracingShaderGroup {
+	return gpurt.NewGeneralRayTracingShaderGroup(gpurt.NewRayTracingFunc(_shaders, vk.SHADER_STAGE_RAYGEN_BIT_KHR, "raygen"))
 })
 
 func (scene *Scene) EnqueueRender(jq *gpu.JobQueue, film Film, camera *Camera, cameraTransform gmath.Mat4x4f32, frameNumber uint32, quality *Quality) {
@@ -122,7 +123,7 @@ func (scene *Scene) EnqueueRender(jq *gpu.JobQueue, film Film, camera *Camera, c
 		}
 	}
 
-	gpu.EnqueueTraceRays(jq, film.Extent[:], scene.pipeline, scene.sbt, &frame)
+	gpurt.EnqueueTraceRays(jq, film.Extent[:], scene.pipeline, scene.sbt, &frame)
 }
 
 // TODO: move into gpu/vk or at least just gpu?

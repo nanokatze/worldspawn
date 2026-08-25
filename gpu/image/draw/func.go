@@ -4,6 +4,7 @@ import (
 	"runtime"
 	"unsafe"
 
+	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
 )
 
@@ -28,7 +29,7 @@ func NewShader(blob []byte, stage vk.ShaderStageFlagBits, entry string) *Shader 
 	// TODO: validate stage. I guess we could also infer it from the []byte?
 
 	var vkShader vk.ShaderEXT
-	must(vkFns.CreateShadersEXT(device, 1, &vk.ShaderCreateInfoEXT{
+	must(gpu.VkFns.CreateShadersEXT(gpu.Device, 1, &vk.ShaderCreateInfoEXT{
 		SType:     vk.STRUCTURE_TYPE_SHADER_CREATE_INFO_EXT,
 		Flags:     vk.ShaderCreateFlagsEXT(vk.SHADER_CREATE_DESCRIPTOR_HEAP_BIT_EXT),
 		Stage:     stage,

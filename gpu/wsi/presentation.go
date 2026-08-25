@@ -44,33 +44,21 @@ func NewSwapchain(config *SwapchainConfig) *Swapchain {
 	return oldSwapchain.reconfigure(config)
 }
 
-var device vk.Device
-var vkFns struct {
-	vk.InstanceFuncs
-	vk.DeviceFuncs
-}
 var initOnce sync.Once
 
-func gpuInit() {
-	initOnce.Do(func() {
-		device = gpu.Device()
-		vkFns.DeviceFuncs.Init(device)
-	})
-}
-
 func newSwapchain(window *sdl.Window) *Swapchain {
-	gpuInit()
+	gpu.GPUInit()
 
-	vkSurface, err := sdlVulkanCreateSurface(window, gpu.Instance(), nil)
+	vkSurface, err := sdlVulkanCreateSurface(window, gpu.Instance, nil)
 	if err != nil {
 		// TODO: we might want to handle this, actually.
 		panic(fmt.Sprintf("gpu: SDL_Vulkan_CreateSurface: %v", err))
 	}
 
 	var mask uint32
-	for family := range ones32(gpu.QueueFamilies(0)) {
+	for family := range ones32(gpu.Topology.QueueFamilies(0)) {
 		var supported vk.Bool32
-		if err := vkFns.GetPhysicalDeviceSurfaceSupportKHR(gpu.PhysicalDevice(), uint32(family), vkSurface, &supported); err != nil {
+		if err := gpu.VkFns.GetPhysicalDeviceSurfaceSupportKHR(gpu.PhysicalDevice, uint32(family), vkSurface, &supported); err != nil {
 			panic(fmt.Sprintf("gpu: vkGetPhysicalDeviceSurfaceSupportKHR: %v", err))
 		}
 		// TODO: make a func for converting from Bool32
@@ -83,7 +71,7 @@ func newSwapchain(window *sdl.Window) *Swapchain {
 	log.Printf("can present from families 0b%b", mask)
 
 	var acquireFence vk.Fence
-	if err := vkFns.CreateFence(device, &vk.FenceCreateInfo{
+	if err := gpu.VkFns.CreateFence(gpu.Device, &vk.FenceCreateInfo{
 		SType: vk.STRUCTURE_TYPE_FENCE_CREATE_INFO,
 	}, nil, &acquireFence); err != nil {
 		panic(fmt.Sprintf("gpu: vkCreateFence: %v", err))
@@ -126,7 +114,7 @@ func (swapchain *Swapchain) reconfigure(config *SwapchainConfig) *Swapchain {
 	imgExtent := imgConf.Extent()
 
 	allQueueFamilies := slices.Collect(func(yield func(uint32) bool) {
-		for family := range ones32(gpu.QueueFamilies(0)) {
+		for family := range ones32(gpu.Topology.QueueFamilies(0)) {
 			yield(uint32(family))
 		}
 	})
@@ -135,7 +123,7 @@ func (swapchain *Swapchain) reconfigure(config *SwapchainConfig) *Swapchain {
 	defer pinner.Unpin()
 
 	var vkSwapchain vk.SwapchainKHR
-	if err := vkFns.CreateSwapchainKHR(device, &vk.SwapchainCreateInfoKHR{
+	if err := gpu.VkFns.CreateSwapchainKHR(gpu.Device, &vk.SwapchainCreateInfoKHR{
 		SType: vk.STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
 		// Flags:                 vk.SwapchainCreateFlagsKHR(vk.SWAPCHAIN_CREATE_DEFERRED_MEMORY_ALLOCATION_BIT_EXT),
 		Surface:               swapchain.vkSurface,
@@ -158,7 +146,7 @@ func (swapchain *Swapchain) reconfigure(config *SwapchainConfig) *Swapchain {
 	}
 
 	vkImages, err := enumerate(func(len *uint32, data *vk.Image) error {
-		return vkFns.GetSwapchainImagesKHR(device, vkSwapchain, len, data)
+		return gpu.VkFns.GetSwapchainImagesKHR(gpu.Device, vkSwapchain, len, data)
 	})
 	if err != nil {
 		panic(fmt.Sprintf("gpu: vkGetSwapchainImagesKHR: %v", err))
@@ -188,7 +176,7 @@ func (swapchain *Swapchain) Image(index int) *gpu.Image {
 // TODO: should take gpu.WaitGroup to signal
 func (swapchain *Swapchain) Acquire() int {
 	var index uint32
-	if err := vkFns.AcquireNextImage2KHR(device, &vk.AcquireNextImageInfoKHR{
+	if err := gpu.VkFns.AcquireNextImage2KHR(gpu.Device, &vk.AcquireNextImageInfoKHR{
 		SType:      vk.STRUCTURE_TYPE_ACQUIRE_NEXT_IMAGE_INFO_KHR,
 		Swapchain:  swapchain.vkSwapchain,
 		Timeout:    math.MaxUint64,
@@ -203,10 +191,10 @@ func (swapchain *Swapchain) Acquire() int {
 
 	// TODO: get rid of this
 	fence := swapchain.acquireFence
-	if err := vkFns.WaitForFences(device, 1, &fence, vk.TRUE, math.MaxUint64); err != nil {
+	if err := gpu.VkFns.WaitForFences(gpu.Device, 1, &fence, vk.TRUE, math.MaxUint64); err != nil {
 		panic(fmt.Sprintf("gpu: vkWaitForFences: %v", err))
 	}
-	if err := vkFns.ResetFences(device, 1, &fence); err != nil {
+	if err := gpu.VkFns.ResetFences(gpu.Device, 1, &fence); err != nil {
 		panic(fmt.Sprintf("gpu: vkResetFences: %v", err))
 	}
 
@@ -242,7 +230,7 @@ func (job *presentJob) Exec(q *gpu.DeviceQueue) {
 		defer pinner.Unpin()
 
 		// TODO: we need to insert on queue signal correctly
-		if err := vkFns.QueuePresentKHR(vkQueue, &vk.PresentInfoKHR{
+		if err := gpu.VkFns.QueuePresentKHR(vkQueue, &vk.PresentInfoKHR{
 			SType:          vk.STRUCTURE_TYPE_PRESENT_INFO_KHR,
 			SwapchainCount: 1,
 			PSwapchains:    pinned(&pinner, &job.swapchain.vkSwapchain),

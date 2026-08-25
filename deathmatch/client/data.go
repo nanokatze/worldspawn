@@ -17,6 +17,7 @@ import (
 	"worldspawn/deathmatch/internal/game"
 	"worldspawn/gpu"
 	"worldspawn/gpu/image/ktx2"
+	gpurt "worldspawn/gpu/raytracing"
 	"worldspawn/gpu/vk"
 	"worldspawn/internal/cache"
 	"worldspawn/internal/compiler"
@@ -134,7 +135,7 @@ type fileBackedMesh struct {
 	materials []unique.Handle[string]
 
 	geometry renderer.Geometry
-	accel    gpu.BLAS
+	accel    gpurt.BLAS
 }
 
 // TODO: equip AttributeBuffer with size so we don't have to pull in vertex count
@@ -245,7 +246,7 @@ var modelcache = cache.New(func(filename unique.Handle[string]) *fileBackedMesh 
 	}
 
 	accelConfig := geometry.AccelConfig()
-	accel := gpu.NewBLAS(accelConfig.CalcSizes().Accel)
+	accel := gpurt.NewBLAS(accelConfig.CalcSizes().Accel)
 
 	jq := new(gpu.JobQueue)
 	accel.EnqueueBuild(jq, accelConfig)

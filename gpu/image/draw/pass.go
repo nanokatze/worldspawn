@@ -2,25 +2,11 @@ package draw
 
 import (
 	"runtime"
-	"sync"
 	"unsafe"
 
 	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
 )
-
-var device vk.Device
-
-var vkFns vk.DeviceFuncs
-
-var initOnce sync.Once
-
-func initDevice() {
-	initOnce.Do(func() {
-		device = gpu.Device()
-		vkFns.Init(device)
-	})
-}
 
 type Config struct {
 	ColorAttachments  []Attachment
@@ -54,7 +40,7 @@ type Pass struct {
 
 // TODO: think of a variant that supports concurrent recording.
 func Begin(jq *gpu.JobQueue, config *Config) *Pass {
-	initDevice()
+	gpu.GPUInit()
 
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
@@ -64,14 +50,14 @@ func Begin(jq *gpu.JobQueue, config *Config) *Pass {
 
 	// TODO: get a mask of GRAPHICS-capable queue families, the permutation and
 	// find the lsb. We could also just find the first set bit because it's
-	queueFamily := gpu.BestQueueFamily(vk.QueueFlags(vk.QUEUE_GRAPHICS_BIT))
+	queueFamily := gpu.Topology.MinimumCapable(vk.QueueFlags(vk.QUEUE_GRAPHICS_BIT))
 	pass.queueFamily = queueFamily
 
 	cb := cbcaches[queueFamily].Get()
 	pass.cb = cb.Vk()
 	pass.Cleanup(func() { cbcaches[queueFamily].Put(cb) })
 
-	must(vkFns.BeginCommandBuffer(pass.cb, &vk.CommandBufferBeginInfo{
+	must(gpu.VkFns.BeginCommandBuffer(pass.cb, &vk.CommandBufferBeginInfo{
 		SType: vk.STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
 		Flags: vk.CommandBufferUsageFlags(vk.COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT),
 	}))
@@ -97,7 +83,7 @@ func Begin(jq *gpu.JobQueue, config *Config) *Pass {
 
 		// TODO: have a single function for all of the temporary image views
 		// here
-		pass.garbage = append(pass.garbage, func() { vkFns.DestroyImageView(device, vkImageView, nil) })
+		pass.garbage = append(pass.garbage, func() { gpu.VkFns.DestroyImageView(gpu.Device, vkImageView, nil) })
 	}
 	renderingInfo.ColorAttachmentCount = uint32(len(colorAttachments))
 	renderingInfo.PColorAttachments = pinnedSliceData(&pinner, colorAttachments)
@@ -116,16 +102,16 @@ func Begin(jq *gpu.JobQueue, config *Config) *Pass {
 			ClearValue:  attachment.ClearValue,
 		})
 
-		pass.garbage = append(pass.garbage, func() { vkFns.DestroyImageView(device, vkImageView, nil) })
+		pass.garbage = append(pass.garbage, func() { gpu.VkFns.DestroyImageView(gpu.Device, vkImageView, nil) })
 	}
 
-	vkFns.CmdBeginRendering(pass.cb, renderingInfo)
+	gpu.VkFns.CmdBeginRendering(pass.cb, renderingInfo)
 
 	gpu.BindDescriptorHeaps(pass.cb)
 
 	// Graphics state we don't map from our abstraction goes here
 
-	vkFns.CmdSetVertexInputEXT(pass.cb, 0, nil, 0, nil)
+	gpu.VkFns.CmdSetVertexInputEXT(pass.cb, 0, nil, 0, nil)
 
 	return pass
 }
@@ -133,7 +119,7 @@ func Begin(jq *gpu.JobQueue, config *Config) *Pass {
 // TODO: remove when we can use ms only
 func (pass *Pass) SetIndexBuffer(indexType vk.IndexType, indexBuffer gpu.UnsafePointer) {
 	if indexBuffer != vk.NULL_HANDLE {
-		vkFns.CmdBindIndexBuffer3KHR(pass.cb,
+		gpu.VkFns.CmdBindIndexBuffer3KHR(pass.cb,
 			&vk.BindIndexBuffer3InfoKHR{
 				SType: vk.STRUCTURE_TYPE_BIND_INDEX_BUFFER_3_INFO_KHR,
 				AddressRange: vk.DeviceAddressRangeKHR{
@@ -145,7 +131,7 @@ func (pass *Pass) SetIndexBuffer(indexType vk.IndexType, indexBuffer gpu.UnsafeP
 				IndexType: indexType,
 			})
 	} else {
-		vkFns.CmdBindIndexBuffer3KHR(pass.cb,
+		gpu.VkFns.CmdBindIndexBuffer3KHR(pass.cb,
 			&vk.BindIndexBuffer3InfoKHR{
 				SType: vk.STRUCTURE_TYPE_BIND_INDEX_BUFFER_3_INFO_KHR,
 			})
@@ -153,89 +139,89 @@ func (pass *Pass) SetIndexBuffer(indexType vk.IndexType, indexBuffer gpu.UnsafeP
 }
 
 func (pass *Pass) SetPrimitiveTopology(primitiveTopology vk.PrimitiveTopology) {
-	vkFns.CmdSetPrimitiveTopologyEXT(pass.cb, primitiveTopology)
+	gpu.VkFns.CmdSetPrimitiveTopologyEXT(pass.cb, primitiveTopology)
 }
 
 func (pass *Pass) SetPrimitiveRestartEnable(primitiveRestartEnable bool) {
-	vkFns.CmdSetPrimitiveRestartEnableEXT(pass.cb, vkBool32(primitiveRestartEnable))
+	gpu.VkFns.CmdSetPrimitiveRestartEnableEXT(pass.cb, vkBool32(primitiveRestartEnable))
 }
 
 func (pass *Pass) SetViewports(viewports []vk.Viewport) {
-	vkFns.CmdSetViewportWithCountEXT(pass.cb, uint32(len(viewports)), unsafe.SliceData(viewports))
+	gpu.VkFns.CmdSetViewportWithCountEXT(pass.cb, uint32(len(viewports)), unsafe.SliceData(viewports))
 }
 
 func (pass *Pass) SetScissors(scissors []vk.Rect2D) {
-	vkFns.CmdSetScissorWithCountEXT(pass.cb, uint32(len(scissors)), unsafe.SliceData(scissors))
+	gpu.VkFns.CmdSetScissorWithCountEXT(pass.cb, uint32(len(scissors)), unsafe.SliceData(scissors))
 }
 
 func (pass *Pass) SetRasterizerDiscardEnable(rasterizerDiscardEnable bool) {
-	vkFns.CmdSetRasterizerDiscardEnableEXT(pass.cb, vkBool32(rasterizerDiscardEnable))
+	gpu.VkFns.CmdSetRasterizerDiscardEnableEXT(pass.cb, vkBool32(rasterizerDiscardEnable))
 }
 
 func (pass *Pass) SetPolygonMode(polygonMode vk.PolygonMode) {
-	vkFns.CmdSetPolygonModeEXT(pass.cb, polygonMode)
+	gpu.VkFns.CmdSetPolygonModeEXT(pass.cb, polygonMode)
 }
 
 func (pass *Pass) SetCullMode(cullMode vk.CullModeFlags) {
-	vkFns.CmdSetCullModeEXT(pass.cb, cullMode)
+	gpu.VkFns.CmdSetCullModeEXT(pass.cb, cullMode)
 }
 
 func (pass *Pass) SetFrontFace(frontFace vk.FrontFace) {
-	vkFns.CmdSetFrontFaceEXT(pass.cb, frontFace)
+	gpu.VkFns.CmdSetFrontFaceEXT(pass.cb, frontFace)
 }
 
 func (pass *Pass) SetDepthBiasEnable(depthBiasEnable bool) {
-	vkFns.CmdSetDepthBiasEnableEXT(pass.cb, vkBool32(depthBiasEnable))
+	gpu.VkFns.CmdSetDepthBiasEnableEXT(pass.cb, vkBool32(depthBiasEnable))
 }
 
 func (pass *Pass) SetRasterizationSamples(samples int) {
-	vkFns.CmdSetRasterizationSamplesEXT(pass.cb, vk.SampleCountFlagBits(samples))
+	gpu.VkFns.CmdSetRasterizationSamplesEXT(pass.cb, vk.SampleCountFlagBits(samples))
 }
 
 func (pass *Pass) SetSampleMask(sampleMask uint32) {
-	vkFns.CmdSetSampleMaskEXT(pass.cb, 1, (*vk.SampleMask)(&sampleMask))
+	gpu.VkFns.CmdSetSampleMaskEXT(pass.cb, 1, (*vk.SampleMask)(&sampleMask))
 }
 
 func (pass *Pass) SetAlphaToCoverageEnable(alphaToCoverageEnable bool) {
-	vkFns.CmdSetAlphaToCoverageEnableEXT(pass.cb, vkBool32(alphaToCoverageEnable))
+	gpu.VkFns.CmdSetAlphaToCoverageEnableEXT(pass.cb, vkBool32(alphaToCoverageEnable))
 }
 
 func (pass *Pass) SetDepthTestEnable(depthTestEnable bool) {
-	vkFns.CmdSetDepthTestEnableEXT(pass.cb, vkBool32(depthTestEnable))
+	gpu.VkFns.CmdSetDepthTestEnableEXT(pass.cb, vkBool32(depthTestEnable))
 }
 
 func (pass *Pass) SetDepthWriteEnable(depthWriteEnable bool) {
-	vkFns.CmdSetDepthWriteEnableEXT(pass.cb, vkBool32(depthWriteEnable))
+	gpu.VkFns.CmdSetDepthWriteEnableEXT(pass.cb, vkBool32(depthWriteEnable))
 }
 
 func (pass *Pass) SetDepthCompareOp(depthCompareOp vk.CompareOp) {
-	vkFns.CmdSetDepthCompareOpEXT(pass.cb, depthCompareOp)
+	gpu.VkFns.CmdSetDepthCompareOpEXT(pass.cb, depthCompareOp)
 }
 
 func (pass *Pass) SetDepthBoundsTestEnable(depthBoundsTestEnable bool) {
-	vkFns.CmdSetDepthBoundsTestEnableEXT(pass.cb, vkBool32(depthBoundsTestEnable))
+	gpu.VkFns.CmdSetDepthBoundsTestEnableEXT(pass.cb, vkBool32(depthBoundsTestEnable))
 }
 
 func (pass *Pass) SetStencilTestEnable(stencilTestEnable bool) {
-	vkFns.CmdSetStencilTestEnableEXT(pass.cb, vkBool32(stencilTestEnable))
+	gpu.VkFns.CmdSetStencilTestEnableEXT(pass.cb, vkBool32(stencilTestEnable))
 }
 
 func (pass *Pass) SetColorBlendEnable(attachmentIndex int, colorBlendEnable bool) {
 	tmp := vkBool32(colorBlendEnable)
-	vkFns.CmdSetColorBlendEnableEXT(pass.cb, uint32(attachmentIndex), 1, &tmp)
+	gpu.VkFns.CmdSetColorBlendEnableEXT(pass.cb, uint32(attachmentIndex), 1, &tmp)
 }
 
 func (pass *Pass) SetColorBlendEquation(attachmentIndex int, colorBlendEquation vk.ColorBlendEquationEXT) {
-	vkFns.CmdSetColorBlendEquationEXT(pass.cb, uint32(attachmentIndex), 1, &colorBlendEquation)
+	gpu.VkFns.CmdSetColorBlendEquationEXT(pass.cb, uint32(attachmentIndex), 1, &colorBlendEquation)
 }
 
 func (pass *Pass) SetColorWriteMask(attachmentIndex int, colorWriteMask uint32) {
-	vkFns.CmdSetColorWriteMaskEXT(pass.cb, uint32(attachmentIndex), 1, (*vk.ColorComponentFlags)(&colorWriteMask))
+	gpu.VkFns.CmdSetColorWriteMaskEXT(pass.cb, uint32(attachmentIndex), 1, (*vk.ColorComponentFlags)(&colorWriteMask))
 }
 
 func (pass *Pass) SetBlendConstants(blendConstants [4]float32) {
 	panic("not implemented")
-	// vkFns.CmdSetBlendConstants(rp.cb, &blendConstants)
+	// gpu.VkFns.CmdSetBlendConstants(rp.cb, &blendConstants)
 }
 
 // TODO: these should take stronger-typed Shader things
@@ -249,22 +235,22 @@ func (pass *Pass) SetFragmentShader(shader *Shader) {
 
 func (pass *Pass) setShader(stage vk.ShaderStageFlagBits, shader *Shader) {
 	vkShader := shader.vkShader()
-	vkFns.CmdBindShadersEXT(pass.cb, 1, &stage, &vkShader)
+	gpu.VkFns.CmdBindShadersEXT(pass.cb, 1, &stage, &vkShader)
 }
 
 func (pass *Pass) SetShaderArgs(p any) {
 	panic("not implemented")
-	vkFns.CmdPushDataEXT(pass.cb, &vk.PushDataInfoEXT{
+	gpu.VkFns.CmdPushDataEXT(pass.cb, &vk.PushDataInfoEXT{
 		SType: vk.STRUCTURE_TYPE_PUSH_DATA_INFO_EXT,
 	})
 }
 
 func (pass *Pass) Draw(vertexCount uint32, instanceCount uint32, firstVertex uint32, firstInstance uint32) {
-	vkFns.CmdDraw(pass.cb, vertexCount, instanceCount, firstVertex, firstInstance)
+	gpu.VkFns.CmdDraw(pass.cb, vertexCount, instanceCount, firstVertex, firstInstance)
 }
 
 func (pass *Pass) DrawIndexed(indexCount uint32, instanceCount uint32, firstIndex uint32, vertexOffset int32, firstInstance uint32) {
-	vkFns.CmdDrawIndexed(pass.cb, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance)
+	gpu.VkFns.CmdDrawIndexed(pass.cb, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance)
 }
 
 // TODO: renderpass barrier
@@ -274,7 +260,7 @@ func (pass *Pass) Cleanup(f func()) {
 }
 
 func (pass *Pass) End() {
-	vkFns.CmdEndRendering(pass.cb)
+	gpu.VkFns.CmdEndRendering(pass.cb)
 
 	pass.jq.Enqueue(&job{
 		cb:          pass.cb,
@@ -290,7 +276,7 @@ func newRenderingVkImageView(img *gpu.Image, usage vk.ImageUsageFlags) vk.ImageV
 	vkImage, vkImageViewType, vkImageSubresourceRange := img.VkImage()
 
 	var vkImageView vk.ImageView
-	must(vkFns.CreateImageView(device, &vk.ImageViewCreateInfo{
+	must(gpu.VkFns.CreateImageView(gpu.Device, &vk.ImageViewCreateInfo{
 		SType: vk.STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 		PNext: unsafe.Pointer(&vk.ImageViewUsageCreateInfo{
 			SType: vk.STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO,

@@ -21,7 +21,7 @@ var getFormatImageProperties = cached(func(format vk.Format) formatImageProperti
 	}
 	pinner.Pin(props3)
 
-	vkFns.GetPhysicalDeviceFormatProperties2(physicalDevice,
+	VkFns.GetPhysicalDeviceFormatProperties2(PhysicalDevice,
 		format,
 		&vk.FormatProperties2{
 			SType: vk.STRUCTURE_TYPE_FORMAT_PROPERTIES_2,

@@ -23,7 +23,7 @@ func (swapchain *Swapchain) Present2(jq *gpu.JobQueue, image *gpu.Image) bool {
 	fence := swapchain.acquireFence
 
 	var index uint32
-	if err := vkFns.AcquireNextImage2KHR(device, &vk.AcquireNextImageInfoKHR{
+	if err := gpu.VkFns.AcquireNextImage2KHR(gpu.Device, &vk.AcquireNextImageInfoKHR{
 		SType:      vk.STRUCTURE_TYPE_ACQUIRE_NEXT_IMAGE_INFO_KHR,
 		Swapchain:  swapchain.vkSwapchain,
 		Timeout:    math.MaxUint64,
@@ -33,10 +33,10 @@ func (swapchain *Swapchain) Present2(jq *gpu.JobQueue, image *gpu.Image) bool {
 		panic(fmt.Sprintf("gpu: vkAcquireNextImage2KHR: %v", err))
 	}
 
-	if err := vkFns.WaitForFences(device, 1, &fence, vk.TRUE, math.MaxUint64); err != nil {
+	if err := gpu.VkFns.WaitForFences(gpu.Device, 1, &fence, vk.TRUE, math.MaxUint64); err != nil {
 		panic(fmt.Sprintf("gpu: vkWaitForFences: %v", err))
 	}
-	if err := vkFns.ResetFences(device, 1, &fence); err != nil {
+	if err := gpu.VkFns.ResetFences(gpu.Device, 1, &fence); err != nil {
 		panic(fmt.Sprintf("gpu: vkResetFences: %v", err))
 	}
 

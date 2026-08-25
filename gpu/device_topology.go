@@ -10,16 +10,16 @@ import (
 const maxQueueFamilies = 32
 
 // TODO: properly newtype this?
-type queueFamilyMask = uint32
+type QueueFamilyMask = uint32
 
 type deviceTopology struct {
-	props  [maxQueueFamilies]vk.QueueFamilyProperties2 // TODO: kill
+	Props  [maxQueueFamilies]vk.QueueFamilyProperties2 // TODO: kill
 	flags  [maxQueueFamilies]vk.QueueFlags
 	counts [maxQueueFamilies]int
-	// TODO: I think probe can be different depending on use case (e.g. for
+	// TODO: I think Probe can be different depending on use case (e.g. for
 	// copies crossing pcie we might want to try out the transfer-only queue
 	// first, while for other copies we would prefer compute I think.)
-	probe []uint32 // TODO: idk if this really belongs here
+	Probe []uint32 // TODO: idk if this really belongs here
 }
 
 func defaultQueues() *deviceTopology {
@@ -28,7 +28,7 @@ func defaultQueues() *deviceTopology {
 		queueFamilyProps[i].SType = vk.STRUCTURE_TYPE_QUEUE_FAMILY_PROPERTIES_2
 	}
 	n := uint32(len(queueFamilyProps))
-	vkFns.GetPhysicalDeviceQueueFamilyProperties2(physicalDevice, &n, &queueFamilyProps[0])
+	VkFns.GetPhysicalDeviceQueueFamilyProperties2(PhysicalDevice, &n, &queueFamilyProps[0])
 
 	var flags [maxQueueFamilies]vk.QueueFlags
 	for i, props := range queueFamilyProps {
@@ -62,16 +62,16 @@ func defaultQueues() *deviceTopology {
 	slices.Reverse(families)
 
 	return &deviceTopology{
-		props:  queueFamilyProps,
+		Props:  queueFamilyProps,
 		flags:  flags,
 		counts: counts,
-		probe:  families,
+		Probe:  families,
 	}
 }
 
 // TODO: rename
-func (topology *deviceTopology) QueueFamilies(flags vk.QueueFlags) queueFamilyMask {
-	var mask queueFamilyMask
+func (topology *deviceTopology) QueueFamilies(flags vk.QueueFlags) QueueFamilyMask {
+	var mask QueueFamilyMask
 	for i := range maxQueueFamilies {
 		if topology.flags[i]&flags == flags && topology.counts[i] > 0 {
 			mask |= 1 << i

@@ -20,7 +20,7 @@ type Job interface {
 	Exec(q *DeviceQueue)
 }
 
-// TODO: rename to just "Queue"?
+// TODO: rename to Routine
 type JobQueue struct {
 	currentBatch *jobBatch // do not access directly; use b() instead
 	idle         *WaitGroup
@@ -233,7 +233,7 @@ var schedInitOnce sync.Once
 
 func schedInit() {
 	schedInitOnce.Do(func() {
-		gpuInit()
+		GPUInit()
 
 		go func() {
 			for {
@@ -433,7 +433,7 @@ func (sched *schedState) schedule() bool {
 }
 
 func (sched *schedState) chooseQueueForBatch(b *schedBatch, current *DeviceQueue) *DeviceQueue {
-	families := topology.QueueFamilies(0)
+	families := Topology.QueueFamilies(0)
 
 	families &= b.jobs[b.next].Info().QueueFamilies
 
@@ -450,7 +450,7 @@ func (sched *schedState) chooseQueueForBatch(b *schedBatch, current *DeviceQueue
 	}
 
 	// TODO: be smarter here
-	for _, family := range topology.probe {
+	for _, family := range Topology.Probe {
 		if families&(1<<family) != 0 {
 			return cqs[family][rand.IntN(len(cqs[family]))]
 		}

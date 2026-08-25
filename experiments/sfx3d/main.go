@@ -15,6 +15,7 @@ import (
 
 	"worldspawn/gpu"
 	"worldspawn/gpu/image/draw"
+	gpurt "worldspawn/gpu/raytracing"
 	"worldspawn/gpu/vk"
 	"worldspawn/gpu/wsi"
 	"worldspawn/internal/gmath"
@@ -38,7 +39,7 @@ func byteslice[T any](s []T) []byte {
 
 type mymesh struct {
 	gmesh  *renderer.Geometry
-	gaccel gpu.BLAS
+	gaccel gpurt.BLAS
 }
 
 var getmesh = sync.OnceValue(func() *mymesh {
@@ -56,7 +57,7 @@ var getmesh = sync.OnceValue(func() *mymesh {
 	}
 
 	accelConfig := mesh.AccelConfig()
-	accel := gpu.NewBLAS(accelConfig.CalcSizes().Accel)
+	accel := gpurt.NewBLAS(accelConfig.CalcSizes().Accel)
 
 	jq := new(gpu.JobQueue)
 	accel.EnqueueBuild(jq, accelConfig)
@@ -75,28 +76,28 @@ var blenderToPathTracer = gmath.Mat4x4f32{
 	0, 0, 0, 1,
 }
 
-var gfxView = sync.OnceValues(func() (*gpu.RayTracingPipeline, gpu.ShaderBindingTable) {
-	raygen := gpu.NewGeneralRayTracingShaderGroup(gpu.NewRayTracingFunc(_shaders, vk.SHADER_STAGE_RAYGEN_BIT_KHR, "gfxView"))
+var gfxView = sync.OnceValues(func() (*gpurt.RayTracingPipeline, gpurt.ShaderBindingTable) {
+	raygen := gpurt.NewGeneralRayTracingShaderGroup(gpurt.NewRayTracingFunc(_shaders, vk.SHADER_STAGE_RAYGEN_BIT_KHR, "gfxView"))
 
-	raygenRecord := gpu.NewUncached[gpu.RayTracingShaderGroupHandle]()
+	raygenRecord := gpu.NewUncached[gpurt.RayTracingShaderGroupHandle]()
 	*raygenRecord.Value() = raygen.Handle()
 
-	pipe := gpu.LinkRayTracingShaderGroups(raygen)
+	pipe := gpurt.LinkRayTracingShaderGroups(raygen)
 
-	sbt := gpu.MakeShaderBindingTable(raygenRecord, gpu.Slice[struct{}]{}, gpu.Slice[struct{}]{}, gpu.Slice[struct{}]{})
+	sbt := gpurt.MakeShaderBindingTable(raygenRecord, gpu.Slice[struct{}]{}, gpu.Slice[struct{}]{}, gpu.Slice[struct{}]{})
 
 	return pipe, sbt
 })
 
-var tracePipeline = sync.OnceValues(func() (*gpu.RayTracingPipeline, gpu.ShaderBindingTable) {
-	raygen := gpu.NewGeneralRayTracingShaderGroup(gpu.NewRayTracingFunc(_shaders, vk.SHADER_STAGE_RAYGEN_BIT_KHR, "trace"))
+var tracePipeline = sync.OnceValues(func() (*gpurt.RayTracingPipeline, gpurt.ShaderBindingTable) {
+	raygen := gpurt.NewGeneralRayTracingShaderGroup(gpurt.NewRayTracingFunc(_shaders, vk.SHADER_STAGE_RAYGEN_BIT_KHR, "trace"))
 
-	raygenRecord := gpu.NewUncached[gpu.RayTracingShaderGroupHandle]()
+	raygenRecord := gpu.NewUncached[gpurt.RayTracingShaderGroupHandle]()
 	*raygenRecord.Value() = raygen.Handle()
 
-	pipe := gpu.LinkRayTracingShaderGroups(raygen)
+	pipe := gpurt.LinkRayTracingShaderGroups(raygen)
 
-	sbt := gpu.MakeShaderBindingTable(raygenRecord, gpu.Slice[struct{}]{}, gpu.Slice[struct{}]{}, gpu.Slice[struct{}]{})
+	sbt := gpurt.MakeShaderBindingTable(raygenRecord, gpu.Slice[struct{}]{}, gpu.Slice[struct{}]{}, gpu.Slice[struct{}]{})
 
 	return pipe, sbt
 })
@@ -161,8 +162,8 @@ func main() {
 
 	mesh := getmesh()
 
-	tlasInstances := gpu.MakeSliceUncached[gpu.BLASInstance](1)
-	var tmp gpu.BLASInstance
+	tlasInstances := gpu.MakeSliceUncached[gpurt.BLASInstance](1)
+	var tmp gpurt.BLASInstance
 	tmp.InstanceIDAndMask = 0xff << 24
 	tmp.Transform = [3][4]float32{
 		{1, 0, 0, 0},
@@ -172,16 +173,16 @@ func main() {
 	tmp.SetAccel(mesh.gaccel)
 	tlasInstances.Value()[0] = tmp
 
-	tlasConfig := &gpu.AccelBuildConfig{
+	tlasConfig := &gpurt.AccelBuildConfig{
 		Type: vk.ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
-		Inputs: []gpu.AccelBuildInput{
-			&gpu.TLASBuildInputInstances{
+		Inputs: []gpurt.AccelBuildInput{
+			&gpurt.TLASBuildInputInstances{
 				Instances:     gpu.SliceData(tlasInstances),
 				InstanceCount: uint32(gpu.SliceLen(tlasInstances)),
 			},
 		},
 	}
-	tlas := gpu.NewTLAS(tlasConfig.CalcSizes().Accel)
+	tlas := gpurt.NewTLAS(tlasConfig.CalcSizes().Accel)
 
 	jq := new(gpu.JobQueue)
 	tlas.EnqueueBuild(jq, tlasConfig)
@@ -218,13 +219,13 @@ func main() {
 		pipe, sbt := tracePipeline()
 
 		push := struct {
-			TLAS       gpu.TLAS
+			TLAS       gpurt.TLAS
 			PathStates gpu.Pointer[Path]
 		}{
 			TLAS:       tlas,
 			PathStates: gpu.SliceData(pathStates),
 		}
-		gpu.EnqueueTraceRays(jq, []int{gpu.SliceLen(pathStates)}, pipe, sbt, &push)
+		gpurt.EnqueueTraceRays(jq, []int{gpu.SliceLen(pathStates)}, pipe, sbt, &push)
 
 		// TODO: given that our sources are pointwise we also probably want to
 		// trace a bunch of rays directly to the emitters. This would still
@@ -366,7 +367,7 @@ func main() {
 		push := struct {
 			ProjInv gmath.Mat4x4f32
 			ViewInv gmath.Mat4x4f32
-			TLAS    gpu.TLAS
+			TLAS    gpurt.TLAS
 			Output  gpu.ImageDescriptor
 		}{
 			ProjInv: proj.Inv(),
@@ -374,7 +375,7 @@ func main() {
 			TLAS:    tlas,
 			Output:  swapchainImage.Descriptor(),
 		}
-		gpu.EnqueueTraceRays(jq, swapchainImage.Extent(), pipe, sbt, &push)
+		gpurt.EnqueueTraceRays(jq, swapchainImage.Extent(), pipe, sbt, &push)
 
 		hehe := [4]float32{1, 0, 0, 1}
 		if !useIdentityKernel.Load() {

@@ -1,9 +1,10 @@
-package gpu
+package raytracing
 
 import (
 	"runtime"
 	"unsafe"
 
+	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
 )
 
@@ -11,14 +12,14 @@ import (
 
 // TODO: make this private
 type accel struct {
-	data UnsafePointer
+	data gpu.UnsafePointer
 	size int
 }
 
 // TODO: newAccelAt
 func newAccel(size int) accel {
 	return accel{
-		data: UnsafePointer(SliceData(MakeSliceUncached[byte](size))),
+		data: gpu.UnsafePointer(gpu.SliceData(gpu.MakeSliceUncached[byte](size))),
 		size: size,
 	}
 }
@@ -34,13 +35,13 @@ type AccelBuildInput interface {
 // (or Set methods) or a constructor. Or idk.
 type BLASBuildInputTriangles struct {
 	VertexFormat  vk.Format
-	VertexBuffer  UnsafePointer // ignored by AccelBuildConfig.CalcSizes
+	VertexBuffer  gpu.UnsafePointer // ignored by AccelBuildConfig.CalcSizes
 	VertexCount   int
 	VertexStride  int
 	IndexType     vk.IndexType
-	IndexBuffer   UnsafePointer // ignored by AccelBuildConfig.CalcSizes
+	IndexBuffer   gpu.UnsafePointer // ignored by AccelBuildConfig.CalcSizes
 	TriangleCount int
-	Transform     Pointer[[3][4]float32] // checked for nil by AccelBuildConfig.CalcSizes
+	Transform     gpu.Pointer[[3][4]float32] // checked for nil by AccelBuildConfig.CalcSizes
 }
 
 func (triangles *BLASBuildInputTriangles) vkAccelerationStructureGeometry(geometry *vk.AccelerationStructureGeometryKHR, primitiveCount *uint32) {
@@ -67,7 +68,7 @@ func (triangles *BLASBuildInputTriangles) vkAccelerationStructureGeometry(geomet
 // constructors that take Slice and an ordinary int, or something of that kind,
 // basically.
 type TLASBuildInputInstances struct {
-	Instances     Pointer[BLASInstance] // ignored by AccelBuildConfig.CalcSizes
+	Instances     gpu.Pointer[BLASInstance] // ignored by AccelBuildConfig.CalcSizes
 	InstanceCount uint32
 }
 
@@ -86,7 +87,7 @@ func (instances *TLASBuildInputInstances) vkAccelerationStructureGeometry(geomet
 }
 
 type TLASBuildInputInstancePointers struct {
-	Instances     Pointer[Pointer[BLASInstance]] // ignored by AccelBuildConfig.CalcSizes
+	Instances     gpu.Pointer[gpu.Pointer[BLASInstance]] // ignored by AccelBuildConfig.CalcSizes
 	InstanceCount uint32
 }
 
@@ -122,7 +123,7 @@ func (config *AccelBuildConfig) CalcSizes() AccelSizes {
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
 
-	gpuInit()
+	gpu.GPUInit()
 
 	vkGeometries := make([]vk.AccelerationStructureGeometryKHR, len(config.Inputs))
 	vkMaxPrimitiveCounts := make([]uint32, len(config.Inputs))
@@ -135,8 +136,8 @@ func (config *AccelBuildConfig) CalcSizes() AccelSizes {
 	sizes := vk.AccelerationStructureBuildSizesInfoKHR{
 		SType: vk.STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR,
 	}
-	vkFns.GetAccelerationStructureBuildSizesKHR(
-		device,
+	gpu.VkFns.GetAccelerationStructureBuildSizesKHR(
+		gpu.Device,
 		vk.ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
 		&vk.AccelerationStructureBuildGeometryInfoKHR{
 			SType:         vk.STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
@@ -159,16 +160,16 @@ type accelBuildJob struct {
 	asType        vk.AccelerationStructureTypeKHR
 	vkGeometries  []vk.AccelerationStructureGeometryKHR
 	vkBuildRanges []vk.AccelerationStructureBuildRangeInfoKHR
-	scratch       UnsafePointer
+	scratch       gpu.UnsafePointer
 }
 
-func (*accelBuildJob) Info() JobInfo {
-	return JobInfo{
-		QueueFamilies: topology.QueueFamilies(vk.QueueFlags(vk.QUEUE_COMPUTE_BIT)),
+func (*accelBuildJob) Info() gpu.JobInfo {
+	return gpu.JobInfo{
+		QueueFamilies: gpu.Topology.QueueFamilies(vk.QueueFlags(vk.QUEUE_COMPUTE_BIT)),
 	}
 }
 
-func (job *accelBuildJob) Exec(q *DeviceQueue) {
+func (job *accelBuildJob) Exec(q *gpu.DeviceQueue) {
 	dst := newVkAccelerationStructureAt(job.dst)
 
 	q.Commands(func(cb vk.CommandBuffer) {
@@ -183,7 +184,7 @@ func (job *accelBuildJob) Exec(q *DeviceQueue) {
 
 		pinner.Pin(ppBuildRangeInfos)
 
-		vkFns.CmdBuildAccelerationStructuresKHR(
+		gpu.VkFns.CmdBuildAccelerationStructuresKHR(
 			cb,
 			1,
 			&vk.AccelerationStructureBuildGeometryInfoKHR{
@@ -199,7 +200,7 @@ func (job *accelBuildJob) Exec(q *DeviceQueue) {
 	})
 
 	if true {
-		q.Cleanup(func() { vkFns.DestroyAccelerationStructureKHR(device, dst, nil) })
+		q.Cleanup(func() { gpu.VkFns.DestroyAccelerationStructureKHR(gpu.Device, dst, nil) })
 	}
 }
 
@@ -211,7 +212,7 @@ func newVkAccelerationStructureAt(accel accel) vk.AccelerationStructureKHR {
 	}
 
 	var as vk.AccelerationStructureKHR
-	must(vkFns.CreateAccelerationStructure2KHR(device, &vk.AccelerationStructureCreateInfo2KHR{
+	must(gpu.VkFns.CreateAccelerationStructure2KHR(gpu.Device, &vk.AccelerationStructureCreateInfo2KHR{
 		SType: vk.STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
 		AddressRange: vk.DeviceAddressRangeKHR{
 			Address: vk.DeviceAddress(accel.data),
@@ -220,7 +221,7 @@ func newVkAccelerationStructureAt(accel accel) vk.AccelerationStructureKHR {
 		Type: vk.ACCELERATION_STRUCTURE_TYPE_GENERIC_KHR,
 	}, nil, &as))
 
-	asAddr := vkFns.GetAccelerationStructureDeviceAddressKHR(device, &vk.AccelerationStructureDeviceAddressInfoKHR{
+	asAddr := gpu.VkFns.GetAccelerationStructureDeviceAddressKHR(gpu.Device, &vk.AccelerationStructureDeviceAddressInfoKHR{
 		SType:                 vk.STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
 		AccelerationStructure: as,
 	})

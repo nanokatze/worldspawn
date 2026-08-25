@@ -8,17 +8,17 @@ import (
 
 type ImageSampler struct{ bits uint32 }
 
-var samplerHint int64
+var samplerDescriptorAllocHintHint int64
 
 // TODO: return a pointer?
 func NewSampler(config *vk.SamplerCreateInfo) ImageSampler {
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
 
-	offset := samplerHeap.Alloc(vulkanSamplerDescriptorSize, &samplerHint)
+	offset := samplerHeap.Alloc(vulkanSamplerDescriptorSize, &samplerDescriptorAllocHintHint)
 
 	dst := samplerHeap.Base().Value()[offset:]
-	vkFns.WriteSamplerDescriptorsEXT(device, 1, config, new(byteSliceToHostAddressRange(dst)))
+	VkFns.WriteSamplerDescriptorsEXT(Device, 1, config, new(byteSliceToHostAddressRange(dst)))
 
 	return ImageSampler{bits: uint32(offset/vulkanSamplerDescriptorSize) << 20}
 }
