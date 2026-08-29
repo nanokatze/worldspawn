@@ -3,37 +3,61 @@ package netutil
 import (
 	"bytes"
 	"io"
-	"slices"
 	"testing"
 )
 
-// TODO: throw in a fuzz test as well perhaps.
-
-// TODO: a more thorough test
-func TestFraming(t *testing.T) {
-	msgs := [][]byte{
-		[]byte("A"),
-		[]byte("B"),
+func TestRoundTrip(t *testing.T) {
+	frames := [][][]byte{
+		{
+			[]byte("A"),
+			[]byte("B"),
+			[]byte("C"),
+		},
+		{
+			[]byte("1"),
+			[]byte("2"),
+			[]byte("3"),
+		},
 	}
 
 	buf := new(bytes.Buffer)
 
-	w := NewFramer(buf)
-	for _, msg := range msgs {
-		w.Write(msg)
-		w.Next()
+	framer := NewFramer(buf)
+	for _, frame := range frames {
+		for _, chunk := range frame {
+			framer.Write(chunk)
+		}
+		framer.Next()
 	}
 
-	r := NewDeframer(buf)
-	for i, want := range msgs {
-		got := make([]byte, len(want))
-		if _, err := io.ReadFull(r, got); err != nil {
-			t.Errorf("%d: err = %v", i, err)
-		} else if !slices.Equal(got, want) {
-			t.Errorf("%d: got %q, want %q", i, got, want)
+	deframer := NewDeframer(buf)
+	for frameIdx, frame := range frames {
+		for chunkIdx, wantChunk := range frame {
+			chunk := make([]byte, len(wantChunk))
+			if _, err := io.ReadFull(deframer, chunk); err != nil {
+				t.Fatalf("frames[%d][%d]: err = %v, want nil", frameIdx, chunkIdx, err)
+			}
+			if !bytes.Equal(chunk, wantChunk) {
+				t.Fatalf("frames[%d][%d]: chunk = %q, want %q", frameIdx, chunkIdx, chunk, wantChunk)
+			}
 		}
-		if err := r.Next(); err != nil {
-			t.Errorf("%d: r.Next(): err = %v", i, err)
+		if _, err := deframer.Read(make([]byte, 1)); err != io.EOF {
+			t.Fatalf("frames[%d]: err = %v, want %v", frameIdx, err, io.EOF)
+		}
+		if err := deframer.Next(); err != nil {
+			t.Fatalf("frames[%d]: err = %v, want nil", frameIdx, err)
 		}
 	}
+}
+
+func FuzzDeframer(f *testing.F) {
+	f.Fuzz(func(t *testing.T, data []byte) {
+		deframer := NewDeframer(bytes.NewReader(data))
+		for {
+			io.ReadAll(deframer)
+			if deframer.Next() != nil {
+				break
+			}
+		}
+	})
 }

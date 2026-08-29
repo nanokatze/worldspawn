@@ -2,13 +2,12 @@ package netutil
 
 import "io"
 
-// TODO: move this into cmd/internal/message?
-
 type Deframer struct {
 	r   io.Reader
 	n   int64
 	eof bool
 	err error
+	tmp [8]byte
 }
 
 func NewDeframer(r io.Reader) *Deframer {
@@ -23,7 +22,7 @@ func (r *Deframer) Read(b []byte) (int, error) {
 		return 0, io.EOF
 	}
 	if r.n == 0 {
-		n, err := readVarint(r.r)
+		n, err := readVarint(r.r, r.tmp[:])
 		if err != nil {
 			r.err = err
 			return 0, r.err

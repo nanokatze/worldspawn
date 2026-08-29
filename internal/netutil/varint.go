@@ -6,7 +6,7 @@ package netutil
 
 import "io"
 
-func consumeVarint(b []byte) (v uint64, n int) {
+func consumeVarint(b []byte) (uint64, int) {
 	if len(b) < 1 {
 		return 0, -1
 	}
@@ -33,38 +33,38 @@ func consumeVarint(b []byte) (v uint64, n int) {
 	return 0, -1
 }
 
-// TODO: make public?
-func readVarint(r io.Reader) (uint64, error) {
-	b := make([]byte, 8)
-	if _, err := r.Read(b[:1]); err != nil {
-		return 0, err
-	}
-	if _, err := r.Read(b[:1<<(b[0]>>6)][1:]); err != nil {
-		return 0, err
-	}
-	v, _ := consumeVarint(b)
-	return v, nil
-}
-
 // appendVarint appends a variable-length integer to b.
 //
 // https://www.rfc-editor.org/rfc/rfc9000.html#section-16
 func appendVarint(b []byte, v uint64) []byte {
 	switch {
-	case v <= 63:
+	case v <= 1<<6-1:
 		return append(b, byte(v))
-	case v <= 16383:
+	case v <= 1<<14-1:
 		return append(b, (1<<6)|byte(v>>8), byte(v))
-	case v <= 1073741823:
+	case v <= 1<<30-1:
 		return append(b, (2<<6)|byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
-	case v <= 4611686018427387903:
+	case v <= 1<<62-1:
 		return append(b, (3<<6)|byte(v>>56), byte(v>>48), byte(v>>40), byte(v>>32), byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
 	default:
 		panic("varint too large")
 	}
 }
 
-func writeVarint(w io.Writer, v uint64) error {
-	_, err := w.Write(appendVarint(nil, v))
+func readVarint(r io.Reader, tmp []byte) (uint64, error) {
+	b := tmp[:8]
+	if _, err := r.Read(b[:1]); err != nil {
+		return 0, err
+	}
+	b = b[:1<<(b[0]>>6)]
+	if _, err := r.Read(b[1:]); err != nil {
+		return 0, err
+	}
+	v, _ := consumeVarint(b)
+	return v, nil
+}
+
+func writeVarint(w io.Writer, v uint64, tmp []byte) error {
+	_, err := w.Write(appendVarint(tmp[:0], v))
 	return err
 }

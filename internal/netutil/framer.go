@@ -5,6 +5,7 @@ import "io"
 type Framer struct {
 	w   io.Writer
 	err error
+	tmp [8]byte
 }
 
 func NewFramer(w io.Writer) *Framer {
@@ -18,7 +19,7 @@ func (w *Framer) Write(b []byte) (int, error) {
 	if len(b) == 0 {
 		return 0, nil
 	}
-	if w.err = writeVarint(w.w, uint64(len(b))); w.err != nil {
+	if w.err = writeVarint(w.w, uint64(len(b)), w.tmp[:]); w.err != nil {
 		return 0, w.err
 	}
 	var n int
@@ -28,7 +29,7 @@ func (w *Framer) Write(b []byte) (int, error) {
 
 func (w *Framer) Next() error {
 	if w.err == nil {
-		w.err = writeVarint(w.w, 0)
+		w.err = writeVarint(w.w, 0, w.tmp[:])
 	}
 	return w.err
 }
