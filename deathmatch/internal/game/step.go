@@ -30,11 +30,20 @@ func Step(world *World, updateParams UpdateParams) {
 		updateParams.Worldspawn = state
 	}
 
-	world.think(&updateParams)
+	processUpdates(world, &updateParams)
 
-	world.physicsStep(&updateParams)
+	// Update the shadows for thinkers
+	//
+	// TODO: not sure if we should do it here or if the passes should do it
+	// themselves. There's definitely arguments for either.
+	updateShadows(world, &updateParams)
 
-	world.handleOutOfBoundsEntities(&updateParams)
+	think(world, &updateParams)
+	processUpdates(world, &updateParams)
+
+	physicsStep(world, &updateParams)
+
+	markEntitiesOutOfBounds(world, &updateParams)
 
 	for id, a := range ecs.All(&world.SoundEffectState) {
 		soundEffect, _ := world.SoundEffect.Get(id)
@@ -48,42 +57,17 @@ func Step(world *World, updateParams UpdateParams) {
 		world.SoundEffect.Set(id, soundEffect)
 	}
 
-	world.deleteMarkedEntities()
+	deleteMarkedEntities(world)
 }
 
-func (world *World) think(updateParams *UpdateParams) {
-	// TODO: optimize the pass over thinkers by having a shadow column
-
-	// Update systems which are allowed to be queried from Think
-
-	world.updatePhysicsShadow(updateParams)
-
-	// Run thinkers
-
-	for id, scriptName := range ecs.All(&world.ScriptState) {
-		script := Scripts[reflect.TypeOf(scriptName)]
-		if script.Think == nil {
-			continue
-		}
-
-		// TODO: we'll want a timer wheel of sorts to make this fast
-		nextThink, _ := world.NextThink.Get(id)
-		if nextThink.Compare(updateParams.Now) > 0 {
-			continue
-		}
-
-		script.Think(ScriptContext{updateParams, IO{world, uint64(id.Index())}}, Entity{entities: &world.Entities, id: id}, world)
-	}
-
-	// Process the enqueued updates
-
-	world.processUpdates(updateParams)
+func updateShadows(world *World, updateParams *UpdateParams) {
+	updatePhysicsShadow(world, updateParams)
 }
 
 // TODO: make it public so that client replication code can use this? Client
 // replication code still needs World.DeleteEntityImmediately. I guess it could
 // also do whatever surgery it needs.
-func (world *World) deleteMarkedEntities() {
+func deleteMarkedEntities(world *World) {
 	// Propagate deletion from parents.
 	//
 	// TODO: make this less gross. We could do a probe whether there's any

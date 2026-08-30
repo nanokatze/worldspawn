@@ -14,7 +14,7 @@ func lessthan(a, b gmath.Vec3f64) bool {
 
 // TODO: we'll probably want to use physics engine in some way with infinite
 // plane shapes.
-func (world *World) handleOutOfBoundsEntities(info *UpdateParams) {
+func markEntitiesOutOfBounds(world *World, info *UpdateParams) {
 	// TODO: specify the bounds on SceneGlobals or something
 	bounds := [2]gmath.Vec3f64{
 		{
@@ -29,8 +29,8 @@ func (world *World) handleOutOfBoundsEntities(info *UpdateParams) {
 		},
 	}
 
-	// TODO: I don't actually suppose this matters for things that don't run
-	// on physics?
+	// TODO: I don't actually suppose this matters for things that don't have
+	// physics?
 	for id, tr := range ecs.All(&world.TransformTR) {
 		if world.GetParent(id) != ecs.NullID {
 			// TODO: figure out a good way to handle entities with parents
@@ -49,6 +49,4 @@ func (world *World) handleOutOfBoundsEntities(info *UpdateParams) {
 
 		world.Entities.delete.Store(id.Index(), true)
 	}
-
-	world.deleteMarkedEntities()
 }

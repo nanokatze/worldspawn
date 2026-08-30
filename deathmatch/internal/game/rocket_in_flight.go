@@ -54,7 +54,7 @@ func init() {
 				})
 		},
 
-		ContactAdded: func(stx ScriptContext, rocket, entity2 Entity) {
+		HandleContact: func(stx ScriptContext, rocket, entity2 Entity) {
 			state := rocket.ScriptState().(RocketInFlight)
 			if entity2.ID() == state.Attacker {
 				// TODO: filter this in ShouldCollide. This should never be reached

@@ -6,6 +6,8 @@ import (
 	"worldspawn/internal/gmath"
 )
 
+// TODO: replace some uses of term "Script" with "Class" actually?
+
 // TODO: think about what we should and should not embed
 type ScriptContext struct {
 	*UpdateParams
@@ -25,12 +27,10 @@ type script struct {
 
 	// OutOfBounds func(stx ScriptContext, world *World, entity EntityID)
 
-	// TODO: rename to HandleInput?
 	// TODO: allow this to return error, in which case the server would drop the player?
 	// TODO: this should be a Thinker and get IO. Client will just call
-	// processUpdates immediately. We could expose two HandleInputs, one would
-	// be for server and one for client.
-	Input func(info *UpdateParams, entity EntityID, world *World, cmd TimestampedInputCmd)
+	// processUpdates immediately.
+	HandleInput func(stx ScriptContext, entity Entity, world *World, cmd TimestampedInputCmd)
 
 	// Think may not perform any mutations, but may read states of entities,
 	// perform physics queries and enqueue updates.
@@ -45,19 +45,17 @@ type script struct {
 	// TODO: pass JPH::CollideShapeResult
 	ShouldCollide func(stx ScriptContext, entity, entity2 Entity) int // TODO: return a enum that corresponds to JPH::ValidateResult
 
-	// Note that ContactAdded and ContactRemoved are not called
+	// Note that HandleContact and HandleSeparation are not called
 	// deterministically, it's thus necessary to pay extra care so that the
 	// simulation is reproducible.
 	//
-	// TODO: naming. NewContactPair sounds like a good replacement for
-	// ContactAdded but I'm not sure what to rename ContactRemoved to.
-	// TODO: inout parameter which lets the script edit the contact
+	// TODO: inout parameter which lets the script edit the contact?
 	// TODO: should this be thinker or mutator? I'm inclined towards the thinker...
-	ContactAdded   func(stx ScriptContext, entity, entity2 Entity)
-	ContactRemoved func(stx ScriptContext, entity Entity, entity2 EntityID)
+	HandleContact    func(stx ScriptContext, entity, entity2 Entity)
+	HandleSeparation func(stx ScriptContext, entity Entity, entity2 EntityID)
 
-	// Impact may not perform any queries, but may mutate the entity.
-	Impact func(stx ScriptContext, entity Entity, impact Impact)
+	// HandleImpact may not perform any queries, but may mutate the entity.
+	HandleImpact func(stx ScriptContext, entity Entity, impact Impact)
 
 	// TODO: rename this, this is not a hint but provides some info which is the
 	// responsibility of the thing using the weapon to implement

@@ -30,7 +30,7 @@ func (a Velocity) Scale(λ float32) Velocity {
 // Always run this before performing physics queries!!!
 //
 // TODO: move out of this file kinda? I'm thinking into step.go
-func (world *World) updatePhysicsShadow(updateParams *UpdateParams) {
+func updatePhysicsShadow(world *World, updateParams *UpdateParams) {
 	// TODO: remove bodies when we delete entities!!!!!!!!
 	for id := range ecs.All(&world.physicsBodyExists) {
 		if _, ok := world.CollisionLayer.Get(id); !ok {
@@ -155,9 +155,10 @@ func getShape(entity Entity) *physics.Shape {
 	return shape.shape
 }
 
-func (world *World) physicsStep(updateParams *UpdateParams) {
+// TODO: rename this
+func physicsStep(world *World, updateParams *UpdateParams) {
 	// TODO: push it back onto the user again?
-	world.updatePhysicsShadow(updateParams)
+	updatePhysicsShadow(world, updateParams)
 
 	world.physics.Update(float32(durationToFloatSeconds(updateParams.Δt)), updateParams.Gravity)
 
@@ -193,25 +194,25 @@ func (world *World) physicsStep(updateParams *UpdateParams) {
 
 			switch ce.Type {
 			case 1:
-				if script := entity1.Script(); script.ContactAdded != nil {
-					script.ContactAdded(stx1, entity1, entity2)
+				if script := entity1.Script(); script.HandleContact != nil {
+					script.HandleContact(stx1, entity1, entity2)
 				}
-				if script := entity2.Script(); script.ContactAdded != nil {
-					script.ContactAdded(stx2, entity2, entity1)
+				if script := entity2.Script(); script.HandleContact != nil {
+					script.HandleContact(stx2, entity2, entity1)
 				}
 
 			case 2:
-				if script := entity1.Script(); script.ContactRemoved != nil {
-					script.ContactRemoved(stx1, entity1, entityID2)
+				if script := entity1.Script(); script.HandleSeparation != nil {
+					script.HandleSeparation(stx1, entity1, entityID2)
 				}
-				if script := entity2.Script(); script.ContactRemoved != nil {
-					script.ContactRemoved(stx2, entity2, entityID1)
+				if script := entity2.Script(); script.HandleSeparation != nil {
+					script.HandleSeparation(stx2, entity2, entityID1)
 				}
 			}
 		}
 	}
 
-	world.processUpdates(updateParams)
+	processUpdates(world, updateParams)
 }
 
 type shape struct {

@@ -66,7 +66,7 @@ func init() {
 					})
 			}
 		},
-		Impact: func(stx ScriptContext, entity Entity, impact Impact) {
+		HandleImpact: func(stx ScriptContext, entity Entity, impact Impact) {
 			// TODO: verify impact preconditions here
 
 			state := entity.ScriptState().(ExplosiveBarrel)

@@ -35,8 +35,8 @@ type Impact struct {
 // TODO: kill this in favor of enqueueImpact
 func (impact Impact) Apply(stx ScriptContext, entity Entity) {
 	scriptFuncs := entity.Script()
-	if scriptFuncs.Impact != nil {
-		scriptFuncs.Impact(stx, entity, impact)
+	if scriptFuncs.HandleImpact != nil {
+		scriptFuncs.HandleImpact(stx, entity, impact)
 	}
 
 	// TODO: only do this if Impact is not implemented and make entities

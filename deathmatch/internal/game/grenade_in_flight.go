@@ -61,7 +61,7 @@ func init() {
 				})
 		},
 
-		ContactAdded: func(stx ScriptContext, grenade, entity2 Entity) {
+		HandleContact: func(stx ScriptContext, grenade, entity2 Entity) {
 			state := grenade.ScriptState().(GrenadeInFlight)
 
 			if entity2.ID() == state.Attacker {

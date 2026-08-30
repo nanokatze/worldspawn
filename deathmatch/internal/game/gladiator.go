@@ -104,36 +104,34 @@ type Gladiator struct {
 
 func init() {
 	Scripts[reflect.TypeFor[Gladiator]()] = script{
-		Input: func(info *UpdateParams, id EntityID, world *World, cmd TimestampedInputCmd) {
-			entity := world.Entity(id)
+		HandleInput: func(stx ScriptContext, gladiator Entity, world *World, cmd TimestampedInputCmd) {
+			stx.Update(gladiator, func(stx ScriptContext, gladiator Entity) {
+				state := gladiator.ScriptState().(Gladiator)
+				defer func() { gladiator.SetScriptState(state) }()
 
-			gladiator := entity.ScriptState().(Gladiator)
-			defer func() { entity.SetScriptState(gladiator) }()
-
-			switch cmd := cmd.Cmd.(type) {
-			case InputCmdDLookXY:
-				gladiator.Input.Head[0] = float32(math.Mod(float64(gladiator.Input.Head[0]-float32(cmd)), 1))
-			case InputCmdDLookYZ:
-				gladiator.Input.Head[1] = min(max(gladiator.Input.Head[1]-float32(cmd), -0.25), 0.25)
-			case InputCmdMoveX:
-				gladiator.Input.Move[0] = float32(cmd)
-			case InputCmdMoveY:
-				gladiator.Input.Move[1] = float32(cmd)
-			case InputCmdJump:
-				gladiator.Input.Jump = bool(cmd)
-			case InputCmdCrouch:
-				gladiator.Input.Crouch = bool(cmd)
-			case InputCmdAttack:
-				gladiator.Input.Attack = bool(cmd)
-			case InputCmdReload:
-				gladiator.Input.Reload = bool(cmd)
-			case InputCmdDash:
-				gladiator.Input.Dash = bool(cmd)
-			case InputCmdSwitchWeapon:
-				gladiator.Input.Slot = int8(cmd)
-			default:
-				panic("unreachable")
-			}
+				switch cmd := cmd.Cmd.(type) {
+				case InputCmdDLookXY:
+					state.Input.Head[0] = float32(math.Mod(float64(state.Input.Head[0]-float32(cmd)), 1))
+				case InputCmdDLookYZ:
+					state.Input.Head[1] = min(max(state.Input.Head[1]-float32(cmd), -0.25), 0.25)
+				case InputCmdMoveX:
+					state.Input.Move[0] = float32(cmd)
+				case InputCmdMoveY:
+					state.Input.Move[1] = float32(cmd)
+				case InputCmdJump:
+					state.Input.Jump = bool(cmd)
+				case InputCmdCrouch:
+					state.Input.Crouch = bool(cmd)
+				case InputCmdAttack:
+					state.Input.Attack = bool(cmd)
+				case InputCmdReload:
+					state.Input.Reload = bool(cmd)
+				case InputCmdDash:
+					state.Input.Dash = bool(cmd)
+				case InputCmdSwitchWeapon:
+					state.Input.Slot = int8(cmd)
+				}
+			})
 		},
 
 		Think: func(stx ScriptContext, gladiator Entity, world *World) {
@@ -378,7 +376,7 @@ func init() {
 			})
 		},
 
-		Impact: func(stx ScriptContext, gladiator Entity, impact Impact) {
+		HandleImpact: func(stx ScriptContext, gladiator Entity, impact Impact) {
 			// TODO: be verbose when computing the modifier
 			modifier := float32(1.0)
 			if gladiator.ID() == impact.Attacker.ID() {
@@ -393,12 +391,12 @@ func init() {
 			state.Vitals.Health -= impact.Damage
 		},
 
-		Magazine_Pull: func(stx ScriptContext, entity Entity, ammoType AmmoType, minAmount, maxAmount int) int {
-			state := entity.ScriptState().(Gladiator)
+		Magazine_Pull: func(stx ScriptContext, gladiator Entity, ammoType AmmoType, minAmount, maxAmount int) int {
+			state := gladiator.ScriptState().(Gladiator)
 			if state.Inventory.Ammo[ammoType] <= int8(minAmount) {
 				return 0
 			}
-			defer func() { entity.SetScriptState(state) }()
+			defer func() { gladiator.SetScriptState(state) }()
 
 			amount := int8(min(int(state.Inventory.Ammo[ammoType]), maxAmount))
 			state.Inventory.Ammo[ammoType] -= amount

@@ -60,12 +60,14 @@ func (world *World) Camera(playerID EntityID) EntityID {
 	return pawnState.Head
 }
 
-// TODO: this should not take UpdateParams *at all* I think. Actually we still
-// need flags, but not Δt.
+// TODO: remove this in favor of maintaining this component externally and pass
+// it to Step
 func (world *World) HandleInput(playerID EntityID, cmd TimestampedInputCmd, info *UpdateParams) {
+	stx := ScriptContext{info, IO{world, uint64(playerID.Index())}}
+
 	playerState := world.Entity(playerID).ScriptState().(Player)
 	if pawn := world.Entity(playerState.Pawn); pawn.IsValid() {
-		pawn.Script().Input(info, pawn.ID(), world, cmd)
+		pawn.Script().HandleInput(stx, pawn, world, cmd)
 	} else {
 		if !info.Speculating {
 			spawnPoint := world.findPlayerSpawn()

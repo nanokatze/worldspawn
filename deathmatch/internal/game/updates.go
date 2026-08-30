@@ -6,6 +6,7 @@ import (
 )
 
 // TODO: rename this file to commands.go, IO to Commands and io to cmds
+// TODO: actually merge this into script.go?
 
 // TODO: if we get rid of reference to the world and replace it with simpler
 // structure we could probably factor it out into common code.
@@ -33,7 +34,7 @@ func (io IO) validate(entity Entity) {
 	}
 }
 
-// func (io IO) Think(to Entity2, )
+// func (io IO) Think(f func(stx ScriptContext, world *World))
 
 func (io IO) Update(to Entity, f func(stx ScriptContext, entity Entity)) {
 	io.validate(to)
@@ -49,7 +50,8 @@ func (io IO) Create(f func(stx ScriptContext, entity Entity)) {
 	})
 }
 
-func (world *World) processUpdates(info *UpdateParams) {
+// TODO: return a bool for whether anything was actually run
+func processUpdates(world *World, info *UpdateParams) {
 	for pass := 0; ; pass++ {
 		// TODO: livelock detection
 
