@@ -45,7 +45,7 @@ func (io IO) Update(to Entity, f func(stx ScriptContext, entity Entity)) {
 func (io IO) Create(f func(stx ScriptContext, entity Entity)) {
 	io.world.globalUpdates = append(io.world.globalUpdates, func(info *UpdateParams, world *World) {
 		entity := world.CreateEntity(info)
-		f(ScriptContext{info, IO{world, uint64(entity.id.Index())}, world.logger}, entity)
+		f(ScriptContext{info, IO{world, uint64(entity.id.Index())}}, entity)
 	})
 }
 
@@ -71,7 +71,7 @@ func (world *World) processUpdates(info *UpdateParams) {
 			id := world.Table.IDs().Index(index)
 
 			for _, u := range updates {
-				u.f(ScriptContext{info, IO{world, uint64(index)}, world.logger}, Entity{entities: &world.Entities, id: id})
+				u.f(ScriptContext{info, IO{world, uint64(index)}}, Entity{entities: &world.Entities, id: id})
 			}
 
 			world.entityUpdates2[index] = nil

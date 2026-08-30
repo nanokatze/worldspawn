@@ -290,7 +290,7 @@ func init() {
 				// and therefore decide whether we want to spawn gibs or just
 				// drop a ragdoll.
 				if state.Vitals.Health <= 0 {
-					world.logger.Info("killing myself!!!", "entity", gladiator)
+					stx.Logger.Info("killing myself!!!", "entity", gladiator)
 
 					// TODO: spawn ragdoll or gibs
 

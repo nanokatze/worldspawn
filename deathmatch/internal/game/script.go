@@ -1,22 +1,20 @@
 package game
 
 import (
-	"log/slog"
 	"reflect"
 
 	"worldspawn/internal/gmath"
 )
 
+// TODO: think about what we should and should not embed
 type ScriptContext struct {
 	*UpdateParams
 	IO
-	logger *slog.Logger
 }
 
 // TODO: all mutators should be continuation-based for composability. I.e.
 // instead of returning a result, they should take a continuation to call.
 
-// TODO: switch over more funcs to use Entity2?
 type script struct {
 	Funcs map[string]any
 

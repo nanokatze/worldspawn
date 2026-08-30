@@ -38,7 +38,7 @@ type Server struct {
 
 	world *game.World
 
-	// TODO: history should be a responsibility of game.World itself
+	// TODO: we should introduce a specialized type to keep history
 	prevWorld *game.World
 
 	mtimes modTimes
@@ -143,7 +143,7 @@ func (s *Server) serveConn(conn *quic.Conn, logger *slog.Logger) error {
 	// TODO: we shouldn't need to spawn the player immediately. The game should
 	// decide when to do so
 	s.mu.Lock()
-	u.player = s.world.SpawnPlayer(&game.UpdateParams{})
+	u.player = s.world.SpawnPlayer(&game.UpdateParams{Logger: slog.Default()})
 	s.mu.Unlock()
 
 	framer := netutil.NewFramer(stream2)
@@ -259,7 +259,7 @@ func (s *Server) handleInputPackets(u *user, stream io.Reader) error {
 			// u.time = max(u.time, tmpTime)
 
 			for _, cmd := range cmds {
-				s.world.HandleInput(u.player, cmd, &game.UpdateParams{Δt: s.tickPeriod})
+				s.world.HandleInput(u.player, cmd, &game.UpdateParams{Δt: s.tickPeriod, Logger: slog.Default()})
 			}
 		}()
 
@@ -312,7 +312,7 @@ func (s *Server) tick(Δt time.Duration) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.world.Step(game.UpdateParams{Δt: Δt})
+	game.Step(s.world, game.UpdateParams{Δt: Δt, Logger: slog.Default()})
 
 	s.mtimes.update(s.prevWorld, s.world)
 
@@ -529,7 +529,7 @@ func main() {
 	}
 	sceneFile.Close()
 
-	info := &game.UpdateParams{}
+	info := &game.UpdateParams{Logger: slog.Default()}
 
 	if true {
 		test := s.world.CreateEntity(info)

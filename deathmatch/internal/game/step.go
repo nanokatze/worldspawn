@@ -1,7 +1,7 @@
 package game
 
 import (
-	"reflect"
+	"log/slog"
 	"time"
 
 	"worldspawn/internal/ecs"
@@ -12,12 +12,14 @@ type UpdateParams struct {
 	Δt          time.Duration
 	Speculating bool
 
+	Logger *slog.Logger
+
 	Worldspawn
 }
 
-// TODO: do not accept updateParams here but raw Δt and flags. We should
-// construct UpdateParams ourselves
-func (world *World) Step(updateParams UpdateParams) {
+// TODO: pass Δt and flags explicitly and then make UpdateParams private
+// TODO: make this a standalone function too
+func Step(world *World, updateParams UpdateParams) {
 	{
 		worldspawn := world.Entity(1)
 
@@ -70,7 +72,7 @@ func (world *World) think(updateParams *UpdateParams) {
 			continue
 		}
 
-		script.Think(ScriptContext{updateParams, IO{world, uint64(id.Index())}, world.logger}, Entity{entities: &world.Entities, id: id}, world)
+		script.Think(ScriptContext{updateParams, IO{world, uint64(id.Index())}}, Entity{entities: &world.Entities, id: id}, world)
 	}
 
 	// Process the enqueued updates

@@ -188,8 +188,8 @@ func (world *World) physicsStep(updateParams *UpdateParams) {
 			// we'll probably change these entry points to be pure thinkers. At
 			// that point we'll want to make the key be the entire pair rather
 			// than just one entity.
-			stx1 := ScriptContext{updateParams, IO{world, uint64(entityID1.Index())}, world.logger}
-			stx2 := ScriptContext{updateParams, IO{world, uint64(entityID2.Index())}, world.logger}
+			stx1 := ScriptContext{updateParams, IO{world, uint64(entityID1.Index())}}
+			stx2 := ScriptContext{updateParams, IO{world, uint64(entityID2.Index())}}
 
 			switch ce.Type {
 			case 1:

@@ -18,7 +18,6 @@ type EntityID = ecs.ID
 // that's more up to how we wanna represent things for authoring etc. I'm not
 // sure it would make sense to fold animation graph script into the same column
 // as game logic script. However...
-// TODO: rename to Entities
 // TODO: make this private once the API for replication is functioning
 type Entities struct {
 	// This is manually replicated for now.

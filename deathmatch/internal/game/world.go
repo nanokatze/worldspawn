@@ -2,7 +2,6 @@ package game
 
 import (
 	"io/fs"
-	"log/slog"
 	"reflect"
 	"unique"
 
@@ -17,19 +16,16 @@ var Data fs.FS
 
 // TODO: add a type for representing non-mutable lists and stuff?
 
-// TODO: make all of the internals private. We'll need to add infrastructure for
-// replication to World first.
+// TODO: kill this type and rename Entities to World. Put the user in charge of
+// managing the history and have them pass it to Step.
 type World struct {
 	NextID            EntityID
 	NextIDSpeculative EntityID // TODO: this could be made private
 
-	// TODO: stop embedding this and make it private
 	Entities
 
 	entityUpdates, entityUpdates2 [][]updatef
 	globalUpdates                 []func(*UpdateParams, *World)
-
-	logger *slog.Logger
 }
 
 func (world *World) Reset(n int) {
@@ -59,12 +55,7 @@ func (world *World) Reset(n int) {
 	world.Entities.physicsBodyExists.Init(world.Table)
 
 	world.Entities.delete = bitslice.Make(n)
-
-	// TODO: the user should pass this
-	world.logger = slog.Default()
 }
-
-// func (world *World) SetLogger(logger *slog.Logger) { world.logger = logger }
 
 func (world *World) Cap() int { return world.Table.IDs().Cap() }
 

@@ -69,7 +69,7 @@ func (world *World) HandleInput(playerID EntityID, cmd TimestampedInputCmd, info
 	} else {
 		if !info.Speculating {
 			spawnPoint := world.findPlayerSpawn()
-			world.logger.Info("spawn", "player", playerID, "T", spawnPoint)
+			info.Logger.Info("spawn", "player", playerID, "T", spawnPoint)
 
 			playerState.Pawn = world.spawnGladiator(spawnPoint, info)
 			world.Entity(playerID).SetScriptState(playerState)

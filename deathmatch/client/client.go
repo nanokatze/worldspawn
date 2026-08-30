@@ -285,7 +285,7 @@ func (s *Client) HandleInput(cmds []game.TimestampedInputCmd) {
 	s.inputCmds = append(s.inputCmds, cmds...)
 
 	for _, cmd := range cmds {
-		s.world.HandleInput(s.player, cmd, &game.UpdateParams{Δt: s.tickPeriod, Speculating: true})
+		s.world.HandleInput(s.player, cmd, &game.UpdateParams{Δt: s.tickPeriod, Speculating: true, Logger: slog.Default()})
 	}
 	s.renderer.UpdateSubtick(s.world, s.player)
 }
@@ -309,7 +309,7 @@ func (s *Client) tick(Δt time.Duration) {
 	}
 
 	t0 := s.world.Entity(1).ScriptState().(game.Worldspawn).Now
-	s.world.Step(game.UpdateParams{Δt: Δt, Speculating: true})
+	game.Step(s.world, game.UpdateParams{Δt: Δt, Speculating: true, Logger: slog.Default()})
 	s.renderer.Update(s.world, s.player, t0, s.world.Entity(1).ScriptState().(game.Worldspawn).Now, Δt)
 }
 
