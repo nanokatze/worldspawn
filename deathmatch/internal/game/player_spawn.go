@@ -16,7 +16,7 @@ func init() {
 
 // TODO: we need to pass more data here to choose the spawn point
 // TODO: we should also perform collision queries to ensure free space
-func (world *World) findPlayerSpawn() gmath.TRS3f64 {
+func (world *World) findPlayerSpawn() gmath.Affine3TRSf64 {
 	candidates := slices.Collect(func(yield func(EntityID) bool) {
 		for id, entity := range ecs.All(&world.ScriptState) {
 			if _, ok := entity.(PlayerSpawn); ok {
@@ -31,6 +31,6 @@ func (world *World) findPlayerSpawn() gmath.TRS3f64 {
 		// TODO: perform collision queries to make sure the spawn point is free.
 		// The collision geometry and other info should be passed by the user.
 
-		return world.GetGlobalTransform(candidates[rnd.IntN(len(candidates))]).TRS()
+		return gmath.Affine3DecomposeTRS(world.GetGlobalTransform(candidates[rnd.IntN(len(candidates))]))
 	}
 }

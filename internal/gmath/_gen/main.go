@@ -26,15 +26,29 @@ func main() {
 	// TODO: specify what to generate on the command line
 
 	for _, generator := range []Generator{
-		vecGen{2},
 		matGen{2, 2},
+		matmulGen{2, 2, 2},
 
-		vecGen{3},
 		matGen{3, 3},
+		matmulGen{3, 3, 3},
+
 		trmatGen{3},
 
-		vecGen{4},
 		matGen{4, 4},
+		matmulGen{4, 4, 4},
+
+		matGen{2, 1},
+		matmulGen{2, 2, 1},
+
+		matGen{3, 1},
+		matmulGen{3, 3, 1},
+
+		matGen{4, 1},
+		matmulGen{4, 4, 1},
+
+		vecGen{2},
+		vecGen{3},
+		vecGen{4},
 
 		affineGen{3},
 	} {

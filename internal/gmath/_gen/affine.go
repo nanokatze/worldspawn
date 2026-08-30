@@ -7,12 +7,18 @@ import (
 
 type affineGen struct{ D int64 }
 
-func (gen affineGen) Gen(w io.Writer) error { return affineTmpl.Execute(w, &gen) }
+func (gen affineGen) Gen(w io.Writer) error {
+	if err := affineTmpl.Execute(w, &gen); err != nil {
+		return err
+	}
+	if err := affineTRSTmpl.Execute(w, &gen); err != nil {
+		return err
+	}
+	return nil
+}
 
 var affineTmpl = template.Must(template.New("affine").Parse(`
 {{$AffineD := printf "Affine%d" .D}}
-
-{{$TRSD := printf "TRS%d" .D}}
 
 type {{$AffineD}}[T constraints.Float] struct {
 	M Mat{{.D}}x{{.D}}f32
@@ -54,7 +60,7 @@ func (A {{$AffineD}}[T]) Scale(λ T) {{$AffineD}}[T] {
 func (A {{$AffineD}}[T]) Mul(B {{$AffineD}}[T]) {{$AffineD}}[T] {
 	return {{$AffineD}}[T]{
 		M: A.M.Mul(B.M),
-		T: A.T.Add(A.M.Convert[T]().Mulv(B.T)),
+		T: A.T.Add(Matvec{{.D}}(A.M.Convert[T](), B.T)),
 	}
 }
 
@@ -63,41 +69,46 @@ func (A {{$AffineD}}[T]) Inv() {{$AffineD}}[T] {
 	panic("not implemented")
 }
 */
+`))
 
-func (A {{$AffineD}}[T]) TRS() {{$TRSD}}[T] {
-	// TODO: don't assume this is just translation * rotation, properly extract
-	// shcale too or at least scale with scale.
-	Q := A.M
-	R := Mat{{.D}}x{{.D}}UOne[float32]()
+var affineTRSTmpl = template.Must(template.New("affineTRS").Parse(`
+{{$AffineD := printf "Affine%d" .D}}
+{{$AffineDTRS := printf "Affine%dTRS" .D}}
 
-	return {{$TRSD}}[T]{
-		T: A.T,
-		R: Rot{{.D}}FromMat(Q),
-		S: R,
-	}
-}
-
-type {{$TRSD}}[T constraints.Float] struct {
+type {{$AffineDTRS}}[T constraints.Float] struct {
 	T Vec{{.D}}[T]
 	R Rot{{.D}}
 	S Mat{{.D}}x{{.D}}Uf32
 }
 
 type (
-	TRS{{.D}}f32 = {{$TRSD}}[float32]
-	TRS{{.D}}f64 = {{$TRSD}}[float64]
+	Affine{{.D}}TRSf32 = {{$AffineDTRS}}[float32]
+	Affine{{.D}}TRSf64 = {{$AffineDTRS}}[float64]
 )
 
-func TRS{{.D}}One[T constraints.Float]() {{$TRSD}}[T] {
-	return {{$TRSD}}[T]{
+func Affine{{.D}}TRSOne[T constraints.Float]() {{$AffineDTRS}}[T] {
+	return {{$AffineDTRS}}[T]{
 		R: Rot{{.D}}One(),
 		S: Mat{{.D}}x{{.D}}UOne[float32](),
 	}
 }
 
-func (trs {{$TRSD}}[T]) Affine() {{$AffineD}}[T] {
+func Affine{{.D}}DecomposeTRS[T constraints.Float](A {{$AffineD}}[T]) {{$AffineDTRS}}[T] {
+	// TODO: don't assume the linear part is only rotation, properly extract the
+	// scaling and shearing too.
+	Q := A.M
+	R := Mat{{.D}}x{{.D}}UOne[float32]()
+
+	return {{$AffineDTRS}}[T]{
+		T: A.T,
+		R: Rot{{.D}}FromMat(Q),
+		S: R,
+	}
+}
+
+func (trs {{$AffineDTRS}}[T]) Affine() {{$AffineD}}[T] {
 	return {{$AffineD}}[T]{
-		// TODO: special case R.Mat() by S.Mat() for more :b:erf
+		// TODO: special case R.Mat() by S.Mat() for more :b:erf?
 		M: trs.R.Mat().Mul(trs.S.Mat()),
 		T: trs.T,
 	}

@@ -331,7 +331,7 @@ func main() {
 			movespeed *= 5
 		}
 
-		camera := gmath.TRS3f32{
+		camera := gmath.Affine3TRSf32{
 			T: move,
 			R: gmath.Rot3AToB(gmath.Vec3f32{0, 1, 0}, gmath.Vec3f32{1, 0, 0}).Pow(float32(look[0])).
 				Mul(gmath.Rot3AToB(gmath.Vec3f32{0, 0, 1}, gmath.Vec3f32{0, 1, 0}).Pow(float32(look[1]))),

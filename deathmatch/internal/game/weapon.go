@@ -23,7 +23,7 @@ type WeaponHint struct {
 	// split this into more stuff
 	// WeaponClass string
 
-	FirstPersonPropTransform gmath.TRS3f64
+	FirstPersonPropTransform gmath.Affine3TRSf64
 }
 
 type WeaponButtons uint64

@@ -8,6 +8,410 @@ import (
 	"golang.org/x/exp/constraints"
 )
 
+type Mat2x2[T constraints.Float] [2 * 2]T
+
+type Mat2x2f32 = Mat2x2[float32]
+
+func (A Mat2x2[From]) Convert[To constraints.Float]() Mat2x2[To] {
+	var B Mat2x2[To]
+	for i, v := range A {
+		B[i] = To(v)
+	}
+	return B
+}
+
+func (A *Mat2x2[T]) Index(i, j int) *T {
+	A_i := A[i*2:][:2]
+	A_ij := &A_i[j]
+	return A_ij
+}
+
+func Mat2x2One[T constraints.Float]() Mat2x2[T] {
+	var I Mat2x2[T]
+	*I.Index(0, 0) = 1
+	*I.Index(1, 1) = 1
+	return I
+}
+
+func Mat2x2Diag[T constraints.Float](d [2]T) Mat2x2[T] {
+	var D Mat2x2[T]
+	*D.Index(0, 0) = d[0]
+	*D.Index(1, 1) = d[1]
+	return D
+}
+
+func (A Mat2x2[T]) Add(B Mat2x2[T]) Mat2x2[T] {
+	for i := range A {
+		A[i] += B[i]
+	}
+	return A
+}
+
+func (A Mat2x2[T]) Scale(λ T) Mat2x2[T] {
+	for i := range A {
+		A[i] *= λ
+	}
+	return A
+}
+
+func (A Mat2x2[T]) Mul(B Mat2x2[T]) Mat2x2[T] {
+	return A.Mul2x2(B)
+}
+
+/*
+func (A Mat2x2[T]) Inv() Mat2x2[T] {
+	panic("not implemented")
+}
+*/
+
+func (A Mat2x2[T]) Mul2x2(B Mat2x2[T]) Mat2x2[T] {
+	var AB Mat2x2[T]
+	*AB.Index(0, 0) = 0 + *A.Index(0, 0)**B.Index(0, 0) + *A.Index(0, 1)**B.Index(1, 0)
+	*AB.Index(0, 1) = 0 + *A.Index(0, 0)**B.Index(0, 1) + *A.Index(0, 1)**B.Index(1, 1)
+	*AB.Index(1, 0) = 0 + *A.Index(1, 0)**B.Index(0, 0) + *A.Index(1, 1)**B.Index(1, 0)
+	*AB.Index(1, 1) = 0 + *A.Index(1, 0)**B.Index(0, 1) + *A.Index(1, 1)**B.Index(1, 1)
+	return AB
+}
+
+type Mat3x3[T constraints.Float] [3 * 3]T
+
+type Mat3x3f32 = Mat3x3[float32]
+
+func (A Mat3x3[From]) Convert[To constraints.Float]() Mat3x3[To] {
+	var B Mat3x3[To]
+	for i, v := range A {
+		B[i] = To(v)
+	}
+	return B
+}
+
+func (A *Mat3x3[T]) Index(i, j int) *T {
+	A_i := A[i*3:][:3]
+	A_ij := &A_i[j]
+	return A_ij
+}
+
+func Mat3x3One[T constraints.Float]() Mat3x3[T] {
+	var I Mat3x3[T]
+	*I.Index(0, 0) = 1
+	*I.Index(1, 1) = 1
+	*I.Index(2, 2) = 1
+	return I
+}
+
+func Mat3x3Diag[T constraints.Float](d [3]T) Mat3x3[T] {
+	var D Mat3x3[T]
+	*D.Index(0, 0) = d[0]
+	*D.Index(1, 1) = d[1]
+	*D.Index(2, 2) = d[2]
+	return D
+}
+
+func (A Mat3x3[T]) Add(B Mat3x3[T]) Mat3x3[T] {
+	for i := range A {
+		A[i] += B[i]
+	}
+	return A
+}
+
+func (A Mat3x3[T]) Scale(λ T) Mat3x3[T] {
+	for i := range A {
+		A[i] *= λ
+	}
+	return A
+}
+
+func (A Mat3x3[T]) Mul(B Mat3x3[T]) Mat3x3[T] {
+	return A.Mul3x3(B)
+}
+
+/*
+func (A Mat3x3[T]) Inv() Mat3x3[T] {
+	panic("not implemented")
+}
+*/
+
+func (A Mat3x3[T]) Mul3x3(B Mat3x3[T]) Mat3x3[T] {
+	var AB Mat3x3[T]
+	*AB.Index(0, 0) = 0 + *A.Index(0, 0)**B.Index(0, 0) + *A.Index(0, 1)**B.Index(1, 0) + *A.Index(0, 2)**B.Index(2, 0)
+	*AB.Index(0, 1) = 0 + *A.Index(0, 0)**B.Index(0, 1) + *A.Index(0, 1)**B.Index(1, 1) + *A.Index(0, 2)**B.Index(2, 1)
+	*AB.Index(0, 2) = 0 + *A.Index(0, 0)**B.Index(0, 2) + *A.Index(0, 1)**B.Index(1, 2) + *A.Index(0, 2)**B.Index(2, 2)
+	*AB.Index(1, 0) = 0 + *A.Index(1, 0)**B.Index(0, 0) + *A.Index(1, 1)**B.Index(1, 0) + *A.Index(1, 2)**B.Index(2, 0)
+	*AB.Index(1, 1) = 0 + *A.Index(1, 0)**B.Index(0, 1) + *A.Index(1, 1)**B.Index(1, 1) + *A.Index(1, 2)**B.Index(2, 1)
+	*AB.Index(1, 2) = 0 + *A.Index(1, 0)**B.Index(0, 2) + *A.Index(1, 1)**B.Index(1, 2) + *A.Index(1, 2)**B.Index(2, 2)
+	*AB.Index(2, 0) = 0 + *A.Index(2, 0)**B.Index(0, 0) + *A.Index(2, 1)**B.Index(1, 0) + *A.Index(2, 2)**B.Index(2, 0)
+	*AB.Index(2, 1) = 0 + *A.Index(2, 0)**B.Index(0, 1) + *A.Index(2, 1)**B.Index(1, 1) + *A.Index(2, 2)**B.Index(2, 1)
+	*AB.Index(2, 2) = 0 + *A.Index(2, 0)**B.Index(0, 2) + *A.Index(2, 1)**B.Index(1, 2) + *A.Index(2, 2)**B.Index(2, 2)
+	return AB
+}
+
+type Mat3x3U[T constraints.Float] [3 * (3 + 1) / 2]T
+
+type Mat3x3Uf32 = Mat3x3U[float32]
+
+func (A *Mat3x3U[T]) Index(i, j int) *T {
+	A_i := A[len(A)-triangularNumber(3-i):][:3-i]
+	A_ij := &A_i[j-i]
+	return A_ij
+}
+
+func Mat3x3UOne[T constraints.Float]() Mat3x3U[T] {
+	var I Mat3x3U[T]
+	*I.Index(0, 0) = 1
+	*I.Index(1, 1) = 1
+	*I.Index(2, 2) = 1
+	return I
+}
+
+func Mat3x3UDiag[T constraints.Float](d [3]T) Mat3x3U[T] {
+	var D Mat3x3U[T]
+	*D.Index(0, 0) = d[0]
+	*D.Index(1, 1) = d[1]
+	*D.Index(2, 2) = d[2]
+	return D
+}
+
+func (A Mat3x3U[T]) Add(B Mat3x3U[T]) Mat3x3U[T] {
+	for i := range A {
+		A[i] += B[i]
+	}
+	return A
+}
+
+func (A Mat3x3U[T]) Scale(λ T) Mat3x3U[T] {
+	for i := range A {
+		A[i] *= λ
+	}
+	return A
+}
+
+func (A Mat3x3U[T]) Mul(B Mat3x3U[T]) Mat3x3U[T] {
+	var AB Mat3x3U[T]
+	for i := range 3 {
+		for k := i; k < 3; k++ {
+			for j := k; j < 3; j++ {
+				*AB.Index(i, k) += *A.Index(i, j) * *B.Index(j, k)
+			}
+		}
+	}
+	return AB
+}
+
+func (A Mat3x3U[T]) Inv() Mat3x3U[T] {
+	panic("not implemented")
+}
+
+func (U Mat3x3U[T]) Mat() Mat3x3[T] {
+	var M Mat3x3[T]
+	for i := range 3 {
+		for j := i; j < 3; j++ {
+			*M.Index(i, j) = *U.Index(i, j)
+		}
+	}
+	return M
+}
+
+type Mat4x4[T constraints.Float] [4 * 4]T
+
+type Mat4x4f32 = Mat4x4[float32]
+
+func (A Mat4x4[From]) Convert[To constraints.Float]() Mat4x4[To] {
+	var B Mat4x4[To]
+	for i, v := range A {
+		B[i] = To(v)
+	}
+	return B
+}
+
+func (A *Mat4x4[T]) Index(i, j int) *T {
+	A_i := A[i*4:][:4]
+	A_ij := &A_i[j]
+	return A_ij
+}
+
+func Mat4x4One[T constraints.Float]() Mat4x4[T] {
+	var I Mat4x4[T]
+	*I.Index(0, 0) = 1
+	*I.Index(1, 1) = 1
+	*I.Index(2, 2) = 1
+	*I.Index(3, 3) = 1
+	return I
+}
+
+func Mat4x4Diag[T constraints.Float](d [4]T) Mat4x4[T] {
+	var D Mat4x4[T]
+	*D.Index(0, 0) = d[0]
+	*D.Index(1, 1) = d[1]
+	*D.Index(2, 2) = d[2]
+	*D.Index(3, 3) = d[3]
+	return D
+}
+
+func (A Mat4x4[T]) Add(B Mat4x4[T]) Mat4x4[T] {
+	for i := range A {
+		A[i] += B[i]
+	}
+	return A
+}
+
+func (A Mat4x4[T]) Scale(λ T) Mat4x4[T] {
+	for i := range A {
+		A[i] *= λ
+	}
+	return A
+}
+
+func (A Mat4x4[T]) Mul(B Mat4x4[T]) Mat4x4[T] {
+	return A.Mul4x4(B)
+}
+
+/*
+func (A Mat4x4[T]) Inv() Mat4x4[T] {
+	panic("not implemented")
+}
+*/
+
+func (A Mat4x4[T]) Mul4x4(B Mat4x4[T]) Mat4x4[T] {
+	var AB Mat4x4[T]
+	*AB.Index(0, 0) = 0 + *A.Index(0, 0)**B.Index(0, 0) + *A.Index(0, 1)**B.Index(1, 0) + *A.Index(0, 2)**B.Index(2, 0) + *A.Index(0, 3)**B.Index(3, 0)
+	*AB.Index(0, 1) = 0 + *A.Index(0, 0)**B.Index(0, 1) + *A.Index(0, 1)**B.Index(1, 1) + *A.Index(0, 2)**B.Index(2, 1) + *A.Index(0, 3)**B.Index(3, 1)
+	*AB.Index(0, 2) = 0 + *A.Index(0, 0)**B.Index(0, 2) + *A.Index(0, 1)**B.Index(1, 2) + *A.Index(0, 2)**B.Index(2, 2) + *A.Index(0, 3)**B.Index(3, 2)
+	*AB.Index(0, 3) = 0 + *A.Index(0, 0)**B.Index(0, 3) + *A.Index(0, 1)**B.Index(1, 3) + *A.Index(0, 2)**B.Index(2, 3) + *A.Index(0, 3)**B.Index(3, 3)
+	*AB.Index(1, 0) = 0 + *A.Index(1, 0)**B.Index(0, 0) + *A.Index(1, 1)**B.Index(1, 0) + *A.Index(1, 2)**B.Index(2, 0) + *A.Index(1, 3)**B.Index(3, 0)
+	*AB.Index(1, 1) = 0 + *A.Index(1, 0)**B.Index(0, 1) + *A.Index(1, 1)**B.Index(1, 1) + *A.Index(1, 2)**B.Index(2, 1) + *A.Index(1, 3)**B.Index(3, 1)
+	*AB.Index(1, 2) = 0 + *A.Index(1, 0)**B.Index(0, 2) + *A.Index(1, 1)**B.Index(1, 2) + *A.Index(1, 2)**B.Index(2, 2) + *A.Index(1, 3)**B.Index(3, 2)
+	*AB.Index(1, 3) = 0 + *A.Index(1, 0)**B.Index(0, 3) + *A.Index(1, 1)**B.Index(1, 3) + *A.Index(1, 2)**B.Index(2, 3) + *A.Index(1, 3)**B.Index(3, 3)
+	*AB.Index(2, 0) = 0 + *A.Index(2, 0)**B.Index(0, 0) + *A.Index(2, 1)**B.Index(1, 0) + *A.Index(2, 2)**B.Index(2, 0) + *A.Index(2, 3)**B.Index(3, 0)
+	*AB.Index(2, 1) = 0 + *A.Index(2, 0)**B.Index(0, 1) + *A.Index(2, 1)**B.Index(1, 1) + *A.Index(2, 2)**B.Index(2, 1) + *A.Index(2, 3)**B.Index(3, 1)
+	*AB.Index(2, 2) = 0 + *A.Index(2, 0)**B.Index(0, 2) + *A.Index(2, 1)**B.Index(1, 2) + *A.Index(2, 2)**B.Index(2, 2) + *A.Index(2, 3)**B.Index(3, 2)
+	*AB.Index(2, 3) = 0 + *A.Index(2, 0)**B.Index(0, 3) + *A.Index(2, 1)**B.Index(1, 3) + *A.Index(2, 2)**B.Index(2, 3) + *A.Index(2, 3)**B.Index(3, 3)
+	*AB.Index(3, 0) = 0 + *A.Index(3, 0)**B.Index(0, 0) + *A.Index(3, 1)**B.Index(1, 0) + *A.Index(3, 2)**B.Index(2, 0) + *A.Index(3, 3)**B.Index(3, 0)
+	*AB.Index(3, 1) = 0 + *A.Index(3, 0)**B.Index(0, 1) + *A.Index(3, 1)**B.Index(1, 1) + *A.Index(3, 2)**B.Index(2, 1) + *A.Index(3, 3)**B.Index(3, 1)
+	*AB.Index(3, 2) = 0 + *A.Index(3, 0)**B.Index(0, 2) + *A.Index(3, 1)**B.Index(1, 2) + *A.Index(3, 2)**B.Index(2, 2) + *A.Index(3, 3)**B.Index(3, 2)
+	*AB.Index(3, 3) = 0 + *A.Index(3, 0)**B.Index(0, 3) + *A.Index(3, 1)**B.Index(1, 3) + *A.Index(3, 2)**B.Index(2, 3) + *A.Index(3, 3)**B.Index(3, 3)
+	return AB
+}
+
+type Mat2x1[T constraints.Float] [2 * 1]T
+
+type Mat2x1f32 = Mat2x1[float32]
+
+func (A Mat2x1[From]) Convert[To constraints.Float]() Mat2x1[To] {
+	var B Mat2x1[To]
+	for i, v := range A {
+		B[i] = To(v)
+	}
+	return B
+}
+
+func (A *Mat2x1[T]) Index(i, j int) *T {
+	A_i := A[i*1:][:1]
+	A_ij := &A_i[j]
+	return A_ij
+}
+
+func (A Mat2x1[T]) Add(B Mat2x1[T]) Mat2x1[T] {
+	for i := range A {
+		A[i] += B[i]
+	}
+	return A
+}
+
+func (A Mat2x1[T]) Scale(λ T) Mat2x1[T] {
+	for i := range A {
+		A[i] *= λ
+	}
+	return A
+}
+
+func (A Mat2x2[T]) Mul2x1(B Mat2x1[T]) Mat2x1[T] {
+	var AB Mat2x1[T]
+	*AB.Index(0, 0) = 0 + *A.Index(0, 0)**B.Index(0, 0) + *A.Index(0, 1)**B.Index(1, 0)
+	*AB.Index(1, 0) = 0 + *A.Index(1, 0)**B.Index(0, 0) + *A.Index(1, 1)**B.Index(1, 0)
+	return AB
+}
+
+type Mat3x1[T constraints.Float] [3 * 1]T
+
+type Mat3x1f32 = Mat3x1[float32]
+
+func (A Mat3x1[From]) Convert[To constraints.Float]() Mat3x1[To] {
+	var B Mat3x1[To]
+	for i, v := range A {
+		B[i] = To(v)
+	}
+	return B
+}
+
+func (A *Mat3x1[T]) Index(i, j int) *T {
+	A_i := A[i*1:][:1]
+	A_ij := &A_i[j]
+	return A_ij
+}
+
+func (A Mat3x1[T]) Add(B Mat3x1[T]) Mat3x1[T] {
+	for i := range A {
+		A[i] += B[i]
+	}
+	return A
+}
+
+func (A Mat3x1[T]) Scale(λ T) Mat3x1[T] {
+	for i := range A {
+		A[i] *= λ
+	}
+	return A
+}
+
+func (A Mat3x3[T]) Mul3x1(B Mat3x1[T]) Mat3x1[T] {
+	var AB Mat3x1[T]
+	*AB.Index(0, 0) = 0 + *A.Index(0, 0)**B.Index(0, 0) + *A.Index(0, 1)**B.Index(1, 0) + *A.Index(0, 2)**B.Index(2, 0)
+	*AB.Index(1, 0) = 0 + *A.Index(1, 0)**B.Index(0, 0) + *A.Index(1, 1)**B.Index(1, 0) + *A.Index(1, 2)**B.Index(2, 0)
+	*AB.Index(2, 0) = 0 + *A.Index(2, 0)**B.Index(0, 0) + *A.Index(2, 1)**B.Index(1, 0) + *A.Index(2, 2)**B.Index(2, 0)
+	return AB
+}
+
+type Mat4x1[T constraints.Float] [4 * 1]T
+
+type Mat4x1f32 = Mat4x1[float32]
+
+func (A Mat4x1[From]) Convert[To constraints.Float]() Mat4x1[To] {
+	var B Mat4x1[To]
+	for i, v := range A {
+		B[i] = To(v)
+	}
+	return B
+}
+
+func (A *Mat4x1[T]) Index(i, j int) *T {
+	A_i := A[i*1:][:1]
+	A_ij := &A_i[j]
+	return A_ij
+}
+
+func (A Mat4x1[T]) Add(B Mat4x1[T]) Mat4x1[T] {
+	for i := range A {
+		A[i] += B[i]
+	}
+	return A
+}
+
+func (A Mat4x1[T]) Scale(λ T) Mat4x1[T] {
+	for i := range A {
+		A[i] *= λ
+	}
+	return A
+}
+
+func (A Mat4x4[T]) Mul4x1(B Mat4x1[T]) Mat4x1[T] {
+	var AB Mat4x1[T]
+	*AB.Index(0, 0) = 0 + *A.Index(0, 0)**B.Index(0, 0) + *A.Index(0, 1)**B.Index(1, 0) + *A.Index(0, 2)**B.Index(2, 0) + *A.Index(0, 3)**B.Index(3, 0)
+	*AB.Index(1, 0) = 0 + *A.Index(1, 0)**B.Index(0, 0) + *A.Index(1, 1)**B.Index(1, 0) + *A.Index(1, 2)**B.Index(2, 0) + *A.Index(1, 3)**B.Index(3, 0)
+	*AB.Index(2, 0) = 0 + *A.Index(2, 0)**B.Index(0, 0) + *A.Index(2, 1)**B.Index(1, 0) + *A.Index(2, 2)**B.Index(2, 0) + *A.Index(2, 3)**B.Index(3, 0)
+	*AB.Index(3, 0) = 0 + *A.Index(3, 0)**B.Index(0, 0) + *A.Index(3, 1)**B.Index(1, 0) + *A.Index(3, 2)**B.Index(2, 0) + *A.Index(3, 3)**B.Index(3, 0)
+	return AB
+}
+
 type Vec2[T constraints.Float] [2]T
 
 type (
@@ -70,72 +474,8 @@ func (a Vec2[T]) Normalize() Vec2[T] {
 	}
 }
 
-type Mat2x2[T constraints.Float] [2 * 2]T
-
-type Mat2x2f32 = Mat2x2[float32]
-
-func (A Mat2x2[From]) Convert[To constraints.Float]() Mat2x2[To] {
-	var B Mat2x2[To]
-	for i, v := range A {
-		B[i] = To(v)
-	}
-	return B
-}
-
-func (A *Mat2x2[T]) Index(i, j int) *T {
-	A_i := A[i*2:][:2]
-	A_ij := &A_i[j]
-	return A_ij
-}
-
-func Mat2x2One[T constraints.Float]() Mat2x2[T] {
-	var I Mat2x2[T]
-	*I.Index(0, 0) = 1
-	*I.Index(1, 1) = 1
-	return I
-}
-
-func Mat2x2Diag[T constraints.Float](d Vec2[T]) Mat2x2[T] {
-	var D Mat2x2[T]
-	*D.Index(0, 0) = d[0]
-	*D.Index(1, 1) = d[1]
-	return D
-}
-
-func (A Mat2x2[T]) Add(B Mat2x2[T]) Mat2x2[T] {
-	for i := range A {
-		A[i] += B[i]
-	}
-	return A
-}
-
-func (A Mat2x2[T]) Scale(λ T) Mat2x2[T] {
-	for i := range A {
-		A[i] *= λ
-	}
-	return A
-}
-
-func (A Mat2x2[T]) Mul(B Mat2x2[T]) Mat2x2[T] {
-	var AB Mat2x2[T]
-	*AB.Index(0, 0) = 0 + *A.Index(0, 0)**B.Index(0, 0) + *A.Index(0, 1)**B.Index(1, 0)
-	*AB.Index(0, 1) = 0 + *A.Index(0, 0)**B.Index(0, 1) + *A.Index(0, 1)**B.Index(1, 1)
-	*AB.Index(1, 0) = 0 + *A.Index(1, 0)**B.Index(0, 0) + *A.Index(1, 1)**B.Index(1, 0)
-	*AB.Index(1, 1) = 0 + *A.Index(1, 0)**B.Index(0, 1) + *A.Index(1, 1)**B.Index(1, 1)
-	return AB
-}
-
-/*
-func (A Mat2x2[T]) Inv() Mat2x2[T] {
-	panic("not implemented")
-}
-*/
-
-func (A Mat2x2[T]) Mulv(b Vec2[T]) Vec2[T] {
-	var Ab Vec2[T]
-	Ab[0] = 0 + *A.Index(0, 0)*b[0] + *A.Index(0, 1)*b[1]
-	Ab[1] = 0 + *A.Index(1, 0)*b[0] + *A.Index(1, 1)*b[1]
-	return Ab
+func Matvec2[T constraints.Float](A Mat2x2[T], b Vec2[T]) Vec2[T] {
+	return Vec2[T](A.Mul2x1(Mat2x1[T](b)))
 }
 
 type Vec3[T constraints.Float] [3]T
@@ -206,146 +546,8 @@ func (a Vec3[T]) Normalize() Vec3[T] {
 	}
 }
 
-type Mat3x3[T constraints.Float] [3 * 3]T
-
-type Mat3x3f32 = Mat3x3[float32]
-
-func (A Mat3x3[From]) Convert[To constraints.Float]() Mat3x3[To] {
-	var B Mat3x3[To]
-	for i, v := range A {
-		B[i] = To(v)
-	}
-	return B
-}
-
-func (A *Mat3x3[T]) Index(i, j int) *T {
-	A_i := A[i*3:][:3]
-	A_ij := &A_i[j]
-	return A_ij
-}
-
-func Mat3x3One[T constraints.Float]() Mat3x3[T] {
-	var I Mat3x3[T]
-	*I.Index(0, 0) = 1
-	*I.Index(1, 1) = 1
-	*I.Index(2, 2) = 1
-	return I
-}
-
-func Mat3x3Diag[T constraints.Float](d Vec3[T]) Mat3x3[T] {
-	var D Mat3x3[T]
-	*D.Index(0, 0) = d[0]
-	*D.Index(1, 1) = d[1]
-	*D.Index(2, 2) = d[2]
-	return D
-}
-
-func (A Mat3x3[T]) Add(B Mat3x3[T]) Mat3x3[T] {
-	for i := range A {
-		A[i] += B[i]
-	}
-	return A
-}
-
-func (A Mat3x3[T]) Scale(λ T) Mat3x3[T] {
-	for i := range A {
-		A[i] *= λ
-	}
-	return A
-}
-
-func (A Mat3x3[T]) Mul(B Mat3x3[T]) Mat3x3[T] {
-	var AB Mat3x3[T]
-	*AB.Index(0, 0) = 0 + *A.Index(0, 0)**B.Index(0, 0) + *A.Index(0, 1)**B.Index(1, 0) + *A.Index(0, 2)**B.Index(2, 0)
-	*AB.Index(0, 1) = 0 + *A.Index(0, 0)**B.Index(0, 1) + *A.Index(0, 1)**B.Index(1, 1) + *A.Index(0, 2)**B.Index(2, 1)
-	*AB.Index(0, 2) = 0 + *A.Index(0, 0)**B.Index(0, 2) + *A.Index(0, 1)**B.Index(1, 2) + *A.Index(0, 2)**B.Index(2, 2)
-	*AB.Index(1, 0) = 0 + *A.Index(1, 0)**B.Index(0, 0) + *A.Index(1, 1)**B.Index(1, 0) + *A.Index(1, 2)**B.Index(2, 0)
-	*AB.Index(1, 1) = 0 + *A.Index(1, 0)**B.Index(0, 1) + *A.Index(1, 1)**B.Index(1, 1) + *A.Index(1, 2)**B.Index(2, 1)
-	*AB.Index(1, 2) = 0 + *A.Index(1, 0)**B.Index(0, 2) + *A.Index(1, 1)**B.Index(1, 2) + *A.Index(1, 2)**B.Index(2, 2)
-	*AB.Index(2, 0) = 0 + *A.Index(2, 0)**B.Index(0, 0) + *A.Index(2, 1)**B.Index(1, 0) + *A.Index(2, 2)**B.Index(2, 0)
-	*AB.Index(2, 1) = 0 + *A.Index(2, 0)**B.Index(0, 1) + *A.Index(2, 1)**B.Index(1, 1) + *A.Index(2, 2)**B.Index(2, 1)
-	*AB.Index(2, 2) = 0 + *A.Index(2, 0)**B.Index(0, 2) + *A.Index(2, 1)**B.Index(1, 2) + *A.Index(2, 2)**B.Index(2, 2)
-	return AB
-}
-
-/*
-func (A Mat3x3[T]) Inv() Mat3x3[T] {
-	panic("not implemented")
-}
-*/
-
-func (A Mat3x3[T]) Mulv(b Vec3[T]) Vec3[T] {
-	var Ab Vec3[T]
-	Ab[0] = 0 + *A.Index(0, 0)*b[0] + *A.Index(0, 1)*b[1] + *A.Index(0, 2)*b[2]
-	Ab[1] = 0 + *A.Index(1, 0)*b[0] + *A.Index(1, 1)*b[1] + *A.Index(1, 2)*b[2]
-	Ab[2] = 0 + *A.Index(2, 0)*b[0] + *A.Index(2, 1)*b[1] + *A.Index(2, 2)*b[2]
-	return Ab
-}
-
-type Mat3x3U[T constraints.Float] [3 * (3 + 1) / 2]T
-
-type Mat3x3Uf32 = Mat3x3U[float32]
-
-func (A *Mat3x3U[T]) Index(i, j int) *T {
-	A_i := A[len(A)-triangularNumber(3-i):][:3-i]
-	A_ij := &A_i[j-i]
-	return A_ij
-}
-
-func Mat3x3UOne[T constraints.Float]() Mat3x3U[T] {
-	var I Mat3x3U[T]
-	*I.Index(0, 0) = 1
-	*I.Index(1, 1) = 1
-	*I.Index(2, 2) = 1
-	return I
-}
-
-func Mat3x3UDiag[T constraints.Float](d Vec3[T]) Mat3x3U[T] {
-	var D Mat3x3U[T]
-	*D.Index(0, 0) = d[0]
-	*D.Index(1, 1) = d[1]
-	*D.Index(2, 2) = d[2]
-	return D
-}
-
-func (A Mat3x3U[T]) Add(B Mat3x3U[T]) Mat3x3U[T] {
-	for i := range A {
-		A[i] += B[i]
-	}
-	return A
-}
-
-func (A Mat3x3U[T]) Scale(λ T) Mat3x3U[T] {
-	for i := range A {
-		A[i] *= λ
-	}
-	return A
-}
-
-func (A Mat3x3U[T]) Mul(B Mat3x3U[T]) Mat3x3U[T] {
-	var AB Mat3x3U[T]
-	for i := range 3 {
-		for k := i; k < 3; k++ {
-			for j := k; j < 3; j++ {
-				*AB.Index(i, k) += *A.Index(i, j) * *B.Index(j, k)
-			}
-		}
-	}
-	return AB
-}
-
-func (A Mat3x3U[T]) Inv() Mat3x3U[T] {
-	panic("not implemented")
-}
-
-func (U Mat3x3U[T]) Mat() Mat3x3[T] {
-	var M Mat3x3[T]
-	for i := range 3 {
-		for j := i; j < 3; j++ {
-			*M.Index(i, j) = *U.Index(i, j)
-		}
-	}
-	return M
+func Matvec3[T constraints.Float](A Mat3x3[T], b Vec3[T]) Vec3[T] {
+	return Vec3[T](A.Mul3x1(Mat3x1[T](b)))
 }
 
 type Vec4[T constraints.Float] [4]T
@@ -422,90 +624,8 @@ func (a Vec4[T]) Normalize() Vec4[T] {
 	}
 }
 
-type Mat4x4[T constraints.Float] [4 * 4]T
-
-type Mat4x4f32 = Mat4x4[float32]
-
-func (A Mat4x4[From]) Convert[To constraints.Float]() Mat4x4[To] {
-	var B Mat4x4[To]
-	for i, v := range A {
-		B[i] = To(v)
-	}
-	return B
-}
-
-func (A *Mat4x4[T]) Index(i, j int) *T {
-	A_i := A[i*4:][:4]
-	A_ij := &A_i[j]
-	return A_ij
-}
-
-func Mat4x4One[T constraints.Float]() Mat4x4[T] {
-	var I Mat4x4[T]
-	*I.Index(0, 0) = 1
-	*I.Index(1, 1) = 1
-	*I.Index(2, 2) = 1
-	*I.Index(3, 3) = 1
-	return I
-}
-
-func Mat4x4Diag[T constraints.Float](d Vec4[T]) Mat4x4[T] {
-	var D Mat4x4[T]
-	*D.Index(0, 0) = d[0]
-	*D.Index(1, 1) = d[1]
-	*D.Index(2, 2) = d[2]
-	*D.Index(3, 3) = d[3]
-	return D
-}
-
-func (A Mat4x4[T]) Add(B Mat4x4[T]) Mat4x4[T] {
-	for i := range A {
-		A[i] += B[i]
-	}
-	return A
-}
-
-func (A Mat4x4[T]) Scale(λ T) Mat4x4[T] {
-	for i := range A {
-		A[i] *= λ
-	}
-	return A
-}
-
-func (A Mat4x4[T]) Mul(B Mat4x4[T]) Mat4x4[T] {
-	var AB Mat4x4[T]
-	*AB.Index(0, 0) = 0 + *A.Index(0, 0)**B.Index(0, 0) + *A.Index(0, 1)**B.Index(1, 0) + *A.Index(0, 2)**B.Index(2, 0) + *A.Index(0, 3)**B.Index(3, 0)
-	*AB.Index(0, 1) = 0 + *A.Index(0, 0)**B.Index(0, 1) + *A.Index(0, 1)**B.Index(1, 1) + *A.Index(0, 2)**B.Index(2, 1) + *A.Index(0, 3)**B.Index(3, 1)
-	*AB.Index(0, 2) = 0 + *A.Index(0, 0)**B.Index(0, 2) + *A.Index(0, 1)**B.Index(1, 2) + *A.Index(0, 2)**B.Index(2, 2) + *A.Index(0, 3)**B.Index(3, 2)
-	*AB.Index(0, 3) = 0 + *A.Index(0, 0)**B.Index(0, 3) + *A.Index(0, 1)**B.Index(1, 3) + *A.Index(0, 2)**B.Index(2, 3) + *A.Index(0, 3)**B.Index(3, 3)
-	*AB.Index(1, 0) = 0 + *A.Index(1, 0)**B.Index(0, 0) + *A.Index(1, 1)**B.Index(1, 0) + *A.Index(1, 2)**B.Index(2, 0) + *A.Index(1, 3)**B.Index(3, 0)
-	*AB.Index(1, 1) = 0 + *A.Index(1, 0)**B.Index(0, 1) + *A.Index(1, 1)**B.Index(1, 1) + *A.Index(1, 2)**B.Index(2, 1) + *A.Index(1, 3)**B.Index(3, 1)
-	*AB.Index(1, 2) = 0 + *A.Index(1, 0)**B.Index(0, 2) + *A.Index(1, 1)**B.Index(1, 2) + *A.Index(1, 2)**B.Index(2, 2) + *A.Index(1, 3)**B.Index(3, 2)
-	*AB.Index(1, 3) = 0 + *A.Index(1, 0)**B.Index(0, 3) + *A.Index(1, 1)**B.Index(1, 3) + *A.Index(1, 2)**B.Index(2, 3) + *A.Index(1, 3)**B.Index(3, 3)
-	*AB.Index(2, 0) = 0 + *A.Index(2, 0)**B.Index(0, 0) + *A.Index(2, 1)**B.Index(1, 0) + *A.Index(2, 2)**B.Index(2, 0) + *A.Index(2, 3)**B.Index(3, 0)
-	*AB.Index(2, 1) = 0 + *A.Index(2, 0)**B.Index(0, 1) + *A.Index(2, 1)**B.Index(1, 1) + *A.Index(2, 2)**B.Index(2, 1) + *A.Index(2, 3)**B.Index(3, 1)
-	*AB.Index(2, 2) = 0 + *A.Index(2, 0)**B.Index(0, 2) + *A.Index(2, 1)**B.Index(1, 2) + *A.Index(2, 2)**B.Index(2, 2) + *A.Index(2, 3)**B.Index(3, 2)
-	*AB.Index(2, 3) = 0 + *A.Index(2, 0)**B.Index(0, 3) + *A.Index(2, 1)**B.Index(1, 3) + *A.Index(2, 2)**B.Index(2, 3) + *A.Index(2, 3)**B.Index(3, 3)
-	*AB.Index(3, 0) = 0 + *A.Index(3, 0)**B.Index(0, 0) + *A.Index(3, 1)**B.Index(1, 0) + *A.Index(3, 2)**B.Index(2, 0) + *A.Index(3, 3)**B.Index(3, 0)
-	*AB.Index(3, 1) = 0 + *A.Index(3, 0)**B.Index(0, 1) + *A.Index(3, 1)**B.Index(1, 1) + *A.Index(3, 2)**B.Index(2, 1) + *A.Index(3, 3)**B.Index(3, 1)
-	*AB.Index(3, 2) = 0 + *A.Index(3, 0)**B.Index(0, 2) + *A.Index(3, 1)**B.Index(1, 2) + *A.Index(3, 2)**B.Index(2, 2) + *A.Index(3, 3)**B.Index(3, 2)
-	*AB.Index(3, 3) = 0 + *A.Index(3, 0)**B.Index(0, 3) + *A.Index(3, 1)**B.Index(1, 3) + *A.Index(3, 2)**B.Index(2, 3) + *A.Index(3, 3)**B.Index(3, 3)
-	return AB
-}
-
-/*
-func (A Mat4x4[T]) Inv() Mat4x4[T] {
-	panic("not implemented")
-}
-*/
-
-func (A Mat4x4[T]) Mulv(b Vec4[T]) Vec4[T] {
-	var Ab Vec4[T]
-	Ab[0] = 0 + *A.Index(0, 0)*b[0] + *A.Index(0, 1)*b[1] + *A.Index(0, 2)*b[2] + *A.Index(0, 3)*b[3]
-	Ab[1] = 0 + *A.Index(1, 0)*b[0] + *A.Index(1, 1)*b[1] + *A.Index(1, 2)*b[2] + *A.Index(1, 3)*b[3]
-	Ab[2] = 0 + *A.Index(2, 0)*b[0] + *A.Index(2, 1)*b[1] + *A.Index(2, 2)*b[2] + *A.Index(2, 3)*b[3]
-	Ab[3] = 0 + *A.Index(3, 0)*b[0] + *A.Index(3, 1)*b[1] + *A.Index(3, 2)*b[2] + *A.Index(3, 3)*b[3]
-	return Ab
+func Matvec4[T constraints.Float](A Mat4x4[T], b Vec4[T]) Vec4[T] {
+	return Vec4[T](A.Mul4x1(Mat4x1[T](b)))
 }
 
 type Affine3[T constraints.Float] struct {
@@ -548,7 +668,7 @@ func (A Affine3[T]) Scale(λ T) Affine3[T] {
 func (A Affine3[T]) Mul(B Affine3[T]) Affine3[T] {
 	return Affine3[T]{
 		M: A.M.Mul(B.M),
-		T: A.T.Add(A.M.Convert[T]().Mulv(B.T)),
+		T: A.T.Add(Matvec3(A.M.Convert[T](), B.T)),
 	}
 }
 
@@ -558,40 +678,40 @@ func (A Affine3[T]) Inv() Affine3[T] {
 }
 */
 
-func (A Affine3[T]) TRS() TRS3[T] {
-	// TODO: don't assume this is just translation * rotation, properly extract
-	// shcale too or at least scale with scale.
-	Q := A.M
-	R := Mat3x3UOne[float32]()
-
-	return TRS3[T]{
-		T: A.T,
-		R: Rot3FromMat(Q),
-		S: R,
-	}
-}
-
-type TRS3[T constraints.Float] struct {
+type Affine3TRS[T constraints.Float] struct {
 	T Vec3[T]
 	R Rot3
 	S Mat3x3Uf32
 }
 
 type (
-	TRS3f32 = TRS3[float32]
-	TRS3f64 = TRS3[float64]
+	Affine3TRSf32 = Affine3TRS[float32]
+	Affine3TRSf64 = Affine3TRS[float64]
 )
 
-func TRS3One[T constraints.Float]() TRS3[T] {
-	return TRS3[T]{
+func Affine3TRSOne[T constraints.Float]() Affine3TRS[T] {
+	return Affine3TRS[T]{
 		R: Rot3One(),
 		S: Mat3x3UOne[float32](),
 	}
 }
 
-func (trs TRS3[T]) Affine() Affine3[T] {
+func Affine3DecomposeTRS[T constraints.Float](A Affine3[T]) Affine3TRS[T] {
+	// TODO: don't assume the linear part is only rotation, properly extract the
+	// scaling and shearing too.
+	Q := A.M
+	R := Mat3x3UOne[float32]()
+
+	return Affine3TRS[T]{
+		T: A.T,
+		R: Rot3FromMat(Q),
+		S: R,
+	}
+}
+
+func (trs Affine3TRS[T]) Affine() Affine3[T] {
 	return Affine3[T]{
-		// TODO: special case R.Mat() by S.Mat() for more :b:erf
+		// TODO: special case R.Mat() by S.Mat() for more :b:erf?
 		M: trs.R.Mat().Mul(trs.S.Mat()),
 		T: trs.T,
 	}

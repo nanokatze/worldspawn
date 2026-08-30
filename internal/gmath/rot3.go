@@ -9,21 +9,23 @@ import (
 // TODO: kill quat and generate RotN types
 
 // TODO: currently our rotations always double cover the SO(d). We should
-// require that the scalar part is non-negative so that each set of coefficients
+// require that the cos(angle) is non-negative so that each set of coefficients
 // corresponds to a unique rotation object and we can use == to compare
 // rotations for equality. As an extension of this, we could also avoid storing
-// the scalar part explicitly.
+// the cos(angle) explicitly.
 
 // TODO: offer constructors for Rot2 and Rot3 which convert from complex and
 // quaternion respectively
 
-// TODO: introduce methods to get pointers to the parts of Rot3
-
 type Rot3 [4]float32
+
+func (R *Rot3) Fixed() *Vec3f32 { return (*Vec3f32)(R[1:4]) }
+
+func (R *Rot3) CosAngle() *float32 { return &R[0] }
 
 func Rot3One() Rot3 {
 	var R Rot3
-	*R.Scalar() = 1
+	*R.CosAngle() = 1
 	return R
 }
 
@@ -33,10 +35,10 @@ func Rot3One() Rot3 {
 func Rot3AToB(a, b Vec3f32) Rot3 {
 	// TODO: handle the case when a.Dot(b) == -1?
 
-	var RR Rot3
-	*RR.Scalar() = a.Dot(b)
-	*RR.Bivector() = a.Cross(b)
-	return RR.Sqrt()
+	var RSqr Rot3
+	*RSqr.CosAngle() = a.Dot(b)
+	*RSqr.Fixed() = a.Cross(b)
+	return RSqr.Sqrt()
 }
 
 func Rot3FromMat(m Mat3x3f32) Rot3 {
@@ -92,14 +94,6 @@ func Rot3FromMat(m Mat3x3f32) Rot3 {
 	return Rot3{w, x, y, z}.Renormalize()
 }
 
-func Rot3FromQuaternion(w, x, y, z float32) Rot3 {
-	return Rot3{w, x, y, z}
-}
-
-func (R *Rot3) Scalar() *float32 { return &R[0] }
-
-func (R *Rot3) Bivector() *Vec3f32 { return (*Vec3f32)(R[1:4]) }
-
 func (R Rot3) Renormalize() Rot3 {
 	// TODO: quit relying on VecN
 	tmp := Vec4f32(R)
@@ -120,8 +114,8 @@ func (R Rot3) Inv() Rot3 {
 func (R Rot3) Pow(p float32) Rot3 {
 	// TODO: naming
 
-	φ := float32(math.Acos(float64(R[0])))
-	B := Vec3f32(R[1:4]).Normalize()
+	φ := float32(math.Acos(float64(*R.CosAngle())))
+	B := R.Fixed().Normalize()
 
 	pφ := p * φ
 

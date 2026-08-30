@@ -534,7 +534,7 @@ func main() {
 	if true {
 		test := s.world.CreateEntity(info)
 		test.SetScriptState(game.Animtest{unique.Make("testcharacter4/animations/look")})
-		test.SetTransform(gmath.TRS3f64{
+		test.SetTransform(gmath.Affine3TRSf64{
 			T: gmath.Vec3f64{0, -1, 0},
 			R: gmath.Rot3One(),
 			S: gmath.Mat3x3UOne[float32](),
@@ -546,7 +546,7 @@ func main() {
 	if true {
 		test := s.world.CreateEntity(info)
 		test.SetScriptState(game.AmmoPickup{})
-		test.SetTransform(gmath.TRS3f64{
+		test.SetTransform(gmath.Affine3TRSf64{
 			T: gmath.Vec3f64{0, -2, 0.5},
 			R: gmath.Rot3One(),
 			S: gmath.Mat3x3UOne[float32](),

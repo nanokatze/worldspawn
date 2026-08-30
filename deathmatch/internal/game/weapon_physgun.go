@@ -40,7 +40,7 @@ func init() {
 				rayHit := world.TraceRay(
 					physics.Ray{
 						Origin:    T_attack.T,
-						Direction: T_attack.M.Mulv(forward).Normalize(),
+						Direction: gmath.Matvec3(T_attack.M, forward).Normalize(),
 						TMax:      1000,
 					},
 					QueryFilters{
@@ -67,7 +67,7 @@ func init() {
 
 				stx.Update(world.Entity(state.HeldEntity),
 					func(stx ScriptContext, entity Entity) {
-						entity.SetTransform(transform.TRS())
+						entity.SetTransform(gmath.Affine3DecomposeTRS(transform))
 						entity.SetVelocity(Velocity{})
 					})
 

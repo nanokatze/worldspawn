@@ -195,15 +195,13 @@ func (e Entity) SetParentBone(v unique.Handle[string]) {
 	e.entities.ParentBone.Store(e.id.Index(), v)
 }
 
-func (e Entity) Transform() gmath.TRS3f64 {
-
+func (e Entity) Transform() gmath.Affine3TRSf64 {
 	tr := e.entities.TransformTR.Load(e.id.Index())
 	s := e.entities.TransformS.Load(e.id.Index())
-	return gmath.TRS3f64{tr.T, tr.R, s}
+	return gmath.Affine3TRSf64{tr.T, tr.R, s}
 }
 
-func (e Entity) SetTransform(v gmath.TRS3f64) {
-
+func (e Entity) SetTransform(v gmath.Affine3TRSf64) {
 	// TODO: validate that the transform is invertible? We might wanna ban non-invertible transforms
 
 	e.entities.TransformTR.Store(e.id.Index(), TR3f64{v.T, v.R})

@@ -11,7 +11,7 @@ import (
 // the top level.
 
 type Scene struct {
-	Transform []gmath.TRS3f32 // TODO: we need transforms at both T0 and T1 and then interpolate between the two
+	Transform []gmath.Affine3TRSf32 // TODO: we need transforms at both T0 and T1 and then interpolate between the two
 
 	// geometry []grenderer.Geometry
 
@@ -28,7 +28,7 @@ type Scene struct {
 
 func NewScene(n int) *Scene {
 	return &Scene{
-		Transform: make([]gmath.TRS3f32, n),
+		Transform: make([]gmath.Affine3TRSf32, n),
 
 		Emitters: make([][]float32, n),
 	}
@@ -43,7 +43,7 @@ var earDirs = [2]gmath.Vec3f32{
 // TODO: it would probably make more sense to get cameraTransform decomposed...
 // But I guess whatever
 func (scene *Scene) Render(film Film, cameraTransform gmath.Affine3f32) {
-	ugh := cameraTransform.TRS().R.Inv()
+	ugh := gmath.Affine3DecomposeTRS(cameraTransform).R.Inv()
 
 	for i, emitter := range scene.Emitters {
 		if len(emitter) == 0 {

@@ -20,7 +20,7 @@ func init() {
 				DrawDurationMultiplier: 1,
 				HideDurationMultiplier: 1,
 
-				FirstPersonPropTransform: gmath.TRS3f64{
+				FirstPersonPropTransform: gmath.Affine3TRSf64{
 					T: gmath.Vec3f64{0.18, 0.5, -0.2},
 					R: gmath.Rot3One(),
 					S: gmath.Mat3x3UOne[float32](),
@@ -58,7 +58,7 @@ func init() {
 				rayHit := world.TraceRay(
 					physics.Ray{
 						Origin:    T_attack.T,
-						Direction: T_attack.M.Mulv(forward).Normalize(),
+						Direction: gmath.Matvec3(T_attack.M, forward).Normalize(),
 						TMax:      1000,
 					},
 					QueryFilters{
@@ -78,7 +78,7 @@ func init() {
 								Type:     ImpactTypeBullet,
 								Damage:   7,
 								Δv: Velocity{
-									Linear: T_attack.M.Mulv(forward).Normalize().Scale(1),
+									Linear: gmath.Matvec3(T_attack.M, forward).Normalize().Scale(1),
 								},
 							}
 

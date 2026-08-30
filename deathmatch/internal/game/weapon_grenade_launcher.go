@@ -73,7 +73,7 @@ func init() {
 				DrawDurationMultiplier: 1,
 				HideDurationMultiplier: 1,
 
-				FirstPersonPropTransform: gmath.TRS3f64{
+				FirstPersonPropTransform: gmath.Affine3TRSf64{
 					T: gmath.Vec3f64{0.18, 0.5, -0.2},
 					R: gmath.Rot3One(),
 					S: gmath.Mat3x3UOne[float32](),
@@ -117,15 +117,14 @@ func init() {
 								Attacker:   attacker.ID(),
 								LaunchedAt: stx.Now,
 							})
-							projectile.SetTransform(
+							projectile.SetTransform(gmath.Affine3DecomposeTRS(
 								T_attack.
-									Mul(gmath.TRS3f64{
-										R: gmath.Rot3AToB(gmath.Vec3f32{0, 0, 1}, gmath.Vec3f32{0, 1, 0}),
+									Mul(gmath.Affine3TRSf64{
+										R: gmath.Rot3AToB(up, forward),
 										S: gmath.Mat3x3UOne[float32](),
-									}.Affine()).
-									TRS())
+									}.Affine())))
 							projectile.SetVelocity(Velocity{
-								Linear: v_attack.Linear.Add(T_attack.M.Mulv(forward.Scale(grenadeLauncherStats.MuzzleVelocity))),
+								Linear: v_attack.Linear.Add(gmath.Matvec3(T_attack.M, forward.Scale(grenadeLauncherStats.MuzzleVelocity))),
 							})
 							projectile.SetCollisionLayer(CollisionLayerProjectile)
 							// TODO: we should model grenade prop to be something that's kinda 8-gon so that it stops rolling sooner
@@ -135,7 +134,7 @@ func init() {
 								Alpha: 2,
 								T0:    stx.Now,
 								// Ugh. TODO: think how we could make this not as gross.
-								Offset: T_attack.M.Mulv(gmath.Vec3f32{0.18, 0, -0.2}),
+								Offset: gmath.Matvec3(T_attack.M, gmath.Vec3f32{0.18, 0, -0.2}),
 							})
 							projectile.SetRenderingGeometry(unique.Make("weapons/grenade_launcher_grenade/geometries/Grenade"))
 						})

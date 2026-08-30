@@ -84,4 +84,10 @@ func (a {{$VecD}}[T]) Normalize() {{$VecD}}[T] {
 		{{- end}}
 	}
 }
+
+{{$MatDxD := printf "Mat%dx%d" .D .D}}
+
+func Matvec{{.D}}[T constraints.Float](A {{$MatDxD}}[T], b {{$VecD}}[T]) {{$VecD}}[T] {
+	return {{$VecD}}[T](A.Mul{{.D}}x1(Mat{{.D}}x1[T](b)))
+}
 `))

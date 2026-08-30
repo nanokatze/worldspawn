@@ -102,7 +102,7 @@ func makePoseMapper(a *animation.Animation, sk *skeleton.Skeleton) func(v []floa
 
 		for i, j := range chmap {
 			// TODO: decompose if things are partially animated
-			tmp := gmath.TRS3One[float32]()
+			tmp := gmath.Affine3TRSOne[float32]()
 
 			if j.T[0] != -1 {
 				tmp.T[0] = v[j.T[0]]

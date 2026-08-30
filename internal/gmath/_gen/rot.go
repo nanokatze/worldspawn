@@ -7,8 +7,7 @@ type rotGen struct{ D int64 }
 var rotTmpl = template.Must(template.New("rot").Parse(`
 {{$RotD := printf "Rot%d" .D}}
 
-type {{$RotD}} struct {
-}
+type {{$RotD}} [1 + 3]float32
 
 func Rot{{.D}}One() {{$RotD}} {
 	panic("not implemented")
@@ -34,11 +33,11 @@ func (R {{$RotD}}) Inv() {{$RotD}} {
 	panic("not implemented")
 }
 
-func (R {{$RotD}}) Mat() Mat{{.D}}x{{.D}}f32 {
+func (R {{$RotD}}) Rotate[T constraints.Float](v Vec{{.D}}[T]) Vec{{.D}}[T] {
 	panic("not implemented")
 }
 
-func (R {{$RotD}}) Rotate[T constraints.Float](v Vec{{.D}}[T]) Vec{{.D}}[T] {
+func (R {{$RotD}}) Mat() Mat{{.D}}x{{.D}}f32 {
 	panic("not implemented")
 }
 `))

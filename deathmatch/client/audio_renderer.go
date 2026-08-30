@@ -8,6 +8,7 @@ import (
 	"worldspawn/deathmatch/internal/game"
 	"worldspawn/internal/apostprocess"
 	"worldspawn/internal/ecs"
+	"worldspawn/internal/gmath"
 	"worldspawn/internal/spatialaudio"
 )
 
@@ -37,7 +38,7 @@ func (re *audioRenderer) Update(world *game.World, playerID game.EntityID, t0, t
 
 		effect := soundcache.Get(soundEffect.Effect)
 
-		scene.Transform[id.Index()] = T.Convert[float32]().TRS()
+		scene.Transform[id.Index()] = gmath.Affine3DecomposeTRS(T.Convert[float32]())
 
 		hmm := min(max(int64(t0.Sub(soundEffect.PlayTime)*48000/1e9), 0), int64(len(effect)))
 		scene.Emitters[id.Index()] = effect[hmm:]

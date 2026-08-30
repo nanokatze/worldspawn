@@ -47,19 +47,25 @@ func TestRot3Pow(t *testing.T) {
 	b := Vec3f32{0, 1, 0}
 	R_base := Rot3AToB(a, b)
 
-	t.Run("integer powers",
-		func(t *testing.T) {
-			R := Rot3One()
-			for p := range 10 {
-				S := R_base.Pow(float32(p))
+	rot3Pown := func(R Rot3, n int) Rot3 {
+		A := Rot3One()
+		for range n {
+			A = A.Mul(R)
+		}
+		return A
+	}
 
-				t.Logf("R_%d = %v", p, R)
-				t.Logf("S_%d = %v", p, S)
-				if cosPhaseDiff := R.Mul(S.Inv())[0]; cosPhaseDiff != 1 {
-					t.Error("significant difference")
-				}
+	t.Run("integer powers", func(t *testing.T) {
+		for p := range 10 {
+			R := rot3Pown(R_base, p)
+			S := R_base.Pow(float32(p))
 
-				R = R.Mul(R_base)
+			t.Logf("R_%d = %v", p, R)
+			t.Logf("S_%d = %v", p, S)
+			diff := R.Mul(S.Inv())
+			if *diff.CosAngle() != 1 {
+				t.Error("significant difference")
 			}
-		})
+		}
+	})
 }

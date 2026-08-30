@@ -45,7 +45,7 @@ func (world *World) explosion(
 	for u := range fibonacciLattice(int64(nrays)) {
 		d, pdf := df(u)
 
-		d = T.M.Mulv(d)
+		d = gmath.Matvec3(T.M, d)
 
 		rayHit := world.TraceRay(
 			physics.Ray{

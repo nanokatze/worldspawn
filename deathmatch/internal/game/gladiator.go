@@ -146,8 +146,8 @@ func init() {
 			ΔR_head := R_head_1.Mul(R_head_0.Inv())
 			// Ω_head is the angular velocity of the head.
 			// NOTE: this is not really a Vec3 but rather a bivector.
-			Ω_head := ΔR_head.Bivector().
-				Scale(float32(math.Copysign(1, float64(*ΔR_head.Scalar())))).
+			Ω_head := ΔR_head.Fixed().
+				Scale(float32(math.Copysign(1, float64(*ΔR_head.CosAngle())))).
 				Scale(1 / float32(durationToFloatSeconds(stx.Δt)))
 
 			if weapon := world.Entity(state.HeldWeapon.Entity); weapon.IsValid() {
@@ -157,7 +157,7 @@ func init() {
 				}
 
 				T_attack := world.GetGlobalTransform2(gladiator).
-					Mul(gmath.TRS3f64{
+					Mul(gmath.Affine3TRSf64{
 						T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
 						R: e01.Pow(4 * state.Input.Head[0]).Mul(e12.Pow(4 * state.Input.Head[1])),
 						S: gmath.Mat3x3UOne[float32](),
@@ -218,7 +218,7 @@ func init() {
 									case 1:
 										prop.SetParent(gladiator.ID())
 										prop.SetParentBone(unique.Make("hand.R"))
-										prop.SetTransform(gmath.TRS3One[float64]())
+										prop.SetTransform(gmath.Affine3TRSOne[float64]())
 										prop.SetVisibilityCondition(VisibilityCondition{Mask: 0b10, Camera: state.Head})
 									}
 
@@ -305,7 +305,7 @@ func init() {
 				}
 
 				stx.Update(world.Entity(state.Head), func(stx ScriptContext, camera Entity) {
-					camera.SetTransform(gmath.TRS3f64{
+					camera.SetTransform(gmath.Affine3TRSf64{
 						T: gmath.Vec3f64{0, 0, float64(gladiatorStats.StandingViewHeight)},
 						R: e01.Pow(4 * state.Input.Head[0]).Mul(e12.Pow(4 * state.Input.Head[1])),
 						S: gmath.Mat3x3UOne[float32](),
@@ -333,15 +333,13 @@ func init() {
 						min(1, 2*float32(durationToFloatSeconds(stx.Δt))))
 					state.HeldWeapon.FirstPersonPropBob = min(max(state.HeldWeapon.FirstPersonPropBob, -math.Pi/2), math.Pi/2)
 
-					stx.Update(firstPersonProp, func(stx ScriptContext, prop Entity) {
-						prop.SetTransform(
-							hint.FirstPersonPropTransform.Affine().Mul(
-								gmath.TRS3f64{
-									T: gmath.Vec3f64{},
-									R: gmath.Rot3AToB(up, right).Pow(state.HeldWeapon.FirstPersonPropBob / math.Pi),
-									S: gmath.Mat3x3UOne[float32](),
-								}.Affine()).TRS())
-					})
+					propTransform := hint.FirstPersonPropTransform.Affine().
+						Mul(gmath.Affine3f64{
+							T: gmath.Vec3f64{},
+							M: gmath.Rot3AToB(up, right).Pow(state.HeldWeapon.FirstPersonPropBob / math.Pi).Mat(),
+						})
+
+					stx.Update(firstPersonProp, func(stx ScriptContext, prop Entity) { prop.SetTransform(gmath.Affine3DecomposeTRS(propTransform)) })
 				}()
 
 				{
@@ -365,7 +363,7 @@ func init() {
 
 					localTransforms[b_spine] =
 						sk.BindPoseInv[b_spine].
-							Mul(gmath.TRS3f32{
+							Mul(gmath.Affine3TRSf32{
 								R: gmath.Rot3AToB(right, forward).Pow(4 * state.Input.Head[0]),
 								S: gmath.Mat3x3UOne[float32](),
 							}.Affine()).
@@ -410,7 +408,7 @@ func init() {
 }
 
 // TODO: rewrite this so that it uses IO.Create
-func (world *World) spawnGladiator(T gmath.TRS3f64, info *UpdateParams) EntityID {
+func (world *World) spawnGladiator(T gmath.Affine3TRSf64, info *UpdateParams) EntityID {
 	gladiator := world.CreateEntity(info)
 	gladiator.SetTransform(T)
 	gladiator.SetSkeleton(unique.Make("testcharacter4/skeletons/metarig"))
@@ -427,7 +425,7 @@ func (world *World) spawnGladiator(T gmath.TRS3f64, info *UpdateParams) EntityID
 
 	hands := world.CreateEntity(info)
 	hands.SetParent(camera.ID())
-	hands.SetTransform(gmath.TRS3One[float64]())
+	hands.SetTransform(gmath.Affine3TRSOne[float64]())
 	hands.SetVisibilityCondition(VisibilityCondition{Mask: 0b01, Camera: camera.ID()})
 	hands.SetRenderingGeometry(unique.Make("testcharacter4/geometries/Hands"))
 
