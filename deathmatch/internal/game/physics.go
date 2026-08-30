@@ -13,17 +13,17 @@ type Velocity struct {
 	Angular gmath.Vec3f32 // TODO: this should be a scalar per basis plane rather than vec3
 }
 
-func (a Velocity) Add(b Velocity) Velocity {
+func (v Velocity) Add(w Velocity) Velocity {
 	return Velocity{
-		Linear:  a.Linear.Add(b.Linear),
-		Angular: a.Angular.Add(b.Angular),
+		Linear:  v.Linear.Add(w.Linear),
+		Angular: v.Angular.Add(w.Angular),
 	}
 }
 
-func (a Velocity) Scale(λ float32) Velocity {
+func (v Velocity) Scale(a float32) Velocity {
 	return Velocity{
-		Linear:  a.Linear.Scale(λ),
-		Angular: a.Angular.Scale(λ),
+		Linear:  v.Linear.Scale(a),
+		Angular: v.Angular.Scale(a),
 	}
 }
 

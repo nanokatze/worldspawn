@@ -50,10 +50,10 @@ func (A {{$AffineD}}[T]) Add(B {{$AffineD}}[T]) {{$AffineD}}[T] {
 	}
 }
 
-func (A {{$AffineD}}[T]) Scale(λ T) {{$AffineD}}[T] {
+func (A {{$AffineD}}[T]) Scale(a T) {{$AffineD}}[T] {
 	return {{$AffineD}}[T]{
-		M: A.M.Scale(float32(λ)),
-		T: A.T.Scale(λ),
+		M: A.M.Scale(float32(a)),
+		T: A.T.Scale(a),
 	}
 }
 

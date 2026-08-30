@@ -67,9 +67,9 @@ func (A {{$MatMxN}}[T]) Add(B {{$MatMxN}}[T]) {{$MatMxN}}[T] {
 	return A
 }
 
-func (A {{$MatMxN}}[T]) Scale(λ T) {{$MatMxN}}[T] {
+func (A {{$MatMxN}}[T]) Scale(a T) {{$MatMxN}}[T] {
 	for i := range A {
-		A[i] *= λ
+		A[i] *= a
 	}
 	return A
 }

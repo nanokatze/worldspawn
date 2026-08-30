@@ -21,7 +21,7 @@ func Rot{{.D}}FromMat(M Mat{{.D}}x{{.D}}f32) {{$RotD}} {
 	panic("not implemented")
 }
 
-func (R {{$RotD}}) Renormalize() {{$RotD}} {
+func (R {{$RotD}}) Normalize() {{$RotD}} {
 	panic("not implemented")
 }
 

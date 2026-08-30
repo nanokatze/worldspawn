@@ -91,10 +91,10 @@ func Rot3FromMat(m Mat3x3f32) Rot3 {
 		y = (r12 + r21) * s
 	}
 
-	return Rot3{w, x, y, z}.Renormalize()
+	return Rot3{w, x, y, z}.Normalize()
 }
 
-func (R Rot3) Renormalize() Rot3 {
+func (R Rot3) Normalize() Rot3 {
 	// TODO: quit relying on VecN
 	tmp := Vec4f32(R)
 	if !(tmp.Dot(tmp) > 0) {
@@ -104,7 +104,7 @@ func (R Rot3) Renormalize() Rot3 {
 }
 
 func (R Rot3) Mul(S Rot3) Rot3 {
-	return Rot3(quat[float32](R).Mul(quat[float32](S))).Renormalize()
+	return Rot3(quat[float32](R).Mul(quat[float32](S))).Normalize()
 }
 
 func (R Rot3) Inv() Rot3 {
@@ -132,7 +132,7 @@ func (R Rot3) Sqrt() Rot3 {
 		0.5 * R[1],
 		0.5 * R[2],
 		0.5 * R[3],
-	}.Renormalize()
+	}.Normalize()
 }
 
 func (R Rot3) Rotate[T constraints.Float](v Vec3[T]) Vec3[T] {

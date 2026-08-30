@@ -24,10 +24,10 @@ type (
 	Vec{{.D}}f64 = {{$VecD}}[float64]
 )
 
-func (a {{$VecD}}[From]) Convert[To constraints.Float]() {{$VecD}}[To] {
+func (v {{$VecD}}[From]) Convert[To constraints.Float]() {{$VecD}}[To] {
 	return {{$VecD}}[To]{
 		{{- range .D}}
-		To(a[{{.}}]),
+		To(v[{{.}}]),
 		{{- end}}
 	}
 }
@@ -40,54 +40,49 @@ func Vec{{.D}}Ones[T constraints.Float]() {{$VecD}}[T] {
 	}
 }
 
-func (a {{$VecD}}[T]) Add(b {{$VecD}}[T]) {{$VecD}}[T] {
+func (v {{$VecD}}[T]) Add(w {{$VecD}}[T]) {{$VecD}}[T] {
 	return {{$VecD}}[T]{
 		{{- range .D}}
-		a[{{.}}] + b[{{.}}],
+		v[{{.}}] + w[{{.}}],
 		{{- end}}
 	}
 }
 
-func (a {{$VecD}}[T]) Sub(b {{$VecD}}[T]) {{$VecD}}[T] {
+func (v {{$VecD}}[T]) Sub(w {{$VecD}}[T]) {{$VecD}}[T] {
 	return {{$VecD}}[T]{
 		{{- range .D}}
-		a[{{.}}] - b[{{.}}],
+		v[{{.}}] - w[{{.}}],
 		{{- end}}
 	}
 }
 
-func (a {{$VecD}}[T]) Scale(λ T) {{$VecD}}[T] {
+func (v {{$VecD}}[T]) Scale(a T) {{$VecD}}[T] {
 	return {{$VecD}}[T]{
 		{{- range .D}}
-		λ * a[{{.}}],
+		v[{{.}}] * a,
 		{{- end}}
 	}
 }
 
-func (a {{$VecD}}[T]) Length() T {
-	return T(math.Sqrt(float64(a.Dot(a))))
+func (v {{$VecD}}[T]) Length() T {
+	return T(math.Sqrt(float64(v.Dot(v))))
 }
 
-func (a {{$VecD}}[T]) Dot(b {{$VecD}}[T]) T {
-	return 0 {{- range .D}} + a[{{.}}] * b[{{.}}] {{- end}}
+func (v {{$VecD}}[T]) Dot(w {{$VecD}}[T]) T {
+	return 0 {{- range .D}} + v[{{.}}] * w[{{.}}] {{- end}}
 }
 
-func (a {{$VecD}}[T]) Normalize() {{$VecD}}[T] {
-	lengthSqr := a.Dot(a)
-	if !(lengthSqr > 0) {
+func (v {{$VecD}}[T]) Normalize() {{$VecD}}[T] {
+	norm := v.Length()
+	if !(norm > 0) {
 		return {{$VecD}}[T]{}
 	}
-	length := T(math.Sqrt(float64(lengthSqr)))
-	return {{$VecD}}[T]{
-		{{- range .D}}
-		a[{{.}}] / length,
-		{{- end}}
-	}
+	return v.Scale(1.0 / norm)
 }
 
 {{$MatDxD := printf "Mat%dx%d" .D .D}}
 
-func Matvec{{.D}}[T constraints.Float](A {{$MatDxD}}[T], b {{$VecD}}[T]) {{$VecD}}[T] {
-	return {{$VecD}}[T](A.Mul{{.D}}x1(Mat{{.D}}x1[T](b)))
+func Matvec{{.D}}[T constraints.Float](A {{$MatDxD}}[T], v {{$VecD}}[T]) {{$VecD}}[T] {
+	return {{$VecD}}[T](A.Mul{{.D}}x1(Mat{{.D}}x1[T](v)))
 }
 `))

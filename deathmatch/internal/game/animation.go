@@ -126,7 +126,7 @@ func makePoseMapper(a *animation.Animation, sk *skeleton.Skeleton) func(v []floa
 			if j.R[3] != -1 {
 				tmp.R[3] = v[j.R[3]]
 			}
-			tmp.R = tmp.R.Renormalize()
+			tmp.R = tmp.R.Normalize()
 
 			pose[i] = tmp.Affine()
 		}

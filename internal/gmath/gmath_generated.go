@@ -47,9 +47,9 @@ func (A Mat2x2[T]) Add(B Mat2x2[T]) Mat2x2[T] {
 	return A
 }
 
-func (A Mat2x2[T]) Scale(λ T) Mat2x2[T] {
+func (A Mat2x2[T]) Scale(a T) Mat2x2[T] {
 	for i := range A {
-		A[i] *= λ
+		A[i] *= a
 	}
 	return A
 }
@@ -114,9 +114,9 @@ func (A Mat3x3[T]) Add(B Mat3x3[T]) Mat3x3[T] {
 	return A
 }
 
-func (A Mat3x3[T]) Scale(λ T) Mat3x3[T] {
+func (A Mat3x3[T]) Scale(a T) Mat3x3[T] {
 	for i := range A {
-		A[i] *= λ
+		A[i] *= a
 	}
 	return A
 }
@@ -178,9 +178,9 @@ func (A Mat3x3U[T]) Add(B Mat3x3U[T]) Mat3x3U[T] {
 	return A
 }
 
-func (A Mat3x3U[T]) Scale(λ T) Mat3x3U[T] {
+func (A Mat3x3U[T]) Scale(a T) Mat3x3U[T] {
 	for i := range A {
-		A[i] *= λ
+		A[i] *= a
 	}
 	return A
 }
@@ -254,9 +254,9 @@ func (A Mat4x4[T]) Add(B Mat4x4[T]) Mat4x4[T] {
 	return A
 }
 
-func (A Mat4x4[T]) Scale(λ T) Mat4x4[T] {
+func (A Mat4x4[T]) Scale(a T) Mat4x4[T] {
 	for i := range A {
-		A[i] *= λ
+		A[i] *= a
 	}
 	return A
 }
@@ -317,9 +317,9 @@ func (A Mat2x1[T]) Add(B Mat2x1[T]) Mat2x1[T] {
 	return A
 }
 
-func (A Mat2x1[T]) Scale(λ T) Mat2x1[T] {
+func (A Mat2x1[T]) Scale(a T) Mat2x1[T] {
 	for i := range A {
-		A[i] *= λ
+		A[i] *= a
 	}
 	return A
 }
@@ -356,9 +356,9 @@ func (A Mat3x1[T]) Add(B Mat3x1[T]) Mat3x1[T] {
 	return A
 }
 
-func (A Mat3x1[T]) Scale(λ T) Mat3x1[T] {
+func (A Mat3x1[T]) Scale(a T) Mat3x1[T] {
 	for i := range A {
-		A[i] *= λ
+		A[i] *= a
 	}
 	return A
 }
@@ -396,9 +396,9 @@ func (A Mat4x1[T]) Add(B Mat4x1[T]) Mat4x1[T] {
 	return A
 }
 
-func (A Mat4x1[T]) Scale(λ T) Mat4x1[T] {
+func (A Mat4x1[T]) Scale(a T) Mat4x1[T] {
 	for i := range A {
-		A[i] *= λ
+		A[i] *= a
 	}
 	return A
 }
@@ -419,10 +419,10 @@ type (
 	Vec2f64 = Vec2[float64]
 )
 
-func (a Vec2[From]) Convert[To constraints.Float]() Vec2[To] {
+func (v Vec2[From]) Convert[To constraints.Float]() Vec2[To] {
 	return Vec2[To]{
-		To(a[0]),
-		To(a[1]),
+		To(v[0]),
+		To(v[1]),
 	}
 }
 
@@ -433,49 +433,45 @@ func Vec2Ones[T constraints.Float]() Vec2[T] {
 	}
 }
 
-func (a Vec2[T]) Add(b Vec2[T]) Vec2[T] {
+func (v Vec2[T]) Add(w Vec2[T]) Vec2[T] {
 	return Vec2[T]{
-		a[0] + b[0],
-		a[1] + b[1],
+		v[0] + w[0],
+		v[1] + w[1],
 	}
 }
 
-func (a Vec2[T]) Sub(b Vec2[T]) Vec2[T] {
+func (v Vec2[T]) Sub(w Vec2[T]) Vec2[T] {
 	return Vec2[T]{
-		a[0] - b[0],
-		a[1] - b[1],
+		v[0] - w[0],
+		v[1] - w[1],
 	}
 }
 
-func (a Vec2[T]) Scale(λ T) Vec2[T] {
+func (v Vec2[T]) Scale(a T) Vec2[T] {
 	return Vec2[T]{
-		λ * a[0],
-		λ * a[1],
+		v[0] * a,
+		v[1] * a,
 	}
 }
 
-func (a Vec2[T]) Length() T {
-	return T(math.Sqrt(float64(a.Dot(a))))
+func (v Vec2[T]) Length() T {
+	return T(math.Sqrt(float64(v.Dot(v))))
 }
 
-func (a Vec2[T]) Dot(b Vec2[T]) T {
-	return 0 + a[0]*b[0] + a[1]*b[1]
+func (v Vec2[T]) Dot(w Vec2[T]) T {
+	return 0 + v[0]*w[0] + v[1]*w[1]
 }
 
-func (a Vec2[T]) Normalize() Vec2[T] {
-	lengthSqr := a.Dot(a)
-	if !(lengthSqr > 0) {
+func (v Vec2[T]) Normalize() Vec2[T] {
+	norm := v.Length()
+	if !(norm > 0) {
 		return Vec2[T]{}
 	}
-	length := T(math.Sqrt(float64(lengthSqr)))
-	return Vec2[T]{
-		a[0] / length,
-		a[1] / length,
-	}
+	return v.Scale(1.0 / norm)
 }
 
-func Matvec2[T constraints.Float](A Mat2x2[T], b Vec2[T]) Vec2[T] {
-	return Vec2[T](A.Mul2x1(Mat2x1[T](b)))
+func Matvec2[T constraints.Float](A Mat2x2[T], v Vec2[T]) Vec2[T] {
+	return Vec2[T](A.Mul2x1(Mat2x1[T](v)))
 }
 
 type Vec3[T constraints.Float] [3]T
@@ -485,11 +481,11 @@ type (
 	Vec3f64 = Vec3[float64]
 )
 
-func (a Vec3[From]) Convert[To constraints.Float]() Vec3[To] {
+func (v Vec3[From]) Convert[To constraints.Float]() Vec3[To] {
 	return Vec3[To]{
-		To(a[0]),
-		To(a[1]),
-		To(a[2]),
+		To(v[0]),
+		To(v[1]),
+		To(v[2]),
 	}
 }
 
@@ -501,53 +497,48 @@ func Vec3Ones[T constraints.Float]() Vec3[T] {
 	}
 }
 
-func (a Vec3[T]) Add(b Vec3[T]) Vec3[T] {
+func (v Vec3[T]) Add(w Vec3[T]) Vec3[T] {
 	return Vec3[T]{
-		a[0] + b[0],
-		a[1] + b[1],
-		a[2] + b[2],
+		v[0] + w[0],
+		v[1] + w[1],
+		v[2] + w[2],
 	}
 }
 
-func (a Vec3[T]) Sub(b Vec3[T]) Vec3[T] {
+func (v Vec3[T]) Sub(w Vec3[T]) Vec3[T] {
 	return Vec3[T]{
-		a[0] - b[0],
-		a[1] - b[1],
-		a[2] - b[2],
+		v[0] - w[0],
+		v[1] - w[1],
+		v[2] - w[2],
 	}
 }
 
-func (a Vec3[T]) Scale(λ T) Vec3[T] {
+func (v Vec3[T]) Scale(a T) Vec3[T] {
 	return Vec3[T]{
-		λ * a[0],
-		λ * a[1],
-		λ * a[2],
+		v[0] * a,
+		v[1] * a,
+		v[2] * a,
 	}
 }
 
-func (a Vec3[T]) Length() T {
-	return T(math.Sqrt(float64(a.Dot(a))))
+func (v Vec3[T]) Length() T {
+	return T(math.Sqrt(float64(v.Dot(v))))
 }
 
-func (a Vec3[T]) Dot(b Vec3[T]) T {
-	return 0 + a[0]*b[0] + a[1]*b[1] + a[2]*b[2]
+func (v Vec3[T]) Dot(w Vec3[T]) T {
+	return 0 + v[0]*w[0] + v[1]*w[1] + v[2]*w[2]
 }
 
-func (a Vec3[T]) Normalize() Vec3[T] {
-	lengthSqr := a.Dot(a)
-	if !(lengthSqr > 0) {
+func (v Vec3[T]) Normalize() Vec3[T] {
+	norm := v.Length()
+	if !(norm > 0) {
 		return Vec3[T]{}
 	}
-	length := T(math.Sqrt(float64(lengthSqr)))
-	return Vec3[T]{
-		a[0] / length,
-		a[1] / length,
-		a[2] / length,
-	}
+	return v.Scale(1.0 / norm)
 }
 
-func Matvec3[T constraints.Float](A Mat3x3[T], b Vec3[T]) Vec3[T] {
-	return Vec3[T](A.Mul3x1(Mat3x1[T](b)))
+func Matvec3[T constraints.Float](A Mat3x3[T], v Vec3[T]) Vec3[T] {
+	return Vec3[T](A.Mul3x1(Mat3x1[T](v)))
 }
 
 type Vec4[T constraints.Float] [4]T
@@ -557,12 +548,12 @@ type (
 	Vec4f64 = Vec4[float64]
 )
 
-func (a Vec4[From]) Convert[To constraints.Float]() Vec4[To] {
+func (v Vec4[From]) Convert[To constraints.Float]() Vec4[To] {
 	return Vec4[To]{
-		To(a[0]),
-		To(a[1]),
-		To(a[2]),
-		To(a[3]),
+		To(v[0]),
+		To(v[1]),
+		To(v[2]),
+		To(v[3]),
 	}
 }
 
@@ -575,57 +566,51 @@ func Vec4Ones[T constraints.Float]() Vec4[T] {
 	}
 }
 
-func (a Vec4[T]) Add(b Vec4[T]) Vec4[T] {
+func (v Vec4[T]) Add(w Vec4[T]) Vec4[T] {
 	return Vec4[T]{
-		a[0] + b[0],
-		a[1] + b[1],
-		a[2] + b[2],
-		a[3] + b[3],
+		v[0] + w[0],
+		v[1] + w[1],
+		v[2] + w[2],
+		v[3] + w[3],
 	}
 }
 
-func (a Vec4[T]) Sub(b Vec4[T]) Vec4[T] {
+func (v Vec4[T]) Sub(w Vec4[T]) Vec4[T] {
 	return Vec4[T]{
-		a[0] - b[0],
-		a[1] - b[1],
-		a[2] - b[2],
-		a[3] - b[3],
+		v[0] - w[0],
+		v[1] - w[1],
+		v[2] - w[2],
+		v[3] - w[3],
 	}
 }
 
-func (a Vec4[T]) Scale(λ T) Vec4[T] {
+func (v Vec4[T]) Scale(a T) Vec4[T] {
 	return Vec4[T]{
-		λ * a[0],
-		λ * a[1],
-		λ * a[2],
-		λ * a[3],
+		v[0] * a,
+		v[1] * a,
+		v[2] * a,
+		v[3] * a,
 	}
 }
 
-func (a Vec4[T]) Length() T {
-	return T(math.Sqrt(float64(a.Dot(a))))
+func (v Vec4[T]) Length() T {
+	return T(math.Sqrt(float64(v.Dot(v))))
 }
 
-func (a Vec4[T]) Dot(b Vec4[T]) T {
-	return 0 + a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3]
+func (v Vec4[T]) Dot(w Vec4[T]) T {
+	return 0 + v[0]*w[0] + v[1]*w[1] + v[2]*w[2] + v[3]*w[3]
 }
 
-func (a Vec4[T]) Normalize() Vec4[T] {
-	lengthSqr := a.Dot(a)
-	if !(lengthSqr > 0) {
+func (v Vec4[T]) Normalize() Vec4[T] {
+	norm := v.Length()
+	if !(norm > 0) {
 		return Vec4[T]{}
 	}
-	length := T(math.Sqrt(float64(lengthSqr)))
-	return Vec4[T]{
-		a[0] / length,
-		a[1] / length,
-		a[2] / length,
-		a[3] / length,
-	}
+	return v.Scale(1.0 / norm)
 }
 
-func Matvec4[T constraints.Float](A Mat4x4[T], b Vec4[T]) Vec4[T] {
-	return Vec4[T](A.Mul4x1(Mat4x1[T](b)))
+func Matvec4[T constraints.Float](A Mat4x4[T], v Vec4[T]) Vec4[T] {
+	return Vec4[T](A.Mul4x1(Mat4x1[T](v)))
 }
 
 type Affine3[T constraints.Float] struct {
@@ -658,10 +643,10 @@ func (A Affine3[T]) Add(B Affine3[T]) Affine3[T] {
 	}
 }
 
-func (A Affine3[T]) Scale(λ T) Affine3[T] {
+func (A Affine3[T]) Scale(a T) Affine3[T] {
 	return Affine3[T]{
-		M: A.M.Scale(float32(λ)),
-		T: A.T.Scale(λ),
+		M: A.M.Scale(float32(a)),
+		T: A.T.Scale(a),
 	}
 }
 
