@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"worldspawn/gpu"
-	"worldspawn/gpu/image/ktx2"
+	gpuktx2 "worldspawn/gpu/image/ktx2"
 	gpurt "worldspawn/gpu/raytracing"
 	"worldspawn/gpu/vk"
 	"worldspawn/internal/gmath"
@@ -18,7 +18,7 @@ import (
 //go:embed _shaders.spv
 var _shaders []byte
 
-//go:embed noise_lut.ktx2
+//go:embed BlueNoise/2D_256_256_HDR_RGBA.ktx2
 var noiseLUT []byte
 
 // TODO: make Scene, Camera and Film interfaces eventually?
@@ -55,7 +55,7 @@ type frameParams struct {
 }
 
 var noiseImage = sync.OnceValue(func() *gpu.Image {
-	img, err := ktx2.Decode(bytes.NewReader(noiseLUT), vk.ImageUsageFlags(vk.IMAGE_USAGE_SAMPLED_BIT))
+	img, err := gpuktx2.Decode(bytes.NewReader(noiseLUT), vk.ImageUsageFlags(vk.IMAGE_USAGE_SAMPLED_BIT))
 	if err != nil {
 		panic(err)
 	}
