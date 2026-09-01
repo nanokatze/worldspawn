@@ -66,10 +66,14 @@ func (A Mat2x2[T]) Inv() Mat2x2[T] {
 
 func (A Mat2x2[T]) Mul2x2(B Mat2x2[T]) Mat2x2[T] {
 	var AB Mat2x2[T]
-	*AB.Index(0, 0) = 0 + *A.Index(0, 0)**B.Index(0, 0) + *A.Index(0, 1)**B.Index(1, 0)
-	*AB.Index(0, 1) = 0 + *A.Index(0, 0)**B.Index(0, 1) + *A.Index(0, 1)**B.Index(1, 1)
-	*AB.Index(1, 0) = 0 + *A.Index(1, 0)**B.Index(0, 0) + *A.Index(1, 1)**B.Index(1, 0)
-	*AB.Index(1, 1) = 0 + *A.Index(1, 0)**B.Index(0, 1) + *A.Index(1, 1)**B.Index(1, 1)
+	*AB.Index(0, 0) += *A.Index(0, 0) * *B.Index(0, 0)
+	*AB.Index(0, 0) += *A.Index(0, 1) * *B.Index(1, 0)
+	*AB.Index(0, 1) += *A.Index(0, 0) * *B.Index(0, 1)
+	*AB.Index(0, 1) += *A.Index(0, 1) * *B.Index(1, 1)
+	*AB.Index(1, 0) += *A.Index(1, 0) * *B.Index(0, 0)
+	*AB.Index(1, 0) += *A.Index(1, 1) * *B.Index(1, 0)
+	*AB.Index(1, 1) += *A.Index(1, 0) * *B.Index(0, 1)
+	*AB.Index(1, 1) += *A.Index(1, 1) * *B.Index(1, 1)
 	return AB
 }
 
@@ -133,15 +137,33 @@ func (A Mat3x3[T]) Inv() Mat3x3[T] {
 
 func (A Mat3x3[T]) Mul3x3(B Mat3x3[T]) Mat3x3[T] {
 	var AB Mat3x3[T]
-	*AB.Index(0, 0) = 0 + *A.Index(0, 0)**B.Index(0, 0) + *A.Index(0, 1)**B.Index(1, 0) + *A.Index(0, 2)**B.Index(2, 0)
-	*AB.Index(0, 1) = 0 + *A.Index(0, 0)**B.Index(0, 1) + *A.Index(0, 1)**B.Index(1, 1) + *A.Index(0, 2)**B.Index(2, 1)
-	*AB.Index(0, 2) = 0 + *A.Index(0, 0)**B.Index(0, 2) + *A.Index(0, 1)**B.Index(1, 2) + *A.Index(0, 2)**B.Index(2, 2)
-	*AB.Index(1, 0) = 0 + *A.Index(1, 0)**B.Index(0, 0) + *A.Index(1, 1)**B.Index(1, 0) + *A.Index(1, 2)**B.Index(2, 0)
-	*AB.Index(1, 1) = 0 + *A.Index(1, 0)**B.Index(0, 1) + *A.Index(1, 1)**B.Index(1, 1) + *A.Index(1, 2)**B.Index(2, 1)
-	*AB.Index(1, 2) = 0 + *A.Index(1, 0)**B.Index(0, 2) + *A.Index(1, 1)**B.Index(1, 2) + *A.Index(1, 2)**B.Index(2, 2)
-	*AB.Index(2, 0) = 0 + *A.Index(2, 0)**B.Index(0, 0) + *A.Index(2, 1)**B.Index(1, 0) + *A.Index(2, 2)**B.Index(2, 0)
-	*AB.Index(2, 1) = 0 + *A.Index(2, 0)**B.Index(0, 1) + *A.Index(2, 1)**B.Index(1, 1) + *A.Index(2, 2)**B.Index(2, 1)
-	*AB.Index(2, 2) = 0 + *A.Index(2, 0)**B.Index(0, 2) + *A.Index(2, 1)**B.Index(1, 2) + *A.Index(2, 2)**B.Index(2, 2)
+	*AB.Index(0, 0) += *A.Index(0, 0) * *B.Index(0, 0)
+	*AB.Index(0, 0) += *A.Index(0, 1) * *B.Index(1, 0)
+	*AB.Index(0, 0) += *A.Index(0, 2) * *B.Index(2, 0)
+	*AB.Index(0, 1) += *A.Index(0, 0) * *B.Index(0, 1)
+	*AB.Index(0, 1) += *A.Index(0, 1) * *B.Index(1, 1)
+	*AB.Index(0, 1) += *A.Index(0, 2) * *B.Index(2, 1)
+	*AB.Index(0, 2) += *A.Index(0, 0) * *B.Index(0, 2)
+	*AB.Index(0, 2) += *A.Index(0, 1) * *B.Index(1, 2)
+	*AB.Index(0, 2) += *A.Index(0, 2) * *B.Index(2, 2)
+	*AB.Index(1, 0) += *A.Index(1, 0) * *B.Index(0, 0)
+	*AB.Index(1, 0) += *A.Index(1, 1) * *B.Index(1, 0)
+	*AB.Index(1, 0) += *A.Index(1, 2) * *B.Index(2, 0)
+	*AB.Index(1, 1) += *A.Index(1, 0) * *B.Index(0, 1)
+	*AB.Index(1, 1) += *A.Index(1, 1) * *B.Index(1, 1)
+	*AB.Index(1, 1) += *A.Index(1, 2) * *B.Index(2, 1)
+	*AB.Index(1, 2) += *A.Index(1, 0) * *B.Index(0, 2)
+	*AB.Index(1, 2) += *A.Index(1, 1) * *B.Index(1, 2)
+	*AB.Index(1, 2) += *A.Index(1, 2) * *B.Index(2, 2)
+	*AB.Index(2, 0) += *A.Index(2, 0) * *B.Index(0, 0)
+	*AB.Index(2, 0) += *A.Index(2, 1) * *B.Index(1, 0)
+	*AB.Index(2, 0) += *A.Index(2, 2) * *B.Index(2, 0)
+	*AB.Index(2, 1) += *A.Index(2, 0) * *B.Index(0, 1)
+	*AB.Index(2, 1) += *A.Index(2, 1) * *B.Index(1, 1)
+	*AB.Index(2, 1) += *A.Index(2, 2) * *B.Index(2, 1)
+	*AB.Index(2, 2) += *A.Index(2, 0) * *B.Index(0, 2)
+	*AB.Index(2, 2) += *A.Index(2, 1) * *B.Index(1, 2)
+	*AB.Index(2, 2) += *A.Index(2, 2) * *B.Index(2, 2)
 	return AB
 }
 
@@ -273,22 +295,70 @@ func (A Mat4x4[T]) Inv() Mat4x4[T] {
 
 func (A Mat4x4[T]) Mul4x4(B Mat4x4[T]) Mat4x4[T] {
 	var AB Mat4x4[T]
-	*AB.Index(0, 0) = 0 + *A.Index(0, 0)**B.Index(0, 0) + *A.Index(0, 1)**B.Index(1, 0) + *A.Index(0, 2)**B.Index(2, 0) + *A.Index(0, 3)**B.Index(3, 0)
-	*AB.Index(0, 1) = 0 + *A.Index(0, 0)**B.Index(0, 1) + *A.Index(0, 1)**B.Index(1, 1) + *A.Index(0, 2)**B.Index(2, 1) + *A.Index(0, 3)**B.Index(3, 1)
-	*AB.Index(0, 2) = 0 + *A.Index(0, 0)**B.Index(0, 2) + *A.Index(0, 1)**B.Index(1, 2) + *A.Index(0, 2)**B.Index(2, 2) + *A.Index(0, 3)**B.Index(3, 2)
-	*AB.Index(0, 3) = 0 + *A.Index(0, 0)**B.Index(0, 3) + *A.Index(0, 1)**B.Index(1, 3) + *A.Index(0, 2)**B.Index(2, 3) + *A.Index(0, 3)**B.Index(3, 3)
-	*AB.Index(1, 0) = 0 + *A.Index(1, 0)**B.Index(0, 0) + *A.Index(1, 1)**B.Index(1, 0) + *A.Index(1, 2)**B.Index(2, 0) + *A.Index(1, 3)**B.Index(3, 0)
-	*AB.Index(1, 1) = 0 + *A.Index(1, 0)**B.Index(0, 1) + *A.Index(1, 1)**B.Index(1, 1) + *A.Index(1, 2)**B.Index(2, 1) + *A.Index(1, 3)**B.Index(3, 1)
-	*AB.Index(1, 2) = 0 + *A.Index(1, 0)**B.Index(0, 2) + *A.Index(1, 1)**B.Index(1, 2) + *A.Index(1, 2)**B.Index(2, 2) + *A.Index(1, 3)**B.Index(3, 2)
-	*AB.Index(1, 3) = 0 + *A.Index(1, 0)**B.Index(0, 3) + *A.Index(1, 1)**B.Index(1, 3) + *A.Index(1, 2)**B.Index(2, 3) + *A.Index(1, 3)**B.Index(3, 3)
-	*AB.Index(2, 0) = 0 + *A.Index(2, 0)**B.Index(0, 0) + *A.Index(2, 1)**B.Index(1, 0) + *A.Index(2, 2)**B.Index(2, 0) + *A.Index(2, 3)**B.Index(3, 0)
-	*AB.Index(2, 1) = 0 + *A.Index(2, 0)**B.Index(0, 1) + *A.Index(2, 1)**B.Index(1, 1) + *A.Index(2, 2)**B.Index(2, 1) + *A.Index(2, 3)**B.Index(3, 1)
-	*AB.Index(2, 2) = 0 + *A.Index(2, 0)**B.Index(0, 2) + *A.Index(2, 1)**B.Index(1, 2) + *A.Index(2, 2)**B.Index(2, 2) + *A.Index(2, 3)**B.Index(3, 2)
-	*AB.Index(2, 3) = 0 + *A.Index(2, 0)**B.Index(0, 3) + *A.Index(2, 1)**B.Index(1, 3) + *A.Index(2, 2)**B.Index(2, 3) + *A.Index(2, 3)**B.Index(3, 3)
-	*AB.Index(3, 0) = 0 + *A.Index(3, 0)**B.Index(0, 0) + *A.Index(3, 1)**B.Index(1, 0) + *A.Index(3, 2)**B.Index(2, 0) + *A.Index(3, 3)**B.Index(3, 0)
-	*AB.Index(3, 1) = 0 + *A.Index(3, 0)**B.Index(0, 1) + *A.Index(3, 1)**B.Index(1, 1) + *A.Index(3, 2)**B.Index(2, 1) + *A.Index(3, 3)**B.Index(3, 1)
-	*AB.Index(3, 2) = 0 + *A.Index(3, 0)**B.Index(0, 2) + *A.Index(3, 1)**B.Index(1, 2) + *A.Index(3, 2)**B.Index(2, 2) + *A.Index(3, 3)**B.Index(3, 2)
-	*AB.Index(3, 3) = 0 + *A.Index(3, 0)**B.Index(0, 3) + *A.Index(3, 1)**B.Index(1, 3) + *A.Index(3, 2)**B.Index(2, 3) + *A.Index(3, 3)**B.Index(3, 3)
+	*AB.Index(0, 0) += *A.Index(0, 0) * *B.Index(0, 0)
+	*AB.Index(0, 0) += *A.Index(0, 1) * *B.Index(1, 0)
+	*AB.Index(0, 0) += *A.Index(0, 2) * *B.Index(2, 0)
+	*AB.Index(0, 0) += *A.Index(0, 3) * *B.Index(3, 0)
+	*AB.Index(0, 1) += *A.Index(0, 0) * *B.Index(0, 1)
+	*AB.Index(0, 1) += *A.Index(0, 1) * *B.Index(1, 1)
+	*AB.Index(0, 1) += *A.Index(0, 2) * *B.Index(2, 1)
+	*AB.Index(0, 1) += *A.Index(0, 3) * *B.Index(3, 1)
+	*AB.Index(0, 2) += *A.Index(0, 0) * *B.Index(0, 2)
+	*AB.Index(0, 2) += *A.Index(0, 1) * *B.Index(1, 2)
+	*AB.Index(0, 2) += *A.Index(0, 2) * *B.Index(2, 2)
+	*AB.Index(0, 2) += *A.Index(0, 3) * *B.Index(3, 2)
+	*AB.Index(0, 3) += *A.Index(0, 0) * *B.Index(0, 3)
+	*AB.Index(0, 3) += *A.Index(0, 1) * *B.Index(1, 3)
+	*AB.Index(0, 3) += *A.Index(0, 2) * *B.Index(2, 3)
+	*AB.Index(0, 3) += *A.Index(0, 3) * *B.Index(3, 3)
+	*AB.Index(1, 0) += *A.Index(1, 0) * *B.Index(0, 0)
+	*AB.Index(1, 0) += *A.Index(1, 1) * *B.Index(1, 0)
+	*AB.Index(1, 0) += *A.Index(1, 2) * *B.Index(2, 0)
+	*AB.Index(1, 0) += *A.Index(1, 3) * *B.Index(3, 0)
+	*AB.Index(1, 1) += *A.Index(1, 0) * *B.Index(0, 1)
+	*AB.Index(1, 1) += *A.Index(1, 1) * *B.Index(1, 1)
+	*AB.Index(1, 1) += *A.Index(1, 2) * *B.Index(2, 1)
+	*AB.Index(1, 1) += *A.Index(1, 3) * *B.Index(3, 1)
+	*AB.Index(1, 2) += *A.Index(1, 0) * *B.Index(0, 2)
+	*AB.Index(1, 2) += *A.Index(1, 1) * *B.Index(1, 2)
+	*AB.Index(1, 2) += *A.Index(1, 2) * *B.Index(2, 2)
+	*AB.Index(1, 2) += *A.Index(1, 3) * *B.Index(3, 2)
+	*AB.Index(1, 3) += *A.Index(1, 0) * *B.Index(0, 3)
+	*AB.Index(1, 3) += *A.Index(1, 1) * *B.Index(1, 3)
+	*AB.Index(1, 3) += *A.Index(1, 2) * *B.Index(2, 3)
+	*AB.Index(1, 3) += *A.Index(1, 3) * *B.Index(3, 3)
+	*AB.Index(2, 0) += *A.Index(2, 0) * *B.Index(0, 0)
+	*AB.Index(2, 0) += *A.Index(2, 1) * *B.Index(1, 0)
+	*AB.Index(2, 0) += *A.Index(2, 2) * *B.Index(2, 0)
+	*AB.Index(2, 0) += *A.Index(2, 3) * *B.Index(3, 0)
+	*AB.Index(2, 1) += *A.Index(2, 0) * *B.Index(0, 1)
+	*AB.Index(2, 1) += *A.Index(2, 1) * *B.Index(1, 1)
+	*AB.Index(2, 1) += *A.Index(2, 2) * *B.Index(2, 1)
+	*AB.Index(2, 1) += *A.Index(2, 3) * *B.Index(3, 1)
+	*AB.Index(2, 2) += *A.Index(2, 0) * *B.Index(0, 2)
+	*AB.Index(2, 2) += *A.Index(2, 1) * *B.Index(1, 2)
+	*AB.Index(2, 2) += *A.Index(2, 2) * *B.Index(2, 2)
+	*AB.Index(2, 2) += *A.Index(2, 3) * *B.Index(3, 2)
+	*AB.Index(2, 3) += *A.Index(2, 0) * *B.Index(0, 3)
+	*AB.Index(2, 3) += *A.Index(2, 1) * *B.Index(1, 3)
+	*AB.Index(2, 3) += *A.Index(2, 2) * *B.Index(2, 3)
+	*AB.Index(2, 3) += *A.Index(2, 3) * *B.Index(3, 3)
+	*AB.Index(3, 0) += *A.Index(3, 0) * *B.Index(0, 0)
+	*AB.Index(3, 0) += *A.Index(3, 1) * *B.Index(1, 0)
+	*AB.Index(3, 0) += *A.Index(3, 2) * *B.Index(2, 0)
+	*AB.Index(3, 0) += *A.Index(3, 3) * *B.Index(3, 0)
+	*AB.Index(3, 1) += *A.Index(3, 0) * *B.Index(0, 1)
+	*AB.Index(3, 1) += *A.Index(3, 1) * *B.Index(1, 1)
+	*AB.Index(3, 1) += *A.Index(3, 2) * *B.Index(2, 1)
+	*AB.Index(3, 1) += *A.Index(3, 3) * *B.Index(3, 1)
+	*AB.Index(3, 2) += *A.Index(3, 0) * *B.Index(0, 2)
+	*AB.Index(3, 2) += *A.Index(3, 1) * *B.Index(1, 2)
+	*AB.Index(3, 2) += *A.Index(3, 2) * *B.Index(2, 2)
+	*AB.Index(3, 2) += *A.Index(3, 3) * *B.Index(3, 2)
+	*AB.Index(3, 3) += *A.Index(3, 0) * *B.Index(0, 3)
+	*AB.Index(3, 3) += *A.Index(3, 1) * *B.Index(1, 3)
+	*AB.Index(3, 3) += *A.Index(3, 2) * *B.Index(2, 3)
+	*AB.Index(3, 3) += *A.Index(3, 3) * *B.Index(3, 3)
 	return AB
 }
 
@@ -326,8 +396,10 @@ func (A Mat2x1[T]) Scale(a T) Mat2x1[T] {
 
 func (A Mat2x2[T]) Mul2x1(B Mat2x1[T]) Mat2x1[T] {
 	var AB Mat2x1[T]
-	*AB.Index(0, 0) = 0 + *A.Index(0, 0)**B.Index(0, 0) + *A.Index(0, 1)**B.Index(1, 0)
-	*AB.Index(1, 0) = 0 + *A.Index(1, 0)**B.Index(0, 0) + *A.Index(1, 1)**B.Index(1, 0)
+	*AB.Index(0, 0) += *A.Index(0, 0) * *B.Index(0, 0)
+	*AB.Index(0, 0) += *A.Index(0, 1) * *B.Index(1, 0)
+	*AB.Index(1, 0) += *A.Index(1, 0) * *B.Index(0, 0)
+	*AB.Index(1, 0) += *A.Index(1, 1) * *B.Index(1, 0)
 	return AB
 }
 
@@ -365,9 +437,15 @@ func (A Mat3x1[T]) Scale(a T) Mat3x1[T] {
 
 func (A Mat3x3[T]) Mul3x1(B Mat3x1[T]) Mat3x1[T] {
 	var AB Mat3x1[T]
-	*AB.Index(0, 0) = 0 + *A.Index(0, 0)**B.Index(0, 0) + *A.Index(0, 1)**B.Index(1, 0) + *A.Index(0, 2)**B.Index(2, 0)
-	*AB.Index(1, 0) = 0 + *A.Index(1, 0)**B.Index(0, 0) + *A.Index(1, 1)**B.Index(1, 0) + *A.Index(1, 2)**B.Index(2, 0)
-	*AB.Index(2, 0) = 0 + *A.Index(2, 0)**B.Index(0, 0) + *A.Index(2, 1)**B.Index(1, 0) + *A.Index(2, 2)**B.Index(2, 0)
+	*AB.Index(0, 0) += *A.Index(0, 0) * *B.Index(0, 0)
+	*AB.Index(0, 0) += *A.Index(0, 1) * *B.Index(1, 0)
+	*AB.Index(0, 0) += *A.Index(0, 2) * *B.Index(2, 0)
+	*AB.Index(1, 0) += *A.Index(1, 0) * *B.Index(0, 0)
+	*AB.Index(1, 0) += *A.Index(1, 1) * *B.Index(1, 0)
+	*AB.Index(1, 0) += *A.Index(1, 2) * *B.Index(2, 0)
+	*AB.Index(2, 0) += *A.Index(2, 0) * *B.Index(0, 0)
+	*AB.Index(2, 0) += *A.Index(2, 1) * *B.Index(1, 0)
+	*AB.Index(2, 0) += *A.Index(2, 2) * *B.Index(2, 0)
 	return AB
 }
 
@@ -405,10 +483,22 @@ func (A Mat4x1[T]) Scale(a T) Mat4x1[T] {
 
 func (A Mat4x4[T]) Mul4x1(B Mat4x1[T]) Mat4x1[T] {
 	var AB Mat4x1[T]
-	*AB.Index(0, 0) = 0 + *A.Index(0, 0)**B.Index(0, 0) + *A.Index(0, 1)**B.Index(1, 0) + *A.Index(0, 2)**B.Index(2, 0) + *A.Index(0, 3)**B.Index(3, 0)
-	*AB.Index(1, 0) = 0 + *A.Index(1, 0)**B.Index(0, 0) + *A.Index(1, 1)**B.Index(1, 0) + *A.Index(1, 2)**B.Index(2, 0) + *A.Index(1, 3)**B.Index(3, 0)
-	*AB.Index(2, 0) = 0 + *A.Index(2, 0)**B.Index(0, 0) + *A.Index(2, 1)**B.Index(1, 0) + *A.Index(2, 2)**B.Index(2, 0) + *A.Index(2, 3)**B.Index(3, 0)
-	*AB.Index(3, 0) = 0 + *A.Index(3, 0)**B.Index(0, 0) + *A.Index(3, 1)**B.Index(1, 0) + *A.Index(3, 2)**B.Index(2, 0) + *A.Index(3, 3)**B.Index(3, 0)
+	*AB.Index(0, 0) += *A.Index(0, 0) * *B.Index(0, 0)
+	*AB.Index(0, 0) += *A.Index(0, 1) * *B.Index(1, 0)
+	*AB.Index(0, 0) += *A.Index(0, 2) * *B.Index(2, 0)
+	*AB.Index(0, 0) += *A.Index(0, 3) * *B.Index(3, 0)
+	*AB.Index(1, 0) += *A.Index(1, 0) * *B.Index(0, 0)
+	*AB.Index(1, 0) += *A.Index(1, 1) * *B.Index(1, 0)
+	*AB.Index(1, 0) += *A.Index(1, 2) * *B.Index(2, 0)
+	*AB.Index(1, 0) += *A.Index(1, 3) * *B.Index(3, 0)
+	*AB.Index(2, 0) += *A.Index(2, 0) * *B.Index(0, 0)
+	*AB.Index(2, 0) += *A.Index(2, 1) * *B.Index(1, 0)
+	*AB.Index(2, 0) += *A.Index(2, 2) * *B.Index(2, 0)
+	*AB.Index(2, 0) += *A.Index(2, 3) * *B.Index(3, 0)
+	*AB.Index(3, 0) += *A.Index(3, 0) * *B.Index(0, 0)
+	*AB.Index(3, 0) += *A.Index(3, 1) * *B.Index(1, 0)
+	*AB.Index(3, 0) += *A.Index(3, 2) * *B.Index(2, 0)
+	*AB.Index(3, 0) += *A.Index(3, 3) * *B.Index(3, 0)
 	return AB
 }
 
@@ -454,16 +544,23 @@ func (v Vec2[T]) Scale(a T) Vec2[T] {
 	}
 }
 
+func (v Vec2[T]) Dot(w Vec2[T]) T {
+	var a T
+	a += v[0] * w[0]
+	a += v[1] * w[1]
+	return a
+}
+
 func (v Vec2[T]) Length() T {
 	return T(math.Sqrt(float64(v.Dot(v))))
 }
 
-func (v Vec2[T]) Dot(w Vec2[T]) T {
-	return 0 + v[0]*w[0] + v[1]*w[1]
+func (v Vec2[T]) Normalize() Vec2[T] {
+	return v.NormalizeFunc(Vec2[T].Length)
 }
 
-func (v Vec2[T]) Normalize() Vec2[T] {
-	norm := v.Length()
+func (v Vec2[T]) NormalizeFunc(f func(Vec2[T]) T) Vec2[T] {
+	norm := f(v)
 	if !(norm > 0) {
 		return Vec2[T]{}
 	}
@@ -521,16 +618,24 @@ func (v Vec3[T]) Scale(a T) Vec3[T] {
 	}
 }
 
+func (v Vec3[T]) Dot(w Vec3[T]) T {
+	var a T
+	a += v[0] * w[0]
+	a += v[1] * w[1]
+	a += v[2] * w[2]
+	return a
+}
+
 func (v Vec3[T]) Length() T {
 	return T(math.Sqrt(float64(v.Dot(v))))
 }
 
-func (v Vec3[T]) Dot(w Vec3[T]) T {
-	return 0 + v[0]*w[0] + v[1]*w[1] + v[2]*w[2]
+func (v Vec3[T]) Normalize() Vec3[T] {
+	return v.NormalizeFunc(Vec3[T].Length)
 }
 
-func (v Vec3[T]) Normalize() Vec3[T] {
-	norm := v.Length()
+func (v Vec3[T]) NormalizeFunc(f func(Vec3[T]) T) Vec3[T] {
+	norm := f(v)
 	if !(norm > 0) {
 		return Vec3[T]{}
 	}
@@ -593,16 +698,25 @@ func (v Vec4[T]) Scale(a T) Vec4[T] {
 	}
 }
 
+func (v Vec4[T]) Dot(w Vec4[T]) T {
+	var a T
+	a += v[0] * w[0]
+	a += v[1] * w[1]
+	a += v[2] * w[2]
+	a += v[3] * w[3]
+	return a
+}
+
 func (v Vec4[T]) Length() T {
 	return T(math.Sqrt(float64(v.Dot(v))))
 }
 
-func (v Vec4[T]) Dot(w Vec4[T]) T {
-	return 0 + v[0]*w[0] + v[1]*w[1] + v[2]*w[2] + v[3]*w[3]
+func (v Vec4[T]) Normalize() Vec4[T] {
+	return v.NormalizeFunc(Vec4[T].Length)
 }
 
-func (v Vec4[T]) Normalize() Vec4[T] {
-	norm := v.Length()
+func (v Vec4[T]) NormalizeFunc(f func(Vec4[T]) T) Vec4[T] {
+	norm := f(v)
 	if !(norm > 0) {
 		return Vec4[T]{}
 	}

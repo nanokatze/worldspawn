@@ -104,7 +104,9 @@ func (A {{$MatMxN}}[T]) Mul{{.N}}x{{.P}}(B {{$MatNxP}}[T]) {{$MatMxP}}[T] {
 	var AB {{$MatMxP}}[T]
 	{{- range $i := $.M}}
 	{{- range $k := $.P}}
-	*AB.Index({{$i}}, {{$k}}) = 0 {{range $j := $.N}} + *A.Index({{$i}}, {{$j}}) * *B.Index({{$j}}, {{$k}}) {{end}}
+	{{- range $j := $.N}}
+	*AB.Index({{$i}}, {{$k}}) += *A.Index({{$i}}, {{$j}}) * *B.Index({{$j}}, {{$k}})
+	{{- end}}
 	{{- end}}
 	{{- end}}
 	return AB

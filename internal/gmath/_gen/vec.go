@@ -64,16 +64,24 @@ func (v {{$VecD}}[T]) Scale(a T) {{$VecD}}[T] {
 	}
 }
 
+func (v {{$VecD}}[T]) Dot(w {{$VecD}}[T]) T {
+	var a T
+	{{- range .D}}
+	a += v[{{.}}] * w[{{.}}]
+	{{- end}}
+	return a
+}
+
 func (v {{$VecD}}[T]) Length() T {
 	return T(math.Sqrt(float64(v.Dot(v))))
 }
 
-func (v {{$VecD}}[T]) Dot(w {{$VecD}}[T]) T {
-	return 0 {{- range .D}} + v[{{.}}] * w[{{.}}] {{- end}}
+func (v {{$VecD}}[T]) Normalize() {{$VecD}}[T] {
+	return v.NormalizeFunc({{$VecD}}[T].Length)
 }
 
-func (v {{$VecD}}[T]) Normalize() {{$VecD}}[T] {
-	norm := v.Length()
+func (v {{$VecD}}[T]) NormalizeFunc(f func({{$VecD}}[T]) T) {{$VecD}}[T] {
+	norm := f(v)
 	if !(norm > 0) {
 		return {{$VecD}}[T]{}
 	}
