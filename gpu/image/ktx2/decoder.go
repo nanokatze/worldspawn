@@ -12,20 +12,9 @@ import (
 type Decoder struct {
 	r io.ReaderAt
 
-	dim    uint8
-	extent [3]uint32
-	format vk.Format
-	layers uint32
+	config config
 
 	levelIndex []levelIndexEntry
-}
-
-func NewDecoder(r io.ReaderAt) (*Decoder, error) {
-	dec := new(Decoder)
-	if err := dec.Reset(r); err != nil {
-		return nil, err
-	}
-	return dec, nil
 }
 
 func (dec *Decoder) Reset(r io.ReaderAt) error {
@@ -52,40 +41,36 @@ func (dec *Decoder) Reset(r io.ReaderAt) error {
 	*dec = Decoder{
 		r: r,
 
-		dim:    dim,
-		extent: header.Extent,
-		format: vk.Format(header.Format),
-		layers: max(header.LayerCount, 1) * header.FaceCount,
+		config: config{
+			dim:    dim,
+			extent: header.Extent,
+			format: vk.Format(header.Format),
+			layers: max(header.LayerCount, 1) * header.FaceCount,
+			mips:   max(header.LevelCount, 1),
+		},
 
 		levelIndex: levelIndex,
 	}
 	return nil
 }
 
-func (dec *Decoder) Config() gpu.ImageConfig {
-	extent := [3]int{
-		int(dec.extent[0]),
-		int(dec.extent[1]),
-		int(dec.extent[2]),
-	}
-
-	return gpu.MakeImageConfig(dec.format, extent[:dec.dim&0x7f]).
-		AsCube(dec.dim&0x80 != 0).
-		WithLayers(int(dec.layers)).
-		WithMips(len(dec.levelIndex))
-}
+func (dec *Decoder) Config() *config { return &dec.config }
 
 // TODO: support decoding at smaller granularity
 // TODO: allow users to pass scratch data explicitly
-func (dec *Decoder) EnqueueDecode(jq *gpu.JobQueue, dst *gpu.Image, mipIndex int) {
-	levelEntry := dec.levelIndex[mipIndex]
+func (dec *Decoder) Decode(
+	jq *gpu.JobQueue,
+	dst *gpu.Image, dstOffset []int,
+	srcMip int, srcOffset []int,
+	extent []int) {
+	levelIndexEntry := &dec.levelIndex[srcMip]
 
-	tmp := gpu.MakeSliceUncached[byte](int(levelEntry.Length))
+	tmp := gpu.MakeSliceUncached[byte](int(levelIndexEntry.Length))
 	defer jq.Cleanup(func() { gpu.Free(gpu.UnsafePointer(gpu.SliceData(tmp))) })
 
-	enqueueReadAt(jq, dec.r, tmp, int64(levelEntry.Offset))
+	enqueueReadAt(jq, dec.r, tmp, int64(levelIndexEntry.Offset))
 
-	gpu.EnqueueCopyMemoryToImage(jq, dst, nil, tmp, 0, 0, dst.Extent())
+	gpu.EnqueueCopyMemoryToImage(jq, dst, nil, tmp, 0, 0, extent)
 }
 
 func Decode(r io.ReaderAt, usage vk.ImageUsageFlags) (*gpu.Image, error) {
@@ -98,17 +83,17 @@ func Decode(r io.ReaderAt, usage vk.ImageUsageFlags) (*gpu.Image, error) {
 
 	config := dec.Config()
 
-	img := gpu.NewImage(config, usage)
+	img := gpu.NewImage(config.gpuImageConfig(), usage)
 
 	var wg gpu.WaitGroup
 	for i := range config.Mips() {
 		wg.Add(1)
 
 		jq := new(gpu.JobQueue)
-		mip := img.SubImage(gpu.SliceMips{i, i + 1})
-		mip.EnqueueInit(jq)
-		dec.EnqueueDecode(jq, mip, i)
-		jq.Cleanup(mip.Destroy)
+		level := img.SubImage(gpu.SliceMips{i, i + 1})
+		level.EnqueueInit(jq)
+		dec.Decode(jq, level, nil, i, nil, level.Extent())
+		jq.Cleanup(level.Destroy)
 		wg.EnqueueDone(jq)
 	}
 	wg.Wait()

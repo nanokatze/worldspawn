@@ -1,10 +1,6 @@
 package ktx2 // TODO: implement common handling in gpu/image like Go's core image.Decode does?
 
-import (
-	"io"
-
-	"worldspawn/gpu"
-)
+var magic = [12]byte{0xAB, 0x4B, 0x54, 0x58, 0x20, 0x32, 0x30, 0xBB, 0x0D, 0x0A, 0x1A, 0x0A}
 
 type fileHeader struct {
 	Magic                      [12]byte
@@ -33,40 +29,4 @@ type indexEntry64 struct {
 type levelIndexEntry struct {
 	indexEntry64
 	UncompressedLength uint64
-}
-
-// TODO: move this into gpu?
-func enqueueReadAt(jq *gpu.JobQueue, r io.ReaderAt, p gpu.Slice[byte], off int64) {
-	enqueueHostCall(jq, func() {
-		if _, err := r.ReadAt(p.Value(), off); err != nil {
-			// We don't really have any way to report read failures for now.
-			panic(err)
-		}
-	})
-}
-
-func enqueueWriteAt(jq *gpu.JobQueue, w io.WriterAt, p gpu.Slice[byte], off int64) {
-	enqueueHostCall(jq, func() {
-		if _, err := w.WriteAt(p.Value(), off); err != nil {
-			// We don't really have any way to report read failures for now.
-			panic(err)
-		}
-	})
-}
-
-// TODO: move into gpu?
-// TODO: come up with a better name?
-func enqueueHostCall(jq *gpu.JobQueue, f func()) {
-	var wg1 gpu.WaitGroup
-	wg1.Add(1)
-	var wg2 gpu.WaitGroup
-	wg2.Add(1)
-
-	wg1.EnqueueDone(jq)
-	go func() {
-		wg1.Wait()
-		f()
-		wg2.Done()
-	}()
-	wg2.EnqueueWait(jq)
 }
