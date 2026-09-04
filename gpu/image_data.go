@@ -13,13 +13,18 @@ type imageData struct {
 
 	dim    imageDim
 	format vk.Format
-	extent [3]int
+	extent [maxDimensions]int
 	mips   int
 	layers int
 	usage  vk.ImageUsageFlags // we don't need to store all usage flags, I think. just sampling and storage
 
 	memory *deviceMemory // TODO: replace with an UnsafePointer and length
 }
+
+// TODO: rename to something like "always present usage" or something idk
+const impliedUsage = 0 |
+	vk.ImageUsageFlags(vk.IMAGE_USAGE_TRANSFER_SRC_BIT) |
+	vk.ImageUsageFlags(vk.IMAGE_USAGE_TRANSFER_DST_BIT)
 
 func newImageData(config ImageConfig, usage vk.ImageUsageFlags) *imageData {
 	var pinner runtime.Pinner
@@ -43,7 +48,7 @@ func newImageData(config ImageConfig, usage vk.ImageUsageFlags) *imageData {
 	imageCreateInfo.MipLevels = uint32(config.mips)
 	imageCreateInfo.ArrayLayers = uint32(config.layers)
 	imageCreateInfo.Samples = 1
-	imageCreateInfo.Usage = usage | vk.ImageUsageFlags(vk.IMAGE_USAGE_TRANSFER_DST_BIT) | vk.ImageUsageFlags(vk.IMAGE_USAGE_TRANSFER_SRC_BIT)
+	imageCreateInfo.Usage = usage | impliedUsage
 	imageCreateInfo.SharingMode = vk.SHARING_MODE_CONCURRENT
 	imageCreateInfo.QueueFamilyIndexCount = uint32(len(Topology.Probe))
 	imageCreateInfo.PQueueFamilyIndices = unsafe.SliceData(Topology.Probe)

@@ -105,19 +105,17 @@ func (img *Image) Config() ImageConfig {
 	}
 }
 
-// TODO: kill some of these in favor of (*Image).Config()
+// Equivalent to img.Config().Format()
+func (img *Image) Format() vk.Format { return img.Config().Format() }
 
-func (img *Image) Format() vk.Format { return img.format }
+// Equivalent to img.Config().Extent()
+func (img *Image) Extent() []int { return img.Config().Extent() }
 
-func (img *Image) Extent() []int {
-	d := img.dim.dimensions()
-	tmp := int3FromVkExtent3D(img.extent)
-	return tmp[:d]
-}
+// Equivalent to img.Config().Mips()
+func (img *Image) Mips() int { return img.Config().Mips() }
 
-func (img *Image) Mips() int { return img.bounds.Mips() }
-
-func (img *Image) Layers() int { return img.bounds.Layers() }
+// Equivalent to img.Config().Layers()
+func (img *Image) Layers() int { return img.Config().Layers() }
 
 func (img *Image) EnqueueInit(jq *JobQueue) {
 	img.EnqueueTransitionLayout(jq, vk.IMAGE_LAYOUT_UNDEFINED, vk.IMAGE_LAYOUT_GENERAL)
