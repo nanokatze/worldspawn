@@ -5,29 +5,29 @@ import "worldspawn/gpu/vk"
 // TODO: use an even more compact representation
 type imageBounds struct {
 	aspects    vk.ImageAspectFlags // TODO: replace with our own mask
-	firstLayer uint32
-	layers     uint32
 	firstMip   uint8
 	mips       uint8
+	firstLayer uint32
+	layers     uint32
 }
 
-func makeImageBounds(aspects vk.ImageAspectFlags, firstLayer, layers, firstMip, mips int) imageBounds {
+func makeImageBounds(aspects vk.ImageAspectFlags, firstMip, mips, firstLayer, layers int) imageBounds {
 	return imageBounds{
 		aspects:    aspects,
-		firstLayer: uint32(firstLayer),
-		layers:     uint32(layers),
 		firstMip:   uint8(firstMip),
 		mips:       uint8(mips),
+		firstLayer: uint32(firstLayer),
+		layers:     uint32(layers),
 	}
 }
-
-func (bounds imageBounds) FirstLayer() int { return int(bounds.firstLayer) }
-
-func (bounds imageBounds) Layers() int { return int(bounds.layers) }
 
 func (bounds imageBounds) FirstMip() int { return int(bounds.firstMip) }
 
 func (bounds imageBounds) Mips() int { return int(bounds.mips) }
+
+func (bounds imageBounds) FirstLayer() int { return int(bounds.firstLayer) }
+
+func (bounds imageBounds) Layers() int { return int(bounds.layers) }
 
 func (bounds imageBounds) VkImageSubresourceLayers(format vk.Format) vk.ImageSubresourceLayers {
 	return vk.ImageSubresourceLayers{

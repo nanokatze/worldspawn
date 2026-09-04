@@ -8,53 +8,6 @@ import (
 	"worldspawn/gpu/vk/formatutil"
 )
 
-const maxDimensions = 3
-
-// Bits 0:6 indicate the number of dimensions, which is always at least 1.
-// Bit 7 indicates the cube flag. Only valid for 2D images.
-type imageDim uint8
-
-func makeImageDim(dimensions int) imageDim {
-	if !(1 <= dimensions && dimensions <= maxDimensions) {
-		panic("bad number of dimensions")
-	}
-	return imageDim(uint8(dimensions))
-}
-
-func (dim imageDim) dimensions() int {
-	return int(dim &^ 0x80)
-}
-
-func (dim imageDim) isCube() bool { return dim&0x80 != 0 }
-
-func (dim imageDim) vkImageType() vk.ImageType {
-	switch dim.dimensions() {
-	case 1:
-		return vk.IMAGE_TYPE_1D
-	case 2:
-		return vk.IMAGE_TYPE_2D
-	case 3:
-		return vk.IMAGE_TYPE_3D
-	default:
-		panic("unreachable")
-	}
-}
-
-func (dim imageDim) vkImageViewType() vk.ImageViewType {
-	switch dim {
-	case 1:
-		return vk.IMAGE_VIEW_TYPE_1D_ARRAY
-	case 2:
-		return vk.IMAGE_VIEW_TYPE_2D_ARRAY
-	case 2 | 0x80:
-		return vk.IMAGE_VIEW_TYPE_CUBE_ARRAY
-	case 3:
-		return vk.IMAGE_VIEW_TYPE_3D
-	default:
-		panic("unreachable")
-	}
-}
-
 type Image struct {
 	data       *imageData
 	descriptor ImageDescriptor
@@ -128,10 +81,10 @@ func (img *Image) SubImage(opts ...SubImageOption) *Image {
 	config := subImageConfig{
 		dim:        img.dim,
 		format:     img.format,
-		firstLayer: img.bounds.FirstLayer(),
-		layers:     img.bounds.Layers(),
 		firstMip:   img.bounds.FirstMip(),
 		mips:       img.bounds.Mips(),
+		firstLayer: img.bounds.FirstLayer(),
+		layers:     img.bounds.Layers(),
 	}
 	for _, opt := range opts {
 		// TODO: switch over common impls so that we noescape things
@@ -147,8 +100,8 @@ func (img *Image) Config() ImageConfig {
 		dim:    img.dim,
 		format: img.format,
 		extent: int3FromVkExtent3D(img.extent),
-		layers: img.bounds.Layers(),
 		mips:   img.bounds.Mips(),
+		layers: img.bounds.Layers(),
 	}
 }
 
@@ -162,9 +115,9 @@ func (img *Image) Extent() []int {
 	return tmp[:d]
 }
 
-func (img *Image) Layers() int { return img.bounds.Layers() }
-
 func (img *Image) Mips() int { return img.bounds.Mips() }
+
+func (img *Image) Layers() int { return img.bounds.Layers() }
 
 func (img *Image) EnqueueInit(jq *JobQueue) {
 	img.EnqueueTransitionLayout(jq, vk.IMAGE_LAYOUT_UNDEFINED, vk.IMAGE_LAYOUT_GENERAL)

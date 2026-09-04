@@ -14,8 +14,8 @@ type imageData struct {
 	dim    imageDim
 	format vk.Format
 	extent [3]int
-	layers int
 	mips   int
+	layers int
 	usage  vk.ImageUsageFlags // we don't need to store all usage flags, I think. just sampling and storage
 
 	memory *deviceMemory // TODO: replace with an UnsafePointer and length
@@ -102,8 +102,8 @@ func newImageData(config ImageConfig, usage vk.ImageUsageFlags) *imageData {
 		dim:    config.dim,
 		format: config.format,
 		extent: config.extent,
-		layers: config.layers,
 		mips:   config.mips,
+		layers: config.layers,
 		usage:  usage,
 
 		memory: memory,
@@ -117,8 +117,8 @@ func newImageDataFromVkImage(config ImageConfig, usage vk.ImageUsageFlags, vkIma
 		dim:    config.dim,
 		format: config.format,
 		extent: config.extent,
-		layers: config.layers,
 		mips:   config.mips,
+		layers: config.layers,
 		usage:  usage,
 	}
 }

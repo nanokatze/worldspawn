@@ -9,8 +9,8 @@ type ImageConfig struct {
 	dim    imageDim
 	format vk.Format
 	extent [3]int
-	layers int
 	mips   int
+	layers int
 }
 
 func MakeImageConfig(format vk.Format, extent []int) ImageConfig {
@@ -18,8 +18,8 @@ func MakeImageConfig(format vk.Format, extent []int) ImageConfig {
 		dim:    makeImageDim(len(extent)),
 		format: format,
 		extent: extent3(extent),
-		layers: 1,
 		mips:   1,
+		layers: 1,
 	}
 }
 
@@ -35,49 +35,49 @@ func (config ImageConfig) AsCube(cube bool) ImageConfig {
 	return config
 }
 
-func (config ImageConfig) WithLayers(layers int) ImageConfig {
-	config.layers = layers
-	return config
-}
-
 func (config ImageConfig) WithMips(mips int) ImageConfig {
 	config.mips = mips
 	return config
 }
 
-func (config ImageConfig) Format() vk.Format { return config.format }
+func (config ImageConfig) WithLayers(layers int) ImageConfig {
+	config.layers = layers
+	return config
+}
 
 func (config ImageConfig) IsCube() bool { return config.dim.isCube() }
+
+func (config ImageConfig) Format() vk.Format { return config.format }
 
 func (config ImageConfig) Extent() []int {
 	d := config.dim.dimensions()
 	return config.extent[:d]
 }
 
-func (config ImageConfig) Layers() int { return config.layers }
-
 func (config ImageConfig) Mips() int { return config.mips }
+
+func (config ImageConfig) Layers() int { return config.layers }
 
 type subImageConfig struct {
 	dim        imageDim
 	format     vk.Format
-	firstLayer int
-	layers     int
 	firstMip   int
 	mips       int
+	firstLayer int
+	layers     int
 }
 
 func subImageConfigFromImageConfig(config ImageConfig) subImageConfig {
 	return subImageConfig{
 		dim:    config.dim,
 		format: config.format,
-		layers: config.layers,
 		mips:   config.mips,
+		layers: config.layers,
 	}
 }
 
 func (config subImageConfig) bounds() imageBounds {
-	return makeImageBounds(formatutil.Aspects(config.format), config.firstLayer, config.layers, config.firstMip, config.mips)
+	return makeImageBounds(formatutil.Aspects(config.format), config.firstMip, config.mips, config.firstLayer, config.layers)
 }
 
 type SubImageOption interface {
@@ -106,6 +106,14 @@ func (format Reinterpret) apply(config *subImageConfig) {
 	config.format = vk.Format(format)
 }
 
+type SliceMips [2]int
+
+func (mips SliceMips) apply(config *subImageConfig) {
+	// TODO: validation
+	config.firstMip = config.firstMip + mips[0]
+	config.mips = mips[1] - mips[0]
+}
+
 // TODO: make a variant of this called SliceSlices to be used for 3D images
 type SliceLayers [2]int
 
@@ -113,12 +121,4 @@ func (layers SliceLayers) apply(config *subImageConfig) {
 	// TODO: validation
 	config.firstLayer = config.firstLayer + layers[0]
 	config.layers = layers[1] - layers[0]
-}
-
-type SliceMips [2]int
-
-func (mips SliceMips) apply(config *subImageConfig) {
-	// TODO: validation
-	config.firstMip = config.firstMip + mips[0]
-	config.mips = mips[1] - mips[0]
 }
