@@ -1,14 +1,13 @@
 package gpu
 
-import (
-	"worldspawn/gpu/vk"
-	"worldspawn/gpu/vk/formatutil"
-)
+import "worldspawn/gpu/vk"
 
+// TODO: make this more compact. i.e. use [3]uint32 for
+// extent, uint8 for mips, etc.
 type ImageConfig struct {
 	dim    imageDim
 	format vk.Format
-	extent [3]int
+	extent [maxDimensions]int
 	mips   int
 	layers int
 }
@@ -25,6 +24,7 @@ func MakeImageConfig(format vk.Format, extent []int) ImageConfig {
 
 // TODO: rename pls
 // TODO: I wish we could just kill this
+// TODO: replace this with an enum?
 func (config ImageConfig) AsCube(cube bool) ImageConfig {
 	// TODO: make this a method on ImageDim
 	if cube {
@@ -57,68 +57,3 @@ func (config ImageConfig) Extent() []int {
 func (config ImageConfig) Mips() int { return config.mips }
 
 func (config ImageConfig) Layers() int { return config.layers }
-
-type subImageConfig struct {
-	dim        imageDim
-	format     vk.Format
-	firstMip   int
-	mips       int
-	firstLayer int
-	layers     int
-}
-
-func subImageConfigFromImageConfig(config ImageConfig) subImageConfig {
-	return subImageConfig{
-		dim:    config.dim,
-		format: config.format,
-		mips:   config.mips,
-		layers: config.layers,
-	}
-}
-
-func (config subImageConfig) bounds() imageBounds {
-	return makeImageBounds(formatutil.Aspects(config.format), config.firstMip, config.mips, config.firstLayer, config.layers)
-}
-
-type SubImageOption interface {
-	// TODO: this should also take the *Image so that we can perform validation
-	// during construction. We could also supply that info through
-	// subImageConfig
-	apply(config *subImageConfig)
-}
-
-// TODO: validation
-
-// TODO: make all of these be SubImageOption constructors instead of plain types
-
-// TODO: rename?
-// TODO: ViewAsCube{} variant
-type ViewAs int
-
-func (dim ViewAs) apply(config *subImageConfig) {
-	config.dim = makeImageDim(int(dim))
-}
-
-type Reinterpret vk.Format
-
-func (format Reinterpret) apply(config *subImageConfig) {
-	// TODO: validation
-	config.format = vk.Format(format)
-}
-
-type SliceMips [2]int
-
-func (mips SliceMips) apply(config *subImageConfig) {
-	// TODO: validation
-	config.firstMip = config.firstMip + mips[0]
-	config.mips = mips[1] - mips[0]
-}
-
-// TODO: make a variant of this called SliceSlices to be used for 3D images
-type SliceLayers [2]int
-
-func (layers SliceLayers) apply(config *subImageConfig) {
-	// TODO: validation
-	config.firstLayer = config.firstLayer + layers[0]
-	config.layers = layers[1] - layers[0]
-}

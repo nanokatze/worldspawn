@@ -45,7 +45,7 @@ var texturecache = cache.New(func(filename unique.Handle[string]) *renderer.Text
 	defer f.Close()
 
 	t := new(renderer.Texture)
-	t.Image, err = ktx2.Decode(f.(io.ReaderAt), vk.ImageUsageFlags(vk.IMAGE_USAGE_SAMPLED_BIT))
+	t.Image, err = ktx2.Decode(f.(io.ReaderAt), gpu.ImageWithUsage(vk.IMAGE_USAGE_SAMPLED_BIT))
 	if err != nil {
 		panic(err)
 	}

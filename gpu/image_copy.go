@@ -87,9 +87,9 @@ func (job *copyImageJob) Exec(q *DeviceQueue) {
 
 		region := &vk.ImageCopy2{
 			SType:          vk.STRUCTURE_TYPE_IMAGE_COPY_2,
-			SrcSubresource: job.srcBounds.VkImageSubresourceLayers(job.src.format),
+			SrcSubresource: job.srcBounds.VkImageSubresourceLayers(job.src.config.format),
 			SrcOffset:      job.srcOffset,
-			DstSubresource: job.dstBounds.VkImageSubresourceLayers(job.dst.format),
+			DstSubresource: job.dstBounds.VkImageSubresourceLayers(job.dst.config.format),
 			DstOffset:      job.dstOffset,
 			Extent:         job.extent,
 		}
@@ -181,7 +181,7 @@ func (job *copyMemoryToImageJob) Exec(q *DeviceQueue) {
 				vk.AddressCommandFlagsKHR(vk.ADDRESS_COMMAND_UNKNOWN_STORAGE_BUFFER_USAGE_BIT_KHR),
 			AddressRowLength:   uint32(job.srcRowLength),
 			AddressImageHeight: uint32(job.srcImageHeight),
-			ImageSubresource:   job.dstBounds.VkImageSubresourceLayers(job.dst.format),
+			ImageSubresource:   job.dstBounds.VkImageSubresourceLayers(job.dst.config.format),
 			ImageOffset:        job.dstOffset,
 			ImageExtent:        job.extent,
 		}
@@ -262,7 +262,7 @@ func (job *copyImageToMemoryJob) Exec(q *DeviceQueue) {
 				vk.AddressCommandFlagsKHR(vk.ADDRESS_COMMAND_UNKNOWN_STORAGE_BUFFER_USAGE_BIT_KHR),
 			AddressRowLength:   uint32(job.dstRowLength),
 			AddressImageHeight: uint32(job.dstImageHeight),
-			ImageSubresource:   job.srcBounds.VkImageSubresourceLayers(job.src.format),
+			ImageSubresource:   job.srcBounds.VkImageSubresourceLayers(job.src.config.format),
 			ImageOffset:        job.srcOffset,
 			ImageExtent:        job.extent,
 		}
@@ -286,13 +286,13 @@ func (job *copyImageToMemoryJob) Exec(q *DeviceQueue) {
 func chooseQueueFamiliesForImageCopy(
 	data *imageData, bounds imageBounds,
 	offsetBlocks, extentBlocks [3]int) QueueFamilyMask {
-	levelExtent := minify3(data.extent, bounds.FirstMip())
-	levelExtentBlocks := divByBlockExtentRoundUp(levelExtent, data.format)
+	levelExtent := minify3(data.config.extent, bounds.FirstMip())
+	levelExtentBlocks := divByBlockExtentRoundUp(levelExtent, data.config.format)
 
 	families := Topology.QueueFamilies(vk.QueueFlags(vk.QUEUE_TRANSFER_BIT))
 
 	// TODO: determine this differently
-	aspects := bounds.VkImageSubresourceRange(data.format).AspectMask
+	aspects := bounds.VkImageSubresourceRange(data.config.format).AspectMask
 	if aspects&vk.ImageAspectFlags(vk.IMAGE_ASPECT_DEPTH_BIT) != 0 {
 		families &= Topology.QueueFamilies(vk.QueueFlags(vk.QUEUE_GRAPHICS_BIT))
 	}
@@ -320,8 +320,8 @@ func chooseQueueFamiliesForImageCopy(
 func copyRectInTexels(
 	data *imageData, bounds imageBounds,
 	offsetBlocks, extentBlocks [3]int) ([3]int, [3]int) {
-	blockExtent := formatutil.Describe(data.format).BlockExtent
-	levelExtent := minify3(data.extent, bounds.FirstMip())
+	blockExtent := formatutil.Describe(data.config.format).BlockExtent
+	levelExtent := minify3(data.config.extent, bounds.FirstMip())
 
 	offset := mul3(offsetBlocks, blockExtent)
 	extent := min3(mul3(extentBlocks, blockExtent), sub3(levelExtent, offset))

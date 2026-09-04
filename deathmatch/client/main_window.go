@@ -253,8 +253,7 @@ func (w *mainWindow) resize(size [2]int) {
 
 	w.swapchainImage = gpu.NewImage(
 		gpu.MakeImageConfig(vk.FORMAT_R8G8B8A8_UNORM, size[:2]),
-		vk.ImageUsageFlags(vk.IMAGE_USAGE_STORAGE_BIT)|
-			vk.ImageUsageFlags(vk.IMAGE_USAGE_COLOR_ATTACHMENT_BIT))
+		gpu.ImageWithUsage(vk.IMAGE_USAGE_STORAGE_BIT|vk.IMAGE_USAGE_COLOR_ATTACHMENT_BIT))
 
 	// Redraw a single frame at this size.
 	w.redrawLocked()

@@ -40,7 +40,7 @@ func (descriptor ImageDescriptor) tag() uint32 { return descriptor.bits >> 20 }
 
 var imageDescriptorAllocHint int64
 
-func newImageDescriptor(data *imageData, config subImageConfig) ImageDescriptor {
+func newImageDescriptor(data *imageData, config *subImageConfig) ImageDescriptor {
 	formatProps := getFormatImageProperties(config.format)
 	if !formatProps.Supported {
 		panic("unsupported format")
@@ -85,7 +85,7 @@ func cleanupImageDescriptor(descriptor ImageDescriptor) {
 	resourceHeap.Free(off, len)
 }
 
-func marshalVulkanImageDescriptor(dst []byte, data *imageData, config subImageConfig, descriptorType vk.DescriptorType) {
+func marshalVulkanImageDescriptor(dst []byte, data *imageData, config *subImageConfig, descriptorType vk.DescriptorType) {
 	dstHostAddressRange := byteSliceToHostAddressRange(dst)
 
 	VkFns.WriteResourceDescriptorsEXT(Device, 1,

@@ -154,7 +154,9 @@ func (swapchain *Swapchain) reconfigure(config *SwapchainConfig) *Swapchain {
 
 	images := make([]*gpu.Image, len(vkImages))
 	for i, vkImage := range vkImages {
-		images[i] = gpu.NewImageFromVkImage(imgConf, config.ImageUsage, vkImage)
+		images[i] = gpu.NewImage(imgConf,
+			gpu.ImageWithUsage(vk.ImageUsageFlagBits(config.ImageUsage)),
+			gpu.ImportVkImage(vkImage))
 	}
 
 	return &Swapchain{

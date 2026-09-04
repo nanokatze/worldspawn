@@ -17,7 +17,7 @@ import (
 func main() {
 	jq := new(gpu.JobQueue)
 
-	gpuImg := gpu.NewImage(gpu.MakeImageConfig(vk.FORMAT_R16G16B16A16_UNORM, []int{256, 256}).WithLayers(8), 0)
+	gpuImg := gpu.NewImage(gpu.MakeImageConfig(vk.FORMAT_R16G16B16A16_UNORM, []int{256, 256}).WithLayers(8))
 	gpuImg.EnqueueInit(jq)
 
 	for i := range gpuImg.Layers() {

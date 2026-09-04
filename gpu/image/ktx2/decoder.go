@@ -73,7 +73,7 @@ func (dec *Decoder) Decode(
 	gpu.EnqueueCopyMemoryToImage(jq, dst, nil, tmp, 0, 0, extent)
 }
 
-func Decode(r io.ReaderAt, usage vk.ImageUsageFlags) (*gpu.Image, error) {
+func Decode(r io.ReaderAt, opts ...gpu.NewImageOption) (*gpu.Image, error) {
 	var dec Decoder
 
 	err := dec.Reset(r)
@@ -83,7 +83,7 @@ func Decode(r io.ReaderAt, usage vk.ImageUsageFlags) (*gpu.Image, error) {
 
 	config := dec.Config()
 
-	img := gpu.NewImage(config.gpuImageConfig(), usage)
+	img := gpu.NewImage(config, opts...)
 
 	var wg gpu.WaitGroup
 	for i := range config.Mips() {

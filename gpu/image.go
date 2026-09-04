@@ -29,48 +29,88 @@ type Image struct {
 	cleanup runtime.Cleanup
 }
 
-func NewImage(config ImageConfig, usage vk.ImageUsageFlags) *Image {
+type newImageOptions struct {
+	usage vk.ImageUsageFlags
+
+	vkImage vk.Image
+}
+
+// TODO: make this an interface?
+type NewImageOption func(*newImageOptions)
+
+func ImageWithUsage(usage vk.ImageUsageFlagBits) NewImageOption {
+	return func(opts *newImageOptions) {
+		opts.usage = vk.ImageUsageFlags(usage)
+	}
+}
+
+func ImportVkImage(vkImage vk.Image) NewImageOption {
+	return func(opts *newImageOptions) {
+		opts.vkImage = vkImage
+	}
+}
+
+func NewImage(config ImageConfig, opts ...NewImageOption) *Image {
 	GPUInit()
 
-	img := newImage(newImageData(config, usage), subImageConfigFromImageConfig(config))
+	var optStruct newImageOptions
+	for _, opt := range opts {
+		opt(&optStruct)
+	}
+
+	data := makeImageData(config, &optStruct)
+
+	img := newImage(data, &subImageConfig{
+		dim:    config.dim,
+		format: config.format,
+		mips:   config.mips,
+		layers: config.layers,
+	})
 	img.ownsData = true
 	// TODO: runtime.AddCleanup
 	return img
 }
 
-func NewImageFromVkImage(config ImageConfig, usage vk.ImageUsageFlags, vkImage vk.Image) *Image {
-	return newImage(newImageDataFromVkImage(config, usage, vkImage), subImageConfigFromImageConfig(config))
+type SubImageOption interface {
+	// TODO: this should also take the *Image so that we can perform validation
+	// during construction.
+	apply(config *subImageConfig)
 }
 
-func newImage(data *imageData, config subImageConfig) *Image {
-	extent := minify3(data.extent, config.firstMip)
-	formatClass := formatutil.Describe(config.format).Class
-	baseFormatClass := formatutil.Describe(data.format).Class
-	if formatClass != baseFormatClass {
-		// Format classes differ, this can only be possible if we're
-		// reinterpreting a compressed format as uncompressed, so block1 must be
-		// 1, 1, 1.
-		// TODO: check that formatClass is uncompressed, while baseFormatClass
-		// is compressed instead of this hack
-		if formatutil.Describe(config.format).BlockExtent != ([3]int{1, 1, 1}) {
-			panic(fmt.Sprintf("cannot create a %v view of a %v class image", config.format, baseFormatClass))
-		}
-		extent = divByBlockExtentRoundUp(extent, data.format)
-	}
+// TODO: validation
 
-	img := &Image{
-		data:       data,
-		descriptor: newImageDescriptor(data, config),
-		dim:        config.dim,
-		format:     config.format,
-		bounds:     config.bounds(),
-		extent:     vkExtent3DFromInt3(extent),
-	}
-	if img.descriptor != (ImageDescriptor{}) {
-		img.cleanup = runtime.AddCleanup(img, cleanupImageDescriptor, img.descriptor)
-	}
+// TODO: make all of these be SubImageOption constructors instead of plain types
 
-	return img
+// TODO: rename?
+// TODO: ViewAsCube{} variant
+type ViewAs int
+
+func (dim ViewAs) apply(config *subImageConfig) {
+	config.dim = makeImageDim(int(dim))
+}
+
+type Reinterpret vk.Format
+
+func (format Reinterpret) apply(config *subImageConfig) {
+	// TODO: validation
+	config.format = vk.Format(format)
+}
+
+type SliceMips [2]int
+
+func (mips SliceMips) apply(config *subImageConfig) {
+	// TODO: validation
+	config.firstMip = config.firstMip + mips[0]
+	config.mips = mips[1] - mips[0]
+}
+
+// TODO: make a variant of this called SliceSlices to be used for 3D images
+type SliceLayers [2]int
+
+func (layers SliceLayers) apply(config *subImageConfig) {
+	// TODO: validation
+	config.firstLayer = config.firstLayer + layers[0]
+	config.layers = layers[1] - layers[0]
 }
 
 // TODO: for multi-planar images we'd also want to specify aspect mask. Instead,
@@ -87,10 +127,53 @@ func (img *Image) SubImage(opts ...SubImageOption) *Image {
 		layers:     img.bounds.Layers(),
 	}
 	for _, opt := range opts {
-		// TODO: switch over common impls so that we noescape things
+		// TODO: switch over common impls so that we can noescape things
 		opt.apply(&config)
 	}
-	return newImage(img.data, config)
+	return newImage(img.data, &config)
+}
+
+type subImageConfig struct {
+	dim        imageDim
+	format     vk.Format
+	firstMip   int
+	mips       int
+	firstLayer int
+	layers     int
+}
+
+func (config subImageConfig) bounds() imageBounds {
+	return makeImageBounds(formatutil.Aspects(config.format), config.firstMip, config.mips, config.firstLayer, config.layers)
+}
+
+func newImage(data *imageData, config *subImageConfig) *Image {
+	extent := minify3(data.config.extent, config.firstMip)
+	formatClass := formatutil.Describe(config.format).Class
+	baseFormatClass := formatutil.Describe(data.config.format).Class
+	if formatClass != baseFormatClass {
+		// Format classes differ, this can only be possible if we're
+		// reinterpreting a compressed format as uncompressed, so block1 must be
+		// 1, 1, 1.
+		// TODO: check that formatClass is uncompressed, while baseFormatClass
+		// is compressed instead of this hack
+		if formatutil.Describe(config.format).BlockExtent != ([3]int{1, 1, 1}) {
+			panic(fmt.Sprintf("cannot create a %v view of a %v class image", config.format, baseFormatClass))
+		}
+		extent = divByBlockExtentRoundUp(extent, data.config.format)
+	}
+
+	img := &Image{
+		data:       data,
+		descriptor: newImageDescriptor(data, config),
+		dim:        config.dim,
+		format:     config.format,
+		bounds:     config.bounds(),
+		extent:     vkExtent3DFromInt3(extent),
+	}
+	if img.descriptor != (ImageDescriptor{}) {
+		img.cleanup = runtime.AddCleanup(img, cleanupImageDescriptor, img.descriptor)
+	}
+	return img
 }
 
 // TODO: add (*Image).Supports(usage)

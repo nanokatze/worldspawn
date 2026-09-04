@@ -67,7 +67,7 @@ func (job *transitionImageLayoutJob) Exec(q *DeviceQueue) {
 			OldLayout:        job.oldLayout,
 			NewLayout:        job.newLayout,
 			Image:            job.imageData.vkImage,
-			SubresourceRange: job.imageBounds.VkImageSubresourceRange(job.imageData.format),
+			SubresourceRange: job.imageBounds.VkImageSubresourceRange(job.imageData.config.format),
 		}
 		pinner.Pin(imageMemoryBarrier)
 
