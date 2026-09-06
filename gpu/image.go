@@ -35,7 +35,6 @@ type newImageOptions struct {
 	vkImage vk.Image
 }
 
-// TODO: make this an interface?
 type NewImageOption func(*newImageOptions)
 
 func ImageWithUsage(usage vk.ImageUsageFlagBits) NewImageOption {
@@ -60,12 +59,13 @@ func NewImage(config ImageConfig, opts ...NewImageOption) *Image {
 
 	data := makeImageData(config, &optStruct)
 
-	img := newImage(data, &subImageConfig{
-		dim:    config.dim,
-		format: config.format,
-		mips:   config.mips,
-		layers: config.layers,
-	})
+	img := newImage(data,
+		&subImageConfig{
+			dim:    config.dim,
+			format: config.format,
+			mips:   config.mips,
+			layers: config.layers,
+		})
 	img.ownsData = true
 	// TODO: runtime.AddCleanup
 	return img
@@ -148,14 +148,15 @@ func (config subImageConfig) bounds() imageBounds {
 
 func newImage(data *imageData, config *subImageConfig) *Image {
 	extent := minify3(data.config.extent, config.firstMip)
-	formatClass := formatutil.Describe(config.format).Class
+
 	baseFormatClass := formatutil.Describe(data.config.format).Class
-	if formatClass != baseFormatClass {
+	viewFormatClass := formatutil.Describe(config.format).Class
+	if viewFormatClass != baseFormatClass {
 		// Format classes differ, this can only be possible if we're
 		// reinterpreting a compressed format as uncompressed, so block1 must be
 		// 1, 1, 1.
-		// TODO: check that formatClass is uncompressed, while baseFormatClass
-		// is compressed instead of this hack
+		// TODO: check that viewFormatClass is uncompressed, while
+		// baseFormatClass is compressed instead of this hack
 		if formatutil.Describe(config.format).BlockExtent != ([3]int{1, 1, 1}) {
 			panic(fmt.Sprintf("cannot create a %v view of a %v class image", config.format, baseFormatClass))
 		}

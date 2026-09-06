@@ -15,6 +15,13 @@ var (
 	vulkanSamplerDescriptorSize int
 )
 
+// type shaderUsage uint8
+
+const (
+	shaderUsageSampling = 1 << iota
+	shaderUsageLoadStore
+)
+
 type ImageDescriptor struct{ bits uint32 }
 
 func packImageDescriptor(unscaledOffset int, tag uint32) ImageDescriptor {
@@ -50,10 +57,10 @@ func newImageDescriptor(data *imageData, config *subImageConfig) ImageDescriptor
 
 	var tag uint32
 	if usage&vk.ImageUsageFlags(vk.IMAGE_USAGE_SAMPLED_BIT) != 0 {
-		tag |= 1 << 0
+		tag |= shaderUsageSampling
 	}
 	if usage&vk.ImageUsageFlags(vk.IMAGE_USAGE_STORAGE_BIT) != 0 {
-		tag |= 1 << 1
+		tag |= shaderUsageLoadStore
 	}
 
 	if tag == 0 {
@@ -65,10 +72,10 @@ func newImageDescriptor(data *imageData, config *subImageConfig) ImageDescriptor
 	dst0 := resourceHeap.Base().Value()[offset:]
 	for i := range ones32(tag) {
 		dst := dst0[rank32(tag, i)*vulkanImageDescriptorSize:]
-		switch i {
-		case 0:
+		switch 1 << i {
+		case shaderUsageSampling:
 			marshalVulkanImageDescriptor(dst, data, config, vk.DESCRIPTOR_TYPE_SAMPLED_IMAGE)
-		case 1:
+		case shaderUsageLoadStore:
 			marshalVulkanImageDescriptor(dst, data, config, vk.DESCRIPTOR_TYPE_STORAGE_IMAGE)
 		default:
 			panic("unreachable")

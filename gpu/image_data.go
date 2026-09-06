@@ -16,8 +16,8 @@ const impliedUsage = 0 |
 type imageData struct {
 	vkImage vk.Image
 
-	config ImageConfig
-	usage  vk.ImageUsageFlags // we don't need to store all usage flags, I think. just sampling and storage
+	config ImageConfig // TODO: use a more compact representation
+	usage  vk.ImageUsageFlags
 
 	memory *deviceMemory // TODO: replace with an UnsafePointer and length
 }
@@ -33,6 +33,7 @@ func makeImageData(config ImageConfig, opts *newImageOptions) *imageData {
 
 	switch {
 	case opts.vkImage == vk.NULL_HANDLE:
+		// TODO: don't poke insides of Config directly but use accessors instead?
 		imageCreateInfo := new(vk.ImageCreateInfo)
 		imageCreateInfo.SType = vk.STRUCTURE_TYPE_IMAGE_CREATE_INFO
 		// TODO: shove these into a function that operates on vk.ImageCreateInfo

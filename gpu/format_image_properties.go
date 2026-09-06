@@ -7,6 +7,11 @@ import (
 	"worldspawn/gpu/vk"
 )
 
+// TODO: kill this and use impliedUsage instead to check at makeImageData time
+const requiredFormatFeatures = 0 |
+	vk.FormatFeatureFlags2(vk.FORMAT_FEATURE_2_TRANSFER_SRC_BIT) |
+	vk.FormatFeatureFlags2(vk.FORMAT_FEATURE_2_TRANSFER_DST_BIT)
+
 type formatImageProperties struct {
 	Supported      bool
 	SupportedUsage vk.ImageUsageFlags
@@ -28,15 +33,13 @@ var getFormatImageProperties = cached(func(format vk.Format) formatImageProperti
 			PNext: unsafe.Pointer(props3),
 		})
 
-	const requiredFeatures = 0 |
-		vk.FormatFeatureFlags2(vk.FORMAT_FEATURE_2_TRANSFER_SRC_BIT) |
-		vk.FormatFeatureFlags2(vk.FORMAT_FEATURE_2_TRANSFER_DST_BIT)
-
-	supported := props3.OptimalTilingFeatures&requiredFeatures == requiredFeatures
+	supported := props3.OptimalTilingFeatures&requiredFormatFeatures == requiredFormatFeatures
 
 	if !supported {
 		return formatImageProperties{}
 	}
+
+	// TODO: do all the usages
 
 	var supportedUsage vk.ImageUsageFlags
 	if props3.OptimalTilingFeatures&vk.FormatFeatureFlags2(vk.FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT) != 0 {

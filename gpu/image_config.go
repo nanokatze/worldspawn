@@ -25,7 +25,7 @@ func MakeImageConfig(format vk.Format, extent []int) ImageConfig {
 // TODO: rename pls
 // TODO: I wish we could just kill this
 // TODO: replace this with an enum?
-func (config ImageConfig) AsCube(cube bool) ImageConfig {
+func (config ImageConfig) WithCube(cube bool) ImageConfig {
 	// TODO: make this a method on ImageDim
 	if cube {
 		config.dim |= 0x80
