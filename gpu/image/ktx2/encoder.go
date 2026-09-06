@@ -3,9 +3,12 @@ package ktx2
 import (
 	"encoding/binary"
 	"io"
+	"math/bits"
 	"slices"
 
 	"worldspawn/gpu"
+	"worldspawn/gpu/vk"
+	"worldspawn/gpu/vk/formatutil"
 )
 
 // TODO: supercompression
@@ -59,9 +62,11 @@ func Encode(w io.WriterAt, img *gpu.Image, opts ...func(*encoderOptions)) error 
 		return err
 	}
 
+	mipAlignment := max(texelBlockAlignment(config.Format()), minMipAlignment)
+
 	offset := uint64(binary.Size(header) + binary.Size(mipHeaders))
 	for i := config.Mips() - 1; i >= 0; i-- {
-		mipHeaders[i].Offset = roundUp(offset, 4)
+		mipHeaders[i].Offset = roundUp(offset, uint64(mipAlignment))
 		offset += uint64(len(mipData[i]))
 	}
 
@@ -76,4 +81,11 @@ func Encode(w io.WriterAt, img *gpu.Image, opts ...func(*encoderOptions)) error 
 	}
 
 	return nil
+}
+
+// TODO: this should take format descriptor instead of a vk.Format
+func texelBlockAlignment(format vk.Format) int {
+	texelBlockSize := formatutil.Describe(format).BlockSize
+
+	return 1 << bits.TrailingZeros(uint(texelBlockSize))
 }

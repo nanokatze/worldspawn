@@ -26,6 +26,8 @@ type sectionHeader struct {
 	Length uint64
 }
 
+const minMipAlignment = 4
+
 type mipSectionHeader struct {
 	sectionHeader
 	UncompressedLength uint64
