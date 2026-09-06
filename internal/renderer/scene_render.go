@@ -55,7 +55,7 @@ type frameParams struct {
 }
 
 var noiseImage = sync.OnceValue(func() *gpu.Image {
-	img, err := gpuktx2.Decode(bytes.NewReader(noiseLUT), vk.ImageUsageFlags(vk.IMAGE_USAGE_SAMPLED_BIT))
+	img, err := gpuktx2.Decode(bytes.NewReader(noiseLUT), gpu.ImageWithUsage(vk.IMAGE_USAGE_SAMPLED_BIT))
 	if err != nil {
 		panic(err)
 	}
