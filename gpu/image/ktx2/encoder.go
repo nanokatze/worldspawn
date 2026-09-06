@@ -12,11 +12,9 @@ import (
 
 type encoderOptions struct{}
 
-type EncoderOption func(*encoderOptions)
-
 // TODO: use io.Writer instead. WriterAt would only be warranted with a
 // progressive encoder.
-func Encode(w io.WriterAt, img *gpu.Image, opts ...EncoderOption) error {
+func Encode(w io.WriterAt, img *gpu.Image, opts ...func(*encoderOptions)) error {
 	config := img.Config()
 
 	mipHeaders := make([]mipSectionHeader, config.Mips())

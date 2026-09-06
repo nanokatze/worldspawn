@@ -11,22 +11,22 @@ type fileHeader struct {
 	FaceCount                  uint32
 	MipCount                   uint32
 	SupercompressionScheme     uint32
-	DataFormatDescriptor       indexEntry32
-	KeyValueData               indexEntry32
-	SupercompressionGlobalData indexEntry64
+	DataFormatDescriptor       sectionHeader32
+	KeyValueData               sectionHeader32
+	SupercompressionGlobalData sectionHeader
 }
 
-type indexEntry32 struct {
+type sectionHeader32 struct {
 	Offset uint32
 	Length uint32
 }
 
-type indexEntry64 struct {
+type sectionHeader struct {
 	Offset uint64
 	Length uint64
 }
 
 type mipSectionHeader struct {
-	indexEntry64
+	sectionHeader
 	UncompressedLength uint64
 }
