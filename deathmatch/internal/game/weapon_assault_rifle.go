@@ -46,7 +46,7 @@ func init() {
 			world *World,
 			attacker Entity,
 			T_attack gmath.Affine3f64,
-			v_attack Velocity,
+			V_attack Screw3,
 			buttons WeaponButtons,
 			recoil func(stx ScriptContext, recoil [2]float32),
 		) {
@@ -77,9 +77,7 @@ func init() {
 								Attacker: attacker,
 								Type:     ImpactTypeBullet,
 								Damage:   7,
-								Δv: Velocity{
-									Linear: gmath.Matvec3(T_attack.M, forward).Normalize().Scale(1),
-								},
+								ΔV:       Screw3{Linear: gmath.Matvec3(T_attack.M, forward).Normalize().Scale(1)},
 							}
 
 							stx.Update(rayHit.Entity, impact.Apply)

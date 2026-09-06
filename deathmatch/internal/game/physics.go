@@ -8,22 +8,23 @@ import (
 	"worldspawn/internal/physics"
 )
 
-type Velocity struct {
+// TODO: this could be moved somewhere else
+type Screw3 struct {
 	Linear  gmath.Vec3f32
-	Angular gmath.Vec3f32 // TODO: this should be a scalar per basis plane rather than vec3
+	Angular gmath.Vec3f32 // TODO: should be bivector
 }
 
-func (v Velocity) Add(w Velocity) Velocity {
-	return Velocity{
-		Linear:  v.Linear.Add(w.Linear),
-		Angular: v.Angular.Add(w.Angular),
+func (S Screw3) Add(S2 Screw3) Screw3 {
+	return Screw3{
+		Linear:  S.Linear.Add(S2.Linear),
+		Angular: S.Angular.Add(S2.Angular),
 	}
 }
 
-func (v Velocity) Scale(a float32) Velocity {
-	return Velocity{
-		Linear:  v.Linear.Scale(a),
-		Angular: v.Angular.Scale(a),
+func (S Screw3) Scale(a float32) Screw3 {
+	return Screw3{
+		Linear:  S.Linear.Scale(a),
+		Angular: S.Angular.Scale(a),
 	}
 }
 
@@ -44,7 +45,7 @@ func updatePhysicsShadow(world *World, updateParams *UpdateParams) {
 
 		tr, _ := world.TransformTR.Get(id)
 		// TODO: ensure trs.S is 1
-		velocity, _ := world.Velocity.Get(id)
+		V, _ := world.Velocity.Get(id)
 		_, sensor := world.CollisionSensor.Get(id)
 
 		motionType2 := collisionLayerMotionType[layer]
@@ -78,8 +79,8 @@ func updatePhysicsShadow(world *World, updateParams *UpdateParams) {
 				shape2,
 				tr.T,
 				tr.R,
-				velocity.Linear,
-				velocity.Angular,
+				V.Linear,
+				V.Angular,
 				int(layer),
 				motionType2,
 				gravityFactor,
@@ -93,8 +94,8 @@ func updatePhysicsShadow(world *World, updateParams *UpdateParams) {
 				shape2,
 				tr.T,
 				tr.R,
-				velocity.Linear,
-				velocity.Angular,
+				V.Linear,
+				V.Angular,
 				int(layer),
 				motionType2,
 				gravityFactor,
@@ -171,7 +172,7 @@ func physicsStep(world *World, updateParams *UpdateParams) {
 		entity.SetTransformTR(TR3f64{T: pos, R: rot})
 
 		// TODO: don't store velocity back for kinematic bodies
-		entity.SetVelocity(Velocity{Linear: linVel, Angular: angVel})
+		entity.SetVelocity(Screw3{linVel, angVel})
 	}
 
 	for _, ce := range world.physics.ContactEvents() {

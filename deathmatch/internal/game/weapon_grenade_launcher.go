@@ -99,7 +99,7 @@ func init() {
 			world *World,
 			attacker Entity,
 			T_attack gmath.Affine3f64,
-			v_attack Velocity,
+			V_attack Screw3,
 			buttons WeaponButtons,
 			recoil func(stx ScriptContext, recoil [2]float32),
 		) {
@@ -119,13 +119,13 @@ func init() {
 							})
 							projectile.SetTransform(gmath.Affine3DecomposeTRS(
 								T_attack.
-									Mul(gmath.Affine3TRSf64{
-										R: gmath.Rot3AToB(up, forward),
-										S: gmath.Mat3x3UOne[float32](),
-									}.Affine())))
-							projectile.SetVelocity(Velocity{
-								Linear: v_attack.Linear.Add(gmath.Matvec3(T_attack.M, forward.Scale(grenadeLauncherStats.MuzzleVelocity))),
-							})
+									Mul(gmath.Affine3f64{
+										M: gmath.Rot3AToB(up, forward).Mat(),
+									})))
+							projectile.SetVelocity(V_attack.
+								Add(Screw3{
+									Linear: gmath.Matvec3(T_attack.M, forward.Scale(grenadeLauncherStats.MuzzleVelocity)),
+								}))
 							projectile.SetCollisionLayer(CollisionLayerProjectile)
 							// TODO: we should model grenade prop to be something that's kinda 8-gon so that it stops rolling sooner
 							projectile.SetCollisionGeometry(unique.Make("Grenade"))

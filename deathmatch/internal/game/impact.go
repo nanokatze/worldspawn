@@ -29,7 +29,7 @@ type Impact struct {
 
 	Damage float32
 
-	Δv Velocity
+	ΔV Screw3
 }
 
 // TODO: kill this in favor of enqueueImpact
@@ -44,7 +44,7 @@ func (impact Impact) Apply(stx ScriptContext, entity Entity) {
 	// TODO: gate it behind a good check for if things are being actually
 	// simulated, e.g. Motion is Dynamic or some component for receiving
 	// velocity on a kinematic body is set.
-	entity.SetVelocity(entity.Velocity().Add(impact.Δv))
+	entity.SetVelocity(entity.Velocity().Add(impact.ΔV))
 }
 
 /*

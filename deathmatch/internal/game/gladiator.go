@@ -160,7 +160,7 @@ func init() {
 						R: e01.Pow(4 * state.Input.Head[0]).Mul(e12.Pow(4 * state.Input.Head[1])),
 						S: gmath.Mat3x3UOne[float32](),
 					}.Affine())
-				v_attack := gladiator.Velocity()
+				V_attack := gladiator.Velocity()
 
 				var buttons WeaponButtons
 				if state.HeldWeapon.State == 0 {
@@ -173,7 +173,7 @@ func init() {
 					// TODO: implement
 				}
 
-				weapon.Script().Weapon_Think(stx, weapon, props[:], world, gladiator, T_attack, v_attack, buttons, recoil)
+				weapon.Script().Weapon_Think(stx, weapon, props[:], world, gladiator, T_attack, V_attack, buttons, recoil)
 			}
 
 			stx.Update(gladiator, func(stx ScriptContext, gladiator Entity) {

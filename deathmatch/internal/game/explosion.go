@@ -36,7 +36,7 @@ func (world *World) explosion(
 	// TODO: outline tracing into its own function
 
 	type result struct {
-		dvel Velocity
+		dvel Screw3
 		dmg  float32
 	}
 
@@ -63,7 +63,7 @@ func (world *World) explosion(
 		id := rayHit.Entity.ID()
 
 		tmp := results[id]
-		tmp.dvel = tmp.dvel.Add(Velocity{Linear: d}.Scale(dmg))
+		tmp.dvel = tmp.dvel.Add(Screw3{Linear: d}.Scale(dmg))
 		tmp.dmg += dmg
 		results[id] = tmp
 	}
@@ -72,7 +72,7 @@ func (world *World) explosion(
 		impact := Impact{
 			Attacker: impact.Attacker,
 			Type:     impact.Type,
-			Δv:       result.dvel.Scale(impactForceFactor[impact.Type] * float32(impact.Damage)),
+			ΔV:       result.dvel.Scale(impactForceFactor[impact.Type] * float32(impact.Damage)),
 			Damage:   result.dmg * impact.Damage,
 		}
 

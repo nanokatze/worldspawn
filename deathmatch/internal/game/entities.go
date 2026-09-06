@@ -78,8 +78,7 @@ type Entities struct {
 	// MotionType       ecs.Column[MotionType]
 	// MotionProperties ecs.Column[MotionProperties]
 
-	// TODO: split this into two columns
-	Velocity ecs.Column[Velocity]
+	Velocity ecs.Column[Screw3]
 
 	// TODO: remove GravityFactor, Physics{Mass,Inertia}Override in favor of the
 	// MotionProperties column. Or better yet, CollisionGeometry script setting
@@ -247,12 +246,12 @@ func (e Entity) SetCollisionGeometry(v unique.Handle[string]) {
 	e.entities.CollisionGeometry.Store(e.id.Index(), v)
 }
 
-func (e Entity) Velocity() Velocity {
+func (e Entity) Velocity() Screw3 {
 	return e.entities.Velocity.Load(e.id.Index())
 }
 
-func (e Entity) SetVelocity(v Velocity) {
-	e.entities.Velocity.Store(e.id.Index(), v)
+func (e Entity) SetVelocity(V Screw3) {
+	e.entities.Velocity.Store(e.id.Index(), V)
 }
 
 func (e Entity) SetPhysicsMassOverride(v float32) {
