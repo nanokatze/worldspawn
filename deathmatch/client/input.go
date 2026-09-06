@@ -25,8 +25,14 @@ const (
 	ActionSlot2
 	ActionSlot3
 
-	ActionSetMovementVelocityX
-	ActionSetMovementVelocityY
+	// TODO: kill these in favor of ActionMoveX, Y
+	ActionMoveBack
+	ActionMoveForward
+	ActionMoveLeft
+	ActionMoveRight
+
+	ActionMoveX
+	ActionMoveY
 
 	ActionDLookX
 	ActionDLookY
@@ -63,10 +69,17 @@ func actionToInputCmd(action int, value float32) game.InputCmd {
 		// TODO: we should do nothing if value == 0
 		return game.InputCmdSwitchWeapon(action - ActionSlot0)
 
-	case ActionSetMovementVelocityX:
+	case ActionMoveBack:
+		return game.InputCmdMoveY(-value)
+	case ActionMoveForward:
+		return game.InputCmdMoveY(value)
+	case ActionMoveLeft:
+		return game.InputCmdMoveX(-value)
+	case ActionMoveRight:
 		return game.InputCmdMoveX(value)
-
-	case ActionSetMovementVelocityY:
+	case ActionMoveX:
+		return game.InputCmdMoveX(value)
+	case ActionMoveY:
 		return game.InputCmdMoveY(value)
 
 	case ActionDLookX:

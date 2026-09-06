@@ -64,8 +64,10 @@ var defaultConfig = func() *Config {
 	}
 
 	conf.Controls.KeyActions = map[sdl.Keycode]int{
-		sdl.K_W:      ActionSetMovementVelocityY,
-		sdl.K_D:      ActionSetMovementVelocityX,
+		sdl.K_W:      ActionMoveForward,
+		sdl.K_A:      ActionMoveLeft,
+		sdl.K_S:      ActionMoveBack,
+		sdl.K_D:      ActionMoveRight,
 		sdl.K_SPACE:  ActionJump,
 		sdl.K_LCTRL:  ActionCrouch,
 		sdl.K_LSHIFT: ActionDash,

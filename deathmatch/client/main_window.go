@@ -151,14 +151,14 @@ func (w *mainWindow) Run() {
 					value = 0
 				}
 
-				cmds = AppendAction(cmds, etime, ActionSetMovementVelocityX, value)
+				cmds = AppendAction(cmds, etime, ActionMoveX, value)
 
 			case sdl.GAMEPAD_AXIS_LEFTY:
 				if math.Abs(float64(value)) < 0.2 {
 					value = 0
 				}
 
-				cmds = AppendAction(cmds, etime, ActionSetMovementVelocityY, -value)
+				cmds = AppendAction(cmds, etime, ActionMoveY, -value)
 
 			case sdl.GAMEPAD_AXIS_RIGHTX:
 				w.flickStickTest.deflection[0] = value
