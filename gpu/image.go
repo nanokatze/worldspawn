@@ -18,7 +18,7 @@ type Image struct {
 
 	// precomputed stuff
 
-	extent vk.Extent3D // TODO: replace with [3]uint32
+	extent [3]uint32
 
 	// ownsData specifies whether this *Image owns the data and Destroy should
 	// actually destroy it.
@@ -169,7 +169,11 @@ func newImage(data *imageData, config *subImageConfig) *Image {
 		dim:        config.dim,
 		format:     config.format,
 		bounds:     config.bounds(),
-		extent:     vkExtent3DFromInt3(extent),
+		extent: [3]uint32{
+			uint32(extent[0]),
+			uint32(extent[1]),
+			uint32(extent[2]),
+		},
 	}
 	if img.descriptor != (ImageDescriptor{}) {
 		img.cleanup = runtime.AddCleanup(img, cleanupImageDescriptor, img.descriptor)
@@ -183,7 +187,11 @@ func (img *Image) Config() ImageConfig {
 	return ImageConfig{
 		dim:    img.dim,
 		format: img.format,
-		extent: int3FromVkExtent3D(img.extent),
+		extent: [3]int{
+			int(img.extent[0]),
+			int(img.extent[1]),
+			int(img.extent[2]),
+		},
 		mips:   img.bounds.Mips(),
 		layers: img.bounds.Layers(),
 	}
