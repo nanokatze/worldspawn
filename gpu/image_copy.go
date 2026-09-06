@@ -41,14 +41,14 @@ func enqueueCopyImage(
 	extentBlocks := divByBlockExtentRoundUp(extent, src.format)
 
 	dstOffsetBlocks := divByBlockExtent(dstOffset, dst.format)
-	dstOffsetBase, _ := copyRectInTexels(dst.data, dst.bounds, dstOffsetBlocks, extentBlocks)
-	dstFamilies := chooseQueueFamiliesForImageCopy(dst.data, dst.bounds, dstOffsetBlocks, extentBlocks)
+	dstOffsetBase, _ := blockRectToTexelRect(dst.data, dst.bounds, dstOffsetBlocks, extentBlocks)
+	dstQueueFamilies := copyCapableQueueFamilies(dst.data, dst.bounds)
 
 	srcOffsetBlocks := divByBlockExtent(srcOffset, src.format)
-	srcOffsetBase, extentBase := copyRectInTexels(src.data, src.bounds, srcOffsetBlocks, extentBlocks)
-	srcFamilies := chooseQueueFamiliesForImageCopy(src.data, src.bounds, srcOffsetBlocks, extentBlocks)
+	srcOffsetBase, extentBase := blockRectToTexelRect(src.data, src.bounds, srcOffsetBlocks, extentBlocks)
+	srcQueueFamilies := copyCapableQueueFamilies(src.data, src.bounds)
 
-	families := dstFamilies & srcFamilies
+	queueFamilies := dstQueueFamilies & srcQueueFamilies
 
 	jq.Enqueue(&copyImageJob{
 		dst:           dst.data,
@@ -58,7 +58,7 @@ func enqueueCopyImage(
 		srcBounds:     src.bounds,
 		srcOffset:     vkOffset3DFromInt3(srcOffsetBase),
 		extent:        vkExtent3DFromInt3(extentBase),
-		queueFamilies: families,
+		queueFamilies: queueFamilies,
 	})
 }
 
@@ -129,9 +129,9 @@ func enqueueCopyMemoryToImage(
 	extentBlocks := divByBlockExtentRoundUp(extent, dst.format)
 
 	dstOffsetBlocks := divByBlockExtent(dstOffset, dst.format)
-	dstOffsetBase, extentBase := copyRectInTexels(dst.data, dst.bounds, dstOffsetBlocks, extentBlocks)
+	dstOffsetBase, extentBase := blockRectToTexelRect(dst.data, dst.bounds, dstOffsetBlocks, extentBlocks)
 
-	families := chooseQueueFamiliesForImageCopy(dst.data, dst.bounds, dstOffsetBlocks, extentBlocks)
+	queueFamilies := copyCapableQueueFamilies(dst.data, dst.bounds)
 
 	// BUG: we need to exclude the transfer-only queue family if the src isn't
 	// aligned to a 4-byte boundary.
@@ -144,7 +144,7 @@ func enqueueCopyMemoryToImage(
 		srcRowLength:   uint32(srcRowLength),
 		srcImageHeight: uint32(srcImageHeight),
 		extent:         vkExtent3DFromInt3(extentBase),
-		queueFamilies:  families,
+		queueFamilies:  queueFamilies,
 	})
 }
 
@@ -211,8 +211,8 @@ func enqueueCopyImageToMemory(
 	extentBlocks := divByBlockExtentRoundUp(extent, src.format)
 
 	srcOffsetBlocks := divByBlockExtent(srcOffset, src.format)
-	srcOffsetBase, extentBase := copyRectInTexels(src.data, src.bounds, srcOffsetBlocks, extentBlocks)
-	families := chooseQueueFamiliesForImageCopy(src.data, src.bounds, srcOffsetBlocks, extentBlocks)
+	srcOffsetBase, extentBase := blockRectToTexelRect(src.data, src.bounds, srcOffsetBlocks, extentBlocks)
+	queueFamilies := copyCapableQueueFamilies(src.data, src.bounds)
 
 	// BUG: we need to exclude the transfer-only queue family if the src isn't
 	// aligned to a 4-byte boundary.
@@ -225,7 +225,7 @@ func enqueueCopyImageToMemory(
 		srcBounds:      src.bounds,
 		srcOffset:      vkOffset3DFromInt3(srcOffsetBase),
 		extent:         vkExtent3DFromInt3(extentBase),
-		queueFamilies:  families,
+		queueFamilies:  queueFamilies,
 	})
 }
 
@@ -265,18 +265,8 @@ func (job *copyImageToMemoryJob) Exec(q *DeviceQueue) {
 	})
 }
 
-// TODO: both of these should accept bounds instead of aspects and mip
-// separately, and offset and extent should be in texels, not in texel blocks.
-
-// TODO: rename
-// TODO: provide a mechanism for feedback to the user?
-// TODO: pass granularities array, queueFamilies explicitly?
-func chooseQueueFamiliesForImageCopy(
-	data *imageData, bounds imageBounds,
-	offsetBlocks, extentBlocks point) QueueFamilyMask {
-	levelExtent := minify3(data.config.extent, bounds.FirstMip())
-	levelExtentBlocks := divByBlockExtentRoundUp(levelExtent, data.config.format)
-
+// Queue families that are capable of copying to or from the image.
+func copyCapableQueueFamilies(data *imageData, bounds imageBounds) QueueFamilyMask {
 	families := Topology.QueueFamilies(vk.QueueFlags(vk.QUEUE_TRANSFER_BIT))
 
 	// TODO: determine this differently
@@ -288,25 +278,10 @@ func chooseQueueFamiliesForImageCopy(
 		families &= Topology.QueueFamilies(vk.QueueFlags(vk.QUEUE_GRAPHICS_BIT))
 	}
 
-	// TODO: this is not relevant since maint11
-	entire := offsetBlocks == pointZero() && extentBlocks == levelExtentBlocks
-	if !entire {
-		for family := range ones32(families &^ Topology.QueueFamilies(0b010)) {
-			granularity := int3FromVkExtent3D(Topology.Props[family].MinImageTransferGranularity)
-
-			if granularity == pointZero() ||
-				offsetBlocks.Mod(granularity) != pointZero() ||
-				offsetBlocks.Mod(granularity) != pointZero() {
-				families &^= 1 << family
-			}
-		}
-	}
-
 	return families
 }
 
-// TODO: rename to something better. This also isn't really copy-specific
-func copyRectInTexels(
+func blockRectToTexelRect(
 	data *imageData, bounds imageBounds,
 	offsetBlocks, extentBlocks point) (point, point) {
 	blockExtent := formatutil.Describe(data.config.format).BlockExtent
