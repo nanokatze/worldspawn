@@ -6,100 +6,76 @@ import (
 	"slices"
 
 	"worldspawn/gpu"
-	"worldspawn/gpu/vk/formatutil"
 )
 
-// TODO: introduce encoder type to allow encoding progressively?
-//
-// The granularity at which we can encode and write things out depends on
-// whether supercompression is used, and whether supercompression uses global
-// data.
-//
-// When supercompression global data is used, we can only lay out the file after
-// we have compressed all mips (we also need key-value data but that seems to be
-// available up-front in all cases?). Regardless of the scheme, with
-// supercompression, the granularity is usually something coarse. E.g. entire
-// mips, large blocks, etc. Otherwise, there's no granularity requirements
-// beyond texel block size.
+// TODO: supercompression
 
-func Encode(w io.WriterAt, img *gpu.Image) error {
+type encoderOptions struct{}
+
+type EncoderOption func(*encoderOptions)
+
+// TODO: use io.Writer instead. WriterAt would only be warranted with a
+// progressive encoder.
+func Encode(w io.WriterAt, img *gpu.Image, opts ...EncoderOption) error {
 	config := img.Config()
 
-	levelIndex := make([]levelIndexEntry, config.Mips())
-	levelData := make([][]byte, config.Mips())
-	for i := config.Mips() - 1; i >= 0; i-- {
+	mipHeaders := make([]mipSectionHeader, config.Mips())
+	mipData := make([][]byte, config.Mips())
+	for i := range config.Mips() {
 		var g gpu.JobQueue
 
-		level := img.SubImage(gpu.SliceMips{i, i + 1})
+		img_i := img.SubImage(gpu.SliceMips{i, i + 1})
 
-		// TODO: this is incorrect for compressed formats
-		uncompressedSize := level.Layers() * int(formatutil.Describe(config.Format()).BlockSize)
-		for _, side := range level.Extent() {
-			uncompressedSize *= side
-		}
-
-		// TODO: when we implement supercompression, Length and
-		// UncompressedLength might differ
+		linearSize := calcLinearSize(config.Format(), config.Extent(), config.Layers())
 
 		// TODO: we read this on host so this should have host caching enabled
-		uncompressed := gpu.MakeSliceUncached[byte](uncompressedSize)
+		linear := gpu.MakeSliceUncached[byte](linearSize)
 		gpu.EnqueueCopyImageToMemory(&g,
-			uncompressed, 0, 0,
-			level, nil, level.Extent())
+			linear, 0, 0,
+			img_i, nil, img_i.Extent())
 		gpu.WaitForIdle(&g)
 
-		data := slices.Clone(uncompressed.Value())
+		data := slices.Clone(linear.Value())
 
-		levelIndex[i] = levelIndexEntry{
+		mipHeaders[i] = mipSectionHeader{
 			Offset:             ^uint64(0),
-			UncompressedLength: uint64(uncompressedSize),
 			Length:             uint64(len(data)),
+			UncompressedLength: uint64(linearSize),
 		}
-		levelData[i] = data
+		mipData[i] = data
 	}
 
 	ow := io.NewOffsetWriter(w, 0)
 
-	var extent [3]uint32
+	var header fileHeader
+	header.Magic = magic
+	header.Format = uint32(config.Format())
+	header.TypeSize = 1 // TODO: fill in the correct value
 	for i, side := range config.Extent() {
-		extent[i] = uint32(side)
+		header.Extent[i] = uint32(side)
 	}
-	header := fileHeader{
-		Magic:      magic,
-		Format:     uint32(config.Format()),
-		TypeSize:   1, // TODO: fill in the correct value
-		Extent:     extent,
-		LayerCount: uint32(config.Layers()),
-		FaceCount:  1, // TODO: we'll need to do some work to handle cube images correctly
-		LevelCount: uint32(config.Mips()),
-	}
+	header.LayerCount = uint32(config.Layers())
+	header.FaceCount = 1 // TODO: we'll need to do some work to handle cube images correctly
+	header.MipCount = uint32(config.Mips())
 	if err := binary.Write(ow, binary.LittleEndian, &header); err != nil {
 		return err
 	}
 
-	offset := uint64(binary.Size(header) + binary.Size(levelIndex))
+	offset := uint64(binary.Size(header) + binary.Size(mipHeaders))
 	for i := config.Mips() - 1; i >= 0; i-- {
-		levelIndex[i].Offset = align(offset, 4)
-		offset += uint64(len(levelData[i]))
+		mipHeaders[i].Offset = roundUp(offset, 4)
+		offset += uint64(len(mipData[i]))
 	}
 
-	if err := binary.Write(ow, binary.LittleEndian, &levelIndex); err != nil {
+	if err := binary.Write(ow, binary.LittleEndian, &mipHeaders); err != nil {
 		return err
 	}
 
 	for i := config.Mips() - 1; i >= 0; i-- {
-		if _, err := ow.WriteAt(levelData[i], int64(levelIndex[i].Offset)); err != nil {
+		if _, err := ow.WriteAt(mipData[i], int64(mipHeaders[i].Offset)); err != nil {
 			return err
 		}
 	}
 
 	return nil
-}
-
-func align[T ~uint64](x, multiple T) T {
-	// TODO: don't do this stupidity
-	for x%multiple != 0 {
-		x++
-	}
-	return x
 }

@@ -5,7 +5,32 @@ import (
 	"slices"
 
 	"worldspawn/gpu"
+	"worldspawn/gpu/vk"
+	"worldspawn/gpu/vk/formatutil"
+
+	"golang.org/x/exp/constraints"
 )
+
+// TODO: this feels like it belongs to either gpu/image or gpu/vk/formatutil
+func calcLinearSize(format vk.Format, extent []int, layers int) int {
+	formatDesc := formatutil.Describe(format)
+
+	blocks := 1
+	for i, side := range extent {
+		blocks *= divRoundUp(side, formatDesc.BlockExtent[i])
+	}
+	return layers * blocks * formatDesc.BlockSize
+}
+
+func roundUp[T constraints.Integer](x, multiple T) T {
+	// TODO: don't do this stupidity
+	for x%multiple != 0 {
+		x++
+	}
+	return x
+}
+
+func divRoundUp[T constraints.Integer](x, y T) T { return (x + y - 1) / y }
 
 // Like slices.Index, but returns len(s) instead of -1.
 func index[S ~[]E, E comparable](s S, v E) int {

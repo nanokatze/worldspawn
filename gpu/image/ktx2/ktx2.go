@@ -9,7 +9,7 @@ type fileHeader struct {
 	Extent                     [3]uint32
 	LayerCount                 uint32
 	FaceCount                  uint32
-	LevelCount                 uint32
+	MipCount                   uint32
 	SupercompressionScheme     uint32
 	DataFormatDescriptor       indexEntry32
 	KeyValueData               indexEntry32
@@ -26,7 +26,7 @@ type indexEntry64 struct {
 	Length uint64
 }
 
-type levelIndexEntry struct {
+type mipSectionHeader struct {
 	indexEntry64
 	UncompressedLength uint64
 }
