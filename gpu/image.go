@@ -157,7 +157,7 @@ func newImage(data *imageData, config *subImageConfig) *Image {
 		// 1, 1, 1.
 		// TODO: check that viewFormatClass is uncompressed, while
 		// baseFormatClass is compressed instead of this hack
-		if formatutil.Describe(config.format).BlockExtent != ([3]int{1, 1, 1}) {
+		if formatutil.Describe(config.format).BlockExtent != pointOne() {
 			panic(fmt.Sprintf("cannot create a %v view of a %v class image", config.format, baseFormatClass))
 		}
 		extent = divByBlockExtentRoundUp(extent, data.config.format)
@@ -169,7 +169,7 @@ func newImage(data *imageData, config *subImageConfig) *Image {
 		dim:        config.dim,
 		format:     config.format,
 		bounds:     config.bounds(),
-		extent: [3]uint32{
+		extent: [3]uint32{ // TODO: outline into function
 			uint32(extent[0]),
 			uint32(extent[1]),
 			uint32(extent[2]),
@@ -187,7 +187,7 @@ func (img *Image) Config() ImageConfig {
 	return ImageConfig{
 		dim:    img.dim,
 		format: img.format,
-		extent: [3]int{
+		extent: point{ // TODO: outline into function
 			int(img.extent[0]),
 			int(img.extent[1]),
 			int(img.extent[2]),

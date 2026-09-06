@@ -14,18 +14,6 @@ import (
 
 // TODO: make image copy functions methods on the *Image?
 
-func offset3(x []int) [3]int {
-	tmp := [3]int{0, 0, 0}
-	copy(tmp[:], x)
-	return tmp
-}
-
-func extent3(x []int) [3]int {
-	tmp := [3]int{1, 1, 1}
-	copy(tmp[:], x)
-	return tmp
-}
-
 type copyImageJob struct {
 	dst           *imageData
 	dstBounds     imageBounds
@@ -47,9 +35,9 @@ func EnqueueCopyImage(
 
 func enqueueCopyImage(
 	jq *JobQueue,
-	dst *Image, dstOffset [3]int,
-	src *Image, srcOffset [3]int,
-	extent [3]int) {
+	dst *Image, dstOffset point,
+	src *Image, srcOffset point,
+	extent point) {
 	extentBlocks := divByBlockExtentRoundUp(extent, src.format)
 
 	dstOffsetBlocks := divByBlockExtent(dstOffset, dst.format)
@@ -133,9 +121,9 @@ func EnqueueCopyMemoryToImage(
 
 func enqueueCopyMemoryToImage(
 	jq *JobQueue,
-	dst *Image, dstOffset [3]int,
+	dst *Image, dstOffset point,
 	src Slice[byte], srcRowLength, srcImageHeight int,
-	extent [3]int) {
+	extent point) {
 	// TODO: validation
 
 	extentBlocks := divByBlockExtentRoundUp(extent, dst.format)
@@ -218,8 +206,8 @@ func EnqueueCopyImageToMemory(
 func enqueueCopyImageToMemory(
 	jq *JobQueue,
 	dst Slice[byte], dstRowLength, dstImageHeight int,
-	src *Image, srcOffset [3]int,
-	extent [3]int) {
+	src *Image, srcOffset point,
+	extent point) {
 	extentBlocks := divByBlockExtentRoundUp(extent, src.format)
 
 	srcOffsetBlocks := divByBlockExtent(srcOffset, src.format)
@@ -285,7 +273,7 @@ func (job *copyImageToMemoryJob) Exec(q *DeviceQueue) {
 // TODO: pass granularities array, queueFamilies explicitly?
 func chooseQueueFamiliesForImageCopy(
 	data *imageData, bounds imageBounds,
-	offsetBlocks, extentBlocks [3]int) QueueFamilyMask {
+	offsetBlocks, extentBlocks point) QueueFamilyMask {
 	levelExtent := minify3(data.config.extent, bounds.FirstMip())
 	levelExtentBlocks := divByBlockExtentRoundUp(levelExtent, data.config.format)
 
@@ -300,14 +288,15 @@ func chooseQueueFamiliesForImageCopy(
 		families &= Topology.QueueFamilies(vk.QueueFlags(vk.QUEUE_GRAPHICS_BIT))
 	}
 
-	entire := offsetBlocks == [3]int{} && extentBlocks == levelExtentBlocks
+	// TODO: this is not relevant since maint11
+	entire := offsetBlocks == pointZero() && extentBlocks == levelExtentBlocks
 	if !entire {
 		for family := range ones32(families &^ Topology.QueueFamilies(0b010)) {
 			granularity := int3FromVkExtent3D(Topology.Props[family].MinImageTransferGranularity)
 
-			if granularity == ([3]int{}) ||
-				mod3(offsetBlocks, granularity) != ([3]int{}) ||
-				mod3(extentBlocks, granularity) != ([3]int{}) {
+			if granularity == pointZero() ||
+				offsetBlocks.Mod(granularity) != pointZero() ||
+				offsetBlocks.Mod(granularity) != pointZero() {
 				families &^= 1 << family
 			}
 		}
@@ -319,29 +308,29 @@ func chooseQueueFamiliesForImageCopy(
 // TODO: rename to something better. This also isn't really copy-specific
 func copyRectInTexels(
 	data *imageData, bounds imageBounds,
-	offsetBlocks, extentBlocks [3]int) ([3]int, [3]int) {
+	offsetBlocks, extentBlocks point) (point, point) {
 	blockExtent := formatutil.Describe(data.config.format).BlockExtent
 	levelExtent := minify3(data.config.extent, bounds.FirstMip())
 
-	offset := mul3(offsetBlocks, blockExtent)
-	extent := min3(mul3(extentBlocks, blockExtent), sub3(levelExtent, offset))
+	offset := offsetBlocks.Mul(blockExtent)
+	extent := min3(extentBlocks.Mul(blockExtent), levelExtent.Sub(offset))
 	return offset, extent
 }
 
 // TODO: optimize for block sides? We don't need the general division here.
 
-func divByBlockExtent(x [3]int, yFormat vk.Format) [3]int {
+func divByBlockExtent(x point, yFormat vk.Format) point {
 	y := formatutil.Describe(yFormat).BlockExtent
-	return [3]int{
+	return point{
 		x[0] / y[0],
 		x[1] / y[1],
 		x[2] / y[2],
 	}
 }
 
-func divByBlockExtentRoundUp(x [3]int, yFormat vk.Format) [3]int {
+func divByBlockExtentRoundUp(x point, yFormat vk.Format) point {
 	y := formatutil.Describe(yFormat).BlockExtent
-	return [3]int{
+	return point{
 		(x[0] + y[0] - 1) / y[0],
 		(x[1] + y[1] - 1) / y[1],
 		(x[2] + y[2] - 1) / y[2],

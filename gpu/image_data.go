@@ -40,7 +40,7 @@ func makeImageData(config ImageConfig, opts *newImageOptions) *imageData {
 		imageCreateInfo.Flags |= vk.ImageCreateFlags(vk.IMAGE_CREATE_MUTABLE_FORMAT_BIT)
 		imageCreateInfo.Flags |= vk.ImageCreateFlags(vk.IMAGE_CREATE_EXTENDED_USAGE_BIT)
 		// TODO: actually check if it's compressed instead of checking BlockExtent
-		if formatutil.Describe(config.format).BlockExtent != ([3]int{1, 1, 1}) {
+		if formatutil.Describe(config.format).BlockExtent != pointOne() {
 			imageCreateInfo.Flags |= vk.ImageCreateFlags(vk.IMAGE_CREATE_BLOCK_TEXEL_VIEW_COMPATIBLE_BIT)
 		}
 		if config.dim.dimensions() == 2 && config.extent[0] == config.extent[1] && config.layers >= 6 {

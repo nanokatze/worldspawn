@@ -7,7 +7,7 @@ import "worldspawn/gpu/vk"
 type ImageConfig struct {
 	dim    imageDim
 	format vk.Format
-	extent [maxDimensions]int
+	extent point
 	mips   int
 	layers int
 }
