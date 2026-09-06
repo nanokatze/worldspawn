@@ -7,6 +7,7 @@ import (
 
 	"worldspawn/gpu"
 	"worldspawn/gpu/vk"
+	"worldspawn/gpu/vk/formatutil"
 )
 
 type Decoder struct {
@@ -49,6 +50,13 @@ func (dec *Decoder) Reset(r io.ReaderAt) error {
 }
 
 func (dec *Decoder) Config() gpu.ImageConfig { return dec.config }
+
+func (dec *Decoder) Granularity() []int {
+	config := dec.Config()
+	dim := len(config.Extent())
+	tmp := formatutil.Describe(config.Format()).BlockExtent
+	return tmp[:dim]
+}
 
 // TODO: support decoding at smaller granularity
 // TODO: allow users to pass scratch data explicitly
