@@ -24,10 +24,9 @@ func MakeImageConfig(format vk.Format, extent []int) ImageConfig {
 
 // TODO: rename pls
 // TODO: I wish we could just kill this
-// TODO: replace this with an enum?
-func (config ImageConfig) WithCube(cube bool) ImageConfig {
+func (config ImageConfig) SetIsCube(isCube bool) ImageConfig {
 	// TODO: make this a method on ImageDim
-	if cube {
+	if isCube {
 		config.dim |= 0x80
 	} else {
 		config.dim &^= 0x80
@@ -35,12 +34,12 @@ func (config ImageConfig) WithCube(cube bool) ImageConfig {
 	return config
 }
 
-func (config ImageConfig) WithMips(mips int) ImageConfig {
+func (config ImageConfig) SetMips(mips int) ImageConfig {
 	config.mips = mips
 	return config
 }
 
-func (config ImageConfig) WithLayers(layers int) ImageConfig {
+func (config ImageConfig) SetLayers(layers int) ImageConfig {
 	config.layers = layers
 	return config
 }

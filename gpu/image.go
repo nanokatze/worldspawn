@@ -60,7 +60,7 @@ func NewImage(config ImageConfig, opts ...NewImageOption) *Image {
 	data := makeImageData(config, &optStruct)
 
 	img := newImage(data,
-		&subImageConfig{
+		&subImageOptions{
 			dim:    config.dim,
 			format: config.format,
 			mips:   config.mips,
@@ -74,7 +74,7 @@ func NewImage(config ImageConfig, opts ...NewImageOption) *Image {
 type SubImageOption interface {
 	// TODO: this should also take the *Image so that we can perform validation
 	// during construction.
-	apply(config *subImageConfig)
+	apply(opts *subImageOptions)
 }
 
 // TODO: validation
@@ -85,32 +85,32 @@ type SubImageOption interface {
 // TODO: ViewAsCube{} variant
 type ViewAs int
 
-func (dim ViewAs) apply(config *subImageConfig) {
-	config.dim = makeImageDim(int(dim))
+func (dim ViewAs) apply(opts *subImageOptions) {
+	opts.dim = makeImageDim(int(dim))
 }
 
 type Reinterpret vk.Format
 
-func (format Reinterpret) apply(config *subImageConfig) {
+func (format Reinterpret) apply(opts *subImageOptions) {
 	// TODO: validation
-	config.format = vk.Format(format)
+	opts.format = vk.Format(format)
 }
 
 type SliceMips [2]int
 
-func (mips SliceMips) apply(config *subImageConfig) {
+func (mips SliceMips) apply(opts *subImageOptions) {
 	// TODO: validation
-	config.firstMip = config.firstMip + mips[0]
-	config.mips = mips[1] - mips[0]
+	opts.firstMip = opts.firstMip + mips[0]
+	opts.mips = mips[1] - mips[0]
 }
 
 // TODO: make a variant of this called SliceSlices to be used for 3D images
 type SliceLayers [2]int
 
-func (layers SliceLayers) apply(config *subImageConfig) {
+func (layers SliceLayers) apply(opts *subImageOptions) {
 	// TODO: validation
-	config.firstLayer = config.firstLayer + layers[0]
-	config.layers = layers[1] - layers[0]
+	opts.firstLayer = opts.firstLayer + layers[0]
+	opts.layers = layers[1] - layers[0]
 }
 
 // TODO: for multi-planar images we'd also want to specify aspect mask. Instead,
@@ -118,7 +118,7 @@ func (layers SliceLayers) apply(config *subImageConfig) {
 // bits). Depth-stencil images always have depth be plane 0 and stencil plane 1.
 // TODO: better parameter names
 func (img *Image) SubImage(opts ...SubImageOption) *Image {
-	config := subImageConfig{
+	optStruct := subImageOptions{
 		dim:        img.dim,
 		format:     img.format,
 		firstMip:   img.bounds.FirstMip(),
@@ -128,12 +128,12 @@ func (img *Image) SubImage(opts ...SubImageOption) *Image {
 	}
 	for _, opt := range opts {
 		// TODO: switch over common impls so that we can noescape things
-		opt.apply(&config)
+		opt.apply(&optStruct)
 	}
-	return newImage(img.data, &config)
+	return newImage(img.data, &optStruct)
 }
 
-type subImageConfig struct {
+type subImageOptions struct {
 	dim        imageDim
 	format     vk.Format
 	firstMip   int
@@ -142,33 +142,33 @@ type subImageConfig struct {
 	layers     int
 }
 
-func (config subImageConfig) bounds() imageBounds {
-	return makeImageBounds(formatutil.Aspects(config.format), config.firstMip, config.mips, config.firstLayer, config.layers)
+func (opts subImageOptions) bounds() imageBounds {
+	return makeImageBounds(formatutil.Aspects(opts.format), opts.firstMip, opts.mips, opts.firstLayer, opts.layers)
 }
 
-func newImage(data *imageData, config *subImageConfig) *Image {
-	extent := minify3(data.config.extent, config.firstMip)
+func newImage(data *imageData, opts *subImageOptions) *Image {
+	extent := minify3(data.config.extent, opts.firstMip)
 
 	baseFormatClass := formatutil.Describe(data.config.format).Class
-	viewFormatClass := formatutil.Describe(config.format).Class
+	viewFormatClass := formatutil.Describe(opts.format).Class
 	if viewFormatClass != baseFormatClass {
 		// Format classes differ, this can only be possible if we're
 		// reinterpreting a compressed format as uncompressed, so block1 must be
 		// 1, 1, 1.
 		// TODO: check that viewFormatClass is uncompressed, while
 		// baseFormatClass is compressed instead of this hack
-		if formatutil.Describe(config.format).BlockExtent != pointOne() {
-			panic(fmt.Sprintf("cannot create a %v view of a %v class image", config.format, baseFormatClass))
+		if formatutil.Describe(opts.format).BlockExtent != pointOne() {
+			panic(fmt.Sprintf("cannot create a %v view of a %v class image", opts.format, baseFormatClass))
 		}
 		extent = divByBlockExtentRoundUp(extent, data.config.format)
 	}
 
 	img := &Image{
 		data:       data,
-		descriptor: newImageDescriptor(data, config),
-		dim:        config.dim,
-		format:     config.format,
-		bounds:     config.bounds(),
+		descriptor: newImageDescriptor(data, opts),
+		dim:        opts.dim,
+		format:     opts.format,
+		bounds:     opts.bounds(),
 		extent: [3]uint32{ // TODO: outline into function
 			uint32(extent[0]),
 			uint32(extent[1]),

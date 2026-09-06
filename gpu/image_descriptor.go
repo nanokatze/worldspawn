@@ -47,8 +47,8 @@ func (descriptor ImageDescriptor) tag() uint32 { return descriptor.bits >> 20 }
 
 var imageDescriptorAllocHint int64
 
-func newImageDescriptor(data *imageData, config *subImageConfig) ImageDescriptor {
-	formatProps := getFormatImageProperties(config.format)
+func newImageDescriptor(data *imageData, opts *subImageOptions) ImageDescriptor {
+	formatProps := getFormatImageProperties(opts.format)
 	if !formatProps.Supported {
 		panic("unsupported format")
 	}
@@ -74,9 +74,9 @@ func newImageDescriptor(data *imageData, config *subImageConfig) ImageDescriptor
 		dst := dst0[rank32(tag, i)*vulkanImageDescriptorSize:]
 		switch 1 << i {
 		case shaderUsageSampling:
-			marshalVulkanImageDescriptor(dst, data, config, vk.DESCRIPTOR_TYPE_SAMPLED_IMAGE)
+			marshalVulkanImageDescriptor(dst, data, opts, vk.DESCRIPTOR_TYPE_SAMPLED_IMAGE)
 		case shaderUsageLoadStore:
-			marshalVulkanImageDescriptor(dst, data, config, vk.DESCRIPTOR_TYPE_STORAGE_IMAGE)
+			marshalVulkanImageDescriptor(dst, data, opts, vk.DESCRIPTOR_TYPE_STORAGE_IMAGE)
 		default:
 			panic("unreachable")
 		}
@@ -92,7 +92,7 @@ func cleanupImageDescriptor(descriptor ImageDescriptor) {
 	resourceHeap.Free(off, len)
 }
 
-func marshalVulkanImageDescriptor(dst []byte, data *imageData, config *subImageConfig, descriptorType vk.DescriptorType) {
+func marshalVulkanImageDescriptor(dst []byte, data *imageData, opts *subImageOptions, descriptorType vk.DescriptorType) {
 	dstHostAddressRange := byteSliceToHostAddressRange(dst)
 
 	VkFns.WriteResourceDescriptorsEXT(Device, 1,
@@ -104,9 +104,9 @@ func marshalVulkanImageDescriptor(dst []byte, data *imageData, config *subImageC
 				PView: &vk.ImageViewCreateInfo{
 					SType:            vk.STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 					Image:            data.vkImage,
-					ViewType:         config.dim.vkImageViewType(),
-					Format:           config.format,
-					SubresourceRange: config.bounds().VkImageSubresourceRange(config.format),
+					ViewType:         opts.dim.vkImageViewType(),
+					Format:           opts.format,
+					SubresourceRange: opts.bounds().VkImageSubresourceRange(opts.format),
 				},
 				Layout: vk.IMAGE_LAYOUT_GENERAL,
 			}),

@@ -12,7 +12,7 @@ func TestImageExtent(t *testing.T) {
 
 	img := NewImage(
 		MakeImageConfig(vk.FORMAT_BC7_SRGB_BLOCK, []int{15, 15}).
-			WithMips(completeMipChainLength(15, 15, 1)))
+			SetMips(completeMipChainLength(15, 15, 1)))
 	defer img.Destroy()
 
 	for i := range 4 {
