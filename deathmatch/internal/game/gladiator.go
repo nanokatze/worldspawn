@@ -18,7 +18,6 @@ var gladiatorStats = struct {
 	StandingHeight     float32
 	StandingViewHeight float32 // TODO: I don't really like this existing
 
-	WalkSpeed                float32
 	BackwardsWalkSpeedFactor float32
 	WalkAcceleration         float32 // TODO: replace with strength
 	AirAcceleration          float32
@@ -29,11 +28,18 @@ var gladiatorStats = struct {
 	StandingHeight:     1.9,
 	StandingViewHeight: 1.9 - 0.1,
 
-	WalkSpeed:                10,
 	BackwardsWalkSpeedFactor: 0.8,
 	WalkAcceleration:         35,
 	JumpVelocity:             8,
 }
+
+// TODO: make walk speed, dash duration etc base values and then different "heroes" would apply multipliers
+
+const (
+	gladiatorBaseWalkSpeed    = float32(10)
+	gladiatorBaseDashDistance = float64(8)
+	gladiatorBaseDashDuration = 200 * time.Millisecond
+)
 
 type Gladiator struct {
 	// TODO: things don't group cleanly under "Input" so we should think of
@@ -64,10 +70,14 @@ type Gladiator struct {
 	Motion struct {
 		Steps float64
 
-		Supported bool
+		State     int8 // 0=walking, 1=dashing
+		DashVec   gmath.Vec2f32
+		DashEnds  Time
+		NextDash  Time
+		Supported bool // TODO: probs fold it into State
 	}
 
-	// Always a descendant of the Character,
+	// Always a descendant of the Character.
 	Head EntityID
 
 	// Always a descendant of Character.
@@ -247,8 +257,12 @@ func init() {
 
 				T := gladiator.Transform()
 
-				v := gladiator.Velocity()
-				defer func() { gladiator.SetVelocity(v) }()
+				v := gladiator.Velocity().Linear
+				defer func() {
+					tmp := gladiator.Velocity()
+					tmp.Linear = v
+					gladiator.SetVelocity(tmp)
+				}()
 
 				rotation := T.R.Mul(e01.Pow(4 * state.Input.Head[0]))
 
@@ -257,22 +271,63 @@ func init() {
 					move = move.Scale(1 / float32(math.Sqrt(float64(lengthSqr))))
 				}
 
-				v_local := rotation.Inv().Rotate(v.Linear)
-				if state.Motion.Supported {
-					v_local[0] = move[0] * gladiatorStats.WalkSpeed
-					v_local[1] = move[1] * gladiatorStats.WalkSpeed
-					if state.Input.Jump {
-						v_local[2] = 4
+				// if state.Input.Dash && state.Motion.NextDash.Compare(stx.Now) <= 0 {
+				// }
+
+				switch state.Motion.State {
+				case 0:
+					if state.Input.Dash && state.Motion.NextDash.Compare(stx.Now) <= 0 {
+						var dashDir gmath.Vec2f32
+						if move.Length() >= 0.1 {
+							dashDir = move.Normalize()
+						} else {
+							dashDir = gmath.Vec2f32{0, 1}
+						}
+						state.Motion.DashVec = dashDir
+						state.Motion.DashEnds = stx.Now.Add(gladiatorBaseDashDuration)
+						state.Motion.NextDash = stx.Now.Add(300 * time.Millisecond)
+						state.Motion.State = 1
+					}
+
+				case 1:
+					if state.Motion.DashEnds.Compare(stx.Now) <= 0 {
+						// Slow us down to walk speed
+						//
+						// TODO: idk about doing this here. I'd be more comfortable threading a bool or something
+						v = v.Normalize().Scale(min(v.Length(), gladiatorBaseWalkSpeed))
+						state.Motion.State = 0
 					}
 				}
-				v.Linear = rotation.Rotate(v_local)
-				if !state.Motion.Supported {
-					v.Linear = v.Linear.Add(stx.Gravity.Scale(float32(durationToFloatSeconds(stx.Δt))))
+
+				// TODO: let the cases do transform to v_local if they need to
+				switch state.Motion.State {
+				case 0:
+					v_local := rotation.Inv().Rotate(v)
+					if state.Motion.Supported {
+						v_local[0] = move[0] * gladiatorBaseWalkSpeed
+						v_local[1] = move[1] * gladiatorBaseWalkSpeed
+						if state.Input.Jump {
+							// TODO: should this be done in local frame or
+							// global?
+							v_local[2] = 4
+						}
+					}
+					v = rotation.Rotate(v_local)
+					if !state.Motion.Supported {
+						v = v.Add(stx.Gravity.Scale(float32(durationToFloatSeconds(stx.Δt))))
+					}
+
+				case 1:
+					// TODO: DashVec should be global instead of doing this
+					v_local := rotation.Inv().Rotate(v)
+					v_local[0] = state.Motion.DashVec[0] * 30
+					v_local[1] = state.Motion.DashVec[1] * 30
+					v = rotation.Rotate(v_local)
 				}
-				v.Linear = state.asdasd(stx.world, gladiator.ID(), v.Linear, stx.Δt)
+				v = state.asdasd(stx.world, gladiator.ID(), v, stx.Δt)
 
 				if state.Motion.Supported {
-					state.Motion.Steps += float64(v.Linear.Length()) * durationToFloatSeconds(stx.Δt)
+					state.Motion.Steps += float64(v.Length()) * durationToFloatSeconds(stx.Δt)
 				}
 				if state.Motion.Steps > 3 {
 					gladiator.SetSoundEffect(SoundEmitter{
