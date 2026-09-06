@@ -3,7 +3,12 @@
 
 package formatutil
 
-import "worldspawn/gpu/vk"
+import (
+	"iter"
+	"maps"
+
+	"worldspawn/gpu/vk"
+)
 
 type Class int
 
@@ -13,13 +18,12 @@ type Description struct {
 	BlockExtent [3]int
 }
 
-func Describe(format vk.Format) Description {
-	return formatTable[format]
+func All() iter.Seq2[vk.Format, Description] {
+	return maps.All(formatTable)
 }
 
-// TODO: rename to Summarize?
-func FindFormat(description Description) vk.Format {
-	return 0
+func Describe(format vk.Format) Description {
+	return formatTable[format]
 }
 
 // TODO: derive this from the format table and/or autogenerate?
